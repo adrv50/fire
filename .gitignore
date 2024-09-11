@@ -1,0 +1,18 @@
+/build
+/__pycache__
+/memo
+
+# Binary files
+metro
+metrod
+tester
+
+# other
+*.o
+*.d
+*.a
+*.out
+*.elf
+
+test.metro
+a.*
