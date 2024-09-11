@@ -47,7 +47,7 @@ TokenVector Lexer::Lex() {
     }
 
     else if (c == '\'' || c == '"') {
-      tok.kind = TokenKind::Char;
+      tok.kind = c == '"' ? TokenKind::String : TokenKind::Char;
 
       for (this->pos++; this->peek() != c; this->pos++)
         ;
@@ -55,20 +55,17 @@ TokenVector Lexer::Lex() {
       this->pos++;
 
       if (!this->check()) {
-        Error(tok)
-            .set_message(
-                "not terminated " +
-                std::string(c == '"' ? "string" : "character") +
-                " literal")
-            .emit()
-            .stop();
+        Error(tok,
+              "not terminated " +
+                  std::string(c == '"' ? "string" : "character") +
+                  " literal")();
       }
 
       if (c == '\'') {
         auto len = this->pos - pos - 2;
 
         if (len == 0 || len >= 2)
-          Error(tok).set_message("invalid character literal").emit();
+          Error(tok, "invalid character literal")();
       }
     }
 
@@ -82,7 +79,7 @@ TokenVector Lexer::Lex() {
         }
       }
 
-      Error(tok).set_message("invalid token").emit().stop();
+      Error(tok, "invalid token")();
     }
 
     tok.str = std::string_view(s, this->pos - pos);

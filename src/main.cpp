@@ -2,6 +2,7 @@
 #include "alert.h"
 #include "Utils.h"
 #include "Parser.h"
+#include "Evaluator.h"
 
 int main(int argc, char** argv) {
   using namespace metro;
@@ -16,7 +17,9 @@ int main(int argc, char** argv) {
 
   parser::Parser parser{lexer.Lex()};
 
-  auto ast = parser.Parse();
+  eval::Evaluator eval{parser.Parse()};
+
+  eval.do_eval();
 
   return 0;
 }

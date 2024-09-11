@@ -145,8 +145,6 @@ enum class ASTKind {
 
   Module,
 
-  Namespace,
-
   TypeName,
 };
 
@@ -232,14 +230,6 @@ struct Block : Base {
   ASTVector list;
 
   Block(ASTVector list = {}) : Base(ASTKind::Block, "{", "}") {
-  }
-};
-
-struct Namespace : Named {
-  ASTVector list;
-
-  Namespace(Token tok, Token name)
-      : Named(ASTKind::Namespace, tok, tok) {
   }
 };
 

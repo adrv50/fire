@@ -5,15 +5,12 @@
 
 namespace metro {
 
-Error::Error(Token tok) : loc_token(tok) {
+Error::Error(Token tok, std::string msg)
+    : loc_token(tok), msg(std::move(msg)) {
 }
 
-Error::Error(AST::ASTPointer ast) : loc_ast(ast) {
-}
-
-Error& Error::set_message(std::string msg) {
-  this->msg = std::move(msg);
-  return *this;
+Error::Error(AST::ASTPointer ast, std::string msg)
+    : loc_ast(ast), msg(std::move(msg)) {
 }
 
 Error& Error::emit(bool as_warn) {

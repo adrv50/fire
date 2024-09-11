@@ -59,6 +59,15 @@ ObjPointer ObjString::SubString(size_t pos, size_t length) {
   return obj;
 }
 
+std::string ObjString::ToString() const {
+  std::u16string temp;
+
+  for (auto&& c : this->list)
+    temp.push_back(c->As<ObjPrimitive>()->vc);
+
+  return utils::to_u8string(temp + u'\0');
+}
+
 ObjString::ObjString(std::u16string const& str)
     : ObjIterable(TypeKind::String) {
   if (!str.empty())
@@ -76,14 +85,6 @@ ObjPointer ObjCallable::Clone() const {
 
 std::string ObjCallable::ToString() const {
   return "(callable-object)";
-}
-
-ObjPointer ObjCallable::Call(ObjVector args) const {
-  if (this->func) {
-    todo_impl;
-  }
-
-  return this->builtin->Call(std::move(args));
 }
 
 ObjCallable::ObjCallable(AST::Function const* fp)

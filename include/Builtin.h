@@ -12,7 +12,7 @@ struct Function {
   std::string name;
   std::vector<TypeInfo> arg_types;
   TypeInfo result_type;
-  bool is_variable_args;
+  bool is_variable_args; // true = 可変長引数
   FuncPointer func;
 
   ObjPointer Call(ObjVector args) const;
@@ -31,6 +31,10 @@ struct Module {
   std::vector<ASTPtr<AST::Class>> classes;
   std::vector<Function> functions;
 };
+
+Function const* find_builtin_func(std::string const& name);
+Class const* find_builtin_class(std::string const& name);
+Module const* find_builtin_module(std::string const& name);
 
 } // namespace builtin
 

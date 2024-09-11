@@ -27,9 +27,14 @@ struct TypeInfo {
   TypeKind kind;
   std::vector<TypeInfo> params;
 
+  bool is_const = false;
+
   static std::vector<char const*> get_primitive_names();
 
   static bool is_primitive_name(std::string_view);
+
+  bool equals(TypeInfo const& type) const;
+  std::string to_string() const;
 
   TypeInfo(TypeKind kind = TypeKind::None) : TypeInfo(kind, {}) {
   }

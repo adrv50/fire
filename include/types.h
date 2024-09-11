@@ -32,6 +32,12 @@ struct ObjInstance;
 using ObjPointer = std::shared_ptr<Object>;
 using ObjVector = std::vector<ObjPointer>;
 
+template <class T>
+using ObjPtr = std::shared_ptr<T>;
+
+template <class T>
+using ObjVec = std::vector<ObjPtr<T>>;
+
 template <class T, class... Args>
 std::shared_ptr<T> ObjNew(Args&&... args) {
   return std::make_shared<T>(std::forward<Args>(args)...);
@@ -68,6 +74,11 @@ using ASTVector = std::vector<ASTPointer>;
 
 template <class T>
 using ASTPtr = std::shared_ptr<T>;
+
+template <class T>
+ASTPtr<T> ASTCast(AST::ASTPointer p) {
+  return std::static_pointer_cast<T>(p);
+}
 
 template <class T>
 using ASTVec = std::vector<std::shared_ptr<T>>;

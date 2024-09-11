@@ -12,6 +12,10 @@ struct Object {
   // i64 ref_count;
   bool is_marked;
 
+  bool is_callable() const {
+    return this->type.kind == TypeKind::Function;
+  }
+
   virtual ~Object() = default;
 
   virtual ObjPointer Clone() const = 0;
@@ -96,12 +100,17 @@ struct ObjInstance : Object {
   std::map<std::string, ObjPointer> member;
   std::vector<ObjCallable> member_funcs;
 
+  ObjPointer Clone() const override;
+  std::string ToString() const override;
+
   ObjInstance(ASTPtr<AST::Class> ast);
   ObjInstance(builtin::Class const* ast);
 };
 
 struct ObjString : ObjIterable {
   ObjPointer SubString(size_t pos, size_t length);
+
+  std::string ToString() const override;
 
   ObjString(std::u16string const& str = u"");
   ObjString(std::string const& str);
@@ -116,8 +125,6 @@ struct ObjCallable : Object {
 
   ObjPointer Clone() const override;
   std::string ToString() const override;
-
-  ObjPointer Call(ObjVector args) const;
 
   ObjCallable(AST::Function const* fp);
   ObjCallable(builtin::Function const* fp);

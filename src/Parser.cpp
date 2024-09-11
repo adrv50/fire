@@ -54,7 +54,7 @@ ASTPointer Parser::Factor() {
   }
   }
 
-  Error(tok).set_message("invalid syntax").emit().stop();
+  Error(tok, "invalid syntax")();
 }
 
 ASTPointer Parser::IndexRef() {
@@ -270,7 +270,7 @@ ASTPointer Parser::Stmt() {
       }
     }
 
-    Error(tok).set_message("not terminated block").emit().stop();
+    Error(tok, "not terminated block")();
 
   block_closed:;
     cur_scope_depth--;
@@ -327,7 +327,8 @@ ASTPointer Parser::Top() {
     this->expect("{");
 
     if (this->eat("}")) {
-      Error(*this->ate).set_message("empty enum is not valid").emit();
+      Error(*this->ate, "empty enum is not valid").emit();
+
       return ast;
     }
 
@@ -365,10 +366,7 @@ ASTPointer Parser::Top() {
 
     while (this->check() && !(closed = this->eat("}"))) {
       if (!this->match("fn"))
-        Error(*this->cur)
-            .set_message("expected definition of member function")
-            .emit()
-            .stop();
+        Error(*this->cur, "expected definition of member function")();
 
       ast->mb_functions.emplace_back(
           std::static_pointer_cast<AST::Function>(this->Top()));
@@ -377,10 +375,7 @@ ASTPointer Parser::Top() {
     cur_scope_depth--;
 
     if (!closed)
-      Error(iter[2])
-          .set_message("not terminated block")
-          .emit()
-          .stop();
+      Error(iter[2], "not terminated block")();
 
     return ast;
   }
@@ -421,34 +416,7 @@ ASTPointer Parser::Top() {
     return func;
   }
 
-  if (this->eat("namespace")) {
-
-    auto ast = ASTNew<AST::Namespace>(tok, *this->expectIdentifier());
-
-    this->expect("{");
-    cur_scope_depth++;
-
-    bool closed = false;
-
-    while (this->check() && !(closed = this->eat("}"))) {
-      ast->list.emplace_back(this->Top());
-    }
-
-    if (!closed)
-      Error(ast->token)
-          .set_message("not terminated block")
-          .emit()
-          .stop();
-
-    cur_scope_depth--;
-
-    return ast;
-  }
-
-  Error(*this->cur)
-      .set_message("expected enum or class or function or namespace")
-      .emit()
-      .stop();
+  return this->Stmt();
 }
 
 AST::Program Parser::Parse() {
@@ -462,9 +430,10 @@ AST::Program Parser::Parse() {
                                name.length(), name.data(),
                                tag.scope_depth, tag.type)
               << std::endl;
-  })
+  });
 
-      while (this->check()) ret.list.emplace_back(this->Top());
+  while (this->check())
+    ret.list.emplace_back(this->Top());
 
   return ret;
 }
@@ -484,14 +453,6 @@ void Parser::MakeIdentifierTags() {
     else if (this->match("let", TokenKind::Identifier)) {
       this->add_id_tag(this->cur[1].str,
                        IdentifierTag(IdentifierTag::Variable,
-                                     this->cur + 1, scope_depth));
-
-      this->cur += 2;
-    }
-
-    else if (this->match("namespace", TokenKind::Identifier)) {
-      this->add_id_tag(this->cur[1].str,
-                       IdentifierTag(IdentifierTag::Namespace,
                                      this->cur + 1, scope_depth));
 
       this->cur += 2;
@@ -544,12 +505,9 @@ bool Parser::eat(std::string_view str) {
 
 void Parser::expect(std::string_view str, bool no_next) {
   if (!this->eat(str)) {
-    Error(*this->cur)
-        .set_message("expected '" + std::string(str) +
-                     "' buf found '" + std::string(this->cur->str) +
-                     "'")
-        .emit()
-        .stop();
+    Error(*this->cur, "expected '" + std::string(str) +
+                          "' buf found '" +
+                          std::string(this->cur->str) + "'")();
   }
 
   if (no_next)
@@ -558,11 +516,8 @@ void Parser::expect(std::string_view str, bool no_next) {
 
 TokenIterator Parser::expectIdentifier() {
   if (this->cur->kind != TokenKind::Identifier) {
-    Error(*this->cur)
-        .set_message("expected identifier but found '" +
-                     std::string(this->cur->str) + "'")
-        .emit()
-        .stop();
+    Error(*this->cur, "expected identifier but found '" +
+                          std::string(this->cur->str) + "'")();
   }
 
   return this->cur++;
@@ -572,7 +527,7 @@ ASTPtr<AST::TypeName> Parser::expectTypeName() {
   auto ast = ASTNew<AST::TypeName>(*this->expectIdentifier());
 
   if (!this->is_type_name(ast->token.str)) {
-    Error(ast->token).set_message("expected type name").emit().stop();
+    Error(ast->token, "expected type name")();
   }
 
   if (this->eat("<")) {

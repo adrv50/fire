@@ -6,14 +6,15 @@ namespace metro {
 
 class Error {
 public:
-  Error(Token tok);
-  Error(AST::ASTPointer ast);
+  Error(Token tok, std::string msg);
+  Error(AST::ASTPointer ast, std::string msg);
 
-  Error& set_message(std::string msg);
+  [[noreturn]]
+  void operator()() {
+    this->emit().stop();
+  }
 
   Error& emit(bool as_warn = false);
-
-  Error& emit_as_hint();
 
   [[noreturn]]
   void stop();
