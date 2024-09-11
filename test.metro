@@ -1,0 +1,7 @@
+fn main(args: int) {
+    let a = 10;
+
+    let b : int;
+
+    println("Hello, World");
+}

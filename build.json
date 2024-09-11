@@ -1,0 +1,27 @@
+{
+    "cc": "clang",
+    "cxx": "clang++",
+    "ld": "clang++",
+
+    "output": "metro",
+
+    "include": "include",
+    "src": "src",
+    "objdir": "objects",
+    "builddir": ".pybuilder",
+
+    "flags": {
+        "default": {
+            "common": [ "-O3", "-Wall", "-Wextra" ],
+            "c": [ "-std=c17" ],
+            "cpp": [ "-std=c++20" ],
+            "ld": [ "--gc-sections", "-s" ]
+        },
+        "debug": {
+            "common": [ "-O0 -g" ],
+            "c": [ "-std=c17" ],
+            "cpp": [ "-std=c++20" ],
+            "ld": [ "" ]
+        }
+    }
+}
