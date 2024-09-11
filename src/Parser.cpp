@@ -50,40 +50,26 @@ ASTPointer Parser::Factor() {
                  tok.str.substr(1, tok.str.length() - 2))));
 
   case TokenKind::Identifier: {
-    todo_impl;
+    return ASTNew<AST::Variable>(tok);
   }
   }
 
   Error(tok).set_message("invalid syntax").emit().stop();
 }
 
-ASTPointer Parser::ScopeResol() {
-  auto x = this->Factor();
-
-  while (this->check() && this->eat("::")) {
-    auto& op = *this->ate;
-
-    x = ASTNew<AST::Expr>(ASTKind::ScopeResolution, op, x,
-                          this->Factor());
-  }
-
-  return x;
-}
-
 ASTPointer Parser::IndexRef() {
-  auto x = this->ScopeResol();
+  auto x = this->Factor();
 
   while (this->check()) {
     auto& op = *this->cur;
 
     if (this->eat("[")) {
-      x = ASTNew<AST::Expr>(ASTKind::IndexRef, op, x,
-                            this->ScopeResol());
+      x = ASTNew<AST::Expr>(ASTKind::IndexRef, op, x, this->Factor());
       this->expect("]");
     }
     else if (this->eat(".")) {
       x = ASTNew<AST::Expr>(ASTKind::MemberAccess, op, x,
-                            this->ScopeResol());
+                            this->Factor());
     }
     else if (this->eat("(")) {
       x = ASTNew<AST::CallFunc>(x);
@@ -152,14 +138,116 @@ ASTPointer Parser::Add() {
   return x;
 }
 
+ASTPointer Parser::Shift() {
+  auto x = this->Add();
+
+  while (this->check()) {
+    auto& op = *this->cur;
+
+    if (this->eat("<<"))
+      x = new_expr(ASTKind::LShift, op, x, this->Add());
+    else if (this->eat(">>"))
+      x = new_expr(ASTKind::RShift, op, x, this->Add());
+    else
+      break;
+  }
+
+  return x;
+}
+
+ASTPointer Parser::Compare() {
+  auto x = this->Shift();
+
+  while (this->check()) {
+    auto& op = *this->cur;
+
+    if (this->eat("=="))
+      x = new_expr(ASTKind::Equal, op, x, this->Shift());
+    else if (this->eat("!="))
+      x = new_expr(ASTKind::Not, op,
+                   new_expr(ASTKind::Equal, op, x, this->Shift()),
+                   nullptr);
+    else if (this->eat(">"))
+      x = new_expr(ASTKind::Bigger, op, x, this->Shift());
+    else if (this->eat("<"))
+      x = new_expr(ASTKind::Bigger, op, this->Shift(), x);
+    else if (this->eat(">="))
+      x = new_expr(ASTKind::BiggerOrEqual, op, x, this->Shift());
+    else if (this->eat("<="))
+      x = new_expr(ASTKind::BiggerOrEqual, op, this->Shift(), x);
+    else
+      break;
+  }
+
+  return x;
+}
+
+ASTPointer Parser::BitCalc() {
+  auto x = this->Compare();
+
+  while (this->check()) {
+    auto& op = *this->cur;
+
+    if (this->eat("&"))
+      x = new_expr(ASTKind::BitAND, op, x, this->Compare());
+    else if (this->eat("^"))
+      x = new_expr(ASTKind::BitXOR, op, x, this->Compare());
+    else if (this->eat("|"))
+      x = new_expr(ASTKind::BitOR, op, x, this->Compare());
+    else
+      break;
+  }
+
+  return x;
+}
+
+ASTPointer Parser::LogAndOr() {
+  auto x = this->BitCalc();
+
+  while (this->check()) {
+    auto& op = *this->cur;
+
+    if (this->eat("&&"))
+      x = new_expr(ASTKind::LogAND, op, x, this->BitCalc());
+    else if (this->eat("||"))
+      x = new_expr(ASTKind::LogOR, op, x, this->BitCalc());
+    else
+      break;
+  }
+
+  return x;
+}
+
+ASTPointer Parser::Assign() {
+  auto x = this->LogAndOr();
+
+  while (this->check()) {
+    auto& op = *this->cur;
+
+    if (this->eat("="))
+      x = new_expr(ASTKind::Assign, op, x, this->Assign());
+    else if (this->eat("*="))
+      x = new_assign(ASTKind::Mul, op, x, this->Assign());
+    else if (this->eat("/="))
+      x = new_assign(ASTKind::Div, op, x, this->Assign());
+    else if (this->eat("+="))
+      x = new_assign(ASTKind::Add, op, x, this->Assign());
+    else if (this->eat("-="))
+      x = new_assign(ASTKind::Sub, op, x, this->Assign());
+    else
+      break;
+  }
+
+  return x;
+}
+
 ASTPointer Parser::Expr() {
-  return this->Add();
+  return this->Assign();
 }
 
 ASTPointer Parser::Stmt() {
 
   auto tok = *this->cur;
-  auto iter = this->cur;
 
   if (this->eat("{")) {
     auto ast = ASTNew<AST::Block>();
@@ -368,16 +456,15 @@ AST::Program Parser::Parse() {
 
   this->MakeIdentifierTags();
 
-  alert;
-  for (auto&& [name, tag] : this->id_tag_map) {
+  debug(alert; for (auto&& [name, tag]
+                    : this->id_tag_map) {
     std::cout << utils::Format("%.*s\t: depth=% 2d, type=%d",
                                name.length(), name.data(),
                                tag.scope_depth, tag.type)
               << std::endl;
-  }
+  })
 
-  while (this->check())
-    ret.list.emplace_back(this->Top());
+      while (this->check()) ret.list.emplace_back(this->Top());
 
   return ret;
 }

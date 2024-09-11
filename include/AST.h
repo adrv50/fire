@@ -13,6 +13,13 @@ namespace metro {
 struct SourceStorage {
   struct LineRange {
     i64 index, begin, end, length;
+
+    LineRange(i64 index, i64 begin, i64 end)
+        : index(index), begin(begin), end(end), length(end - begin) {
+    }
+
+    LineRange() : LineRange(0, 0, 0) {
+    }
   };
 
   std::string path;
@@ -45,14 +52,14 @@ struct SourceLocation {
   SourceStorage::LineRange line;
 
   std::string_view GetLine() const {
-    return ref->GetLineView(line);
+    return this->ref->GetLineView(this->line);
   }
 
-  SourceLocation(i64 pos, i64 len, SourceStorage const* ref)
-      : position(pos), length(len), pos_in_line(0), ref(ref) {
-    if (ref) {
-      this->line = ref->GetLineRange(this->position);
-      this->pos_in_line = this->position - line.begin;
+  SourceLocation(i64 pos, i64 len, SourceStorage const* r)
+      : position(pos), length(len), pos_in_line(0), ref(r) {
+    if (this->ref) {
+      this->line = this->ref->GetLineRange(this->position);
+      this->pos_in_line = this->position - this->line.begin;
     }
   }
 
@@ -94,19 +101,32 @@ struct Token {
 
 enum class ASTKind {
   Value,
-
-  Identifier,
-
-  ScopeResolution,
+  Variable,
 
   IndexRef,
   MemberAccess,
   CallFunc,
 
+  Not, // !
+
   Mul,
   Div,
   Add,
   Sub,
+  LShift,
+  RShift,
+  Bigger,        // a > b
+  BiggerOrEqual, // a >= b
+  Equal,
+
+  BitAND,
+  BitXOR,
+  BitOR,
+
+  LogAND,
+  LogOR,
+
+  Assign,
 
   Block,
   Vardef,
@@ -169,12 +189,22 @@ struct Value : Base {
   }
 };
 
-struct Identifier : Base {
-  Token& name;
-  ASTVector id_params;
+struct Named : Base {
+  Token name;
 
-  Identifier(Token name)
-      : Base(ASTKind::Identifier, name, name), name(this->token) {
+  std::string_view GetName() const {
+    return this->name.str;
+  }
+
+protected:
+  Named(ASTKind kind, Token tok, Token name)
+      : Base(kind, tok), name(name) {
+    this->is_named = true;
+  }
+};
+
+struct Variable : Named {
+  Variable(Token tok) : Named(ASTKind::Variable, tok, tok) {
   }
 };
 
@@ -202,20 +232,6 @@ struct Block : Base {
   ASTVector list;
 
   Block(ASTVector list = {}) : Base(ASTKind::Block, "{", "}") {
-  }
-};
-
-struct Named : Base {
-  Token name;
-
-  std::string_view GetName() const {
-    return this->name.str;
-  }
-
-protected:
-  Named(ASTKind kind, Token tok, Token name)
-      : Base(kind, tok), name(name) {
-    this->is_named = true;
   }
 };
 
@@ -277,19 +293,6 @@ struct TypeName : Base {
   }
 };
 
-struct Templatable : Named {
-  ASTVec<Identifier> template_params;
-
-  bool IsTemplated() const {
-    return !this->template_params.empty();
-  }
-
-protected:
-  Templatable(ASTKind kind, Token tok, Token name)
-      : Named(kind, tok, name) {
-  }
-};
-
 struct FuncArgument : Named {
   ASTPtr<TypeName> type;
 
@@ -298,13 +301,13 @@ struct FuncArgument : Named {
   }
 };
 
-struct Function : Templatable {
+struct Function : Named {
   ASTVec<FuncArgument> args;
   ASTPtr<TypeName> return_type;
   ASTPtr<Block> block;
 
   Function(Token tok, Token name)
-      : Templatable(ASTKind::Function, tok, name) {
+      : Named(ASTKind::Function, tok, name) {
   }
 };
 
@@ -315,20 +318,18 @@ struct Enumerator : Named {
   }
 };
 
-struct Enum : Templatable {
+struct Enum : Named {
   ASTVec<Enumerator> enumerators;
 
-  Enum(Token tok, Token name)
-      : Templatable(ASTKind::Enum, tok, name) {
+  Enum(Token tok, Token name) : Named(ASTKind::Enum, tok, name) {
   }
 };
 
-struct Class : Templatable {
+struct Class : Named {
   ASTVec<VarDef> mb_variables;
   ASTVec<Function> mb_functions;
 
-  Class(Token tok, Token name)
-      : Templatable(ASTKind::Class, tok, name) {
+  Class(Token tok, Token name) : Named(ASTKind::Class, tok, name) {
   }
 };
 

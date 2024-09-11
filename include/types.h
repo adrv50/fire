@@ -49,7 +49,7 @@ struct SourceLocation;
 namespace AST {
 struct Base;
 struct Value;
-struct Identifier;
+struct Variable;
 struct Expr;
 struct Block;
 struct VarDef;

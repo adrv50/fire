@@ -7,6 +7,7 @@
 
 #define COL_DEFAULT "\033[0m"
 #define COL_BOLD "\033[1m"
+#define COL_UNBOLD "\033[2m"
 
 #define COL_BLACK "\033[30m"
 #define COL_RED "\033[31m"
@@ -15,6 +16,7 @@
 #define COL_BLUE "\033[34m"
 #define COL_MAGENTA "\033[35m"
 #define COL_CYAN "\033[36;5m"
+#define COL_GRAY "\e[38;5;235m"
 #define COL_WHITE "\033[37m"
 
 #define COL_BK_BLACK "\033[40m"

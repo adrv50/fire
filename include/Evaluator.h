@@ -4,6 +4,9 @@
 
 namespace metro {
 
-class Evaluator {};
+class Evaluator {
+public:
+private:
+};
 
 } // namespace metro

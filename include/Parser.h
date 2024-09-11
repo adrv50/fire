@@ -90,16 +90,20 @@ public:
 
   ASTPointer Factor();
 
-  ASTPointer ScopeResol();
-
   ASTPointer IndexRef();
   ASTPointer Unary();
 
   ASTPointer Mul();
   ASTPointer Add();
-  ASTPointer Expr();
+  ASTPointer Shift();
+  ASTPointer Compare();
+  ASTPointer BitCalc();
+  ASTPointer LogAndOr();
+  ASTPointer Assign();
 
+  ASTPointer Expr();
   ASTPointer Stmt();
+
   ASTPointer Top();
 
   AST::Program Parse();
@@ -132,6 +136,18 @@ private:
 
     this->cur = save;
     return ret;
+  }
+
+  static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op,
+                                    ASTPointer lhs, ASTPointer rhs) {
+    return ASTNew<AST::Expr>(k, op, lhs, rhs);
+  }
+
+  static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op,
+                                      ASTPointer lhs,
+                                      ASTPointer rhs) {
+    return new_expr(ASTKind::Assign, op, lhs,
+                    new_expr(kind, op, lhs, rhs));
   }
 
   TokenIterator insert_token(Token tok) {
