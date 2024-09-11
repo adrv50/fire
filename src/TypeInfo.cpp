@@ -1,4 +1,4 @@
-#include "GC/TypeInfo.h"
+#include "TypeInfo.h"
 
 namespace metro {
 

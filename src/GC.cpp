@@ -1,6 +1,6 @@
-#include "Parser/AST/AST.h"
-#include "GC/GC.h"
-#include "Interpreter/Interp.h"
+#include "AST.h"
+#include "GC.h"
+#include "Evaluator.h"
 
 namespace metro::gc {
 

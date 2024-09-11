@@ -11,7 +11,7 @@ public:
 
   Error& set_message(std::string msg);
 
-  Error& emit();
+  Error& emit(bool as_warn = false);
 
   Error& emit_as_hint();
 

@@ -1,10 +1,9 @@
-
 #include <iostream>
 
 #include "alert.h"
-#include "Parser/Parser.h"
-#include "Interpreter/Error.h"
-#include "Utils/Utils.h"
+#include "Parser.h"
+#include "Error.h"
+#include "Utils.h"
 
 namespace metro::parser {
 
@@ -51,7 +50,7 @@ ASTPointer Parser::Factor() {
                  tok.str.substr(1, tok.str.length() - 2))));
 
   case TokenKind::Identifier: {
-    auto ASTNew<AST::Identifier>(tok);
+    todo_impl;
   }
   }
 

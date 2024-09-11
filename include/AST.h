@@ -29,13 +29,17 @@ struct SourceStorage {
   bool Open();
   bool IsOpen() const;
 
+  char operator[](size_t N) const {
+    return this->data[N];
+  }
+
   SourceStorage(std::string path);
 };
 
 struct SourceLocation {
-
   i64 position;
   i64 length;
+  i64 pos_in_line;
 
   SourceStorage const* ref;
   SourceStorage::LineRange line;
@@ -45,20 +49,23 @@ struct SourceLocation {
   }
 
   SourceLocation(i64 pos, i64 len, SourceStorage const* ref)
-      : position(pos), length(len), ref(ref),
-        line(ref->GetLineRange(pos)) {
+      : position(pos), length(len), pos_in_line(0), ref(ref) {
+    if (ref) {
+      this->line = ref->GetLineRange(this->position);
+      this->pos_in_line = this->position - line.begin;
+    }
   }
 
   SourceLocation() : SourceLocation(0, 0, nullptr) {
   }
 };
 
-enum TokenKind : u8 {
+enum class TokenKind : u8 {
   Unknown,
   Int,
   Float,
   Size,
-  Bool,
+  Boolean,
   Char,
   String,
   Identifier,
@@ -316,15 +323,6 @@ struct Enum : Templatable {
   }
 };
 
-/*
-  class MyClass {
-    let num : int;
-
-    fn new(n: int) -> MyClass {
-      return MyClass{ num: n };
-    }
-  }
-*/
 struct Class : Templatable {
   ASTVec<VarDef> mb_variables;
   ASTVec<Function> mb_functions;

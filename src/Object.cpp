@@ -1,8 +1,9 @@
 #include <cassert>
-#include "GC/GC.h"
-#include "Utils/Utils.h"
-#include "Builtin/Builtin.h"
+
 #include "alert.h"
+#include "GC.h"
+#include "Utils.h"
+#include "Builtin.h"
 
 namespace metro {
 
