@@ -1,7 +1,8 @@
 #include "alert.h"
-#include "Parser/Lexer.h"
-#include "Utils/Utils.h"
-#include "Interpreter/Error.h"
+
+#include "Parser.h"
+#include "Utils.h"
+#include "Error.h"
 
 namespace metro {
 

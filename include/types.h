@@ -40,6 +40,9 @@ std::shared_ptr<T> ObjNew(Args&&... args) {
 enum class TokenKind : u8;
 struct Token;
 
+using TokenVector = std::vector<Token>;
+using TokenIterator = TokenVector::iterator;
+
 struct SourceStorage;
 struct SourceLocation;
 

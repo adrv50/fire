@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include "Parser/AST/AST.h"
+#include "Object.h"
 
 namespace metro {
 namespace builtin {

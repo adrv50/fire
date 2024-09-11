@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../GC/Object.h"
+#include "Object.h"
 
 namespace metro {
 
-class Interpreter {};
+class Evaluator {};
 
 } // namespace metro

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Parser/AST/AST.h"
+#include "AST.h"
 
 namespace metro {
 

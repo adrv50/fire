@@ -44,7 +44,7 @@ Collection()
 */
 // clang-format on
 
-#include "Evaluator/Object.h"
+#include "Object.h"
 
 #define GC_HEAP_INITIALIZE_SIZE 0x100
 
