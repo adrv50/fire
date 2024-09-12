@@ -131,7 +131,7 @@ struct ObjString : ObjIterable {
 // instance of class
 struct ObjInstance : Object {
   ASTPtr<AST::Class> ast;
-  builtin::Class const* builtin;
+  builtins::Class const* builtin;
 
   std::map<std::string, ObjPointer> member;
   std::vector<ObjPtr<ObjCallable>> member_funcs;
@@ -140,21 +140,24 @@ struct ObjInstance : Object {
   std::string ToString() const override;
 
   ObjInstance(ASTPtr<AST::Class> ast);
-  ObjInstance(builtin::Class const* builtin);
+  ObjInstance(builtins::Class const* builtin);
 };
 
 //
 // TypeKind::Function
 //
 struct ObjCallable : Object {
-  AST::Function const* func;
-  builtin::Function const* builtin;
+  ASTPtr<AST::Function> func;
+  builtins::Function const* builtin;
+  bool is_named = false;
+
+  std::string GetName() const;
 
   ObjPointer Clone() const override;
   std::string ToString() const override;
 
-  ObjCallable(AST::Function const* fp);
-  ObjCallable(builtin::Function const* fp);
+  ObjCallable(ASTPtr<AST::Function> fp);
+  ObjCallable(builtins::Function const* fp);
 };
 
 } // namespace metro

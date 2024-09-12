@@ -5,7 +5,7 @@
 
 namespace metro {
 
-namespace builtin {
+namespace builtins {
 
 ObjPointer Function::Call(ObjVector args) const {
   return this->func(std::move(args));
@@ -36,7 +36,7 @@ Function const* find_builtin_func(std::string const& name) {
   return nullptr;
 }
 
-} // namespace builtin
+} // namespace builtins
 
 static ObjPointer bfun_print(ObjVector args) {
   std::stringstream ss;
@@ -56,6 +56,7 @@ static ObjPointer bfun_println(ObjVector args) {
       bfun_print(std::move(args))->As<ObjPrimitive>()->vi + 1);
 
   std::cout << std::endl;
+
   return ret;
 }
 
@@ -63,8 +64,10 @@ static ObjPointer bfun_println(ObjVector args) {
 static const MetroBuiltins g_metro_builtins = {
 
 .functions = {
-  { "print", { }, TypeKind::Int, true, bfun_print },
-  { "println", { }, TypeKind::Int, true, bfun_println },
+  { "print", { }, true, bfun_print },
+  { "println", { }, true, bfun_println },
+
+  // { "length" },
 
 }
 

@@ -1,9 +1,6 @@
 #pragma once
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
+#include <string>
 
 #define COL_DEFAULT "\033[0m"
 #define COL_BOLD "\033[1m"
@@ -30,20 +27,31 @@
 
 #ifdef _METRO_DEBUG_
 
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+
+#include <iostream>
+#include <sstream>
+
 #define debug(...) __VA_ARGS__;
 #define alert                                                        \
   printf("\t%s:%u\talert\n", strrchr(__FILE__, '/') + 1, __LINE__);
-#define alertmsg(msg)                                                \
-  printf("\t%s:%u\talertmsg " COL_BOLD COL_WHITE #msg                \
-         "\n" COL_DEFAULT,                                           \
-         strrchr(__FILE__, '/') + 1, __LINE__)
+
 #define alertfmt(fmt, e...)                                          \
   printf("\t%s:%u\talertfmt " COL_BOLD COL_WHITE fmt                 \
          "\n" COL_DEFAULT,                                           \
          strrchr(__FILE__, '/') + 1, __LINE__, e)
 
-#define todo_impl (alertmsg(not implemented), exit(1))
-#define panic (alertmsg(panic !), exit(1))
+#define alertmsg(e...)                                               \
+  ({                                                                 \
+    std::stringstream ss;                                            \
+    ss << e;                                                         \
+    alertfmt("%s", ss.str().c_str());                                \
+  })
+
+#define todo_impl (alertmsg("not implemented"), exit(1))
+#define panic (alertmsg("panic !"), exit(1))
 
 #else
 #define debug(...) ;

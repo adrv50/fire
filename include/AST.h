@@ -25,7 +25,7 @@ struct SourceStorage {
   std::string path;
   std::string data;
 
-  std::unique_ptr<std::ifstream> file;
+  PUnique<std::ifstream> file;
 
   std::vector<LineRange> line_range_list;
 
@@ -99,15 +99,15 @@ struct Token {
     return this->kind == tok.kind && this->str == tok.str;
   }
 
-  Token(TokenKind kind, std::string_view str,
+  Token(TokenKind kind, std::string const& str,
         SourceLocation sourceloc = {})
       : kind(kind), str(str), sourceloc(sourceloc) {
   }
 
-  Token(std::string_view str) : Token(TokenKind::Unknown, str) {
+  Token(std::string str) : Token(TokenKind::Unknown, str) {
   }
 
-  Token(char const* str = "") : Token(TokenKind::Unknown, str) {
+  Token(char const* str = "") : Token(std::string(str)) {
   }
 
   Token(TokenKind kind) : Token(kind, "") {
@@ -190,8 +190,11 @@ struct Base {
   virtual ~Base() = default;
 
 protected:
-  Base(ASTKind kind, Token const& token, Token endtok = {})
+  Base(ASTKind kind, Token token, Token endtok)
       : kind(kind), token(token), endtok(endtok) {
+  }
+
+  Base(ASTKind kind, Token token) : Base(kind, token, token) {
   }
 };
 
@@ -199,14 +202,14 @@ struct Value : Base {
   ObjPointer value;
 
   Value(Token tok, ObjPointer value)
-      : Base(ASTKind::Value, tok, tok), value(value) {
+      : Base(ASTKind::Value, tok), value(value) {
   }
 };
 
 struct Named : Base {
   Token name;
 
-  std::string_view GetName() const {
+  std::string GetName() const {
     return this->name.str;
   }
 
@@ -214,6 +217,9 @@ protected:
   Named(ASTKind kind, Token tok, Token name)
       : Base(kind, tok), name(name) {
     this->is_named = true;
+  }
+
+  Named(ASTKind kind, Token tok) : Named(kind, tok, tok) {
   }
 };
 
@@ -237,8 +243,8 @@ struct Expr : Base {
   ASTPointer lhs;
   ASTPointer rhs;
 
-  Expr(ASTKind kind, Token op, ASTPointer lhs, ASTPointer rhs)
-      : Base(kind, op), op(this->token), lhs(lhs), rhs(rhs) {
+  Expr(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs)
+      : Base(kind, optok), op(this->token), lhs(lhs), rhs(rhs) {
     this->is_expr = true;
   }
 };
@@ -246,13 +252,13 @@ struct Expr : Base {
 struct Block : Base {
   ASTVector list;
 
-  Block(ASTVector list = {}) : Base(ASTKind::Block, "{", "}") {
+  Block(Token tok, ASTVector list = {}) : Base(ASTKind::Block, tok) {
   }
 };
 
 struct VarDef : Named {
-  ASTPtr<TypeName> type;
-  ASTPointer init;
+  ASTPtr<TypeName> type = nullptr;
+  ASTPointer init = nullptr;
 
   VarDef(Token tok, Token name) : Named(ASTKind::Vardef, tok, name) {
   }
@@ -292,7 +298,7 @@ struct TypeName : Base {
 
   TypeInfo type;
   std::weak_ptr<Class> ast_class;
-  builtin::Class const* builtin_class;
+  builtins::Class const* builtin_class;
 
   TypeName(Token name)
       : Base(ASTKind::TypeName, name), name(this->token),

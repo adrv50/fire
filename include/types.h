@@ -93,18 +93,17 @@ struct Program;
 using ASTPointer = std::shared_ptr<AST::Base>;
 using ASTVector = std::vector<ASTPointer>;
 
-namespace builtin {
+namespace builtins {
 
 struct Function;
 struct Class;
 struct Module;
 
-} // namespace builtin
+} // namespace builtins
 
 class Lexer;
 class Parser;
-class Compiler;
-class Interpreter;
+class Evaluator;
 
 namespace sema {
 class Sema;

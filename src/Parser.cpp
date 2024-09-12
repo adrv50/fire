@@ -86,8 +86,13 @@ ASTPointer Parser::IndexRef() {
       this->expect("]");
     }
     else if (this->eat(".")) {
-      x = ASTNew<AST::Expr>(ASTKind::MemberAccess, op, x,
-                            this->Factor());
+      auto rhs = this->Factor();
+
+      if (rhs->kind != ASTKind::Variable) {
+        Error(op, "syntax error")();
+      }
+
+      x = ASTNew<AST::Expr>(ASTKind::MemberAccess, op, x, rhs);
     }
     else if (this->eat("(")) {
       x = ASTNew<AST::CallFunc>(x);
@@ -268,7 +273,7 @@ ASTPointer Parser::Stmt() {
   auto tok = *this->cur;
 
   if (this->eat("{")) {
-    auto ast = ASTNew<AST::Block>();
+    auto ast = ASTNew<AST::Block>(tok);
 
     ast->token = tok;
 

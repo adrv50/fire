@@ -131,26 +131,34 @@ ObjInstance::ObjInstance(ASTPtr<AST::Class> ast)
     : Object(TypeKind::Instance), ast(ast), builtin(nullptr) {
 }
 
-ObjInstance::ObjInstance(builtin::Class const* builtin)
+ObjInstance::ObjInstance(builtins::Class const* builtin)
     : Object(TypeKind::Instance), ast(nullptr), builtin(builtin) {
 }
 
 // ----------------------------
 //  ObjCallable
 
+std::string ObjCallable::GetName() const {
+  if (this->is_named) {
+    return this->func ? this->func->GetName() : this->builtin->name;
+  }
+
+  return "";
+}
+
 ObjPointer ObjCallable::Clone() const {
   return ObjNew<ObjCallable>(*this);
 }
 
 std::string ObjCallable::ToString() const {
-  return "(callable-object)";
+  return "(ObjCallable)";
 }
 
-ObjCallable::ObjCallable(AST::Function const* fp)
+ObjCallable::ObjCallable(ASTPtr<AST::Function> fp)
     : Object(TypeKind::Function), func(fp), builtin(nullptr) {
 }
 
-ObjCallable::ObjCallable(builtin::Function const* fp)
+ObjCallable::ObjCallable(builtins::Function const* fp)
     : Object(TypeKind::Function), func(nullptr), builtin(fp) {
 }
 
