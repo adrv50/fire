@@ -72,7 +72,7 @@ struct line_data_wrapper_t {
       return ss.str();
     }
 
-    return std::string(LINENUM_WIDTH, ' ') + COL_BORDER_LINE + "|";
+    return std::string(LINENUM_WIDTH, ' ') + COL_BORDER_LINE + " |";
   }
 };
 
@@ -110,7 +110,8 @@ Error& Error::emit(bool as_warn) {
   {
     auto& s = screen[3];
 
-    auto cursorpos = line_err.pos + LINENUM_WIDTH + 34;
+    auto cursorpos = line_err.pos + LINENUM_WIDTH + 3 +
+                     utils::get_color_length_in_str(s);
 
     if (s.length() < cursorpos)
       s += std::string(cursorpos - s.length() + 10, ' ');

@@ -119,21 +119,6 @@ struct ObjIterable : Object {
   }
 };
 
-// instance of class
-struct ObjInstance : Object {
-  ASTPtr<AST::Class> ast;
-  builtin::Class const* builtin;
-
-  std::map<std::string, ObjPointer> member;
-  std::vector<ObjCallable> member_funcs;
-
-  ObjPointer Clone() const override;
-  std::string ToString() const override;
-
-  ObjInstance(ASTPtr<AST::Class> ast);
-  ObjInstance(builtin::Class const* ast);
-};
-
 struct ObjString : ObjIterable {
   ObjPointer SubString(size_t pos, size_t length);
 
@@ -141,6 +126,21 @@ struct ObjString : ObjIterable {
 
   ObjString(std::u16string const& str = u"");
   ObjString(std::string const& str);
+};
+
+// instance of class
+struct ObjInstance : Object {
+  ASTPtr<AST::Class> ast;
+  builtin::Class const* builtin;
+
+  std::map<std::string, ObjPointer> member;
+  std::vector<ObjPtr<ObjCallable>> member_funcs;
+
+  ObjPointer Clone() const override;
+  std::string ToString() const override;
+
+  ObjInstance(ASTPtr<AST::Class> ast);
+  ObjInstance(builtin::Class const* builtin);
 };
 
 //

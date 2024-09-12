@@ -16,14 +16,24 @@ struct Function {
   FuncPointer func;
 
   ObjPointer Call(ObjVector args) const;
+
+  Function(std::string const& name, std::vector<TypeInfo> arg_types,
+           TypeInfo result, bool is_vararg, FuncPointer fp)
+      : name(name), arg_types(arg_types), result_type(result),
+        is_variable_args(is_vararg), func(fp) {
+  }
 };
 
 struct Class {
   std::string name;
-  std::vector<TypeInfo> member_var_types; // メンバ変数
+  std::vector<std::string> member_var_names; // メンバ変数
   std::vector<Function> member_functions;
 
-  static ObjPointer NewInstance();
+  //
+  // NewInstance
+  //
+  // メンバ変数の値は Evaluator にて設定する
+  ObjPointer NewInstance() const;
 };
 
 struct Module {

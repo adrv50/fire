@@ -11,6 +11,20 @@ ObjPointer Function::Call(ObjVector args) const {
   return this->func(std::move(args));
 }
 
+ObjPointer Class::NewInstance() const {
+  auto obj = ObjNew<ObjInstance>(this);
+
+  for (auto&& name : this->member_var_names) {
+    obj->member[name] = nullptr;
+  }
+
+  for (auto&& func : this->member_functions) {
+    obj->member_funcs.emplace_back(ObjNew<ObjCallable>(&func));
+  }
+
+  return obj;
+}
+
 Function const* find_builtin_func(std::string const& name) {
   auto const& funcs = get_metro_builtins().functions;
 
@@ -46,25 +60,14 @@ static ObjPointer bfun_println(ObjVector args) {
 }
 
 // clang-format off
-static const MetroBuiltins g_metro_builtins =
-MetroBuiltins {
-  .functions = {
-    builtin::Function {
-      .name = "print",
-      .arg_types = { },
-      .result_type = TypeKind::Int,
-      .is_variable_args = true,
-      .func = bfun_print
-    },
+static const MetroBuiltins g_metro_builtins = {
 
-    builtin::Function {
-      .name = "println",
-      .arg_types = { },
-      .result_type = TypeKind::Int,
-      .is_variable_args = true,
-      .func = bfun_println
-    },
-  }
+.functions = {
+  { "print", { }, TypeKind::Int, true, bfun_print },
+  { "println", { }, TypeKind::Int, true, bfun_println },
+
+}
+
 };
 // clang-format on
 

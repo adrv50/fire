@@ -4,6 +4,9 @@
 #include "GC.h"
 #include "Utils.h"
 #include "Builtin.h"
+#include "AST.h"
+
+using namespace std::string_literals;
 
 namespace metro {
 
@@ -66,6 +69,9 @@ std::string ObjIterable::ToString() const {
   return "(obj-iterable)";
 }
 
+// ----------------------------
+//  ObjString
+
 ObjPointer ObjString::SubString(size_t pos, size_t length) {
   auto obj = ObjNew<ObjString>();
 
@@ -95,6 +101,42 @@ ObjString::ObjString(std::u16string const& str)
 ObjString::ObjString(std::string const& str)
     : ObjString(utils::to_u16string(str)) {
 }
+
+// ----------------------------
+//  ObjInstance
+
+ObjPointer ObjInstance::Clone() const {
+  auto obj = this->ast ? ObjNew<ObjInstance>(this->ast)
+                       : ObjNew<ObjInstance>(this->builtin);
+
+  for (auto&& [key, val] : this->member) {
+    obj->member[key] = val->Clone();
+  }
+
+  for (auto&& mf : this->member_funcs) {
+    obj->member_funcs.emplace_back(PtrCast<ObjCallable>(mf->Clone()));
+  }
+
+  return obj;
+}
+
+std::string ObjInstance::ToString() const {
+  return "(ObjInstance of class "s +
+         std::string(this->ast ? this->ast->GetName()
+                               : this->builtin->name) +
+         ")";
+}
+
+ObjInstance::ObjInstance(ASTPtr<AST::Class> ast)
+    : Object(TypeKind::Instance), ast(ast), builtin(nullptr) {
+}
+
+ObjInstance::ObjInstance(builtin::Class const* builtin)
+    : Object(TypeKind::Instance), ast(nullptr), builtin(builtin) {
+}
+
+// ----------------------------
+//  ObjCallable
 
 ObjPointer ObjCallable::Clone() const {
   return ObjNew<ObjCallable>(*this);

@@ -19,6 +19,8 @@ enum class TypeKind : u8 {
   Tuple,
   Dict,
 
+  Instance, // instance of class
+
   Module,
   Function,
 };
