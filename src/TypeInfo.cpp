@@ -36,7 +36,7 @@ std::string TypeInfo::to_string() const {
     { TypeKind::None,       "none" },
     { TypeKind::Int,        "int" },
     { TypeKind::Float,      "float" },
-    { TypeKind::Size,       "size" },
+    { TypeKind::Size,       "usize" },
     { TypeKind::Bool,       "bool" },
     { TypeKind::Char,       "char" },
     { TypeKind::String,     "string" },

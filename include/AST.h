@@ -76,6 +76,7 @@ enum class TokenKind : u8 {
   Char,
   String,
   Identifier,
+  Keyword,
   Punctuater,
 };
 
