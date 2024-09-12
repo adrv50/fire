@@ -20,6 +20,20 @@ using std::size_t;
 
 namespace metro {
 
+template <class T>
+using PShared = std::shared_ptr<T>;
+
+template <class T>
+using PUnique = std::unique_ptr<T>;
+
+template <class T>
+using PWeak = std::weak_ptr<T>;
+
+template <class T, class U>
+PShared<T> PtrCast(PShared<U> p) {
+  return std::static_pointer_cast<T>(p);
+}
+
 enum class TypeKind : u8;
 struct TypeInfo;
 
@@ -29,6 +43,16 @@ struct ObjCallable;
 struct ObjIterable;
 struct ObjInstance;
 
+namespace value_type {
+
+using Int = i64;
+using Float = double;
+using Size = u64;
+using Char = char16_t;
+using String = std::u16string;
+
+} // namespace value_type
+
 using ObjPointer = std::shared_ptr<Object>;
 using ObjVector = std::vector<ObjPointer>;
 
@@ -37,11 +61,6 @@ using ObjPtr = std::shared_ptr<T>;
 
 template <class T>
 using ObjVec = std::vector<ObjPtr<T>>;
-
-template <class T, class... Args>
-std::shared_ptr<T> ObjNew(Args&&... args) {
-  return std::make_shared<T>(std::forward<Args>(args)...);
-}
 
 enum class TokenKind : u8;
 struct Token;
@@ -68,20 +87,10 @@ struct Templator;
 struct Module;
 struct Program;
 
-using ASTPointer = std::shared_ptr<Base>;
-using ASTVector = std::vector<ASTPointer>;
 } // namespace AST
 
-template <class T>
-using ASTPtr = std::shared_ptr<T>;
-
-template <class T>
-ASTPtr<T> ASTCast(AST::ASTPointer p) {
-  return std::static_pointer_cast<T>(p);
-}
-
-template <class T>
-using ASTVec = std::vector<std::shared_ptr<T>>;
+using ASTPointer = std::shared_ptr<AST::Base>;
+using ASTVector = std::vector<ASTPointer>;
 
 namespace builtin {
 
@@ -102,6 +111,22 @@ class Sema;
 
 namespace gc {
 class GC;
+}
+
+template <class T>
+using ASTPtr = std::shared_ptr<T>;
+
+template <class T>
+using ASTVec = std::vector<std::shared_ptr<T>>;
+
+template <class T, class... Args>
+std::shared_ptr<T> ObjNew(Args&&... args) {
+  return std::make_shared<T>(std::forward<Args>(args)...);
+}
+
+template <class T>
+ASTPtr<T> ASTCast(ASTPointer p) {
+  return std::static_pointer_cast<T>(p);
 }
 
 } // namespace metro

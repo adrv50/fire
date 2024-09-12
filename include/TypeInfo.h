@@ -29,6 +29,17 @@ struct TypeInfo {
 
   bool is_const = false;
 
+  bool is_numeric() const {
+    switch (this->kind) {
+    case TypeKind::Int:
+    case TypeKind::Float:
+    case TypeKind::Size:
+      return true;
+    }
+
+    return false;
+  }
+
   static std::vector<char const*> get_primitive_names();
 
   static bool is_primitive_name(std::string_view);

@@ -336,8 +336,7 @@ ASTPointer Parser::Top() {
 
     do {
       auto& etor = ast->enumerators.emplace_back(
-          std::make_shared<AST::Enumerator>(
-              *this->expectIdentifier()));
+          ASTNew<AST::Enumerator>(*this->expectIdentifier()));
 
       if (this->eat("(")) {
         etor->value_type = this->expectTypeName();
@@ -391,11 +390,11 @@ ASTPointer Parser::Top() {
       do {
         auto name = this->expectIdentifier();
 
-        this->expect(":");
-        auto type = this->expectTypeName();
+        auto& emplaced = func->args.emplace_back(
+            ASTNew<AST::FuncArgument>(*name, nullptr));
 
-        func->args.emplace_back(
-            std::make_shared<AST::FuncArgument>(*name, type));
+        if (this->eat(":"))
+          emplaced->type = this->expectTypeName();
 
       } while (this->eat(","));
 
@@ -424,6 +423,7 @@ AST::Program Parser::Parse() {
 
   this->MakeIdentifierTags();
 
+#if 0
   debug(alert; for (auto&& [name, tag]
                     : this->id_tag_map) {
     std::cout << utils::Format("%.*s\t: depth=% 2d, type=%d",
@@ -431,6 +431,7 @@ AST::Program Parser::Parse() {
                                tag.scope_depth, tag.type)
               << std::endl;
   });
+#endif
 
   while (this->check())
     ret.list.emplace_back(this->Top());

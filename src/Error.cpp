@@ -9,7 +9,7 @@ Error::Error(Token tok, std::string msg)
     : loc_token(tok), msg(std::move(msg)) {
 }
 
-Error::Error(AST::ASTPointer ast, std::string msg)
+Error::Error(ASTPointer ast, std::string msg)
     : loc_ast(ast), msg(std::move(msg)) {
 }
 
@@ -79,8 +79,11 @@ Error& Error::emit(bool as_warn) {
 
       std::cout << line << std::endl;
     }
-
-    std::cout << COL_CYAN "      |\n" COL_DEFAULT;
+    else {
+      std::cout << COL_CYAN "      | "
+                << std::string(loc.pos_in_line, ' ')
+                << COL_RED COL_BOLD "^" << COL_DEFAULT << std::endl;
+    }
   }
 
   return *this;

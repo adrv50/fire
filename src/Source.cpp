@@ -21,7 +21,7 @@ SourceStorage::GetLineView(LineRange const& line) const {
 }
 
 std::vector<SourceStorage::LineRange>
-SourceStorage::GetLinesOfAST(AST::ASTPointer ast) {
+SourceStorage::GetLinesOfAST(ASTPointer ast) {
   std::vector<LineRange> lines;
 
   return lines;

@@ -16,6 +16,26 @@ struct Object {
     return this->type.kind == TypeKind::Function;
   }
 
+  bool is_numeric() const {
+    return this->type.is_numeric();
+  }
+
+  bool is_float() const {
+    return this->type.kind == TypeKind::Float;
+  }
+
+  bool is_int() const {
+    return this->type.kind == TypeKind::Int;
+  }
+
+  bool is_size() const {
+    return this->type.kind == TypeKind::Size;
+  }
+
+  bool is_int_or_size() const {
+    return this->is_int() || this->is_size();
+  }
+
   virtual ~Object() = default;
 
   virtual ObjPointer Clone() const = 0;
@@ -59,6 +79,8 @@ struct ObjPrimitive : Object {
     u64 _data = 0;
   };
 
+  ObjPrimitive* to_float();
+
   ObjPointer Clone() const override;
   std::string ToString() const override;
 
@@ -79,6 +101,11 @@ struct ObjIterable : Object {
 
   ObjPointer& Append(ObjPointer obj) {
     return this->list.emplace_back(obj);
+  }
+
+  void AppendList(ObjPtr<ObjIterable> obj) {
+    for (auto&& e : obj->list)
+      this->Append(e->Clone());
   }
 
   size_t Count() const {

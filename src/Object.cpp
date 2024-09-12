@@ -11,6 +11,23 @@ Object::Object(TypeInfo type)
     : type(std::move(type)), is_marked(false) {
 }
 
+ObjPrimitive* ObjPrimitive::to_float() {
+  switch (this->type.kind) {
+  case TypeKind::Int:
+    this->vf = static_cast<double>(this->vi);
+    break;
+
+  case TypeKind::Size:
+    this->vf = static_cast<double>(this->vsize);
+    break;
+
+  default:
+    return nullptr;
+  }
+
+  return this;
+}
+
 ObjPointer ObjPrimitive::Clone() const {
   return ObjNew<ObjPrimitive>(*this);
 }

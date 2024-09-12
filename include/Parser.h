@@ -31,9 +31,6 @@ private:
 
 namespace metro::parser {
 
-using AST::ASTPointer;
-using AST::ASTVector;
-
 template <std::derived_from<AST::Base> T, class... Args>
 requires std::constructible_from<T, Args...>
 std::shared_ptr<T> ASTNew(Args&&... args) {
@@ -120,6 +117,10 @@ private:
 
   bool match(TokenKind kind) {
     return this->cur->kind == kind;
+  }
+
+  bool match(std::pair<TokenKind, std::string_view> pair) {
+    return this->match(pair.first) && this->match(pair.second);
   }
 
   template <class T, class U, class... Args>

@@ -7,7 +7,7 @@ namespace metro {
 class Error {
 public:
   Error(Token tok, std::string msg);
-  Error(AST::ASTPointer ast, std::string msg);
+  Error(ASTPointer ast, std::string msg);
 
   [[noreturn]]
   void operator()() {
@@ -21,7 +21,7 @@ public:
 
 private:
   Token loc_token;
-  AST::ASTPointer loc_ast = nullptr;
+  ASTPointer loc_ast = nullptr;
 
   std::string msg;
 };

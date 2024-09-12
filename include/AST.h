@@ -31,7 +31,7 @@ struct SourceStorage {
 
   LineRange GetLineRange(i64 position) const;
   std::string_view GetLineView(LineRange const& line) const;
-  std::vector<LineRange> GetLinesOfAST(AST::ASTPointer ast);
+  std::vector<LineRange> GetLinesOfAST(ASTPointer ast);
 
   bool Open();
   bool IsOpen() const;
@@ -83,6 +83,10 @@ struct Token {
   TokenKind kind;
   std::string_view str;
   SourceLocation sourceloc;
+
+  bool operator==(Token const& tok) const {
+    return this->kind == tok.kind && this->str == tok.str;
+  }
 
   Token(TokenKind kind, std::string_view str,
         SourceLocation sourceloc = {})
@@ -156,6 +160,7 @@ struct Base {
   Token endtok;
 
   bool is_named = false;
+  bool is_expr = false;
 
   template <class T>
   T* As() {
@@ -223,6 +228,7 @@ struct Expr : Base {
 
   Expr(ASTKind kind, Token op, ASTPointer lhs, ASTPointer rhs)
       : Base(kind, op), op(this->token), lhs(lhs), rhs(rhs) {
+    this->is_expr = true;
   }
 };
 
