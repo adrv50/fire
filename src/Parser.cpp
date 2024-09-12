@@ -7,6 +7,47 @@
 
 namespace metro::parser {
 
+static ObjPtr<ObjPrimitive> make_value_from_token(Token const& tok) {
+  auto k = tok.kind;
+  auto const& s = tok.str;
+
+  auto obj = ObjNew<ObjPrimitive>();
+
+  switch (k) {
+  case TokenKind::Int:
+    obj->type = TypeKind::Int;
+    obj->vi = std::stoll(s);
+    break;
+
+  case TokenKind::Float:
+    obj->type = TypeKind::Float;
+    obj->vf = std::stod(s);
+    break;
+
+  case TokenKind::Char: {
+    auto s16 = utils::to_u16string(s.substr(1, s.length() - 2));
+
+    if (s16.length() != 1)
+      Error(tok, "the length of character literal is must 1.")();
+
+    obj->type = TypeKind::Char;
+    obj->vc = s16[0];
+
+    break;
+  }
+
+  case TokenKind::Boolean:
+    obj->type = TypeKind::Bool;
+    obj->vb = s == "true";
+    break;
+
+  default:
+    todo_impl;
+  }
+
+  return obj;
+}
+
 Parser::Parser(TokenVector tokens)
     : tokens(std::move(tokens)), cur(this->tokens.begin()),
       end(this->tokens.end()) {
@@ -20,38 +61,15 @@ ASTPointer Parser::Factor() {
   case TokenKind::Float:
   case TokenKind::Size:
   case TokenKind::Char:
-  case TokenKind::Boolean: {
-    static auto f =
-        [](TokenKind k,
-           std::string const& s) -> std::shared_ptr<ObjPrimitive> {
-      switch (k) {
-      case TokenKind::Int:
-        return ObjNew<ObjPrimitive>((i64)std::stoll(s));
-
-      case TokenKind::Float:
-        return ObjNew<ObjPrimitive>((double)std::stod(s));
-
-      case TokenKind::Char:
-        return ObjNew<ObjPrimitive>(utils::to_u16string(s)[1]);
-
-      case TokenKind::Boolean:
-        return ObjNew<ObjPrimitive>(s == "true");
-      }
-
-      return nullptr;
-    };
-
-    return ASTNew<AST::Value>(tok, f(tok.kind, std::string(tok.str)));
-  }
+  case TokenKind::Boolean:
+    return ASTNew<AST::Value>(tok, make_value_from_token(tok));
 
   case TokenKind::String:
-    return ASTNew<AST::Value>(
-        tok, ObjNew<ObjString>(std::string(
-                 tok.str.substr(1, tok.str.length() - 2))));
+    return ASTNew<AST::Value>(tok, ObjNew<ObjString>(tok.str.substr(
+                                       1, tok.str.length() - 2)));
 
-  case TokenKind::Identifier: {
+  case TokenKind::Identifier:
     return ASTNew<AST::Variable>(tok);
-  }
   }
 
   Error(tok, "invalid syntax")();

@@ -70,6 +70,8 @@ struct SourceLocation {
 enum class TokenKind : u8 {
   Unknown,
   Int,
+  Hex,
+  Bin,
   Float,
   Size,
   Boolean,
@@ -82,7 +84,7 @@ enum class TokenKind : u8 {
 
 struct Token {
   TokenKind kind;
-  std::string_view str;
+  std::string str;
   SourceLocation sourceloc;
 
   bool operator==(Token const& tok) const {

@@ -1,13 +1,20 @@
 #pragma once
 
 #include "AST.h"
+#include "Utils.h"
 
 namespace metro {
 
 class Error {
 public:
-  Error(Token tok, std::string msg);
-  Error(ASTPointer ast, std::string msg);
+  Error(Token tok, std::string msg = "");
+  Error(ASTPointer ast, std::string msg = "");
+
+  template <class... Args>
+  Error& format(std::string const& fmt, Args&&... args) {
+    this->msg = utils::Format(fmt, std::forward<Args>(args)...);
+    return *this;
+  }
 
   [[noreturn]]
   void operator()() {

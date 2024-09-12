@@ -84,7 +84,7 @@ struct ObjPrimitive : Object {
   ObjPointer Clone() const override;
   std::string ToString() const override;
 
-  ObjPrimitive(i64 vi) : Object(TypeKind::Int), vi(vi) {};
+  ObjPrimitive(i64 vi = 0) : Object(TypeKind::Int), vi(vi) {};
 
   ObjPrimitive(double vf) : Object(TypeKind::Float), vf(vf) {};
 

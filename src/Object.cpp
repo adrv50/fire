@@ -50,7 +50,7 @@ std::string ObjPrimitive::ToString() const {
     return utils::to_u8string((char16_t[]){this->vc, 0});
   }
 
-  return "(primitive-type-obj)";
+  todo_impl;
 }
 
 ObjPointer ObjIterable::Clone() const {

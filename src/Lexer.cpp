@@ -17,6 +17,7 @@ static char const* punctuaters[] = {
 static char const* keywords[] = {
   //
   // built-in type names
+  "none",
   "int",
   "float",
   "usize",
@@ -57,7 +58,7 @@ static bool is_keyword(std::string_view str) {
 }
 
 Lexer::Lexer(SourceStorage const& source)
-    : source(source), pos(0), length(source.data.length()) {
+    : source(source), position(0), length(source.data.length()) {
 }
 
 TokenVector Lexer::Lex() {
@@ -67,8 +68,8 @@ TokenVector Lexer::Lex() {
 
   while (this->check()) {
     auto c = this->peek();
-    auto s = this->source.data.data() + this->pos;
-    auto pos = this->pos;
+    auto s = this->source.data.data() + this->position;
+    auto pos = this->position;
 
     auto& tok = vec.emplace_back();
 
@@ -76,11 +77,19 @@ TokenVector Lexer::Lex() {
     tok.sourceloc = SourceLocation(pos, 1, &this->source);
 
     // hex
-    if (this->match("0x") || this->match("0X")) {
+    if (this->eat("0x") || this->eat("0X")) {
+      tok.kind = TokenKind::Hex;
+
+      while (isxdigit(this->peek()))
+        this->position++;
     }
 
     // bin
-    else if (this->match("0x") || this->match("0X")) {
+    else if (this->eat("0b") || this->eat("0B")) {
+      tok.kind = TokenKind::Bin;
+
+      while (this->peek() == '0' || this->peek() == '1')
+        this->position++;
     }
 
     // digits
@@ -88,7 +97,18 @@ TokenVector Lexer::Lex() {
       tok.kind = TokenKind::Int;
 
       while (isdigit(this->peek()))
-        this->pos++;
+        this->position++;
+
+      // float
+      if (this->eat(".")) {
+        tok.kind = TokenKind::Float;
+
+        while (isdigit(this->peek()))
+          this->position++;
+      }
+
+      if (this->eat("f"))
+        tok.kind = TokenKind::Float;
     }
 
     // identifier or keyword
@@ -96,29 +116,19 @@ TokenVector Lexer::Lex() {
       tok.kind = TokenKind::Identifier;
 
       while (isalnum(this->peek()) || this->peek() == '_')
-        this->pos++;
+        this->position++;
     }
 
-    else if (c == '\'' || c == '"') {
+    // char or string literal
+    else if (this->eat('\'') || this->eat('"')) {
       tok.kind = c == '"' ? TokenKind::String : TokenKind::Char;
 
-      for (this->pos++; this->peek() != c; this->pos++)
-        ;
+      while (this->check() && this->peek() != c)
+        this->position++;
 
-      this->pos++;
-
-      if (!this->check()) {
-        Error(tok,
-              "not terminated " +
-                  std::string(c == '"' ? "string" : "character") +
-                  " literal")();
-      }
-
-      if (c == '\'') {
-        auto len = this->pos - pos - 2;
-
-        if (len == 0 || len >= 2)
-          Error(tok, "invalid character literal")();
+      if (!this->check() || !this->eat(c)) {
+        Error(tok).format("not terminated %s literal",
+                          c == '"' ? "string" : "character")();
       }
     }
 
@@ -127,7 +137,7 @@ TokenVector Lexer::Lex() {
         if (this->match(s)) {
           tok.kind = TokenKind::Punctuater;
           tok.str = s;
-          this->pos += s.length();
+          this->position += s.length();
           goto found_punct;
         }
       }
@@ -135,9 +145,11 @@ TokenVector Lexer::Lex() {
       Error(tok, "invalid token")();
     }
 
-    tok.str = std::string_view(s, this->pos - pos);
+    tok.str = std::string_view(s, this->position - pos);
 
-    if (tok.kind == TokenKind::Identifier && is_keyword(tok.str))
+    if (tok.str == "true" || tok.str == "false")
+      tok.kind = TokenKind::Boolean;
+    else if (tok.kind == TokenKind::Identifier && is_keyword(tok.str))
       tok.kind = TokenKind::Keyword;
 
   found_punct:
@@ -151,20 +163,20 @@ TokenVector Lexer::Lex() {
 }
 
 bool Lexer::check() const {
-  return this->pos < this->length;
+  return this->position < this->length;
 }
 
 char Lexer::peek() {
-  return this->source[this->pos];
+  return this->source[this->position];
 }
 
 void Lexer::pass_space() {
   while (isspace(this->peek()))
-    this->pos++;
+    this->position++;
 }
 
 bool Lexer::match(std::string_view str) {
-  return this->pos + str.length() <= this->length &&
+  return this->position + str.length() <= this->length &&
          this->trim(str.length()) == str;
 }
 
