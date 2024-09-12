@@ -16,12 +16,10 @@ public:
     return *this;
   }
 
-  [[noreturn]]
-  void operator()() {
-    this->emit().stop();
-  }
-
   Error& emit(bool as_warn = false);
+
+  [[noreturn]]
+  void operator()();
 
   [[noreturn]]
   void stop();

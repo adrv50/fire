@@ -29,12 +29,20 @@ struct SourceStorage {
 
   std::vector<LineRange> line_range_list;
 
+  bool Open();
+  bool IsOpen() const;
+
   LineRange GetLineRange(i64 position) const;
   std::string_view GetLineView(LineRange const& line) const;
   std::vector<LineRange> GetLinesOfAST(ASTPointer ast);
 
-  bool Open();
-  bool IsOpen() const;
+  std::string_view GetLineView(i64 index) const {
+    return this->GetLineView(this->line_range_list[index]);
+  }
+
+  int Count() const {
+    return this->line_range_list.size();
+  }
 
   char operator[](size_t N) const {
     return this->data[N];
@@ -93,7 +101,7 @@ struct Token {
 
   Token(TokenKind kind, std::string_view str,
         SourceLocation sourceloc = {})
-      : kind(kind), str(str), sourceloc(std::move(sourceloc)) {
+      : kind(kind), str(str), sourceloc(sourceloc) {
   }
 
   Token(std::string_view str) : Token(TokenKind::Unknown, str) {

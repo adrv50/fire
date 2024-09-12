@@ -1,86 +1,139 @@
 #include <iostream>
-#include "Error.h"
-#include "Utils.h"
+
 #include "alert.h"
+#include "Utils.h"
+#include "Color.h"
+
+#include "Error.h"
+
+#define COL_WARNING COL_MAGENTA
+#define COL_ERROR COL_RED
+
+#define COL_MESSAGE COL_BOLD COL_WHITE
+
+#define COL_LINENUM COL_BOLD COL_WHITE
+#define LINENUM_WIDTH 5
+
+#define COL_BORDER_LINE COL_CYAN
 
 namespace metro {
 
-Error::Error(Token tok, std::string msg)
-    : loc_token(tok), msg(std::move(msg)) {
-}
+struct line_data_wrapper_t {
+  SourceStorage const* src;
 
-Error::Error(ASTPointer ast, std::string msg)
-    : loc_ast(ast), msg(std::move(msg)) {
-}
+  int index;
+  int pos; // pos on line
+
+  std::string_view view;
+  int linenum;
+
+  line_data_wrapper_t(Token const& tok) : src(tok.sourceloc.ref) {
+    this->index = tok.sourceloc.line.index;
+    this->pos = tok.sourceloc.pos_in_line;
+
+    this->view = tok.sourceloc.GetLine();
+    this->linenum = this->index + 1;
+  }
+
+  line_data_wrapper_t() : src(nullptr), index(0), pos(0), linenum(0) {
+  }
+
+  bool get_other_line(line_data_wrapper_t& out,
+                      int index_diff) const {
+
+    int _index = this->index + index_diff;
+
+    if (_index < 0 || _index >= this->src->Count())
+      return false;
+
+    out.src = this->src;
+    out.index = _index;
+    out.pos = 0;
+
+    out.view = this->src->GetLineView(_index);
+    out.linenum = out.index + 1;
+
+    return true;
+  }
+
+  std::string to_print_str(bool is_main) const {
+    if (this->src) {
+      std::stringstream ss;
+
+      ss << utils::Format(
+                utils::Format("%s%% %dd",
+                              is_main ? COL_LINENUM : COL_GRAY,
+                              LINENUM_WIDTH),
+                this->linenum)
+         << COL_BORDER_LINE << " | "
+         << (is_main ? COL_BOLD COL_WHITE : COL_UNBOLD COL_GRAY)
+         << this->view;
+
+      return ss.str();
+    }
+
+    return std::string(LINENUM_WIDTH, ' ') + COL_BORDER_LINE + "|";
+  }
+};
 
 Error& Error::emit(bool as_warn) {
-  auto& loc = this->loc_ast ? this->loc_ast->token.sourceloc
-                            : this->loc_token.sourceloc;
 
-  auto src = loc.ref;
+  auto& err_token =
+      this->loc_ast ? this->loc_ast->token : this->loc_token;
 
-  auto linenum = loc.line.index + 1;
+  line_data_wrapper_t line_top, line_bottom,
+      line_err = line_data_wrapper_t(err_token);
 
-  auto pathstr = src->path + ":" + std::to_string(linenum) + ":" +
-                 std::to_string(loc.pos_in_line);
+  line_err.get_other_line(line_top, -1);
+  line_err.get_other_line(line_bottom, 1);
 
-  std::cout << COL_BOLD COL_WHITE << pathstr << ": "
-            << (as_warn ? COL_MAGENTA "warning: " : COL_RED "error: ")
-            << this->msg << std::endl;
+  SourceLocation& loc = err_token.sourceloc;
 
-  std::cout << COL_CYAN << std::string(pathstr.length(), '-')
-            << std::endl;
+  std::stringstream ss;
 
-  if (loc.line.index >= 1) {
-    std::cout << utils::Format(COL_UNBOLD COL_GRAY
-                               "% 5d " COL_BOLD COL_CYAN
-                               "| " COL_UNBOLD COL_GRAY,
-                               linenum - 1)
+  // path and location
+  ss << COL_BOLD COL_WHITE << loc.ref->path << ":" << line_err.linenum
+     << ":" << line_err.pos << ": ";
 
-              << src->GetLineView(
-                     src->line_range_list[loc.line.index - 1])
+  // message
+  ss << (as_warn ? COL_WARNING "warning: " : COL_ERROR "error: ")
+     << COL_BOLD COL_WHITE << this->msg << std::endl;
 
-              << std::endl;
+  StringVector screen = {
+      COL_BORDER_LINE + std::string(10, '-'),
+      line_top.to_print_str(false),
+      line_err.to_print_str(true),
+      line_bottom.to_print_str(false),
+  };
+
+  // insert cursor '^'
+  {
+    auto& s = screen[3];
+
+    auto cursorpos = line_err.pos + LINENUM_WIDTH + 34;
+
+    if (s.length() < cursorpos)
+      s += std::string(cursorpos - s.length() + 10, ' ');
+
+    s = s.substr(0, cursorpos) +
+        COL_DEFAULT COL_BOLD COL_WHITE "^" COL_UNBOLD COL_GRAY +
+        s.substr(cursorpos + 1);
   }
-  else {
-    std::cout << COL_CYAN "      |\n";
-  }
 
-  std::cout << utils::Format(COL_DEFAULT COL_BOLD COL_WHITE
-                             "% 5d " COL_CYAN "| " COL_WHITE,
-                             linenum)
-            << loc.GetLine() << std::endl;
+  // border
+  // -------
+  ss << screen[0] << std::endl;
 
-  // std::cout << COL_CYAN "      | "
-  //           << std::string(loc.pos_in_line, ' ') << COL_RED "^"
-  //           << std::endl;
+  // | (and back line if got)
+  ss << COL_DEFAULT << screen[1] << std::endl;
 
-  if (loc.line.index + 1 < src->line_range_list.size()) {
-    std::cout << utils::Format(COL_UNBOLD COL_GRAY
-                               "% 5d " COL_BOLD COL_CYAN
-                               "| " COL_UNBOLD COL_GRAY,
-                               linenum + 1);
+  // | error line
+  ss << COL_DEFAULT << screen[2] << std::endl;
 
-    auto line = std::string(
-        src->GetLineView(src->line_range_list[loc.line.index + 1]));
+  // | (and next line if got)  and cursor
+  ss << COL_DEFAULT << screen[3] << std::endl;
 
-    if (line.length() <= loc.pos_in_line) {
-      line += std::string(loc.pos_in_line - line.length(), ' ') +
-              COL_DEFAULT COL_BOLD COL_RED "^";
-    }
-    else {
-      line = line.substr(0, loc.pos_in_line) +
-             COL_DEFAULT COL_RED COL_BOLD "^" COL_GRAY COL_UNBOLD +
-             line.substr(loc.pos_in_line + 1);
-    }
-
-    std::cout << line << std::endl;
-  }
-  else {
-    std::cout << COL_CYAN "      | "
-              << std::string(loc.pos_in_line, ' ')
-              << COL_RED COL_BOLD "^" << COL_DEFAULT << std::endl;
-  }
+  std::cout << ss.str() << std::endl;
 
   return *this;
 }
@@ -88,9 +141,21 @@ Error& Error::emit(bool as_warn) {
 // Error& Error::emit_as_hint() {
 // }
 
+void Error::operator()() {
+  this->emit().stop();
+}
+
 [[noreturn]]
 void Error::stop() {
   std::exit(1);
+}
+
+Error::Error(Token tok, std::string msg)
+    : loc_token(tok), msg(std::move(msg)) {
+}
+
+Error::Error(ASTPointer ast, std::string msg)
+    : loc_ast(ast), msg(std::move(msg)) {
 }
 
 } // namespace metro
