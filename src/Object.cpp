@@ -1,7 +1,6 @@
 #include <cassert>
 
 #include "alert.h"
-#include "GC.h"
 #include "Utils.h"
 #include "Builtin.h"
 #include "AST.h"
@@ -11,7 +10,8 @@ using namespace std::string_literals;
 namespace metro {
 
 Object::Object(TypeInfo type)
-    : type(std::move(type)), is_marked(false) {
+    : type(std::move(type)),
+      is_marked(false) {
 }
 
 ObjPrimitive* ObjPrimitive::to_float() {
@@ -103,11 +103,35 @@ ObjString::ObjString(std::string const& str)
 }
 
 // ----------------------------
+//  ObjEnumerator
+
+std::string ObjEnumerator::ToString() const {
+  return "(ObjEnumerator)";
+}
+
+// ----------------------------
 //  ObjInstance
 
+ObjPointer& ObjInstance::set_member_var(std::string const& name,
+                                        ObjPointer obj) {
+  return this->member[name] = obj;
+}
+
+ObjPtr<ObjCallable>&
+ObjInstance::add_member_func(ObjPtr<ObjCallable> obj) {
+  return this->member_funcs.emplace_back(obj);
+}
+
+bool ObjInstance::have_constructor() const {
+  return (bool)this->ast->constructor;
+}
+
+ASTPtr<AST::Function> ObjInstance::get_constructor() const {
+  return this->ast->constructor;
+}
+
 ObjPointer ObjInstance::Clone() const {
-  auto obj = this->ast ? ObjNew<ObjInstance>(this->ast)
-                       : ObjNew<ObjInstance>(this->builtin);
+  auto obj = ObjNew<ObjInstance>(this->ast);
 
   for (auto&& [key, val] : this->member) {
     obj->member[key] = val->Clone();
@@ -121,18 +145,13 @@ ObjPointer ObjInstance::Clone() const {
 }
 
 std::string ObjInstance::ToString() const {
-  return "(ObjInstance of class "s +
-         std::string(this->ast ? this->ast->GetName()
-                               : this->builtin->name) +
-         ")";
+  return "(ObjInstance of '"s + this->ast->GetName() + "')";
 }
 
 ObjInstance::ObjInstance(ASTPtr<AST::Class> ast)
-    : Object(TypeKind::Instance), ast(ast), builtin(nullptr) {
-}
-
-ObjInstance::ObjInstance(builtins::Class const* builtin)
-    : Object(TypeKind::Instance), ast(nullptr), builtin(builtin) {
+    : Object(TypeKind::Instance),
+      ast(ast) {
+  this->type.name = ast->GetName();
 }
 
 // ----------------------------
@@ -155,11 +174,24 @@ std::string ObjCallable::ToString() const {
 }
 
 ObjCallable::ObjCallable(ASTPtr<AST::Function> fp)
-    : Object(TypeKind::Function), func(fp), builtin(nullptr) {
+    : Object(TypeKind::Function),
+      func(fp),
+      builtin(nullptr),
+      is_named(true) {
 }
 
 ObjCallable::ObjCallable(builtins::Function const* fp)
-    : Object(TypeKind::Function), func(nullptr), builtin(fp) {
+    : Object(TypeKind::Function),
+      func(nullptr),
+      builtin(fp),
+      is_named(true) {
+}
+
+// ----------------------------
+//  ObjType
+
+std::string ObjType::ToString() const {
+  return "(ObjType)";
 }
 
 } // namespace metro

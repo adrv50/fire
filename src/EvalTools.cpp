@@ -10,10 +10,10 @@ using namespace AST;
 
 ObjPointer* Evaluator::find_var(std::string const& name) {
   for (i64 i = this->stack.size() - 1; i >= 0; i--) {
-    auto& vartable = this->stack[i];
+    auto& stack = this->stack[i];
 
-    if (vartable.map.contains(name))
-      return &vartable.map[name];
+    if (auto pvar = stack.find_variable(name); pvar)
+      return &pvar->value;
   }
 
   return nullptr;
@@ -27,6 +27,51 @@ Evaluator::find_func(std::string const& name) {
   }
 
   return {nullptr, builtins::find_builtin_func(name)};
+}
+
+ASTPtr<AST::Class> Evaluator::find_class(std::string const& name) {
+  for (auto&& ast : this->classes) {
+    if (ast->GetName() == name)
+      return ast;
+  }
+
+  return nullptr;
+}
+
+ObjPtr<ObjInstance>
+Evaluator::new_class_instance(ASTPtr<AST::Class> ast) {
+  auto obj = ObjNew<ObjInstance>(ast);
+
+  for (auto&& var : ast->mb_variables) {
+    auto& v = obj->member[var->GetName()];
+
+    if (var->init) {
+      v = this->evaluate(var->init);
+    }
+  }
+
+  for (auto&& func : ast->mb_functions) {
+    obj->add_member_func(ObjNew<ObjCallable>(func));
+  }
+
+  return obj;
+}
+
+ObjPointer Evaluator::call_function_ast(ASTPtr<AST::Function> ast,
+                                        ObjVector& args) {
+
+  auto& stack = this->push();
+
+  for (auto argname = ast->arg_names.begin(); auto&& obj : args) {
+    stack.append((argname++)->str, obj);
+  }
+
+  this->evaluate(ast->block);
+
+  auto ret = stack.result;
+  this->pop();
+
+  return ret ? ret : ObjNew<ObjNone>();
 }
 
 void Evaluator::adjust_numeric_type_object(

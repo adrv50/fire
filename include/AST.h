@@ -15,10 +15,14 @@ struct SourceStorage {
     i64 index, begin, end, length;
 
     LineRange(i64 index, i64 begin, i64 end)
-        : index(index), begin(begin), end(end), length(end - begin) {
+        : index(index),
+          begin(begin),
+          end(end),
+          length(end - begin) {
     }
 
-    LineRange() : LineRange(0, 0, 0) {
+    LineRange()
+        : LineRange(0, 0, 0) {
     }
   };
 
@@ -64,14 +68,18 @@ struct SourceLocation {
   }
 
   SourceLocation(i64 pos, i64 len, SourceStorage const* r)
-      : position(pos), length(len), pos_in_line(0), ref(r) {
+      : position(pos),
+        length(len),
+        pos_in_line(0),
+        ref(r) {
     if (this->ref) {
       this->line = this->ref->GetLineRange(this->position);
       this->pos_in_line = this->position - this->line.begin;
     }
   }
 
-  SourceLocation() : SourceLocation(0, 0, nullptr) {
+  SourceLocation()
+      : SourceLocation(0, 0, nullptr) {
   }
 };
 
@@ -101,16 +109,21 @@ struct Token {
 
   Token(TokenKind kind, std::string const& str,
         SourceLocation sourceloc = {})
-      : kind(kind), str(str), sourceloc(sourceloc) {
+      : kind(kind),
+        str(str),
+        sourceloc(sourceloc) {
   }
 
-  Token(std::string str) : Token(TokenKind::Unknown, str) {
+  Token(std::string str)
+      : Token(TokenKind::Unknown, str) {
   }
 
-  Token(char const* str = "") : Token(std::string(str)) {
+  Token(char const* str = "")
+      : Token(std::string(str)) {
   }
 
-  Token(TokenKind kind) : Token(kind, "") {
+  Token(TokenKind kind)
+      : Token(kind, "") {
   }
 };
 
@@ -191,10 +204,13 @@ struct Base {
 
 protected:
   Base(ASTKind kind, Token token, Token endtok)
-      : kind(kind), token(token), endtok(endtok) {
+      : kind(kind),
+        token(token),
+        endtok(endtok) {
   }
 
-  Base(ASTKind kind, Token token) : Base(kind, token, token) {
+  Base(ASTKind kind, Token token)
+      : Base(kind, token, token) {
   }
 };
 
@@ -202,7 +218,8 @@ struct Value : Base {
   ObjPointer value;
 
   Value(Token tok, ObjPointer value)
-      : Base(ASTKind::Value, tok), value(value) {
+      : Base(ASTKind::Value, tok),
+        value(value) {
   }
 };
 
@@ -215,16 +232,19 @@ struct Named : Base {
 
 protected:
   Named(ASTKind kind, Token tok, Token name)
-      : Base(kind, tok), name(name) {
+      : Base(kind, tok),
+        name(name) {
     this->is_named = true;
   }
 
-  Named(ASTKind kind, Token tok) : Named(kind, tok, tok) {
+  Named(ASTKind kind, Token tok)
+      : Named(kind, tok, tok) {
   }
 };
 
 struct Variable : Named {
-  Variable(Token tok) : Named(ASTKind::Variable, tok, tok) {
+  Variable(Token tok)
+      : Named(ASTKind::Variable, tok, tok) {
   }
 };
 
@@ -244,7 +264,10 @@ struct Expr : Base {
   ASTPointer rhs;
 
   Expr(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs)
-      : Base(kind, optok), op(this->token), lhs(lhs), rhs(rhs) {
+      : Base(kind, optok),
+        op(this->token),
+        lhs(lhs),
+        rhs(rhs) {
     this->is_expr = true;
   }
 };
@@ -252,7 +275,8 @@ struct Expr : Base {
 struct Block : Base {
   ASTVector list;
 
-  Block(Token tok, ASTVector list = {}) : Base(ASTKind::Block, tok) {
+  Block(Token tok, ASTVector list = {})
+      : Base(ASTKind::Block, tok) {
   }
 };
 
@@ -260,7 +284,8 @@ struct VarDef : Named {
   ASTPtr<TypeName> type = nullptr;
   ASTPointer init = nullptr;
 
-  VarDef(Token tok, Token name) : Named(ASTKind::Vardef, tok, name) {
+  VarDef(Token tok, Token name)
+      : Named(ASTKind::Vardef, tok, name) {
   }
 };
 
@@ -286,7 +311,8 @@ struct Statement : Base {
   std::any astdata;
 
   Statement(ASTKind kind, Token tok, std::any data)
-      : Base(kind, tok), astdata(data) {
+      : Base(kind, tok),
+        astdata(data) {
   }
 };
 
@@ -297,44 +323,50 @@ struct TypeName : Base {
   bool is_const;
 
   TypeInfo type;
-  std::weak_ptr<Class> ast_class;
-  builtins::Class const* builtin_class;
+  ASTPtr<Class> ast_class;
 
   TypeName(Token name)
-      : Base(ASTKind::TypeName, name), name(this->token),
-        is_const(false), builtin_class(nullptr) {
-  }
-};
-
-struct FuncArgument : Named {
-  ASTPtr<TypeName> type;
-
-  FuncArgument(Token tok, ASTPtr<TypeName> type)
-      : Named(ASTKind::FuncArg, tok, tok), type(type) {
+      : Base(ASTKind::TypeName, name),
+        name(this->token),
+        is_const(false) {
   }
 };
 
 struct Function : Named {
-  ASTVec<FuncArgument> args;
+  TokenVector arg_names;
   ASTPtr<TypeName> return_type;
   ASTPtr<Block> block;
 
+  Token& add_arg(Token const& tok) {
+    return this->arg_names.emplace_back(tok);
+  }
+
   Function(Token tok, Token name)
       : Named(ASTKind::Function, tok, name) {
+  }
+
+  Function(Token tok, Token name, TokenVector args,
+           ASTPtr<TypeName> rettype, ASTPtr<Block> block)
+      : Named(ASTKind::Function, tok, name),
+        arg_names(args),
+        return_type(rettype),
+        block(block) {
   }
 };
 
 struct Enumerator : Named {
   ASTPtr<TypeName> value_type;
 
-  Enumerator(Token tok) : Named(ASTKind::Enumerator, tok, tok) {
+  Enumerator(Token tok)
+      : Named(ASTKind::Enumerator, tok, tok) {
   }
 };
 
 struct Enum : Named {
   ASTVec<Enumerator> enumerators;
 
-  Enum(Token tok, Token name) : Named(ASTKind::Enum, tok, name) {
+  Enum(Token tok, Token name)
+      : Named(ASTKind::Enum, tok, name) {
   }
 };
 
@@ -342,7 +374,10 @@ struct Class : Named {
   ASTVec<VarDef> mb_variables;
   ASTVec<Function> mb_functions;
 
-  Class(Token tok, Token name) : Named(ASTKind::Class, tok, name) {
+  ASTPtr<Function> constructor = nullptr;
+
+  Class(Token tok, Token name)
+      : Named(ASTKind::Class, tok, name) {
   }
 };
 

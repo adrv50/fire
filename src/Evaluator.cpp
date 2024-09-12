@@ -11,7 +11,7 @@ using namespace AST;
 void Evaluator::do_eval() {
   this->push(); // global variable
 
-  for (auto&& x : this->root.list) {
+  for (auto&& x : this->root->list) {
     evaluate(x);
   }
 
@@ -23,16 +23,31 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
   auto obj = this->evaluate(ast->lhs);
   auto& name = ast->rhs->token.str;
 
-  if (obj->type.kind == TypeKind::Instance) {
+  //
+  // ObjInstance
+  if (obj->is_instance()) {
     auto inst = PtrCast<ObjInstance>(obj);
 
-    if (inst->member.contains(name))
-      return inst->member[name];
+    if (inst->member.contains(name)) {
+      auto ret = inst->member[name];
+
+      if (ret)
+        return ret->Clone();
+
+      Error(ast->rhs->token,
+            "use member variable before assignment")();
+    }
 
     for (auto&& mf : inst->member_funcs) {
       if (mf->GetName() == name)
         return mf;
     }
+  }
+
+  //
+  // ObjModule
+  if (obj->type.kind == TypeKind::Module) {
+    auto mod = PtrCast<ObjModule>(obj);
   }
 
   if (auto [fn_ast, blt] = this->find_func(name); fn_ast)
@@ -45,6 +60,53 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
                         "` type object.")();
 }
 
+ObjPointer& Evaluator::eval_as_writable(ASTPointer ast) {
+  using Kind = ASTKind;
+
+  switch (ast->kind) {
+  case Kind::Variable: {
+    auto x = ast->As<AST::Variable>();
+    auto pvar = this->find_var(x->GetName());
+
+    if (!pvar) {
+      Error(ast->token, "undefined variable name")();
+    }
+
+    return *pvar;
+  }
+
+  case Kind::IndexRef: {
+    auto x = ast->As<AST::Expr>();
+
+    auto& obj = this->eval_as_writable(x->lhs);
+    auto index = this->evaluate(x->rhs);
+
+    todo_impl;
+  }
+
+  case Kind::MemberAccess: {
+    auto x = ast->As<AST::Expr>();
+    auto& obj = this->eval_as_writable(x->lhs);
+    auto name = x->rhs->token.str;
+
+    if (obj->type.kind == TypeKind::Instance) {
+      auto inst = obj->As<ObjInstance>();
+
+      if (inst->member.contains(name))
+        return inst->member[name];
+
+      Error(x->rhs->token, "class '" + inst->ast->GetName() +
+                               "' don't have member '" + name +
+                               "'")();
+    }
+
+    todo_impl; // find in enum
+  }
+  }
+
+  Error(ast, "cannot writable")();
+}
+
 ObjPointer Evaluator::evaluate(ASTPointer ast) {
   using Kind = ASTKind;
 
@@ -54,8 +116,9 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
   case Kind::Variable: {
     auto x = ASTCast<Variable>(ast);
+    auto name = x->GetName();
 
-    auto pobj = this->find_var(x->GetName());
+    auto pobj = this->find_var(name);
 
     // found variable
     if (pobj) {
@@ -65,13 +128,23 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       Error(ast->token, "use variable before assignment")();
     }
 
-    auto [func, bfn] = this->find_func(x->GetName());
-
-    if (func)
+    // find function
+    if (auto [func, bfn] = this->find_func(name); func) {
       return ObjNew<ObjCallable>(func);
-
-    if (bfn)
+    }
+    else if (bfn) {
+      // builtin-func
       return ObjNew<ObjCallable>(bfn);
+    }
+
+    // find class
+    if (auto C = this->find_class(name); C) {
+      auto obj = ObjNew<ObjType>();
+
+      obj->ast_class = C;
+
+      return obj;
+    }
 
     Error(ast->token, "no name defined")();
   }
@@ -79,40 +152,52 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   case Kind::CallFunc: {
     auto cf = ASTCast<CallFunc>(ast);
 
-    auto funcobj = this->evaluate(cf->expr);
+    auto obj = this->evaluate(cf->expr);
 
-    if (!funcobj->is_callable()) {
-      Error(cf->expr->token,
-            "`" + funcobj->type.to_string() + "` is not callable")();
+    ObjVector args;
+
+    for (auto&& x : cf->args) {
+      args.emplace_back(this->evaluate(x));
     }
 
-    auto cb = funcobj->As<ObjCallable>();
+    // type
+    if (obj->type.kind == TypeKind::TypeName) {
+      auto typeobj = obj->As<ObjType>();
 
+      // class --> make instance
+      if (typeobj->ast_class) {
+        auto inst = this->new_class_instance(typeobj->ast_class);
+
+        if (inst->have_constructor()) {
+          args.insert(args.begin(), inst);
+
+          this->call_function_ast(inst->get_constructor(), args);
+        }
+        else if (args.size() >= 1) {
+          Error(
+              cf->args[0]->token,
+              "class '" + typeobj->ast_class->GetName() +
+                  "' don't have constructor, but given arguments.")();
+        }
+
+        return inst;
+      }
+    }
+
+    // not callable object --> error
+    if (!obj->is_callable()) {
+      Error(cf->expr->token,
+            "`" + obj->type.to_string() + "` is not callable")();
+    }
+
+    auto cb = obj->As<ObjCallable>();
+
+    // builtin func
     if (cb->builtin) {
-      ObjVector args;
-
-      for (auto&& arg : cf->args)
-        args.emplace_back(this->evaluate(arg));
-
       return cb->builtin->Call(std::move(args));
     }
 
-    auto func = cb->func;
-    auto& fn_lvar = this->push();
-
-    for (auto fn_arg_it = func->args.begin(); auto&& arg : cf->args) {
-      fn_lvar.map[(*fn_arg_it++)->GetName()] = this->evaluate(arg);
-    }
-
-    this->evaluate(func->block);
-
-    auto ret = fn_lvar.result;
-    this->pop();
-
-    if (ret)
-      return ret;
-
-    break;
+    return this->call_function_ast(cb->func, args);
   }
 
   case Kind::MemberAccess: {
@@ -130,15 +215,25 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
   case Kind::Vardef: {
     auto x = ASTCast<AST::VarDef>(ast);
+    auto name = x->GetName();
 
-    auto& vartable = this->get_cur_vartable();
-    auto& obj = vartable.map[x->GetName()];
+    auto& stack = this->get_cur_stack();
 
-    if (x->init) {
-      obj = this->evaluate(x->init);
-    }
+    auto pvar = stack.find_variable(name);
+
+    if (!pvar)
+      pvar = &stack.append(name);
+
+    if (x->init)
+      pvar->value = this->evaluate(x->init);
 
     break;
+  }
+
+  case Kind::Assign: {
+    auto x = ASTCast<AST::Expr>(ast);
+
+    return this->eval_as_writable(x->lhs) = this->evaluate(x->rhs);
   }
 
   case Kind::Function:
@@ -154,11 +249,16 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   return ObjNew<ObjNone>();
 }
 
-Evaluator::Evaluator(AST::Program prg) : root(prg) {
-  for (auto&& ast : prg.list) {
+Evaluator::Evaluator(ASTPtr<AST::Program> prg)
+    : root(prg) {
+  for (auto&& ast : prg->list) {
     switch (ast->kind) {
     case ASTKind::Function:
       this->functions.emplace_back(ASTCast<AST::Function>(ast));
+      break;
+
+    case ASTKind::Class:
+      this->classes.emplace_back(ASTCast<AST::Class>(ast));
       break;
     }
   }

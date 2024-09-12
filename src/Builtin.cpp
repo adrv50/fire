@@ -3,30 +3,14 @@
 
 #include "Builtin.h"
 
-namespace metro {
-
-namespace builtins {
+namespace metro::builtins {
 
 ObjPointer Function::Call(ObjVector args) const {
   return this->func(std::move(args));
 }
 
-ObjPointer Class::NewInstance() const {
-  auto obj = ObjNew<ObjInstance>(this);
-
-  for (auto&& name : this->member_var_names) {
-    obj->member[name] = nullptr;
-  }
-
-  for (auto&& func : this->member_functions) {
-    obj->member_funcs.emplace_back(ObjNew<ObjCallable>(&func));
-  }
-
-  return obj;
-}
-
 Function const* find_builtin_func(std::string const& name) {
-  auto const& funcs = get_metro_builtins().functions;
+  auto const& funcs = get_builtin_functions();
 
   for (auto&& f : funcs) {
     if (f.name == name)
@@ -35,8 +19,6 @@ Function const* find_builtin_func(std::string const& name) {
 
   return nullptr;
 }
-
-} // namespace builtins
 
 static ObjPointer bfun_print(ObjVector args) {
   std::stringstream ss;
@@ -60,22 +42,24 @@ static ObjPointer bfun_println(ObjVector args) {
   return ret;
 }
 
-// clang-format off
-static const MetroBuiltins g_metro_builtins = {
+static ObjPointer bfun_import(ObjVector args) {
 
-.functions = {
-  { "print", { }, true, bfun_print },
-  { "println", { }, true, bfun_println },
-
-  // { "length" },
-
+  return ObjNew<ObjPrimitive>((i64)0);
 }
+
+// clang-format off
+static const std::vector<Function> g_builtin_functions = {
+
+  { "print",    bfun_print,     0, true },
+  { "println",  bfun_println,   0, true },
+
+  { "import",   bfun_import,    1 },
 
 };
 // clang-format on
 
-MetroBuiltins const& get_metro_builtins() {
-  return g_metro_builtins;
+std::vector<builtins::Function> const& get_builtin_functions() {
+  return g_builtin_functions;
 }
 
-} // namespace metro
+} // namespace metro::builtins

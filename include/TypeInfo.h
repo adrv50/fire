@@ -19,15 +19,20 @@ enum class TypeKind : u8 {
   Tuple,
   Dict,
 
+  Enumerator,
   Instance, // instance of class
 
-  Module,
   Function,
+  Module,
+
+  TypeName, // name of class or etc
 };
 
 struct TypeInfo {
   TypeKind kind;
   std::vector<TypeInfo> params;
+
+  std::string name;
 
   bool is_const = false;
 
@@ -49,11 +54,13 @@ struct TypeInfo {
   bool equals(TypeInfo const& type) const;
   std::string to_string() const;
 
-  TypeInfo(TypeKind kind = TypeKind::None) : TypeInfo(kind, {}) {
+  TypeInfo(TypeKind kind = TypeKind::None)
+      : TypeInfo(kind, {}) {
   }
 
   TypeInfo(TypeKind kind, std::vector<TypeInfo> params)
-      : kind(kind), params(std::move(params)) {
+      : kind(kind),
+        params(std::move(params)) {
   }
 };
 

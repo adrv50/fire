@@ -49,7 +49,8 @@ static ObjPtr<ObjPrimitive> make_value_from_token(Token const& tok) {
 }
 
 Parser::Parser(TokenVector tokens)
-    : tokens(std::move(tokens)), cur(this->tokens.begin()),
+    : tokens(std::move(tokens)),
+      cur(this->tokens.begin()),
       end(this->tokens.end()) {
 }
 
@@ -282,23 +283,16 @@ ASTPointer Parser::Stmt() {
       return ast;
     }
 
-    cur_scope_depth++;
-
     while (this->check()) {
       ast->list.emplace_back(this->Stmt());
 
       if (this->eat("}")) {
         ast->endtok = *this->ate;
-        goto block_closed;
+        return ast;
       }
     }
 
     Error(tok, "not terminated block")();
-
-  block_closed:;
-    cur_scope_depth--;
-
-    return ast;
   }
 
   if (this->eat("if")) {
@@ -355,8 +349,6 @@ ASTPointer Parser::Top() {
       return ast;
     }
 
-    cur_scope_depth++;
-
     do {
       auto& etor = ast->enumerators.emplace_back(
           ASTNew<AST::Enumerator>(*this->expectIdentifier()));
@@ -368,7 +360,6 @@ ASTPointer Parser::Top() {
     } while (this->eat(","));
 
     this->expect("}");
-    cur_scope_depth--;
 
     return ast;
   }
@@ -377,15 +368,38 @@ ASTPointer Parser::Top() {
     auto ast = ASTNew<AST::Class>(tok, *this->expectIdentifier());
 
     this->expect("{");
-    cur_scope_depth++;
 
     bool closed = false;
 
+    // member variables
     while (this->cur->str == "let") {
       ast->mb_variables.emplace_back(
           std::static_pointer_cast<AST::VarDef>(this->Stmt()));
     }
 
+    // constructor
+    if (this->eat(ast->GetName())) {
+
+      auto ctor = ASTNew<AST::Function>(ast->name, ast->name);
+
+      this->expect("(");
+
+      this->expect("self");
+      ctor->add_arg(*this->ate);
+
+      while (this->eat(",")) {
+        ctor->add_arg(*this->expectIdentifier());
+      }
+
+      this->expect(")");
+
+      this->expect("{", true);
+      ctor->block = ASTCast<AST::Block>(this->Stmt());
+
+      ast->constructor = ctor;
+    }
+
+    // member functions
     while (this->check() && !(closed = this->eat("}"))) {
       if (!this->match("fn"))
         Error(*this->cur, "expected definition of member function")();
@@ -393,8 +407,6 @@ ASTPointer Parser::Top() {
       ast->mb_functions.emplace_back(
           std::static_pointer_cast<AST::Function>(this->Top()));
     }
-
-    cur_scope_depth--;
 
     if (!closed)
       Error(iter[2], "not terminated block")();
@@ -405,20 +417,11 @@ ASTPointer Parser::Top() {
   if (this->eat("fn")) {
     auto func = ASTNew<AST::Function>(tok, *this->expectIdentifier());
 
-    cur_scope_depth++;
-
     this->expect("(");
 
     if (!this->eat(")")) {
       do {
-        auto name = this->expectIdentifier();
-
-        auto& emplaced = func->args.emplace_back(
-            ASTNew<AST::FuncArgument>(*name, nullptr));
-
-        if (this->eat(":"))
-          emplaced->type = this->expectTypeName();
-
+        func->add_arg(*this->expectIdentifier());
       } while (this->eat(","));
 
       this->expect(")");
@@ -433,85 +436,53 @@ ASTPointer Parser::Top() {
 
     func->block = std::static_pointer_cast<AST::Block>(this->Stmt());
 
-    cur_scope_depth--;
-
     return func;
+  }
+
+  //
+  // import <name>
+  //   --> convert to " let name = import("name"); "
+  //
+  // replace to variable declaration,
+  //  and assignment result of call "import" func.
+  //
+  if (this->eat("import")) {
+    std::string name = this->expectIdentifier()->str;
+
+    while (this->eat("/")) {
+      name += "/" + this->expectIdentifier()->str;
+    }
+
+    this->expect(";");
+
+    auto ast = ASTNew<AST::VarDef>(tok, iter[1]);
+
+    auto call = ASTNew<AST::CallFunc>(ASTNew<AST::Variable>(tok));
+
+    Token mod_name_token = iter[1];
+
+    mod_name_token.kind = TokenKind::String;
+    mod_name_token.str = name;
+    mod_name_token.sourceloc.length = name.length();
+
+    auto module_name =
+        ASTNew<AST::Value>(mod_name_token, ObjNew<ObjString>(name));
+
+    ast->init = call;
+
+    return ast;
   }
 
   return this->Stmt();
 }
 
-AST::Program Parser::Parse() {
-  AST::Program ret;
-
-  this->MakeIdentifierTags();
-
-#if 0
-  debug(alert; for (auto&& [name, tag]
-                    : this->id_tag_map) {
-    std::cout << utils::Format("%.*s\t: depth=% 2d, type=%d",
-                               name.length(), name.data(),
-                               tag.scope_depth, tag.type)
-              << std::endl;
-  });
-#endif
+ASTPtr<AST::Program> Parser::Parse() {
+  auto ret = ASTNew<AST::Program>();
 
   while (this->check())
-    ret.list.emplace_back(this->Top());
+    ret->list.emplace_back(this->Top());
 
   return ret;
-}
-
-void Parser::MakeIdentifierTags() {
-  int scope_depth = 0;
-
-  while (this->check()) {
-    if (this->eat("{")) {
-      scope_depth++;
-    }
-
-    else if (this->eat("}")) {
-      scope_depth--;
-    }
-
-    else if (this->match("let", TokenKind::Identifier)) {
-      this->add_id_tag(this->cur[1].str,
-                       IdentifierTag(IdentifierTag::Variable,
-                                     this->cur + 1, scope_depth));
-
-      this->cur += 2;
-    }
-
-    else if (this->match("enum", TokenKind::Identifier)) {
-      this->add_id_tag(this->cur[1].str,
-                       IdentifierTag(IdentifierTag::Enum,
-                                     this->cur + 1, scope_depth));
-
-      this->cur += 2;
-    }
-
-    else if (this->match("class", TokenKind::Identifier)) {
-      this->add_id_tag(this->cur[1].str,
-                       IdentifierTag(IdentifierTag::Class,
-                                     this->cur + 1, scope_depth));
-
-      this->cur += 2;
-    }
-
-    else if (this->match("fn", TokenKind::Identifier)) {
-      this->add_id_tag(this->cur[1].str,
-                       IdentifierTag(IdentifierTag::Function,
-                                     this->cur + 1, scope_depth));
-
-      this->cur += 2;
-    }
-
-    else {
-      this->cur++;
-    }
-  }
-
-  this->cur = this->tokens.begin();
 }
 
 bool Parser::check() const {
@@ -549,10 +520,6 @@ TokenIterator Parser::expectIdentifier() {
 
 ASTPtr<AST::TypeName> Parser::expectTypeName() {
   auto ast = ASTNew<AST::TypeName>(*this->expectIdentifier());
-
-  if (!this->is_type_name(ast->token.str)) {
-    Error(ast->token, "expected type name")();
-  }
 
   if (this->eat("<")) {
     do {

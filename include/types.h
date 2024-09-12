@@ -40,9 +40,13 @@ struct TypeInfo;
 
 struct Object;
 struct ObjPrimitive;
-struct ObjCallable;
 struct ObjIterable;
+struct ObjString;
 struct ObjInstance;
+struct ObjCallable;
+struct ObjModule;
+struct ObjType;
+struct ObjEnumerator;
 
 namespace value_type {
 
@@ -96,8 +100,6 @@ using ASTVector = std::vector<ASTPointer>;
 namespace builtins {
 
 struct Function;
-struct Class;
-struct Module;
 
 } // namespace builtins
 

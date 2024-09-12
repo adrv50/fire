@@ -36,6 +36,10 @@ struct Object {
     return this->is_int() || this->is_size();
   }
 
+  bool is_instance() const {
+    return this->type.kind == TypeKind::Instance;
+  }
+
   virtual ~Object() = default;
 
   virtual ObjPointer Clone() const = 0;
@@ -64,7 +68,8 @@ struct ObjNone : Object {
     return "none";
   }
 
-  ObjNone() : Object(TypeKind::None) {
+  ObjNone()
+      : Object(TypeKind::None) {
   }
 };
 
@@ -84,16 +89,25 @@ struct ObjPrimitive : Object {
   ObjPointer Clone() const override;
   std::string ToString() const override;
 
-  ObjPrimitive(i64 vi = 0) : Object(TypeKind::Int), vi(vi) {};
+  ObjPrimitive(i64 vi = 0)
+      : Object(TypeKind::Int),
+        vi(vi) {};
 
-  ObjPrimitive(double vf) : Object(TypeKind::Float), vf(vf) {};
+  ObjPrimitive(double vf)
+      : Object(TypeKind::Float),
+        vf(vf) {};
 
   ObjPrimitive(size_t vsize)
-      : Object(TypeKind::Size), vsize(vsize) {};
+      : Object(TypeKind::Size),
+        vsize(vsize) {};
 
-  ObjPrimitive(bool vb) : Object(TypeKind::Bool), vb(vb) {};
+  ObjPrimitive(bool vb)
+      : Object(TypeKind::Bool),
+        vb(vb) {};
 
-  ObjPrimitive(char16_t vc) : Object(TypeKind::Char), vc(vc) {};
+  ObjPrimitive(char16_t vc)
+      : Object(TypeKind::Char),
+        vc(vc) {};
 };
 
 struct ObjIterable : Object {
@@ -115,7 +129,8 @@ struct ObjIterable : Object {
   ObjPointer Clone() const override;
   std::string ToString() const override;
 
-  ObjIterable(TypeInfo type) : Object(type) {
+  ObjIterable(TypeInfo type)
+      : Object(type) {
   }
 };
 
@@ -124,27 +139,61 @@ struct ObjString : ObjIterable {
 
   std::string ToString() const override;
 
+  ObjPointer Clone() const override {
+    return std::dynamic_pointer_cast<ObjString>(
+        this->ObjIterable::Clone());
+  }
+
   ObjString(std::u16string const& str = u"");
   ObjString(std::string const& str);
 };
 
+//
+// TypeKind::Enumerator
+//
+struct ObjEnumerator : Object {
+  ASTPtr<AST::Enum> ast;
+  int index;
+
+  ObjPointer Clone() const override {
+    return ObjNew<ObjEnumerator>(*this);
+  }
+
+  std::string ToString() const override;
+
+  ObjEnumerator(ASTPtr<AST::Enum> ast, int index)
+      : Object(TypeKind::Enumerator),
+        ast(ast),
+        index(index) {
+  }
+};
+
+//
 // instance of class
 struct ObjInstance : Object {
   ASTPtr<AST::Class> ast;
-  builtins::Class const* builtin;
 
   std::map<std::string, ObjPointer> member;
   std::vector<ObjPtr<ObjCallable>> member_funcs;
+
+  ObjPointer& set_member_var(std::string const& name, ObjPointer obj);
+  ObjPtr<ObjCallable>& add_member_func(ObjPtr<ObjCallable> obj);
+
+  bool have_constructor() const;
+  ASTPtr<AST::Function> get_constructor() const;
 
   ObjPointer Clone() const override;
   std::string ToString() const override;
 
   ObjInstance(ASTPtr<AST::Class> ast);
-  ObjInstance(builtins::Class const* builtin);
 };
 
 //
-// TypeKind::Function
+// ObjCallable
+//
+//  .func       = ptr to ast
+//  .builtin    = ptr to builtin
+//  .is_named   = when lambda this is false
 //
 struct ObjCallable : Object {
   ASTPtr<AST::Function> func;
@@ -158,6 +207,46 @@ struct ObjCallable : Object {
 
   ObjCallable(ASTPtr<AST::Function> fp);
   ObjCallable(builtins::Function const* fp);
+};
+
+//
+// TypeKind::Module
+//
+struct ObjModule : Object {
+  ASTPtr<AST::Program> ast;
+
+  ObjPointer Clone() const override {
+    return ObjNew<ObjModule>(*this);
+  }
+
+  std::string ToString() const override;
+
+  ObjModule()
+      : Object(TypeKind::Module),
+        ast(nullptr) {
+  }
+
+  ObjModule(ASTPtr<AST::Program> ast);
+};
+
+//
+// TypeKind::TypeName
+//
+struct ObjType : Object {
+  TypeInfo typeinfo;
+
+  ASTPtr<AST::Enum> ast_enum = nullptr;
+  ASTPtr<AST::Class> ast_class = nullptr;
+
+  ObjPointer Clone() const override {
+    return ObjNew<ObjType>(*this);
+  }
+
+  std::string ToString() const override;
+
+  ObjType()
+      : Object(TypeKind::TypeName) {
+  }
 };
 
 } // namespace metro

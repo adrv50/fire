@@ -43,14 +43,22 @@ std::string TypeInfo::to_string() const {
     { TypeKind::Vector,     "vector" },
     { TypeKind::Tuple,      "tuple" },
     { TypeKind::Dict,       "dict" },
+    { TypeKind::Instance,   "instance" },
     { TypeKind::Module,     "module" },
     { TypeKind::Function,   "function" },
+    { TypeKind::TypeName,   "type" },
   };
   // clang-format on
 
   debug(assert(kind_name_map.contains(this->kind)));
 
   std::string ret = kind_name_map[this->kind];
+
+  switch (this->kind) {
+  case TypeKind::Instance:
+    ret = name;
+    break;
+  }
 
   if (!this->params.empty()) {
     todo_impl;

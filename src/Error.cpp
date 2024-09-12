@@ -27,7 +27,8 @@ struct line_data_wrapper_t {
   std::string_view view;
   int linenum;
 
-  line_data_wrapper_t(Token const& tok) : src(tok.sourceloc.ref) {
+  line_data_wrapper_t(Token const& tok)
+      : src(tok.sourceloc.ref) {
     this->index = tok.sourceloc.line.index;
     this->pos = tok.sourceloc.pos_in_line;
 
@@ -35,7 +36,11 @@ struct line_data_wrapper_t {
     this->linenum = this->index + 1;
   }
 
-  line_data_wrapper_t() : src(nullptr), index(0), pos(0), linenum(0) {
+  line_data_wrapper_t()
+      : src(nullptr),
+        index(0),
+        pos(0),
+        linenum(0) {
   }
 
   bool get_other_line(line_data_wrapper_t& out,
@@ -113,7 +118,7 @@ Error& Error::emit(bool as_warn) {
     auto cursorpos = line_err.pos + LINENUM_WIDTH + 3 +
                      utils::get_color_length_in_str(s);
 
-    if (s.length() < cursorpos)
+    if (s.length() <= cursorpos)
       s += std::string(cursorpos - s.length() + 10, ' ');
 
     s = s.substr(0, cursorpos) +
@@ -152,11 +157,13 @@ void Error::stop() {
 }
 
 Error::Error(Token tok, std::string msg)
-    : loc_token(tok), msg(std::move(msg)) {
+    : loc_token(tok),
+      msg(std::move(msg)) {
 }
 
 Error::Error(ASTPointer ast, std::string msg)
-    : loc_ast(ast), msg(std::move(msg)) {
+    : loc_ast(ast),
+      msg(std::move(msg)) {
 }
 
 } // namespace metro

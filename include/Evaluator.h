@@ -24,23 +24,44 @@ static inline PrimitiveObjPair to_primitive_pair(ObjPtr<T> a,
 
 class Evaluator {
 
-  struct VarTable {
-    std::map<std::string, ObjPointer> map;
+  struct EvalStack {
+    struct LocalVar {
+      std::string name;
+      ObjPointer value;
+    };
+
+    std::vector<LocalVar> localvar;
 
     // for return-statement
     ObjPointer result = nullptr;
 
-    VarTable() {
+    LocalVar* find_variable(std::string const& name) {
+      for (auto&& lvar : this->localvar) {
+        if (lvar.name == name)
+          return &lvar;
+      }
+
+      return nullptr;
+    }
+
+    LocalVar& append(std::string const& name,
+                     ObjPointer val = nullptr) {
+      return this->localvar.emplace_back(name, val);
+    }
+
+    EvalStack() {
     }
   };
 
 public:
-  Evaluator(AST::Program ast);
+  Evaluator(ASTPtr<AST::Program> ast);
 
   void do_eval();
 
   ObjPointer eval_expr(ASTPtr<AST::Expr> ast);
   ObjPointer eval_member_access(ASTPtr<AST::Expr> ast);
+
+  ObjPointer& eval_as_writable(ASTPointer ast);
 
   ObjPointer evaluate(ASTPointer ast);
 
@@ -50,11 +71,18 @@ private:
   std::pair<ASTPtr<AST::Function>, builtins::Function const*>
   find_func(std::string const& name);
 
-  VarTable& get_cur_vartable() {
+  ASTPtr<AST::Class> find_class(std::string const& name);
+
+  ObjPtr<ObjInstance> new_class_instance(ASTPtr<AST::Class> ast);
+
+  ObjPointer call_function_ast(ASTPtr<AST::Function> ast,
+                               ObjVector& args);
+
+  EvalStack& get_cur_stack() {
     return *this->stack.rbegin();
   }
 
-  VarTable& push() {
+  EvalStack& push() {
     return this->stack.emplace_back();
   }
 
@@ -65,10 +93,12 @@ private:
   static void adjust_numeric_type_object(ObjPtr<ObjPrimitive> left,
                                          ObjPtr<ObjPrimitive> right);
 
-  AST::Program root;
-  std::vector<ASTPtr<AST::Function>> functions;
+  ASTPtr<AST::Program> root;
 
-  std::vector<VarTable> stack;
+  ASTVec<AST::Function> functions;
+  ASTVec<AST::Class> classes;
+
+  std::vector<EvalStack> stack;
 };
 
 } // namespace metro::eval
