@@ -275,6 +275,13 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     auto x = ast->As<AST::Statement>();
     auto data = std::any_cast<Statement::If>(x->astdata);
 
+    auto cond = this->evaluate(data.cond);
+
+    if (cond->As<ObjPrimitive>()->vb)
+      this->evaluate(data.if_true);
+    else if (data.if_false)
+      this->evaluate(data.if_false);
+
     break;
   }
 
