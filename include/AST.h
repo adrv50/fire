@@ -197,7 +197,7 @@ struct Base {
 
   template <class T>
   T const* As() const {
-    return static_cast<T*>(this);
+    return static_cast<T const*>(this);
   }
 
   i64 GetChilds(ASTVector& out) const;
@@ -264,7 +264,7 @@ struct CallFunc : Base {
   ASTPointer expr; // left side
   ASTVector args;
 
-  static ASTPtr<CallFunc> New(ASTPointer expr, ASTVector args);
+  static ASTPtr<CallFunc> New(ASTPointer expr, ASTVector args = {});
 
   CallFunc(ASTPointer expr, ASTVector args = {})
       : Base(ASTKind::CallFunc, expr->token, expr->token),
@@ -305,10 +305,12 @@ struct VarDef : Named {
   ASTPtr<TypeName> type;
   ASTPointer init;
 
-  static ASTPtr<VarDef> New(ASTPtr<TypeName> type, ASTPointer init);
-
   static ASTPtr<VarDef> New(Token tok, Token name,
                             ASTPtr<TypeName> type, ASTPointer init);
+
+  static ASTPtr<VarDef> New(Token tok, Token name) {
+    return New(tok, name, nullptr, nullptr);
+  }
 
   VarDef(Token tok, Token name, ASTPtr<TypeName> type = nullptr,
          ASTPointer init = nullptr)
@@ -381,39 +383,52 @@ struct Function : Named {
   ASTPtr<TypeName> return_type;
   ASTPtr<Block> block;
 
-  bool is_free_arg;
+  bool is_var_arg;
 
   Token& add_arg(Token const& tok) {
     return this->arg_names.emplace_back(tok);
   }
 
-  static ASTPtr<Function> New();
+  static ASTPtr<Function> New(Token tok, Token name);
+
+  static ASTPtr<Function> New(Token tok, Token name,
+                              TokenVector arg_names, bool is_var_arg,
+                              ASTPtr<TypeName> rettype,
+                              ASTPtr<Block> block);
 
   Function(Token tok, Token name)
-      : Named(ASTKind::Function, tok, name) {
+      : Named(ASTKind::Function, tok, name),
+        return_type(nullptr),
+        block(nullptr),
+        is_var_arg(false) {
   }
 
-  Function(Token tok, Token name, TokenVector args,
+  Function(Token tok, Token name, TokenVector args, bool is_var_arg,
            ASTPtr<TypeName> rettype, ASTPtr<Block> block)
       : Named(ASTKind::Function, tok, name),
         arg_names(args),
         return_type(rettype),
-        block(block) {
+        block(block),
+        is_var_arg(is_var_arg) {
   }
 };
 
 struct Enumerator : Named {
   ASTPtr<TypeName> value_type;
 
-  Enumerator(Token tok)
-      : Named(ASTKind::Enumerator, tok, tok) {
+  static ASTPtr<Enumerator> New(Token tok,
+                                ASTPtr<TypeName> valtype = nullptr);
+
+  Enumerator(Token tok, ASTPtr<TypeName> valtype)
+      : Named(ASTKind::Enumerator, tok, tok),
+        value_type(valtype) {
   }
 };
 
 struct Enum : Named {
   ASTVec<Enumerator> enumerators;
 
-  static ASTPtr<Enum> New();
+  static ASTPtr<Enum> New(Token tok, Token name);
 
   Enum(Token tok, Token name)
       : Named(ASTKind::Enum, tok, name) {
@@ -426,7 +441,7 @@ struct Class : Named {
 
   ASTPtr<Function> constructor = nullptr;
 
-  static ASTPtr<Class> New();
+  static ASTPtr<Class> New(Token tok, Token name);
 
   static ASTPtr<Class> New(Token tok, Token name,
                            ASTVec<VarDef> var_decl_list,
@@ -440,6 +455,8 @@ struct Class : Named {
 
 struct Program : Base {
   ASTVector list;
+
+  static ASTPtr<Program> New();
 
   Program()
       : Base(ASTKind::Program, {}) {

@@ -49,10 +49,6 @@ ASTPtr<Block> Block::New(Token tok, ASTVector list) {
   return ASTNew<Block>(tok, std::move(list));
 }
 
-ASTPtr<VarDef> VarDef::New(ASTPtr<TypeName> type, ASTPointer init) {
-  return ASTNew<VarDef>(Token(""), Token(""), type, init);
-}
-
 ASTPtr<VarDef> VarDef::New(Token tok, Token name,
                            ASTPtr<TypeName> type, ASTPointer init) {
   return ASTNew<VarDef>(tok, name, type, init);
@@ -82,7 +78,50 @@ ASTPtr<Statement> Statement::NewFor(Token tok, ASTVector init,
 }
 
 ASTPtr<TypeName> TypeName::New(Token nametok) {
-  return ASTNew<TypeName>(std::move(nametok));
+  return ASTNew<TypeName>(nametok);
+}
+
+ASTPtr<Function> Function::New(Token tok, Token name) {
+  return ASTNew<Function>(tok, name);
+}
+
+ASTPtr<Function> Function::New(Token tok, Token name,
+                               TokenVector arg_names, bool is_var_arg,
+                               ASTPtr<TypeName> rettype,
+                               ASTPtr<Block> block) {
+  return ASTNew<Function>(tok, name, std::move(arg_names), is_var_arg,
+                          rettype, block);
+}
+
+ASTPtr<Enumerator> Enumerator::New(Token tok,
+                                   ASTPtr<TypeName> valtype) {
+  return ASTNew<Enumerator>(tok, valtype);
+}
+
+ASTPtr<Enum> Enum::New(Token tok, Token name) {
+  return ASTNew<Enum>(tok, name);
+}
+
+ASTPtr<Class> Class::New(Token tok, Token name) {
+  return ASTNew<Class>(tok, name);
+}
+
+ASTPtr<Class> Class::New(Token tok, Token name,
+                         ASTVec<VarDef> var_decl_list,
+                         ASTVec<Function> func_list,
+                         ASTPtr<Function> ctor) {
+  auto ast = ASTNew<Class>(tok, name);
+
+  ast->mb_variables = std::move(var_decl_list);
+  ast->mb_functions = std::move(func_list);
+
+  ast->constructor = ctor;
+
+  return ast;
+}
+
+ASTPtr<Program> Program::New() {
+  return ASTNew<Program>();
 }
 
 } // namespace metro::AST

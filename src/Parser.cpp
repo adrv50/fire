@@ -63,14 +63,14 @@ ASTPointer Parser::Factor() {
   case TokenKind::Size:
   case TokenKind::Char:
   case TokenKind::Boolean:
-    return ASTNew<AST::Value>(tok, make_value_from_token(tok));
+    return AST::Value::New(tok, make_value_from_token(tok));
 
   case TokenKind::String:
-    return ASTNew<AST::Value>(tok, ObjNew<ObjString>(tok.str.substr(
-                                       1, tok.str.length() - 2)));
+    return AST::Value::New(tok, ObjNew<ObjString>(tok.str.substr(
+                                    1, tok.str.length() - 2)));
 
   case TokenKind::Identifier:
-    return ASTNew<AST::Variable>(tok);
+    return AST::Variable::New(tok);
   }
 
   Error(tok, "invalid syntax")();
@@ -84,7 +84,7 @@ ASTPointer Parser::IndexRef() {
 
     // index reference
     if (this->eat("[")) {
-      x = ASTNew<AST::Expr>(ASTKind::IndexRef, op, x, this->Factor());
+      x = new_expr(ASTKind::IndexRef, op, x, this->Factor());
       this->expect("]");
     }
 
@@ -96,16 +96,14 @@ ASTPointer Parser::IndexRef() {
         Error(op, "syntax error")();
       }
 
-      x = ASTNew<AST::Expr>(ASTKind::MemberAccess, op, x, rhs);
+      x = new_expr(ASTKind::MemberAccess, op, x, rhs);
     }
 
     // call func
     else if (this->eat("(")) {
-      x = ASTNew<AST::CallFunc>(x);
+      auto call = AST::CallFunc::New(x);
 
       if (!this->eat(")")) {
-        auto call = x->As<AST::CallFunc>();
-
         do {
           if (this->match(TokenKind::Identifier, ":")) {
             auto _name = this->Factor();
@@ -113,7 +111,7 @@ ASTPointer Parser::IndexRef() {
             auto colon = this->cur++;
             auto _expr = this->Expr();
 
-            call->args.emplace_back(ASTNew<AST::Expr>(
+            call->args.emplace_back(new_expr(
                 ASTKind::SpecifyArgumentName, *colon, _name, _expr));
           }
           else {
@@ -135,9 +133,9 @@ ASTPointer Parser::Unary() {
   auto& tok = *this->cur;
 
   if (this->eat("-")) {
-    return ASTNew<AST::Expr>(
+    return new_expr(
         ASTKind::Sub, tok,
-        ASTNew<AST::Value>("0", ObjNew<ObjPrimitive>((i64)0)),
+        AST::Value::New("0", ObjNew<ObjPrimitive>((i64)0)),
         this->IndexRef());
   }
 
@@ -153,9 +151,9 @@ ASTPointer Parser::Mul() {
     auto& op = *this->cur;
 
     if (this->eat("*"))
-      x = ASTNew<AST::Expr>(ASTKind::Mul, op, x, this->Unary());
+      x = new_expr(ASTKind::Mul, op, x, this->Unary());
     else if (this->eat("/"))
-      x = ASTNew<AST::Expr>(ASTKind::Div, op, x, this->Unary());
+      x = new_expr(ASTKind::Div, op, x, this->Unary());
     else
       break;
   }
@@ -170,9 +168,9 @@ ASTPointer Parser::Add() {
     auto& op = *this->cur;
 
     if (this->eat("+"))
-      x = ASTNew<AST::Expr>(ASTKind::Add, op, x, this->Mul());
+      x = new_expr(ASTKind::Add, op, x, this->Mul());
     else if (this->eat("-"))
-      x = ASTNew<AST::Expr>(ASTKind::Sub, op, x, this->Mul());
+      x = new_expr(ASTKind::Sub, op, x, this->Mul());
     else
       break;
   }
@@ -292,7 +290,7 @@ ASTPointer Parser::Stmt() {
   auto tok = *this->cur;
 
   if (this->eat("{")) {
-    auto ast = ASTNew<AST::Block>(tok);
+    auto ast = AST::Block::New(tok);
 
     ast->token = tok;
 
@@ -314,25 +312,25 @@ ASTPointer Parser::Stmt() {
   }
 
   if (this->eat("if")) {
-    auto data = AST::Statement::If{};
-
-    data.cond = this->Expr();
+    auto cond = this->Expr();
 
     this->expect("{", true);
-    data.if_true = this->Stmt();
+    auto if_true = this->Stmt();
+
+    ASTPointer if_false = nullptr;
 
     if (this->eat("else")) {
       if (!this->eat("if"))
         this->expect("{", true);
 
-      data.if_false = this->Stmt();
+      if_false = this->Stmt();
     }
 
-    return ASTNew<AST::Statement>(ASTKind::If, tok, data);
+    return AST::Statement::NewIf(tok, cond, if_true, if_false);
   }
 
   if (this->eat("let")) {
-    auto ast = ASTNew<AST::VarDef>(tok, *this->expectIdentifier());
+    auto ast = AST::VarDef::New(tok, *this->expectIdentifier());
 
     if (this->eat(":"))
       ast->type = this->expectTypeName();
@@ -357,7 +355,7 @@ ASTPointer Parser::Top() {
   auto iter = this->cur;
 
   if (this->eat("enum")) {
-    auto ast = ASTNew<AST::Enum>(tok, *this->expectIdentifier());
+    auto ast = AST::Enum::New(tok, *this->expectIdentifier());
 
     this->expect("{");
 
@@ -369,7 +367,7 @@ ASTPointer Parser::Top() {
 
     do {
       auto& etor = ast->enumerators.emplace_back(
-          ASTNew<AST::Enumerator>(*this->expectIdentifier()));
+          AST::Enumerator::New(*this->expectIdentifier()));
 
       if (this->eat("(")) {
         etor->value_type = this->expectTypeName();
@@ -383,7 +381,7 @@ ASTPointer Parser::Top() {
   }
 
   if (this->eat("class")) {
-    auto ast = ASTNew<AST::Class>(tok, *this->expectIdentifier());
+    auto ast = AST::Class::New(tok, *this->expectIdentifier());
 
     this->expect("{");
 
@@ -398,7 +396,7 @@ ASTPointer Parser::Top() {
     // constructor
     if (this->eat(ast->GetName())) {
 
-      auto ctor = ASTNew<AST::Function>(ast->name, ast->name);
+      auto ctor = AST::Function::New(ast->name, ast->name);
 
       this->expect("(");
 
@@ -433,7 +431,7 @@ ASTPointer Parser::Top() {
   }
 
   if (this->eat("fn")) {
-    auto func = ASTNew<AST::Function>(tok, *this->expectIdentifier());
+    auto func = AST::Function::New(tok, *this->expectIdentifier());
 
     this->expect("(");
 
@@ -474,9 +472,9 @@ ASTPointer Parser::Top() {
 
     this->expect(";");
 
-    auto ast = ASTNew<AST::VarDef>(tok, iter[1]);
+    auto ast = AST::VarDef::New(tok, iter[1]);
 
-    auto call = ASTNew<AST::CallFunc>(ASTNew<AST::Variable>(tok));
+    auto call = AST::CallFunc::New(AST::Variable::New(tok));
 
     Token mod_name_token = iter[1];
 
@@ -485,7 +483,7 @@ ASTPointer Parser::Top() {
     mod_name_token.sourceloc.length = name.length();
 
     auto module_name =
-        ASTNew<AST::Value>(mod_name_token, ObjNew<ObjString>(name));
+        AST::Value::New(mod_name_token, ObjNew<ObjString>(name));
 
     ast->init = call;
 
@@ -496,7 +494,7 @@ ASTPointer Parser::Top() {
 }
 
 ASTPtr<AST::Program> Parser::Parse() {
-  auto ret = ASTNew<AST::Program>();
+  auto ret = AST::Program::New();
 
   while (this->check())
     ret->list.emplace_back(this->Top());
@@ -538,7 +536,7 @@ TokenIterator Parser::expectIdentifier() {
 }
 
 ASTPtr<AST::TypeName> Parser::expectTypeName() {
-  auto ast = ASTNew<AST::TypeName>(*this->expectIdentifier());
+  auto ast = AST::TypeName::New(*this->expectIdentifier());
 
   if (this->eat("<")) {
     do {

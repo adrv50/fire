@@ -109,10 +109,9 @@ private:
     this->cur = save;
     return ret;
   }
-
   static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op,
                                     ASTPointer lhs, ASTPointer rhs) {
-    return ASTNew<AST::Expr>(k, op, lhs, rhs);
+    return AST::Expr::New(k, op, lhs, rhs);
   }
 
   static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op,
