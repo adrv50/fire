@@ -49,12 +49,6 @@ private:
 
 namespace metro::parser {
 
-template <class T, class... Args>
-requires std::constructible_from<T, Args...>
-ASTPtr<T> ASTNew(Args&&... args) {
-  return std::make_shared<T>(std::forward<Args>(args)...);
-}
-
 class Parser {
 
 public:

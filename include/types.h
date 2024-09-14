@@ -107,8 +107,8 @@ class Lexer;
 class Parser;
 class Evaluator;
 
-namespace sema {
-class Sema;
+namespace checker {
+class Checker;
 }
 
 namespace gc {

@@ -58,13 +58,14 @@ Evaluator::new_class_instance(ASTPtr<AST::Class> ast) {
 }
 
 ObjPointer Evaluator::call_function_ast(ASTPtr<AST::Function> ast,
+                                        ASTPtr<AST::CallFunc> call,
                                         ObjVector& args) {
 
   auto& stack = this->push();
 
-  for (auto argname = ast->arg_names.begin(); auto&& obj : args) {
-    stack.append((argname++)->str, obj);
-  }
+  // for (auto argname = ast->arg_names.begin(); auto&& obj : args) {
+  //   stack.append((argname++)->str, obj);
+  // }
 
   this->evaluate(ast->block);
 

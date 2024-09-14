@@ -171,7 +171,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
         if (inst->have_constructor()) {
           args.insert(args.begin(), inst);
 
-          this->call_function_ast(inst->get_constructor(), args);
+          this->call_function_ast(inst->get_constructor(), cf, args);
         }
         else if (args.size() >= 1) {
           Error(
@@ -197,7 +197,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       return cb->builtin->Call(std::move(args));
     }
 
-    return this->call_function_ast(cb->func, args);
+    return this->call_function_ast(cb->func, cf, args);
   }
 
   case Kind::MemberAccess: {

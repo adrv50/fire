@@ -82,10 +82,13 @@ ASTPointer Parser::IndexRef() {
   while (this->check()) {
     auto& op = *this->cur;
 
+    // index reference
     if (this->eat("[")) {
       x = ASTNew<AST::Expr>(ASTKind::IndexRef, op, x, this->Factor());
       this->expect("]");
     }
+
+    // member access
     else if (this->eat(".")) {
       auto rhs = this->Factor();
 
@@ -95,12 +98,27 @@ ASTPointer Parser::IndexRef() {
 
       x = ASTNew<AST::Expr>(ASTKind::MemberAccess, op, x, rhs);
     }
+
+    // call func
     else if (this->eat("(")) {
       x = ASTNew<AST::CallFunc>(x);
 
       if (!this->eat(")")) {
+        auto call = x->As<AST::CallFunc>();
+
         do {
-          x->As<AST::CallFunc>()->args.emplace_back(this->Expr());
+          if (this->match(TokenKind::Identifier, ":")) {
+            auto _name = this->Factor();
+
+            auto colon = this->cur++;
+            auto _expr = this->Expr();
+
+            call->args.emplace_back(ASTNew<AST::Expr>(
+                ASTKind::SpecifyArgumentName, *colon, _name, _expr));
+          }
+          else {
+            call->args.emplace_back(this->Expr());
+          }
         } while (this->eat(","));
 
         this->expect(")");
@@ -401,7 +419,7 @@ ASTPointer Parser::Top() {
 
     // member functions
     while (this->check() && !(closed = this->eat("}"))) {
-      if (!this->match("fn"))
+      if (!this->match("fn", TokenKind::Identifier))
         Error(*this->cur, "expected definition of member function")();
 
       ast->mb_functions.emplace_back(
@@ -446,7 +464,8 @@ ASTPointer Parser::Top() {
   // replace to variable declaration,
   //  and assignment result of call "import" func.
   //
-  if (this->eat("import")) {
+  if (this->match("import", TokenKind::Identifier, ";") &&
+      this->eat("import")) {
     std::string name = this->expectIdentifier()->str;
 
     while (this->eat("/")) {

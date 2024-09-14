@@ -139,7 +139,7 @@ Error& Error::emit(bool as_warn) {
   // | (and next line if got)  and cursor
   ss << COL_DEFAULT << screen[3] << std::endl;
 
-  std::cout << ss.str() << std::endl;
+  std::cout << COL_DEFAULT << ss.str() << COL_DEFAULT << std::endl;
 
   return *this;
 }

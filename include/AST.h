@@ -135,6 +135,8 @@ enum class ASTKind {
   MemberAccess,
   CallFunc,
 
+  SpecifyArgumentName, // func(a: 2, b: "aiue")
+
   Not, // !
 
   Mul,
@@ -163,7 +165,7 @@ enum class ASTKind {
   Switch,
   For,
 
-  FuncArg,
+  // FuncArg,
   Function,
 
   Enumerator,
@@ -174,6 +176,8 @@ enum class ASTKind {
   Module,
 
   TypeName,
+
+  Program,
 };
 
 namespace AST {
@@ -196,6 +200,8 @@ struct Base {
     return static_cast<T*>(this);
   }
 
+  i64 GetChilds(ASTVector& out) const;
+
   virtual std::string_view GetSourceView() const {
     return token.sourceloc.GetLine();
   }
@@ -203,19 +209,23 @@ struct Base {
   virtual ~Base() = default;
 
 protected:
+  Base(ASTKind kind, Token token)
+      : kind(kind),
+        token(token),
+        endtok(token) {
+  }
+
   Base(ASTKind kind, Token token, Token endtok)
       : kind(kind),
         token(token),
         endtok(endtok) {
   }
-
-  Base(ASTKind kind, Token token)
-      : Base(kind, token, token) {
-  }
 };
 
 struct Value : Base {
   ObjPointer value;
+
+  static ASTPtr<Value> New(Token tok, ObjPointer val);
 
   Value(Token tok, ObjPointer value)
       : Base(ASTKind::Value, tok),
@@ -243,6 +253,8 @@ protected:
 };
 
 struct Variable : Named {
+  static ASTPtr<Variable> New(Token tok);
+
   Variable(Token tok)
       : Named(ASTKind::Variable, tok, tok) {
   }
@@ -252,16 +264,22 @@ struct CallFunc : Base {
   ASTPointer expr; // left side
   ASTVector args;
 
-  CallFunc(ASTPointer expr)
+  static ASTPtr<CallFunc> New(ASTPointer expr, ASTVector args);
+
+  CallFunc(ASTPointer expr, ASTVector args = {})
       : Base(ASTKind::CallFunc, expr->token, expr->token),
-        expr(expr) {
+        expr(expr),
+        args(std::move(args)) {
   }
 };
 
 struct Expr : Base {
-  Token& op;
+  Token op;
   ASTPointer lhs;
   ASTPointer rhs;
+
+  static ASTPtr<Expr> New(ASTKind kind, Token optok, ASTPointer lhs,
+                          ASTPointer rhs);
 
   Expr(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs)
       : Base(kind, optok),
@@ -275,17 +293,28 @@ struct Expr : Base {
 struct Block : Base {
   ASTVector list;
 
-  Block(Token tok, ASTVector list = {})
-      : Base(ASTKind::Block, tok) {
+  static ASTPtr<Block> New(Token tok, ASTVector list = {});
+
+  Block(Token tok /* "{" */, ASTVector list = {})
+      : Base(ASTKind::Block, tok),
+        list(std::move(list)) {
   }
 };
 
 struct VarDef : Named {
-  ASTPtr<TypeName> type = nullptr;
-  ASTPointer init = nullptr;
+  ASTPtr<TypeName> type;
+  ASTPointer init;
 
-  VarDef(Token tok, Token name)
-      : Named(ASTKind::Vardef, tok, name) {
+  static ASTPtr<VarDef> New(ASTPtr<TypeName> type, ASTPointer init);
+
+  static ASTPtr<VarDef> New(Token tok, Token name,
+                            ASTPtr<TypeName> type, ASTPointer init);
+
+  VarDef(Token tok, Token name, ASTPtr<TypeName> type = nullptr,
+         ASTPointer init = nullptr)
+      : Named(ASTKind::Vardef, tok, name),
+        type(type),
+        init(init) {
   }
 };
 
@@ -305,10 +334,25 @@ struct Statement : Base {
   };
 
   struct For {
-    ASTPointer init, cond, count, block;
+    ASTVector init;
+    ASTPointer cond;
+    ASTVector count;
+    ASTPtr<Block> block;
   };
 
   std::any astdata;
+
+  static ASTPtr<Statement> NewIf(Token tok, ASTPointer cond,
+                                 ASTPointer if_true,
+                                 ASTPointer if_false = nullptr);
+
+  static ASTPtr<Statement>
+  NewSwitch(Token tok, ASTPointer cond,
+            std::vector<Switch::Case> cases = {});
+
+  static ASTPtr<Statement> NewFor(Token tok, ASTVector init,
+                                  ASTPointer cond, ASTVector count,
+                                  ASTPtr<Block> block);
 
   Statement(ASTKind kind, Token tok, std::any data)
       : Base(kind, tok),
@@ -316,8 +360,7 @@ struct Statement : Base {
   }
 };
 
-struct TypeName : Base {
-  Token& name;
+struct TypeName : Named {
   ASTVector type_params;
   ASTVec<TypeName> scope_resol;
   bool is_const;
@@ -325,9 +368,10 @@ struct TypeName : Base {
   TypeInfo type;
   ASTPtr<Class> ast_class;
 
+  static ASTPtr<TypeName> New(Token nametok);
+
   TypeName(Token name)
-      : Base(ASTKind::TypeName, name),
-        name(this->token),
+      : Named(ASTKind::TypeName, name),
         is_const(false) {
   }
 };
@@ -337,9 +381,13 @@ struct Function : Named {
   ASTPtr<TypeName> return_type;
   ASTPtr<Block> block;
 
+  bool is_free_arg;
+
   Token& add_arg(Token const& tok) {
     return this->arg_names.emplace_back(tok);
   }
+
+  static ASTPtr<Function> New();
 
   Function(Token tok, Token name)
       : Named(ASTKind::Function, tok, name) {
@@ -365,6 +413,8 @@ struct Enumerator : Named {
 struct Enum : Named {
   ASTVec<Enumerator> enumerators;
 
+  static ASTPtr<Enum> New();
+
   Enum(Token tok, Token name)
       : Named(ASTKind::Enum, tok, name) {
   }
@@ -376,13 +426,24 @@ struct Class : Named {
 
   ASTPtr<Function> constructor = nullptr;
 
+  static ASTPtr<Class> New();
+
+  static ASTPtr<Class> New(Token tok, Token name,
+                           ASTVec<VarDef> var_decl_list,
+                           ASTVec<Function> func_list,
+                           ASTPtr<Function> ctor);
+
   Class(Token tok, Token name)
       : Named(ASTKind::Class, tok, name) {
   }
 };
 
-struct Program {
+struct Program : Base {
   ASTVector list;
+
+  Program()
+      : Base(ASTKind::Program, {}) {
+  }
 };
 
 } // namespace AST

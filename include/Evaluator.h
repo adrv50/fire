@@ -76,6 +76,7 @@ private:
   ObjPtr<ObjInstance> new_class_instance(ASTPtr<AST::Class> ast);
 
   ObjPointer call_function_ast(ASTPtr<AST::Function> ast,
+                               ASTPtr<AST::CallFunc> call,
                                ObjVector& args);
 
   EvalStack& get_cur_stack() {
