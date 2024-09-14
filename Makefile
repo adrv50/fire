@@ -1,4 +1,4 @@
-TARGET		?= 	metro
+TARGET		?= 	flame
 DBGPREFIX	?=	d
 
 TOPDIR		?= 	$(CURDIR)
@@ -15,6 +15,8 @@ SOURCE		:= 	src	\
 
 CC			:=	clang
 CXX			:=	clang++
+
+BINDIR		:= /usr/local/bin
 
 OPTI		?=	-O0 -g -D_METRO_DEBUG_
 COMMON		:=	$(OPTI) -Wall -Wno-switch $(INCLUDES)
@@ -58,6 +60,10 @@ clean:
 	rm -rf $(TARGET) $(TARGET)$(DBGPREFIX) $(BUILD)
 
 re: clean all
+
+install: all
+	@echo install...
+	@install $(notdir $(OUTPUT)) $(BINDIR)/$(TARGET)
 
 else
 
