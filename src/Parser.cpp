@@ -493,7 +493,7 @@ ASTPointer Parser::Top() {
       name += "/" + this->expectIdentifier()->str;
     }
 
-    name += ".fire";
+    name = "./" + name + ".fire";
 
     this->expect(";");
 

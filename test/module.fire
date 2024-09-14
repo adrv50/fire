@@ -1,0 +1,3 @@
+fn AIUEO(n) {
+    return n * 2;
+}

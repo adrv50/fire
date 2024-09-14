@@ -3,6 +3,8 @@
 
 #include "Builtin.h"
 #include "Parser.h"
+#include "Evaluator.h"
+
 #include "alert.h"
 
 namespace metro::builtins {
@@ -29,7 +31,7 @@ static ObjPointer Println(ObjVector args) {
   return ret;
 }
 
-static ObjPointer Import(ObjVector args) {
+ObjPointer Import(ObjVector args) {
   auto path = args[0]->ToString();
 
   alertmsg(path);
@@ -45,9 +47,61 @@ static ObjPointer Import(ObjVector args) {
 
   Lexer lexer{*source};
 
-  auto ast = parser::Parser(lexer.Lex()).Parse();
+  auto prg = parser::Parser(lexer.Lex()).Parse();
 
-  return ObjNew<ObjModule>(source, ast);
+  eval::Evaluator ev{prg};
+
+  // ev.do_eval();
+
+  auto ret = ObjNew<ObjModule>(source, prg);
+
+  ret->name = path.substr(0, path.rfind('.'));
+
+  if (auto slash = ret->name.rfind('/'); slash != std::string::npos) {
+    ret->name = ret->name.substr(slash + 1);
+  }
+
+  alertmsg(ret->name);
+
+  for (auto&& x : prg->list) {
+    switch (x->kind) {
+    case ASTKind::Class:
+      ret->types.emplace_back(
+          ObjNew<ObjType>(ASTCast<AST::Class>(x)));
+      break;
+
+    case ASTKind::Enum:
+      ret->types.emplace_back(ObjNew<ObjType>(ASTCast<AST::Enum>(x)));
+      break;
+
+    case ASTKind::Function:
+      ret->functions.emplace_back(
+          ObjNew<ObjCallable>(ASTCast<AST::Function>(x)));
+      break;
+
+    case ASTKind::Vardef: {
+      auto y = ASTCast<AST::VarDef>(x);
+
+      ret->variables[y->GetName()] = ev.evaluate(y->init);
+
+      break;
+    }
+
+    case ASTKind::CallFunc: {
+      auto y = ASTCast<AST::CallFunc>(x);
+
+      if (y->expr->kind == ASTKind::Variable &&
+          y->expr->token.str == "@import") {
+        ret->modules.emplace_back(PtrCast<ObjModule>(
+            Import({y->args[0]->As<AST::Value>()->value})));
+      }
+
+      break;
+    }
+    }
+  }
+
+  return ret;
 }
 
 // clang-format off

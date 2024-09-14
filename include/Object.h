@@ -221,12 +221,16 @@ struct ObjCallable : Object {
 // TypeKind::Module
 //
 struct ObjModule : Object {
+  std::string name;
+
   std::shared_ptr<SourceStorage> source;
   ASTPtr<AST::Program> ast;
 
   std::map<std::string, ObjPointer> variables;
   ObjVec<ObjType> types;
   ObjVec<ObjCallable> functions;
+
+  ObjVec<ObjModule> modules;
 
   ObjPointer Clone() const override {
     return ObjNew<ObjModule>(*this);
@@ -259,8 +263,14 @@ struct ObjType : Object {
 
   std::string ToString() const override;
 
-  ObjType()
-      : Object(TypeKind::TypeName) {
+  ObjType(ASTPtr<AST::Enum> x = nullptr)
+      : Object(TypeKind::TypeName),
+        ast_enum(x) {
+  }
+
+  ObjType(ASTPtr<AST::Class> x)
+      : Object(TypeKind::TypeName),
+        ast_class(x) {
   }
 };
 

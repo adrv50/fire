@@ -61,6 +61,11 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
       if (objfunc->GetName() == name)
         return objfunc;
     }
+
+    for (auto&& objmod : mod->modules) {
+      if (objmod->name == name)
+        return objmod;
+    }
   }
 
   if (auto [fn_ast, blt] = this->find_func(name); fn_ast)
@@ -122,6 +127,9 @@ ObjPointer& Evaluator::eval_as_writable(ASTPointer ast) {
 
 ObjPointer Evaluator::evaluate(ASTPointer ast) {
   using Kind = ASTKind;
+
+  if (!ast)
+    return ObjNew<ObjNone>();
 
   switch (ast->kind) {
   case Kind::Value:
