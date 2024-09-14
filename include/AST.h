@@ -165,6 +165,10 @@ enum class ASTKind {
   Switch,
   For,
 
+  Break,
+  Continue,
+  Return,
+
   // FuncArg,
   Function,
 
@@ -321,7 +325,6 @@ struct VarDef : Named {
 };
 
 struct Statement : Base {
-  // ASTKind::If
   struct If {
     ASTPointer cond, if_true, if_false;
   };
@@ -342,6 +345,12 @@ struct Statement : Base {
     ASTPtr<Block> block;
   };
 
+  //
+  // astdata
+  //
+  // ASTKind::Return
+  //  --> astdata = ASTPtr<AST::Expr>
+  //
   std::any astdata;
 
   static ASTPtr<Statement> NewIf(Token tok, ASTPointer cond,
@@ -355,6 +364,9 @@ struct Statement : Base {
   static ASTPtr<Statement> NewFor(Token tok, ASTVector init,
                                   ASTPointer cond, ASTVector count,
                                   ASTPtr<Block> block);
+
+  static ASTPtr<Statement> New(ASTKind kind, Token tok,
+                               std::any data = (ASTPointer) nullptr);
 
   Statement(ASTKind kind, Token tok, std::any data)
       : Base(kind, tok),

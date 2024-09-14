@@ -35,6 +35,8 @@ class Evaluator {
     // for return-statement
     ObjPointer result = nullptr;
 
+    bool is_returned = false;
+
     LocalVar* find_variable(std::string const& name) {
       for (auto&& lvar : this->localvar) {
         if (lvar.name == name)
@@ -50,6 +52,17 @@ class Evaluator {
     }
 
     EvalStack() {
+    }
+  };
+
+  struct LoopContext {
+    ASTPointer ast;
+
+    bool is_breaked = false;
+    bool is_continued = false;
+
+    LoopContext(ASTPointer ast)
+        : ast(ast) {
     }
   };
 
@@ -91,6 +104,11 @@ private:
     this->stack.pop_back();
   }
 
+  LoopContext& EnterLoopStatement(ASTPtr<AST::Statement> ast);
+  void LeaveLoop();
+
+  LoopContext& GetCurrentLoop();
+
   static void adjust_numeric_type_object(ObjPtr<ObjPrimitive> left,
                                          ObjPtr<ObjPrimitive> right);
 
@@ -100,6 +118,8 @@ private:
   ASTVec<AST::Class> classes;
 
   std::vector<EvalStack> stack;
+
+  std::vector<LoopContext> loop_stack;
 };
 
 } // namespace metro::eval

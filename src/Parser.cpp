@@ -329,6 +329,28 @@ ASTPointer Parser::Stmt() {
     return AST::Statement::NewIf(tok, cond, if_true, if_false);
   }
 
+  if (this->eat("return")) {
+    auto ast =
+        AST::Statement::New(ASTKind::Return, tok, this->Expr());
+
+    this->expect(";");
+    return ast;
+  }
+
+  if (this->eat("break")) {
+    auto ast = AST::Statement::New(ASTKind::Break, tok);
+
+    this->expect(";");
+    return ast;
+  }
+
+  if (this->eat("continue")) {
+    auto ast = AST::Statement::New(ASTKind::Continue, tok);
+
+    this->expect(";");
+    return ast;
+  }
+
   if (this->eat("let")) {
     auto ast = AST::VarDef::New(tok, *this->expectIdentifier());
 

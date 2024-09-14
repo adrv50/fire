@@ -207,11 +207,27 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     return this->eval_member_access(ASTCast<AST::Expr>(ast));
   }
 
+  case Kind::Assign: {
+    auto x = ASTCast<AST::Expr>(ast);
+
+    return this->eval_as_writable(x->lhs) = this->evaluate(x->rhs);
+  }
+
   case Kind::Block: {
     auto _block = ASTCast<AST::Block>(ast);
+    auto& stack = this->get_cur_stack();
 
-    for (auto&& x : _block->list)
+    for (auto&& x : _block->list) {
       this->evaluate(x);
+
+      if (stack.is_returned)
+        break;
+
+      if (this->loop_stack.size())
+        if (auto& L = this->GetCurrentLoop();
+            L.is_breaked || L.is_continued)
+          break;
+    }
 
     break;
   }
@@ -233,11 +249,27 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     break;
   }
 
-  case Kind::Assign: {
-    auto x = ASTCast<AST::Expr>(ast);
+  case Kind::Return: {
+    auto& stack = this->get_cur_stack();
 
-    return this->eval_as_writable(x->lhs) = this->evaluate(x->rhs);
+    stack.result = this->evaluate(std::any_cast<ASTPointer>(
+        ast->As<AST::Statement>()->astdata));
+
+    stack.is_returned = true;
+
+    break;
   }
+
+  case Kind::Break:
+  case Kind::Continue:
+    if (this->loop_stack.empty())
+      Error(ast->token, "cannot use in out of loop statement")();
+
+    (ast->kind == Kind::Break ? this->GetCurrentLoop().is_breaked
+                              : this->GetCurrentLoop().is_continued) =
+        true;
+
+    break;
 
   case Kind::Function:
   case Kind::Enum:
@@ -247,6 +279,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   default:
     if (ast->is_expr)
       return this->eval_expr(ASTCast<AST::Expr>(ast));
+
+    todo_impl;
   }
 
   return ObjNew<ObjNone>();

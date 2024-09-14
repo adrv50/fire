@@ -65,26 +65,25 @@ ObjPointer Evaluator::call_function_ast(ASTPtr<AST::Function> ast,
 
   std::map<std::string, bool> wasset;
 
-  auto formal_iter = ast->arg_names.begin();
-  auto actual_iter = call->args.begin();
+  auto formal = ast->arg_names.begin();
+  auto act = call->args.begin();
 
-  for (auto itobj = args.begin(); actual_iter != call->args.end();
-       actual_iter++) {
-    if (formal_iter == ast->arg_names.end() && !ast->is_var_arg) {
+  for (auto itobj = args.begin(); act != call->args.end(); act++) {
+    if (formal == ast->arg_names.end() && !ast->is_var_arg) {
       Error(call->token, "too many arguments")();
     }
 
     std::string name;
 
-    if ((*actual_iter)->kind == ASTKind::SpecifyArgumentName) {
-      name = (*actual_iter)->As<AST::Expr>()->lhs->token.str;
+    if ((*act)->kind == ASTKind::SpecifyArgumentName) {
+      name = (*act)->As<AST::Expr>()->lhs->token.str;
     }
     else {
-      name = formal_iter++->str;
+      name = formal++->str;
     }
 
     if (wasset[name]) {
-      Error(*actual_iter, "set to same argument name again.")();
+      Error(*act, "set to same argument name again.")();
     }
 
     wasset[name] = true;
@@ -105,6 +104,19 @@ ObjPointer Evaluator::call_function_ast(ASTPtr<AST::Function> ast,
   this->pop();
 
   return ret ? ret : ObjNew<ObjNone>();
+}
+
+Evaluator::LoopContext&
+Evaluator::EnterLoopStatement(ASTPtr<AST::Statement> ast) {
+  return this->loop_stack.emplace_back(ast);
+}
+
+void Evaluator::LeaveLoop() {
+  this->loop_stack.pop_back();
+}
+
+Evaluator::LoopContext& Evaluator::GetCurrentLoop() {
+  return *this->loop_stack.rbegin();
 }
 
 void Evaluator::adjust_numeric_type_object(
