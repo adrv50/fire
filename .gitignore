@@ -3,8 +3,8 @@
 /memo
 
 # Binary files
-flame
-flamed
+fire
+fired
 tester
 
 # other
@@ -15,4 +15,8 @@ tester
 *.elf
 
 test.flame
+test.fire
+test.*
+
 a.*
+aaa.*

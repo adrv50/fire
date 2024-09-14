@@ -221,6 +221,7 @@ struct ObjCallable : Object {
 // TypeKind::Module
 //
 struct ObjModule : Object {
+  std::unique_ptr<SourceStorage> source;
   ASTPtr<AST::Program> ast;
 
   ObjPointer Clone() const override {

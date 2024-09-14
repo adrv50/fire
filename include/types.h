@@ -80,8 +80,14 @@ struct Function;
 } // namespace builtins
 
 class Lexer;
+
+namespace parser {
 class Parser;
+}
+
+namespace eval {
 class Evaluator;
+}
 
 namespace checker {
 class Checker;

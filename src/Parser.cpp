@@ -484,7 +484,8 @@ ASTPointer Parser::Top() {
   // replace to variable declaration,
   //  and assignment result of call "import" func.
   //
-  if (this->match("import", TokenKind::Identifier, ";") &&
+  if ((this->match("import", TokenKind::Identifier) ||
+       this->match("import", "..")) &&
       this->eat("import")) {
     std::string name = this->expectIdentifier()->str;
 
@@ -496,7 +497,7 @@ ASTPointer Parser::Top() {
 
     auto ast = AST::VarDef::New(tok, iter[1]);
 
-    auto call = AST::CallFunc::New(AST::Variable::New(tok));
+    auto call = AST::CallFunc::New(AST::Variable::New("@import"));
 
     Token mod_name_token = iter[1];
 

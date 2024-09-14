@@ -1,4 +1,4 @@
-TARGET		?= 	flame
+TARGET		?= 	fire
 DBGPREFIX	?=	d
 
 TOPDIR		?= 	$(CURDIR)
