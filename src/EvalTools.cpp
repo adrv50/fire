@@ -9,8 +9,8 @@ namespace metro::eval {
 using namespace AST;
 
 ObjPointer* Evaluator::find_var(std::string const& name) {
-  for (auto it = --this->stack.end(); it != this->stack.begin();
-       it--) {
+  for (auto it = this->stack.rbegin(); it != this->stack.rend();
+       it++) {
     if (auto pvar = it->find_variable(name); pvar)
       return &pvar->value;
   }
@@ -56,7 +56,8 @@ Evaluator::new_class_instance(ASTPtr<AST::Class> ast) {
   return obj;
 }
 
-ObjPointer Evaluator::call_function_ast(ASTPtr<AST::Function> ast,
+ObjPointer Evaluator::call_function_ast(bool have_self,
+                                        ASTPtr<AST::Function> ast,
                                         ASTPtr<AST::CallFunc> call,
                                         ObjVector& args) {
 
@@ -70,7 +71,18 @@ ObjPointer Evaluator::call_function_ast(ASTPtr<AST::Function> ast,
   auto formal = ast->arg_names.begin();
   auto act = call->args.begin();
 
-  for (auto itobj = args.begin(); act != call->args.end(); act++) {
+  if (have_self) {
+    wasset["self"] = true;
+    stack.append("self", args[0]);
+    formal++;
+  }
+
+  alert;
+  alertmsg("formal->str = " << formal->str);
+  alertmsg("(*act)->token.str = " << (*act)->token.str);
+
+  for (auto itobj = args.begin() + (int)have_self;
+       act != call->args.end(); act++) {
     if (formal == ast->arg_names.end() && !ast->is_var_arg) {
       Error(call->token, "too many arguments")();
     }

@@ -151,9 +151,15 @@ void Error::operator()() {
   this->emit().stop();
 }
 
-[[noreturn]]
 void Error::stop() {
   std::exit(1);
+}
+
+void Error::fatal_error(std::string const& msg) {
+  std::cout << COL_BOLD COL_RED << "fatal error: " << COL_DEFAULT
+            << msg << std::endl;
+
+  std::exit(2);
 }
 
 Error::Error(Token tok, std::string msg)

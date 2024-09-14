@@ -24,6 +24,9 @@ public:
   [[noreturn]]
   void stop();
 
+  [[noreturn]]
+  static void fatal_error(std::string const& msg);
+
 private:
   Token loc_token;
   ASTPointer loc_ast = nullptr;
