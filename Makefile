@@ -16,6 +16,8 @@ SOURCE		:= 	src	\
 CC			:=	clang
 CXX			:=	clang++
 
+BINDIR		:= /usr/local/bin
+
 OPTI		?=	-O0 -g -D_METRO_DEBUG_
 COMMON		:=	$(OPTI) -Wall -Wno-switch $(INCLUDES)
 CFLAGS		:=	$(COMMON) -std=c17
@@ -58,6 +60,10 @@ clean:
 	rm -rf $(TARGET) $(TARGET)$(DBGPREFIX) $(BUILD)
 
 re: clean all
+
+install: all
+	@echo install...
+	@install $(TARGET) $(BINDIR)/
 
 else
 
