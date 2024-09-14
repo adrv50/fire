@@ -101,7 +101,7 @@ ASTPointer Parser::IndexRef() {
 
     // call func
     else if (this->eat("(")) {
-      auto call = AST::CallFunc::New(x);
+      auto call = (x = AST::CallFunc::New(x))->As<AST::CallFunc>();
 
       if (!this->eat(")")) {
         do {

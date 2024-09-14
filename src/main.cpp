@@ -7,42 +7,6 @@
 
 #include "AST.h"
 
-namespace metro::sema {
-
-class Sema {
-
-  struct TypeContext {
-    Sema& S;
-    ASTPointer ast;
-    ASTVector candidates;
-
-    TypeContext(Sema& S, ASTPointer ast)
-        : S(S),
-          ast(ast) {
-    }
-  };
-
-public:
-  Sema(ASTPtr<AST::Program> prg)
-      : root(prg) {
-  }
-
-  void do_check() {
-    for (auto&& x : this->root->list)
-      this->walk(x);
-  }
-
-  void walk(ASTPointer ast) {
-
-    switch (ast->kind) {}
-  }
-
-private:
-  ASTPtr<AST::Program> root;
-};
-
-} // namespace metro::sema
-
 int main(int argc, char** argv) {
   using namespace metro;
   using namespace metro::parser;
@@ -57,17 +21,8 @@ int main(int argc, char** argv) {
   parser::Parser parser{lexer.Lex()};
   auto prg = parser.Parse();
 
-  alert;
-
-  sema::Sema checker{prg};
-
-  checker.do_check();
-
-  // checker::Checker chk{prg};
-  // chk.do_check();
-
-  // eval::Evaluator eval{prg};
-  // eval.do_eval();
+  eval::Evaluator eval{prg};
+  eval.do_eval();
 
   return 0;
 }

@@ -157,7 +157,10 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     ObjVector args;
 
     for (auto&& x : cf->args) {
-      args.emplace_back(this->evaluate(x));
+      args.emplace_back(
+          this->evaluate(x->kind == ASTKind::SpecifyArgumentName
+                             ? x->As<AST::Expr>()->rhs
+                             : x));
     }
 
     // type

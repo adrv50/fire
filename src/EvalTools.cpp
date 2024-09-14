@@ -63,9 +63,41 @@ ObjPointer Evaluator::call_function_ast(ASTPtr<AST::Function> ast,
 
   auto& stack = this->push();
 
-  // for (auto argname = ast->arg_names.begin(); auto&& obj : args) {
-  //   stack.append((argname++)->str, obj);
-  // }
+  std::map<std::string, bool> wasset;
+
+  auto formal_iter = ast->arg_names.begin();
+  auto actual_iter = call->args.begin();
+
+  for (auto itobj = args.begin(); actual_iter != call->args.end();
+       actual_iter++) {
+    if (formal_iter == ast->arg_names.end() && !ast->is_var_arg) {
+      Error(call->token, "too many arguments")();
+    }
+
+    std::string name;
+
+    if ((*actual_iter)->kind == ASTKind::SpecifyArgumentName) {
+      name = (*actual_iter)->As<AST::Expr>()->lhs->token.str;
+    }
+    else {
+      name = formal_iter++->str;
+    }
+
+    if (wasset[name]) {
+      Error(*actual_iter, "set to same argument name again.")();
+    }
+
+    wasset[name] = true;
+
+    stack.append(name, *itobj++);
+  }
+
+  for (auto&& arg : ast->arg_names) {
+    if (!wasset[arg.str]) {
+      Error(call->token,
+            "argument '" + arg.str + "' was not assignment")();
+    }
+  }
 
   this->evaluate(ast->block);
 
