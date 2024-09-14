@@ -493,6 +493,8 @@ ASTPointer Parser::Top() {
       name += "/" + this->expectIdentifier()->str;
     }
 
+    name += ".fire";
+
     this->expect(";");
 
     auto ast = AST::VarDef::New(tok, iter[1]);
@@ -505,8 +507,8 @@ ASTPointer Parser::Top() {
     mod_name_token.str = name;
     mod_name_token.sourceloc.length = name.length();
 
-    auto module_name =
-        AST::Value::New(mod_name_token, ObjNew<ObjString>(name));
+    call->args.emplace_back(
+        AST::Value::New(mod_name_token, ObjNew<ObjString>(name)));
 
     ast->init = call;
 

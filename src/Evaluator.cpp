@@ -48,6 +48,19 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
   // ObjModule
   if (obj->type.kind == TypeKind::Module) {
     auto mod = PtrCast<ObjModule>(obj);
+
+    if (mod->variables.contains(name))
+      return mod->variables[name];
+
+    for (auto&& objtype : mod->types) {
+      if (objtype->GetName() == name)
+        return objtype;
+    }
+
+    for (auto&& objfunc : mod->functions) {
+      if (objfunc->GetName() == name)
+        return objfunc;
+    }
   }
 
   if (auto [fn_ast, blt] = this->find_func(name); fn_ast)

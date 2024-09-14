@@ -46,6 +46,7 @@ std::string TypeInfo::to_string() const {
     { TypeKind::Instance,   "instance" },
     { TypeKind::Module,     "module" },
     { TypeKind::Function,   "function" },
+    { TypeKind::Module,     "module" },
     { TypeKind::TypeName,   "type" },
   };
   // clang-format on

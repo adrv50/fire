@@ -2,8 +2,8 @@
 #include <sstream>
 
 #include "Builtin.h"
-
 #include "Parser.h"
+#include "alert.h"
 
 namespace metro::builtins {
 
@@ -30,21 +30,24 @@ static ObjPointer Println(ObjVector args) {
 }
 
 static ObjPointer Import(ObjVector args) {
-  auto ret = ObjNew<ObjModule>();
-
   auto path = args[0]->ToString();
 
-  ret->source = std::make_unique<SourceStorage>(path);
-  auto& source = *ret->source;
+  alertmsg(path);
 
-  if (!ret->source->IsOpen())
+  auto source = std::make_shared<SourceStorage>(path);
+
+  source->Open();
+
+  if (!source->IsOpen()) {
+    alert;
     return ObjNew<ObjNone>();
+  }
 
-  Lexer lexer{source};
+  Lexer lexer{*source};
 
-  ret->ast = parser::Parser(lexer.Lex()).Parse();
+  auto ast = parser::Parser(lexer.Lex()).Parse();
 
-  return ret;
+  return ObjNew<ObjModule>(source, ast);
 }
 
 // clang-format off
@@ -59,7 +62,7 @@ static const std::vector<Function> g_builtin_functions = {
 // clang-format on
 
 ObjPointer Function::Call(ObjVector args) const {
-  return this->func(std::move(args));
+  return this->func(args);
 }
 
 Function const* find_builtin_func(std::string const& name) {

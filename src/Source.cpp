@@ -47,10 +47,11 @@ bool SourceStorage::Open() {
 }
 
 bool SourceStorage::IsOpen() const {
-  return file && !file->fail();
+  return file && file->is_open();
 }
 
-SourceStorage::SourceStorage(std::string path) : path(path) {
+SourceStorage::SourceStorage(std::string path)
+    : path(path) {
 }
 
 } // namespace metro
