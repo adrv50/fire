@@ -1,4 +1,4 @@
-TARGET		?= 	metro
+TARGET		?= 	flame
 DBGPREFIX	?=	d
 
 TOPDIR		?= 	$(CURDIR)
