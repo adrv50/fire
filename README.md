@@ -1,4 +1,4 @@
-# Metro Interpreter Programming Language
+# Flame: Interpreter Programming Language
 
 Rust の簡易版みたいなもの。
 
