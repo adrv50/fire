@@ -29,7 +29,7 @@ struct SourceStorage {
   std::string path;
   std::string data;
 
-  PUnique<std::ifstream> file;
+  std::unique_ptr<std::ifstream> file;
 
   std::vector<LineRange> line_range_list;
 

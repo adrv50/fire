@@ -412,7 +412,7 @@ ASTPointer Parser::Top() {
     // member variables
     while (this->cur->str == "let") {
       ast->mb_variables.emplace_back(
-          std::static_pointer_cast<AST::VarDef>(this->Stmt()));
+          ASTCast<AST::VarDef>(this->Stmt()));
     }
 
     // constructor
@@ -443,7 +443,7 @@ ASTPointer Parser::Top() {
         Error(*this->cur, "expected definition of member function")();
 
       ast->mb_functions.emplace_back(
-          std::static_pointer_cast<AST::Function>(this->Top()));
+          ASTCast<AST::Function>(this->Top()));
     }
 
     if (!closed)
@@ -472,7 +472,7 @@ ASTPointer Parser::Top() {
     if (this->cur->str != "{")
       todo_impl;
 
-    func->block = std::static_pointer_cast<AST::Block>(this->Stmt());
+    func->block = ASTCast<AST::Block>(this->Stmt());
 
     return func;
   }

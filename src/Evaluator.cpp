@@ -272,6 +272,10 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     break;
 
   case Kind::If: {
+    auto x = ast->As<AST::Statement>();
+    auto data = std::any_cast<Statement::If>(x->astdata);
+
+    break;
   }
 
   case Kind::Function:

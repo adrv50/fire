@@ -149,8 +149,7 @@ struct ObjString : ObjIterable {
   std::string ToString() const override;
 
   ObjPointer Clone() const override {
-    return std::dynamic_pointer_cast<ObjString>(
-        this->ObjIterable::Clone());
+    return PtrDynamicCast<ObjString>(this->ObjIterable::Clone());
   }
 
   ObjString(std::u16string const& str = u"");

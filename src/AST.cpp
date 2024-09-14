@@ -6,7 +6,11 @@ namespace metro::AST {
 template <class T, class... Args>
 requires std::constructible_from<T, Args...>
 ASTPtr<T> ASTNew(Args&&... args) {
+#if _DBG_DONT_USE_SMART_PTR_
+  return new T(std::forward<Args>(args)...);
+#else
   return std::make_shared<T>(std::forward<Args>(args)...);
+#endif
 }
 
 i64 Base::GetChilds(ASTVector& out) const {

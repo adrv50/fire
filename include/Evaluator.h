@@ -10,8 +10,7 @@ using ObjPair = std::pair<ObjPtr<T>, ObjPtr<T>>;
 using PrimitiveObjPair = ObjPair<ObjPrimitive>;
 
 template <class T, class U>
-static inline ObjPair<T> pair_ptr_cast(std::shared_ptr<U> a,
-                                       std::shared_ptr<U> b) {
+static inline ObjPair<T> pair_ptr_cast(ObjPtr<U> a, ObjPtr<U> b) {
   static_assert(!std::is_same_v<T, U>);
   return std::make_pair(PtrCast<T>(a), PtrCast<T>(b));
 }
