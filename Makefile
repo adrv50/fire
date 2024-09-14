@@ -63,7 +63,7 @@ re: clean all
 
 install: all
 	@echo install...
-	@install $(notdir $(OUTPUT)) $(BINDIR)/$(TARGET)
+	@install $(TARGET) $(BINDIR)/
 
 else
 
