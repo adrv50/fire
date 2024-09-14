@@ -30,6 +30,11 @@ class Evaluator {
     struct LocalVar {
       std::string name;
       ObjPointer value;
+
+      LocalVar(std::string const& name, ObjPointer val)
+          : name(name),
+            value(val) {
+      }
     };
 
     std::vector<LocalVar> localvar;
@@ -90,7 +95,8 @@ private:
 
   ObjPtr<ObjInstance> new_class_instance(ASTPtr<AST::Class> ast);
 
-  ObjPointer call_function_ast(ASTPtr<AST::Function> ast,
+  ObjPointer call_function_ast(bool have_self,
+                               ASTPtr<AST::Function> ast,
                                ASTPtr<AST::CallFunc> call,
                                ObjVector& args);
 
