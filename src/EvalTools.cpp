@@ -9,10 +9,9 @@ namespace metro::eval {
 using namespace AST;
 
 ObjPointer* Evaluator::find_var(std::string const& name) {
-  for (i64 i = this->stack.size() - 1; i >= 0; i--) {
-    auto& stack = this->stack[i];
-
-    if (auto pvar = stack.find_variable(name); pvar)
+  for (auto it = --this->stack.end(); it != this->stack.begin();
+       it--) {
+    if (auto pvar = it->find_variable(name); pvar)
       return &pvar->value;
   }
 
@@ -61,7 +60,10 @@ ObjPointer Evaluator::call_function_ast(ASTPtr<AST::Function> ast,
                                         ASTPtr<AST::CallFunc> call,
                                         ObjVector& args) {
 
-  auto& stack = this->push();
+  if (this->stack.size() >= EVALUATOR_STACK_MAX_SIZE)
+    Error(call->token, "stack over flow.")();
+
+  auto& stack = this->PushStack();
 
   std::map<std::string, bool> wasset;
 
@@ -101,7 +103,8 @@ ObjPointer Evaluator::call_function_ast(ASTPtr<AST::Function> ast,
   this->evaluate(ast->block);
 
   auto ret = stack.result;
-  this->pop();
+
+  this->PopStack();
 
   return ret ? ret : ObjNew<ObjNone>();
 }

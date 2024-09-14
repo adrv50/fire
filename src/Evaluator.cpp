@@ -9,13 +9,13 @@ namespace metro::eval {
 using namespace AST;
 
 void Evaluator::do_eval() {
-  this->push(); // global variable
+  this->PushStack(); // global variable
 
   for (auto&& x : this->root->list) {
     evaluate(x);
   }
 
-  this->pop();
+  this->PopStack();
 }
 
 ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
@@ -215,7 +215,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
   case Kind::Block: {
     auto _block = ASTCast<AST::Block>(ast);
-    auto& stack = this->get_cur_stack();
+    auto& stack = this->GetCurrentStack();
 
     for (auto&& x : _block->list) {
       this->evaluate(x);
@@ -236,7 +236,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     auto x = ASTCast<AST::VarDef>(ast);
     auto name = x->GetName();
 
-    auto& stack = this->get_cur_stack();
+    auto& stack = this->GetCurrentStack();
 
     auto pvar = stack.find_variable(name);
 
@@ -250,7 +250,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   }
 
   case Kind::Return: {
-    auto& stack = this->get_cur_stack();
+    auto& stack = this->GetCurrentStack();
 
     stack.result = this->evaluate(std::any_cast<ASTPointer>(
         ast->As<AST::Statement>()->astdata));

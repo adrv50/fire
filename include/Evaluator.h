@@ -1,6 +1,9 @@
 #pragma once
 
+#include <list>
 #include "Object.h"
+
+#define EVALUATOR_STACK_MAX_SIZE 416
 
 namespace metro::eval {
 
@@ -91,15 +94,15 @@ private:
                                ASTPtr<AST::CallFunc> call,
                                ObjVector& args);
 
-  EvalStack& get_cur_stack() {
+  EvalStack& GetCurrentStack() {
     return *this->stack.rbegin();
   }
 
-  EvalStack& push() {
+  EvalStack& PushStack() {
     return this->stack.emplace_back();
   }
 
-  void pop() {
+  void PopStack() {
     this->stack.pop_back();
   }
 
@@ -121,7 +124,7 @@ private:
   ASTVec<AST::Function> functions;
   ASTVec<AST::Class> classes;
 
-  std::vector<EvalStack> stack;
+  std::list<EvalStack> stack;
 
   std::vector<LoopContext> loop_stack;
 };
