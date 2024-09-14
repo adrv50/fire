@@ -112,6 +112,11 @@ private:
   static void adjust_numeric_type_object(ObjPtr<ObjPrimitive> left,
                                          ObjPtr<ObjPrimitive> right);
 
+  static auto adjust_numeric_type_object(ObjPair<ObjPrimitive> pair) {
+    adjust_numeric_type_object(pair.first, pair.second);
+    return pair;
+  }
+
   ASTPtr<AST::Program> root;
 
   ASTVec<AST::Function> functions;

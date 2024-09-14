@@ -271,6 +271,9 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     break;
 
+  case Kind::If: {
+  }
+
   case Kind::Function:
   case Kind::Enum:
   case Kind::Class:

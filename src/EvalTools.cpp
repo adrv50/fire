@@ -134,7 +134,7 @@ void Evaluator::adjust_numeric_type_object(
 
   if (lk == TypeKind::Size)
     right->vsize = (value_type::Size)right->vi;
-  else
+  else // rk == TypeKind::Size
     left->vsize = (value_type::Size)left->vi;
 }
 

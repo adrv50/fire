@@ -36,6 +36,14 @@ struct Object {
     return this->is_int() || this->is_size();
   }
 
+  bool is_integer() const {
+    return this->is_int_or_size();
+  }
+
+  bool is_boolean() const {
+    return this->type.kind == TypeKind::Bool;
+  }
+
   bool is_instance() const {
     return this->type.kind == TypeKind::Instance;
   }
@@ -78,6 +86,7 @@ struct ObjPrimitive : Object {
     i64 vi;
     double vf;
     size_t vsize;
+    size_t vs;
     bool vb;
     char16_t vc;
 
