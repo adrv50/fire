@@ -5,6 +5,8 @@ import subprocess
 import json
 import argparse
 
+import concurrent.futures
+
 COL_DEFAULT     = "\033[0m"
 COL_BOLD        = "\033[1m"
 
@@ -37,6 +39,10 @@ def xprint(*args):
         print(v, end="")
 
     print()
+
+def cwd(S):
+    print(S)
+    return os.system(S)
 
 #
 #  get only file name
@@ -73,7 +79,7 @@ class Source:
         # print(f"{self.path}, {self.depends}")
 
         # for result
-        self.is_succeed = False
+        self.is_failed = False
         self.result = None
 
         self.is_compile_needed = \
@@ -110,7 +116,7 @@ class Source:
 
         is_cpp = self.ext != 'c'
 
-        print(f"{COL_BOLD}{COL_WHITE}{'CXX ' if is_cpp else 'CC  '} {self.path}{COL_DEFAULT}", end="")
+        print(f"{COL_BOLD}{COL_WHITE}{'CXX ' if is_cpp else 'CC  '} {self.path}{COL_DEFAULT}")
         
         self.result = subprocess.run(
             f"{'clang++' if is_cpp else 'clang'} -MP -MMD -MF {self.dpath} {self.flags.COMMONFLAGS} {self.flags.CXXFLAGS if is_cpp else self.flags.CFLAGS} -c -o {self.objout} {self.path}",
@@ -119,12 +125,10 @@ class Source:
             text=True
         )
 
-        self.is_succeed = (self.result.returncode == 0)
+        self.is_failed = (self.result.returncode != 0)
 
-        if not self.is_succeed:
-            print(COL_BOLD + COL_RED, "  => failed", COL_DEFAULT)
-        else:
-            print()
+        if self.is_failed:
+            print(COL_BOLD + COL_RED, "failed: ", self.path, COL_DEFAULT)
 
         return True
 
@@ -142,23 +146,23 @@ class BuilderFlags:
     def __init__(self, args):
         config = json.load(open("build.json", mode="r"))
 
-        self.dont_hold_err = args.dont_hold_error
+        self.ISDEBUG    = args.debug
+        
+        self.WORKDIR_ROOT   = ".pymake"
+        self.WORKDIR    = self.WORKDIR_ROOT + "/" + ("debug" if self.ISDEBUG else "release") + "/"
 
-        self.ISDEBUG     = args.debug
+        self.CC         = config["cc"]
+        self.CXX        = config["cxx"]
+        self.LD         = config["ld"]
 
-        self.CC          = config["cc"]
-        self.CXX         = config["cxx"]
-        self.LD          = config["ld"]
-
-        self.TARGET      = config["output"]
+        self.TARGET     = self.WORKDIR + config["output"]
 
         if self.ISDEBUG:
             self.TARGET += 'd'
 
-        self.INCLUDE     = config["include"]
-        self.SRCDIR      = config["src"]
-        self.OBJDIR      = config["objdir"]
-        self.BUILDDIR    = config["builddir"]
+        self.INCLUDE    = config["include"]
+        self.SRCDIR     = config["src"]
+        self.OBJDIR     = self.WORKDIR + config["objdir"]
 
         FLAGS       = config["flags"]["debug" if self.ISDEBUG else "default"]
 
@@ -174,18 +178,12 @@ class BuilderFlags:
             self.LDFLAGS = "-Wl," + ",".join(self.LDFLAGS)
 
 class Builder:
-
     def __init__(self, args):
         self.args = args
         self.flags = BuilderFlags(args)
 
         self.sources = [ ]
         self.err_sources = [ ]
-
-        if args.run:
-            os.system("clear")
-            print(f"{COL_GREEN}./{self.flags.TARGET}\n{'=' * 50}{COL_DEFAULT}\n")
-            exit(os.system(f"./{self.flags.TARGET}"))
 
     def is_completed(self, target: str, incldir: str, sources: list[Source]):
         if not os.path.exists(target):
@@ -215,32 +213,35 @@ class Builder:
             print(f"'{COL_BOLD}{COL_YELLOW}{self.flags.TARGET}' is up to date.{COL_DEFAULT}")
             exit(0)
 
-        if not os.path.isdir(self.flags.OBJDIR):
-            os.system(f"mkdir {self.flags.OBJDIR}")
-
         # Try compile all sources
-        for src in self.sources:
-            if not src.compile():
-                continue
-
-            if src.result.returncode != 0:
-                self.err_sources.append(src)
-
-                if self.flags.dont_hold_err:
-                    break
+        if self.args.J:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                executor.map(Source.compile, self.sources)
+        else:
+            for src in self.sources:
+                src.compile()
 
     def check_error(self) -> None:
-        if self.err_sources == [ ]:
+        errcount = 0
+
+        for s in self.sources:
+            if s.is_failed:
+                errcount += 1
+
+        if errcount == 0:
             return
 
         xprint(
             COL_BOLD,
             COL_RED,
-            f"=== detected {COL_YELLOW}{len(self.err_sources)}{COL_RED} errors ===\n",
+            f"=== detected {COL_YELLOW}{errcount}{COL_RED} errors ===\n",
             COL_DEFAULT
         )
 
-        for src in self.err_sources:
+        for src in self.sources:
+            if not src.is_failed:
+                continue
+
             border = "=" * 15
             longborder = "=" * (32 + len(src.path))
 
@@ -248,7 +249,6 @@ class Builder:
                 COL_CYAN + src.path + COL_WHITE + " ", border, COL_DEFAULT)
 
             xprint(src.result.stderr)
-
             xprint(COL_BOLD, COL_WHITE, longborder, COL_DEFAULT, "\n")
 
         exit(1)
@@ -282,27 +282,35 @@ class Builder:
             print(COL_BOLD + COL_WHITE + "\nDone." + COL_DEFAULT)
 
     def clean_up(self):
-        os.system(f"rm -rf {self.flags.BUILDDIR} {self.flags.OBJDIR} {self.flags.TARGET} {self.flags.TARGET}d")
+        os.system(f"rm -rf {self.flags.WORKDIR_ROOT}")
 
     def do_build(self):
         if self.args.clean:
             self.clean_up()
             return 0
 
+        if self.args.run:
+            os.system("clear")
+            cmd = f"./{self.flags.TARGET} {' '.join(self.args.run)}"
+            print(f"{COL_GREEN}{cmd}\n{'='*50}{COL_DEFAULT}")
+            return os.system(cmd)
+
+        os.system(f"mkdir -p {self.flags.OBJDIR}")
+
         self.compile_all()
         self.check_error()
 
         self.link()
-        
+
         return 0
 
 def __main__():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-e', '--dont-hold-error', action='store_true')
-    parser.add_argument('-r', '--run', action='store_true')
     parser.add_argument('-c', '--clean', action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-J', action='store_true')
+    parser.add_argument('--run', nargs='*')
 
     return Builder(parser.parse_args()).do_build()
 

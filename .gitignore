@@ -2,6 +2,8 @@
 /__pycache__
 /memo
 
+/.pymake
+
 # Binary files
 fire
 fired

@@ -3,12 +3,11 @@
     "cxx": "clang++",
     "ld": "clang++",
 
-    "output": "metro",
+    "output": "fire",
 
     "include": "include",
     "src": "src",
     "objdir": "objects",
-    "builddir": ".pybuilder",
 
     "flags": {
         "default": {

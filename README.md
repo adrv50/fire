@@ -10,13 +10,12 @@ println("Hello, World!");
 
 build and run.
 ```
-$ make
-$ ./flame a.flame
+$ ./build.sh -J
 ```
 
 debug-build
 ```
-$ make debug
+$ ./build.sh -Jd
 ```
 
 ## Documents:
