@@ -190,7 +190,7 @@ ObjCallable::ObjCallable(builtins::Function const* fp)
 // ----------------------------
 //  ObjModule
 std::string ObjModule::ToString() const {
-  return "(ObjModule)";
+  return "(ObjModule '" + this->name + "')";
 }
 
 // ----------------------------

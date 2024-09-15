@@ -51,8 +51,6 @@ ObjPointer Import(ObjVector args) {
 
   eval::Evaluator ev{prg};
 
-  // ev.do_eval();
-
   auto ret = ObjNew<ObjModule>(source, prg);
 
   ret->name = path.substr(0, path.rfind('.'));
@@ -60,8 +58,6 @@ ObjPointer Import(ObjVector args) {
   if (auto slash = ret->name.rfind('/'); slash != std::string::npos) {
     ret->name = ret->name.substr(slash + 1);
   }
-
-  alertmsg(ret->name);
 
   for (auto&& x : prg->list) {
     switch (x->kind) {
@@ -83,18 +79,6 @@ ObjPointer Import(ObjVector args) {
       auto y = ASTCast<AST::VarDef>(x);
 
       ret->variables[y->GetName()] = ev.evaluate(y->init);
-
-      break;
-    }
-
-    case ASTKind::CallFunc: {
-      auto y = ASTCast<AST::CallFunc>(x);
-
-      if (y->expr->kind == ASTKind::Variable &&
-          y->expr->token.str == "@import") {
-        ret->modules.emplace_back(PtrCast<ObjModule>(
-            Import({y->args[0]->As<AST::Value>()->value})));
-      }
 
       break;
     }

@@ -47,10 +47,14 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
   //
   // ObjModule
   if (obj->type.kind == TypeKind::Module) {
+    alert;
+
     auto mod = PtrCast<ObjModule>(obj);
 
-    if (mod->variables.contains(name))
+    if (mod->variables.contains(name)) {
+      alertmsg(name);
       return mod->variables[name];
+    }
 
     for (auto&& objtype : mod->types) {
       if (objtype->GetName() == name)
@@ -58,13 +62,10 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
     }
 
     for (auto&& objfunc : mod->functions) {
+      alert;
+
       if (objfunc->GetName() == name)
         return objfunc;
-    }
-
-    for (auto&& objmod : mod->modules) {
-      if (objmod->name == name)
-        return objmod;
     }
   }
 

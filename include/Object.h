@@ -230,8 +230,6 @@ struct ObjModule : Object {
   ObjVec<ObjType> types;
   ObjVec<ObjCallable> functions;
 
-  ObjVec<ObjModule> modules;
-
   ObjPointer Clone() const override {
     return ObjNew<ObjModule>(*this);
   }

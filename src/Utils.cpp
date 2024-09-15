@@ -37,4 +37,11 @@ std::u16string to_u16string(std::string const& str) {
   return conv.from_bytes(str);
 }
 
+std::string get_base_name(std::string path) {
+  if (auto slash = path.rfind('/'); slash != std::string::npos)
+    path = path.substr(slash + 1);
+
+  return path.substr(0, path.rfind('.'));
+}
+
 } // namespace utils
