@@ -11,6 +11,7 @@ println("Hello, World!");
 build and run.
 ```
 $ ./build.sh -J
+$ ./build.sh --run test.fire
 ```
 
 debug-build
