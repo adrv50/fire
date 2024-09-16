@@ -59,6 +59,7 @@ namespace AST {
 struct Base;
 struct Value;
 struct Variable;
+struct CallFunc;
 struct Expr;
 struct Block;
 struct VarDef;

@@ -220,7 +220,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     // builtin func
     if (cb->builtin) {
-      return cb->builtin->Call(std::move(args));
+      return cb->builtin->Call(cf, std::move(args));
     }
 
     return this->call_function_ast(false, cb->func, cf, args);

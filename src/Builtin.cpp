@@ -5,11 +5,14 @@
 #include "Parser.h"
 #include "Evaluator.h"
 
+#include "AST.h"
+#include "Error.h"
+
 #include "alert.h"
 
 namespace metro::builtins {
 
-static ObjPointer Print(ObjVector args) {
+static ObjPointer Print(ASTPtr<AST::CallFunc> ast, ObjVector args) {
   std::stringstream ss;
 
   for (auto&& obj : args)
@@ -22,27 +25,24 @@ static ObjPointer Print(ObjVector args) {
   return ObjNew<ObjPrimitive>((i64)str.length());
 }
 
-static ObjPointer Println(ObjVector args) {
+static ObjPointer Println(ASTPtr<AST::CallFunc> ast, ObjVector args) {
   auto ret = ObjNew<ObjPrimitive>(
-      Print(std::move(args))->As<ObjPrimitive>()->vi + 1);
+      Print(ast, std::move(args))->As<ObjPrimitive>()->vi + 1);
 
   std::cout << std::endl;
 
   return ret;
 }
 
-ObjPointer Import(ObjVector args) {
+ObjPointer Import(ASTPtr<AST::CallFunc> ast, ObjVector args) {
   auto path = args[0]->ToString();
-
-  alertmsg(path);
 
   auto source = std::make_shared<SourceStorage>(path);
 
   source->Open();
 
   if (!source->IsOpen()) {
-    alert;
-    return ObjNew<ObjNone>();
+    Error(ast->args[0]->token, "cannot open file '" + path + "'")();
   }
 
   Lexer lexer{*source};
@@ -99,8 +99,9 @@ static const std::vector<Function> g_builtin_functions = {
 };
 // clang-format on
 
-ObjPointer Function::Call(ObjVector args) const {
-  return this->func(args);
+ObjPointer Function::Call(ASTPtr<AST::CallFunc> ast,
+                          ObjVector args) const {
+  return this->func(ast, std::move(args));
 }
 
 Function const* find_builtin_func(std::string const& name) {

@@ -6,7 +6,8 @@
 namespace metro::builtins {
 
 struct Function {
-  using FuncPointer = ObjPointer (*)(ObjVector);
+  using FuncPointer = ObjPointer (*)(ASTPtr<AST::CallFunc>,
+                                     ObjVector);
 
   std::string name;
 
@@ -15,7 +16,7 @@ struct Function {
 
   FuncPointer func;
 
-  ObjPointer Call(ObjVector args) const;
+  ObjPointer Call(ASTPtr<AST::CallFunc> ast, ObjVector args) const;
 
   Function(std::string const& name, FuncPointer fp, int argcount,
            bool is_vararg = false)

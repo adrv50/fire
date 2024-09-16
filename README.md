@@ -10,11 +10,10 @@ println("Hello, World!");
 
 build and run.
 ```
-$ ./build.sh -J
-$ ./build.sh --run test.fire
+$ ./build.sh -J --run test.fire
 ```
 
-debug-build
+(debug-build)
 ```
 $ ./build.sh -Jd
 ```

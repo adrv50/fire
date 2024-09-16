@@ -1,6 +1,6 @@
-FROM debian:bookworm
+FROM python:3.12-slim
 
-RUN apt-get update && apt-get install -y clang make
+RUN apt-get update && apt-get install -y clang
 
 WORKDIR /flame
 

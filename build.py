@@ -71,8 +71,10 @@ class Source:
         self.dpath = f"{self.flags.OBJDIR}/{self.pathnoext}.d"
         self.objout = f"{self.flags.OBJDIR}/{self.pathnoext}.o"
 
-        self.mtime = 0 if not os.path.exists(self.objout) \
-            else os.path.getmtime(self.objout)
+#        self.mtime = 0 if not os.path.exists(self.objout) \
+#            else os.path.getmtime(self.objout)
+
+        self.mtime = os.path.getmtime(self.path)
 
         self.depends = self.get_depends()
 
@@ -81,9 +83,6 @@ class Source:
         # for result
         self.is_failed = False
         self.result = None
-
-        self.is_compile_needed = \
-            not os.path.exists(self.objout) or self.depends == [ ]
 
     def get_depends(self) -> list[str]:
         global CFLAGS
@@ -105,14 +104,12 @@ class Source:
     # result = if compiled return True
     #
     def compile(self):
-        if not self.is_compile_needed:
-            for d in self.depends:
-                if os.path.getmtime(d) > self.mtime:
-                    self.is_compile_needed = True
-                    break
-
-        if not self.is_compile_needed:
+        if os.path.getmtime(self.objout) > self.mtime:
             return False
+
+        for d in self.depends:
+            if os.path.getmtime(d) > self.mtime:
+                return False
 
         is_cpp = self.ext != 'c'
 
@@ -182,21 +179,25 @@ class Builder:
         self.args = args
         self.flags = BuilderFlags(args)
 
-        self.sources = [ ]
-        self.err_sources = [ ]
+        self.sources = \
+            glob.glob(f"{self.flags.SRCDIR}/**/*.c", recursive=True) \
+            + glob.glob(f"{self.flags.SRCDIR}/**/*.cpp", recursive=True)
 
-    def is_completed(self, target: str, incldir: str, sources: list[Source]):
-        if not os.path.exists(target):
+        self.sources = [Source(self.flags, s) for s in self.sources]
+
+    def is_completed(self):
+        if not os.path.exists(self.flags.TARGET):
             return False
 
-        mtime = os.path.getmtime(target)
-        headers = glob.glob(f"{incldir}/**/*.h", recursive=True)
+        mtime = os.path.getmtime(self.flags.TARGET)
 
-        for s in sources:
+        for s in self.sources:
+            # updated source file
             if mtime < s.mtime:
                 return False
 
-        for h in headers:
+        for h in glob.glob(f"{self.flags.INCLUDE}/**/*.h", recursive=True):
+            # updated header file
             if mtime < os.path.getmtime(h):
                 return False
 
@@ -205,11 +206,7 @@ class Builder:
     def compile_all(self):
         self.flags.COMMONFLAGS  += f" -I{self.flags.INCLUDE} "
 
-        self.sources = glob.glob(f"{self.flags.SRCDIR}/**/*.c", recursive=True)
-        self.sources += glob.glob(f"{self.flags.SRCDIR}/**/*.cpp", recursive=True)
-        self.sources = [Source(self.flags, s) for s in self.sources]
-
-        if self.is_completed(self.flags.TARGET, self.flags.INCLUDE, self.sources):
+        if self.is_completed():
             print(f"'{COL_BOLD}{COL_YELLOW}{self.flags.TARGET}' is up to date.{COL_DEFAULT}")
             exit(0)
 
@@ -278,29 +275,41 @@ class Builder:
             xprint(COL_BOLD, COL_WHITE, "=" * 40, COL_DEFAULT)
 
             exit(1)
-        else:
-            print(COL_BOLD + COL_WHITE + "\nDone." + COL_DEFAULT)
+#        else:
+#            print(COL_BOLD + COL_WHITE + "\nDone." + COL_DEFAULT)
 
     def clean_up(self):
         os.system(f"rm -rf {self.flags.WORKDIR_ROOT}")
 
-    def do_build(self):
+    def build(self):
+        os.system(f"mkdir -p {self.flags.OBJDIR}")
+
+        self.compile_all()
+        self.check_error()
+        self.link()
+
+        return 0
+
+    def main(self):
         if self.args.clean:
             self.clean_up()
             return 0
 
         if self.args.run:
-            os.system("clear")
-            cmd = f"./{self.flags.TARGET} {' '.join(self.args.run)}"
-            print(f"{COL_GREEN}{cmd}\n{'='*50}{COL_DEFAULT}")
-            return os.system(cmd)
+            if not self.is_completed():
+                self.build()
+
+            return os.system(f"./{self.flags.TARGET} {' '.join(self.args.run)}")
+
+        if self.args.install:
+            os.system(f"install {self.flags.TARGET} /usr/local/bin")
+            return 0
 
         os.system(f"mkdir -p {self.flags.OBJDIR}")
 
-        self.compile_all()
-        self.check_error()
+        self.build()
 
-        self.link()
+        print(COL_BOLD + COL_WHITE + "\nDone." + COL_DEFAULT)
 
         return 0
 
@@ -311,8 +320,9 @@ def __main__():
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-J', action='store_true')
     parser.add_argument('--run', nargs='*')
+    parser.add_argument('--install', action='store_true')
 
-    return Builder(parser.parse_args()).do_build()
+    return Builder(parser.parse_args()).main()
 
 if __name__ == "__main__":
     exit(__main__())

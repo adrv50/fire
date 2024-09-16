@@ -495,10 +495,13 @@ ASTPointer Parser::Top() {
     std::string name;
 
     if (this->eat(".")) {
-      name += "../";
+      name += ".";
 
-      this->eat(".");
+      if (this->eat("."))
+        name += ".";
+
       this->expect("/");
+      name += "/";
     }
 
     name = this->expectIdentifier()->str;
@@ -507,7 +510,7 @@ ASTPointer Parser::Top() {
       name += "/" + this->expectIdentifier()->str;
     }
 
-    name = "./" + name + ".fire";
+    name = name + ".fire";
 
     this->expect(";");
 

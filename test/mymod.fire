@@ -1,3 +1,7 @@
-fn AIUEO(n) {
-    return n * 2;
+class MyClass {
+    let num;
+
+    MyClass(self, n) {
+        self.num = n;
+    }
 }
