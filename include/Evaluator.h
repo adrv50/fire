@@ -5,6 +5,10 @@
 
 #define EVALUATOR_STACK_MAX_SIZE 416
 
+namespace metro::builtins {
+ObjPointer Import(ObjVector args);
+}
+
 namespace metro::eval {
 
 template <class T>
@@ -133,6 +137,8 @@ private:
   std::list<EvalStack> stack;
 
   std::vector<LoopContext> loop_stack;
+
+  friend ObjPointer builtins::Import(ObjVector args);
 };
 
 } // namespace metro::eval

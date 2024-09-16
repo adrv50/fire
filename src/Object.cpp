@@ -188,7 +188,18 @@ ObjCallable::ObjCallable(builtins::Function const* fp)
 }
 
 // ----------------------------
+//  ObjModule
+std::string ObjModule::ToString() const {
+  return "(ObjModule '" + this->name + "')";
+}
+
+// ----------------------------
 //  ObjType
+
+std::string ObjType::GetName() const {
+  return this->ast_class ? this->ast_class->GetName()
+                         : this->ast_enum->GetName();
+}
 
 std::string ObjType::ToString() const {
   return "(ObjType)";

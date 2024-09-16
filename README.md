@@ -1,4 +1,4 @@
-# Metro Interpreter Programming Language
+# Flame: Interpreter Programming Language
 
 Rust の簡易版みたいなもの。
 
@@ -10,13 +10,12 @@ println("Hello, World!");
 
 build and run.
 ```
-$ make
-$ ./flame a.flame
+$ ./build.sh -J --run test.fire
 ```
 
-debug-build
+(debug-build)
 ```
-$ make debug
+$ ./build.sh -Jd
 ```
 
 ## Documents:

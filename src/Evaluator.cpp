@@ -47,7 +47,26 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
   //
   // ObjModule
   if (obj->type.kind == TypeKind::Module) {
+    alert;
+
     auto mod = PtrCast<ObjModule>(obj);
+
+    if (mod->variables.contains(name)) {
+      alertmsg(name);
+      return mod->variables[name];
+    }
+
+    for (auto&& objtype : mod->types) {
+      if (objtype->GetName() == name)
+        return objtype;
+    }
+
+    for (auto&& objfunc : mod->functions) {
+      alert;
+
+      if (objfunc->GetName() == name)
+        return objfunc;
+    }
   }
 
   if (auto [fn_ast, blt] = this->find_func(name); fn_ast)
@@ -109,6 +128,9 @@ ObjPointer& Evaluator::eval_as_writable(ASTPointer ast) {
 
 ObjPointer Evaluator::evaluate(ASTPointer ast) {
   using Kind = ASTKind;
+
+  if (!ast)
+    return ObjNew<ObjNone>();
 
   switch (ast->kind) {
   case Kind::Value:
@@ -198,7 +220,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     // builtin func
     if (cb->builtin) {
-      return cb->builtin->Call(std::move(args));
+      return cb->builtin->Call(cf, std::move(args));
     }
 
     return this->call_function_ast(false, cb->func, cf, args);

@@ -53,10 +53,25 @@ int parse_command_line(CmdLineArguments& cmd, int argc, char** argv) {
   return 0;
 }
 
-int main(int argc, char** argv) {
+void execute_file(std::string const& path) {
   using namespace metro;
-  using namespace metro::parser;
 
+  SourceStorage source{path};
+
+  if (!source.Open()) {
+    Error::fatal_error("cannot open file '" + path + "'");
+  }
+
+  Lexer lexer{source};
+
+  parser::Parser parser{lexer.Lex()};
+  auto prg = parser.Parse();
+
+  eval::Evaluator eval{prg};
+  eval.do_eval();
+}
+
+int main(int argc, char** argv) {
   CmdLineArguments args;
 
   parse_command_line(args, argc - 1, argv + 1);
@@ -72,23 +87,11 @@ int main(int argc, char** argv) {
   }
 
   if (args.sources.empty()) {
-    Error::fatal_error("no input files.");
+    metro::Error::fatal_error("no input files.");
   }
 
   for (auto&& path : args.sources) {
-    SourceStorage source{path};
-
-    if (!source.Open()) {
-      Error::fatal_error("cannot open file '" + path + "'");
-    }
-
-    Lexer lexer{source};
-
-    parser::Parser parser{lexer.Lex()};
-    auto prg = parser.Parse();
-
-    eval::Evaluator eval{prg};
-    eval.do_eval();
+    execute_file(path);
   }
 
   return 0;

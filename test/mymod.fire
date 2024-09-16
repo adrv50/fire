@@ -1,0 +1,7 @@
+class MyClass {
+    let num;
+
+    MyClass(self, n) {
+        self.num = n;
+    }
+}

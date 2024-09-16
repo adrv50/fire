@@ -27,8 +27,8 @@ static char const* keywords[] = {
   "vector",
   "tuple",
   "dict",
-  "module",
-  "function",
+  "Module",
+  "Func",
 
   "enum",
   "class",
@@ -58,7 +58,9 @@ static bool is_keyword(std::string_view str) {
 }
 
 Lexer::Lexer(SourceStorage const& source)
-    : source(source), position(0), length(source.data.length()) {
+    : source(source),
+      position(0),
+      length(source.data.length()) {
 }
 
 TokenVector Lexer::Lex() {
