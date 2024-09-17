@@ -225,4 +225,7 @@ ObjType::ObjType(ASTPtr<AST::Class> x)
   this->type.name = this->ast_class->GetName();
 }
 
+// ----------------------------
+//  ObjException
+
 } // namespace fire

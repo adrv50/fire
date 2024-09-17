@@ -189,6 +189,13 @@ struct ObjInstance : Object {
   ObjPointer& set_member_var(std::string const& name, ObjPointer obj);
   ObjPtr<ObjCallable>& add_member_func(ObjPtr<ObjCallable> obj);
 
+  ObjPointer get_member_variable(std::string const& name) {
+    if (this->member.contains(name))
+      return this->member[name];
+
+    return nullptr;
+  }
+
   bool have_constructor() const;
   ASTPtr<AST::Function> get_constructor() const;
 

@@ -86,6 +86,19 @@ ASTPointer Parser::Stmt() {
     return ast;
   }
 
+  if (this->eat("try")) {
+    this->expect("{", true);
+    auto block = ASTCast<AST::Block>(this->Stmt());
+
+    this->expect("catch");
+    auto vname = *this->expectIdentifier();
+
+    this->expect("{", true);
+    auto catched = ASTCast<AST::Block>(this->Stmt());
+
+    return AST::Statement::NewTryCatch(tok, block, vname, catched);
+  }
+
   auto ast = this->Expr();
 
   this->expect(";");

@@ -67,8 +67,13 @@ void execute_file(std::string const& path) {
   parser::Parser parser{lexer.Lex()};
   auto prg = parser.Parse();
 
-  eval::Evaluator eval{prg};
-  eval.do_eval();
+  try {
+    eval::Evaluator eval{prg};
+    eval.do_eval();
+  }
+  catch (ObjPointer obj) {
+    Error::fatal_error("unhandled exception: " + obj->ToString());
+  }
 }
 
 int main(int argc, char** argv) {

@@ -63,7 +63,7 @@ std::string TypeInfo::to_string() const {
     break;
 
   default:
-    kind_name_map[this->kind];
+    ret = kind_name_map[this->kind];
   }
 
   if (!this->params.empty()) {

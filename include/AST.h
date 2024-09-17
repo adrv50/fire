@@ -53,6 +53,8 @@ enum class ASTKind {
   Continue,
   Return,
 
+  TryCatch,
+
   // FuncArg,
   Function,
 
@@ -229,6 +231,13 @@ struct Statement : Base {
     ASTPtr<Block> block;
   };
 
+  struct TryCatch {
+    ASTPtr<Block> tryblock;
+
+    Token varname; // name of variable to catch exception instance
+    ASTPtr<Block> catched;
+  };
+
   //
   // astdata
   //
@@ -248,6 +257,11 @@ struct Statement : Base {
   static ASTPtr<Statement> NewFor(Token tok, ASTVector init,
                                   ASTPointer cond, ASTVector count,
                                   ASTPtr<Block> block);
+
+  static ASTPtr<Statement> NewTryCatch(Token tok,
+                                       ASTPtr<Block> tryblock,
+                                       Token vname,
+                                       ASTPtr<Block> catched);
 
   static ASTPtr<Statement> New(ASTKind kind, Token tok,
                                std::any data = (ASTPointer) nullptr);

@@ -81,6 +81,14 @@ ASTPtr<Statement> Statement::NewFor(Token tok, ASTVector init,
       For{std::move(init), cond, std::move(count), block});
 }
 
+ASTPtr<Statement> Statement::NewTryCatch(Token tok,
+                                         ASTPtr<Block> tryblock,
+                                         Token vname,
+                                         ASTPtr<Block> catched) {
+  return ASTNew<Statement>(ASTKind::TryCatch, tok,
+                           TryCatch{tryblock, vname, catched});
+}
+
 ASTPtr<Statement> Statement::New(ASTKind kind, Token tok,
                                  std::any data) {
   return ASTNew<Statement>(kind, tok, std::move(data));

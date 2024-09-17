@@ -55,6 +55,16 @@ define_builtin_func(Open) {
   auto path = args[0]->ToString();
 
   std::ifstream ifs{path};
+
+  if (!ifs.is_open())
+    return ObjNew<ObjNone>();
+
+  std::string data;
+
+  for (std::string line; std::getline(ifs, line); data += line + '\n')
+    ;
+
+  return ObjNew<ObjString>(data);
 }
 
 define_builtin_func(Import) {

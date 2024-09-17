@@ -29,13 +29,7 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
     auto inst = PtrCast<ObjInstance>(obj);
 
     if (inst->member.contains(name)) {
-      auto ret = inst->member[name];
-
-      if (ret)
-        return ret->Clone();
-
-      Error(ast->rhs->token,
-            "use member variable before assignment")();
+      return inst->member[name];
     }
 
     for (auto&& mf : inst->member_funcs) {
@@ -347,6 +341,29 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       this->evaluate(data.if_true);
     else if (data.if_false)
       this->evaluate(data.if_false);
+
+    break;
+  }
+
+  case Kind::For: {
+    todo_impl;
+  }
+
+  case Kind::TryCatch: {
+    auto data = std::any_cast<AST::Statement::TryCatch>(
+        ASTCast<AST::Statement>(ast)->astdata);
+
+    try {
+      this->evaluate(data.tryblock);
+    }
+    catch (ObjPointer object) {
+      auto& stack = this->PushStack();
+      stack.append(data.varname.str, object);
+
+      this->evaluate(data.catched);
+
+      this->PopStack();
+    }
 
     break;
   }
