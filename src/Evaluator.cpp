@@ -45,6 +45,23 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
   }
 
   //
+  // ObjEnumerator
+  else if (obj->type.kind == TypeKind::Enumerator) {
+    //
+    // -->  .data
+
+    if (name == "data") {
+      auto data = obj->As<ObjEnumerator>()->data;
+
+      if (!data)
+        Error(ast->rhs->token,
+              "use member variable before assignment")();
+
+      return data;
+    }
+  }
+
+  //
   // ObjModule
   else if (obj->type.kind == TypeKind::Module) {
     alert;
@@ -83,7 +100,11 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
     }
 
     else if (typeobj->ast_enum) {
-      for (auto&& e : typeobj->ast_enum->enumerators) {
+      for (int index = 0; auto&& e : typeobj->ast_enum->enumerators) {
+        if (e.str == name)
+          return ObjNew<ObjEnumerator>(typeobj->ast_enum, index);
+
+        index++;
       }
     }
   }
@@ -138,7 +159,10 @@ ObjPointer& Evaluator::eval_as_writable(ASTPointer ast) {
                                "'")();
     }
 
-    todo_impl; // find in enum
+    else if (obj->type.kind == TypeKind::Enumerator &&
+             name == "data") {
+      return obj->As<ObjEnumerator>()->data;
+    }
   }
   }
 

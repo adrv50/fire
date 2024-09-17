@@ -106,7 +106,15 @@ ObjString::ObjString(std::string const& str)
 //  ObjEnumerator
 
 std::string ObjEnumerator::ToString() const {
-  return "(ObjEnumerator)";
+  return this->ast->GetName() + "." +
+         this->ast->enumerators[this->index].str;
+}
+
+ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)
+    : Object(TypeKind::Enumerator),
+      ast(ast),
+      index(index) {
+  this->type.name = this->ast->GetName();
 }
 
 // ----------------------------
@@ -203,6 +211,18 @@ std::string ObjType::GetName() const {
 
 std::string ObjType::ToString() const {
   return "(ObjType)";
+}
+
+ObjType::ObjType(ASTPtr<AST::Enum> x)
+    : Object(TypeKind::TypeName),
+      ast_enum(x) {
+  this->type.name = this->ast_enum->GetName();
+}
+
+ObjType::ObjType(ASTPtr<AST::Class> x)
+    : Object(TypeKind::TypeName),
+      ast_class(x) {
+  this->type.name = this->ast_class->GetName();
 }
 
 } // namespace fire

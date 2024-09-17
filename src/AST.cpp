@@ -102,11 +102,6 @@ ASTPtr<Function> Function::New(Token tok, Token name,
                           rettype, block);
 }
 
-ASTPtr<Enumerator> Enumerator::New(Token tok,
-                                   ASTPtr<TypeName> valtype) {
-  return ASTNew<Enumerator>(tok, valtype);
-}
-
 ASTPtr<Enum> Enum::New(Token tok, Token name) {
   return ASTNew<Enum>(tok, name);
 }

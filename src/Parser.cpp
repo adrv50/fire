@@ -388,13 +388,7 @@ ASTPointer Parser::Top() {
     }
 
     do {
-      auto& etor = ast->enumerators.emplace_back(
-          AST::Enumerator::New(*this->expectIdentifier()));
-
-      if (this->eat("(")) {
-        etor->value_type = this->expectTypeName();
-        this->expect(")");
-      }
+      ast->enumerators.emplace_back(*this->expectIdentifier());
     } while (this->eat(","));
 
     this->expect("}");

@@ -53,12 +53,17 @@ std::string TypeInfo::to_string() const {
 
   debug(assert(kind_name_map.contains(this->kind)));
 
-  std::string ret = kind_name_map[this->kind];
+  std::string ret;
 
   switch (this->kind) {
   case TypeKind::Instance:
+  case TypeKind::Enumerator:
+  case TypeKind::TypeName:
     ret = name;
     break;
+
+  default:
+    kind_name_map[this->kind];
   }
 
   if (!this->params.empty()) {

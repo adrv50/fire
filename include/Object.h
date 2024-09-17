@@ -163,17 +163,15 @@ struct ObjEnumerator : Object {
   ASTPtr<AST::Enum> ast;
   int index;
 
+  ObjPointer data = nullptr;
+
   ObjPointer Clone() const override {
     return ObjNew<ObjEnumerator>(*this);
   }
 
   std::string ToString() const override;
 
-  ObjEnumerator(ASTPtr<AST::Enum> ast, int index)
-      : Object(TypeKind::Enumerator),
-        ast(ast),
-        index(index) {
-  }
+  ObjEnumerator(ASTPtr<AST::Enum> ast, int index);
 };
 
 //
@@ -261,15 +259,8 @@ struct ObjType : Object {
 
   std::string ToString() const override;
 
-  ObjType(ASTPtr<AST::Enum> x = nullptr)
-      : Object(TypeKind::TypeName),
-        ast_enum(x) {
-  }
-
-  ObjType(ASTPtr<AST::Class> x)
-      : Object(TypeKind::TypeName),
-        ast_class(x) {
-  }
+  ObjType(ASTPtr<AST::Enum> x = nullptr);
+  ObjType(ASTPtr<AST::Class> x);
 };
 
 } // namespace fire
