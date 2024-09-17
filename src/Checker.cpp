@@ -5,7 +5,7 @@
 #include "Error.h"
 #include "alert.h"
 
-namespace metro::checker {
+namespace fire::checker {
 
 #if _METRO_DEBUG_
 
@@ -90,4 +90,4 @@ Checker::Checker(ASTPtr<AST::Program> ast)
       scope_context(*this) {
 }
 
-} // namespace metro::checker
+} // namespace fire::checker

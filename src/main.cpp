@@ -54,7 +54,7 @@ int parse_command_line(CmdLineArguments& cmd, int argc, char** argv) {
 }
 
 void execute_file(std::string const& path) {
-  using namespace metro;
+  using namespace fire;
 
   SourceStorage source{path};
 
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
   }
 
   if (args.sources.empty()) {
-    metro::Error::fatal_error("no input files.");
+    fire::Error::fatal_error("no input files.");
   }
 
   for (auto&& path : args.sources) {

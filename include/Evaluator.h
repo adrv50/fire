@@ -5,11 +5,11 @@
 
 #define EVALUATOR_STACK_MAX_SIZE 416
 
-namespace metro::builtins {
+namespace fire::builtins {
 ObjPointer Import(ObjVector args);
 }
 
-namespace metro::eval {
+namespace fire::eval {
 
 template <class T>
 using ObjPair = std::pair<ObjPtr<T>, ObjPtr<T>>;
@@ -95,7 +95,10 @@ private:
   std::pair<ASTPtr<AST::Function>, builtins::Function const*>
   find_func(std::string const& name);
 
-  ASTPtr<AST::Class> find_class(std::string const& name);
+  std::pair<ASTPtr<AST::Class>, ASTPtr<AST::Enum>>
+  find_class_or_enum(std::string const& name);
+
+  ASTPtr<AST::Enum> find_enum(std::string const& name);
 
   ObjPtr<ObjInstance> new_class_instance(ASTPtr<AST::Class> ast);
 
@@ -133,6 +136,7 @@ private:
 
   ASTVec<AST::Function> functions;
   ASTVec<AST::Class> classes;
+  ASTVec<AST::Enum> enums;
 
   std::list<EvalStack> stack;
 
@@ -141,4 +145,4 @@ private:
   friend ObjPointer builtins::Import(ObjVector args);
 };
 
-} // namespace metro::eval
+} // namespace fire::eval

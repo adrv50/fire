@@ -21,7 +21,7 @@ using u64 = std::uint64_t;
 using std::size_t;
 using StringVector = std::vector<std::string>;
 
-namespace metro {
+namespace fire {
 
 enum class TypeKind : u8;
 struct TypeInfo;
@@ -170,4 +170,4 @@ using ObjVec = std::vector<ObjPtr<T>>;
 template <class T>
 using ASTVec = std::vector<ASTPtr<T>>;
 
-} // namespace metro
+} // namespace fire

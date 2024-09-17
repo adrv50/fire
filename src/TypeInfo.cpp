@@ -4,7 +4,7 @@
 #include "alert.h"
 #include "TypeInfo.h"
 
-namespace metro {
+namespace fire {
 
 static std::vector<char const*> g_names{
     "int",    "float", "size", "bool",   "char",     "string",
@@ -71,4 +71,4 @@ std::string TypeInfo::to_string() const {
   return ret;
 }
 
-} // namespace metro
+} // namespace fire

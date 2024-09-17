@@ -4,7 +4,7 @@
 #include "Utils.h"
 #include "Error.h"
 
-namespace metro {
+namespace fire {
 
 // clang-format off
 static char const* punctuaters[] = {
@@ -182,4 +182,4 @@ bool Lexer::match(std::string_view str) {
          this->trim(str.length()) == str;
 }
 
-} // namespace metro
+} // namespace fire

@@ -4,7 +4,7 @@
 #include "Builtin.h"
 #include "alert.h"
 
-namespace metro::eval {
+namespace fire::eval {
 
 using namespace AST;
 
@@ -46,7 +46,7 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
 
   //
   // ObjModule
-  if (obj->type.kind == TypeKind::Module) {
+  else if (obj->type.kind == TypeKind::Module) {
     alert;
 
     auto mod = PtrCast<ObjModule>(obj);
@@ -66,6 +66,25 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
 
       if (objfunc->GetName() == name)
         return objfunc;
+    }
+  }
+
+  //
+  // ObjType
+  else if (obj->type.kind == TypeKind::TypeName) {
+
+    auto typeobj = obj->As<ObjType>();
+
+    if (typeobj->ast_class) {
+      for (auto&& func : typeobj->ast_class->mb_functions) {
+        if (func->GetName() == name)
+          return ObjNew<ObjCallable>(func);
+      }
+    }
+
+    else if (typeobj->ast_enum) {
+      for (auto&& e : typeobj->ast_enum->enumerators) {
+      }
     }
   }
 
@@ -159,13 +178,13 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       return ObjNew<ObjCallable>(bfn);
     }
 
-    // find class
-    if (auto C = this->find_class(name); C) {
-      auto obj = ObjNew<ObjType>();
+    // find class or enum
+    if (auto [C, E] = this->find_class_or_enum(name); C) {
+      return ObjNew<ObjType>(C);
+    }
 
-      obj->ast_class = C;
-
-      return obj;
+    else if (E) {
+      return ObjNew<ObjType>(E);
     }
 
     Error(ast->token, "no name defined")();
@@ -334,8 +353,12 @@ Evaluator::Evaluator(ASTPtr<AST::Program> prg)
     case ASTKind::Class:
       this->classes.emplace_back(ASTCast<AST::Class>(ast));
       break;
+
+    case ASTKind::Enum:
+      this->enums.emplace_back(ASTCast<AST::Enum>(ast));
+      break;
     }
   }
 }
 
-} // namespace metro::eval
+} // namespace fire::eval

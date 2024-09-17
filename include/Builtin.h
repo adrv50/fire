@@ -3,7 +3,7 @@
 #include <string>
 #include "Object.h"
 
-namespace metro::builtins {
+namespace fire::builtins {
 
 struct Function {
   using FuncPointer = ObjPointer (*)(ASTPtr<AST::CallFunc>,
@@ -31,4 +31,4 @@ Function const* find_builtin_func(std::string const& name);
 
 std::vector<builtins::Function> const& get_builtin_functions();
 
-} // namespace metro::builtins
+} // namespace fire::builtins

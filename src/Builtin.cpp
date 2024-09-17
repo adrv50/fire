@@ -10,7 +10,7 @@
 
 #include "alert.h"
 
-namespace metro::builtins {
+namespace fire::builtins {
 
 static ObjPointer Print(ASTPtr<AST::CallFunc> ast, ObjVector args) {
   std::stringstream ss;
@@ -119,4 +119,4 @@ std::vector<builtins::Function> const& get_builtin_functions() {
   return g_builtin_functions;
 }
 
-} // namespace metro::builtins
+} // namespace fire::builtins

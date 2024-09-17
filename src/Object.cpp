@@ -7,7 +7,7 @@
 
 using namespace std::string_literals;
 
-namespace metro {
+namespace fire {
 
 Object::Object(TypeInfo type)
     : type(std::move(type)),
@@ -205,4 +205,4 @@ std::string ObjType::ToString() const {
   return "(ObjType)";
 }
 
-} // namespace metro
+} // namespace fire

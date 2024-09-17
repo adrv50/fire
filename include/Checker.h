@@ -2,7 +2,7 @@
 
 #include "AST.h"
 
-namespace metro::checker {
+namespace fire::checker {
 
 class Checker {
 public:
@@ -83,4 +83,4 @@ private:
   ScopeContext scope_context;
 };
 
-} // namespace metro::checker
+} // namespace fire::checker

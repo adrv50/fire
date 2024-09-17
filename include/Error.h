@@ -3,7 +3,7 @@
 #include "AST.h"
 #include "Utils.h"
 
-namespace metro {
+namespace fire {
 
 class Error {
 public:
@@ -34,4 +34,4 @@ private:
   std::string msg;
 };
 
-} // namespace metro
+} // namespace fire

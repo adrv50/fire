@@ -4,7 +4,7 @@
 #include "Builtin.h"
 #include "alert.h"
 
-namespace metro::eval {
+namespace fire::eval {
 
 using namespace AST;
 
@@ -28,11 +28,20 @@ Evaluator::find_func(std::string const& name) {
   return {nullptr, builtins::find_builtin_func(name)};
 }
 
-ASTPtr<AST::Class> Evaluator::find_class(std::string const& name) {
+std::pair<ASTPtr<AST::Class>, ASTPtr<AST::Enum>>
+Evaluator::find_class_or_enum(std::string const& name) {
   for (auto&& ast : this->classes) {
     if (ast->GetName() == name)
-      return ast;
+      return {ast, nullptr};
   }
+
+  return {nullptr, this->find_enum(name)};
+}
+
+ASTPtr<AST::Enum> Evaluator::find_enum(std::string const& name) {
+  for (auto&& e : this->enums)
+    if (e->GetName() == name)
+      return e;
 
   return nullptr;
 }
@@ -153,4 +162,4 @@ void Evaluator::adjust_numeric_type_object(
     left->vsize = (value_type::Size)left->vi;
 }
 
-} // namespace metro::eval
+} // namespace fire::eval

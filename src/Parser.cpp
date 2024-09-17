@@ -5,7 +5,7 @@
 #include "Error.h"
 #include "Utils.h"
 
-namespace metro::parser {
+namespace fire::parser {
 
 static ObjPtr<ObjPrimitive> make_value_from_token(Token const& tok) {
   auto k = tok.kind;
@@ -597,4 +597,4 @@ ASTPtr<AST::TypeName> Parser::expectTypeName() {
   return ast;
 }
 
-} // namespace metro::parser
+} // namespace fire::parser

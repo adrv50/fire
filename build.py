@@ -104,8 +104,13 @@ class Source:
     # result = if compiled return True
     #
     def compile(self):
-        if os.path.getmtime(self.objout) > self.mtime:
-            return False
+        if os.path.exists(self.objout):
+            if os.path.getmtime(self.objout) > self.mtime:
+                return False
+
+        if os.path.exists(self.flags.TARGET):
+            if os.path.getmtime(self.flags.TARGET) > self.mtime:
+                return False
 
         for d in self.depends:
             if os.path.getmtime(d) > self.mtime:

@@ -4,7 +4,7 @@
 #include "Builtin.h"
 #include "alert.h"
 
-namespace metro::eval {
+namespace fire::eval {
 
 using namespace AST;
 
@@ -197,4 +197,4 @@ ObjPointer Evaluator::eval_expr(ASTPtr<AST::Expr> ast) {
                         "` and `" + rhs->type.to_string() + "`")();
 }
 
-} // namespace metro::eval
+} // namespace fire::eval

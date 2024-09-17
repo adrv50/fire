@@ -1,4 +1,4 @@
-# Flame: Interpreter Programming Language
+# Fire: Interpreter Programming Language
 
 Rust の簡易版みたいなもの。
 

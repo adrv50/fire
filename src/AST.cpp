@@ -1,7 +1,7 @@
 #include "AST.h"
 #include "alert.h"
 
-namespace metro::AST {
+namespace fire::AST {
 
 template <class T, class... Args>
 requires std::constructible_from<T, Args...>
@@ -133,4 +133,4 @@ ASTPtr<Program> Program::New() {
   return ASTNew<Program>();
 }
 
-} // namespace metro::AST
+} // namespace fire::AST

@@ -16,7 +16,7 @@
 
 #define COL_BORDER_LINE COL_CYAN
 
-namespace metro {
+namespace fire {
 
 struct line_data_wrapper_t {
   SourceStorage const* src;
@@ -172,4 +172,4 @@ Error::Error(ASTPointer ast, std::string msg)
       msg(std::move(msg)) {
 }
 
-} // namespace metro
+} // namespace fire

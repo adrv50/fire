@@ -3,7 +3,7 @@
 #include <vector>
 #include "types.h"
 
-namespace metro {
+namespace fire {
 
 enum class TypeKind : u8 {
   None,
@@ -64,4 +64,4 @@ struct TypeInfo {
   }
 };
 
-} // namespace metro
+} // namespace fire

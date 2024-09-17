@@ -8,7 +8,7 @@
 
 #include "Object.h"
 
-namespace metro {
+namespace fire {
 
 struct SourceStorage {
   struct LineRange {
@@ -425,20 +425,8 @@ struct Function : Named {
   }
 };
 
-struct Enumerator : Named {
-  ASTPtr<TypeName> value_type;
-
-  static ASTPtr<Enumerator> New(Token tok,
-                                ASTPtr<TypeName> valtype = nullptr);
-
-  Enumerator(Token tok, ASTPtr<TypeName> valtype)
-      : Named(ASTKind::Enumerator, tok, tok),
-        value_type(valtype) {
-  }
-};
-
 struct Enum : Named {
-  ASTVec<Enumerator> enumerators;
+  TokenVector enumerators;
 
   static ASTPtr<Enum> New(Token tok, Token name);
 
@@ -477,4 +465,4 @@ struct Program : Base {
 
 } // namespace AST
 
-} // namespace metro
+} // namespace fire

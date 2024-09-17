@@ -2,7 +2,7 @@
 
 #include "AST.h"
 
-namespace metro {
+namespace fire {
 
 class Lexer {
 
@@ -45,9 +45,9 @@ private:
   i64 length;
 };
 
-} // namespace metro
+} // namespace fire
 
-namespace metro::parser {
+namespace fire::parser {
 
 class Parser {
 
@@ -136,4 +136,4 @@ private:
   TokenIterator cur, end, ate;
 };
 
-} // namespace metro::parser
+} // namespace fire::parser

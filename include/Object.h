@@ -5,7 +5,7 @@
 #include <map>
 #include "TypeInfo.h"
 
-namespace metro {
+namespace fire {
 
 struct Object {
   TypeInfo type;
@@ -272,4 +272,4 @@ struct ObjType : Object {
   }
 };
 
-} // namespace metro
+} // namespace fire

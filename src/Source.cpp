@@ -2,7 +2,7 @@
 #include "alert.h"
 #include "Parser.h"
 
-namespace metro {
+namespace fire {
 
 SourceStorage::LineRange
 SourceStorage::GetLineRange(i64 position) const {
@@ -54,4 +54,4 @@ SourceStorage::SourceStorage(std::string path)
     : path(path) {
 }
 
-} // namespace metro
+} // namespace fire
