@@ -51,13 +51,7 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
     // -->  .data
 
     if (name == "data") {
-      auto data = obj->As<ObjEnumerator>()->data;
-
-      if (!data)
-        Error(ast->rhs->token,
-              "use member variable before assignment")();
-
-      return data;
+      return obj->As<ObjEnumerator>()->data;
     }
   }
 
@@ -270,7 +264,13 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   }
 
   case Kind::MemberAccess: {
-    return this->eval_member_access(ASTCast<AST::Expr>(ast));
+    auto ret = this->eval_member_access(ASTCast<AST::Expr>(ast));
+
+    if (!ret)
+      Error(ast->As<AST::Expr>()->rhs->token,
+            "use variable before assignment")();
+
+    return ret;
   }
 
   case Kind::Assign: {

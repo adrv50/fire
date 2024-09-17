@@ -78,8 +78,24 @@ TokenVector Lexer::Lex() {
     tok.str = " ";
     tok.sourceloc = SourceLocation(pos, 1, &this->source);
 
+    // comment line
+    if (this->eat("//")) {
+      tok.kind = TokenKind::CommentLine;
+
+      while (this->check() && !this->eat('\n'))
+        this->position++;
+    }
+
+    // comment block
+    else if (this->eat("/*")) {
+      tok.kind = TokenKind::CommentBlock;
+
+      while (this->check() && !this->eat("*/"))
+        this->position++;
+    }
+
     // hex
-    if (this->eat("0x") || this->eat("0X")) {
+    else if (this->eat("0x") || this->eat("0X")) {
       tok.kind = TokenKind::Hex;
 
       while (isxdigit(this->peek()))
