@@ -7,6 +7,10 @@
 
 namespace fire {
 
+namespace builtins {
+struct Function;
+}
+
 struct Object {
   TypeInfo type;
   // i64 ref_count;

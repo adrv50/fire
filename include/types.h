@@ -30,11 +30,11 @@ struct Object;
 struct ObjPrimitive;
 struct ObjIterable;
 struct ObjString;
+struct ObjEnumerator;
 struct ObjInstance;
 struct ObjCallable;
 struct ObjModule;
 struct ObjType;
-struct ObjEnumerator;
 
 namespace value_type {
 
@@ -73,30 +73,6 @@ struct Module;
 struct Program;
 
 } // namespace AST
-
-namespace builtins {
-
-struct Function;
-
-} // namespace builtins
-
-class Lexer;
-
-namespace parser {
-class Parser;
-}
-
-namespace eval {
-class Evaluator;
-}
-
-namespace checker {
-class Checker;
-}
-
-namespace gc {
-class GC;
-}
 
 #if _DBG_DONT_USE_SMART_PTR_
 template <class T, class U>

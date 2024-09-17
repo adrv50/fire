@@ -10,9 +10,24 @@
 
 #include "alert.h"
 
+#define define_builtin_func(_Name_)                                  \
+  ObjPointer _Name_(ASTPtr<AST::CallFunc> ast, ObjVector args)
+
+#define expect_type(_Idx, _Type) _expect_type(ast, args, _Idx, _Type)
+
 namespace fire::builtins {
 
-static ObjPointer Print(ASTPtr<AST::CallFunc> ast, ObjVector args) {
+void _expect_type(ASTPtr<AST::CallFunc> ast, ObjVector& args,
+                  int index, TypeInfo const& type) {
+  if (!args[index]->type.equals(type))
+    Error(ast->args[index]->token,
+          "expected '" + type.to_string() +
+              "' type object at argument " + std::to_string(index) +
+              ", but given '" + args[index]->type.to_string() +
+              "'")();
+}
+
+define_builtin_func(Print) {
   std::stringstream ss;
 
   for (auto&& obj : args)
@@ -25,7 +40,7 @@ static ObjPointer Print(ASTPtr<AST::CallFunc> ast, ObjVector args) {
   return ObjNew<ObjPrimitive>((i64)str.length());
 }
 
-static ObjPointer Println(ASTPtr<AST::CallFunc> ast, ObjVector args) {
+define_builtin_func(Println) {
   auto ret = ObjNew<ObjPrimitive>(
       Print(ast, std::move(args))->As<ObjPrimitive>()->vi + 1);
 
@@ -34,7 +49,15 @@ static ObjPointer Println(ASTPtr<AST::CallFunc> ast, ObjVector args) {
   return ret;
 }
 
-ObjPointer Import(ASTPtr<AST::CallFunc> ast, ObjVector args) {
+define_builtin_func(Open) {
+  expect_type(0, TypeKind::String);
+
+  auto path = args[0]->ToString();
+
+  std::ifstream ifs{path};
+}
+
+define_builtin_func(Import) {
   auto path = args[0]->ToString();
 
   auto source = std::make_shared<SourceStorage>(path);
@@ -93,6 +116,8 @@ static const std::vector<Function> g_builtin_functions = {
 
   { "print",    Print,     0, true },
   { "println",  Println,   0, true },
+
+  { "open",     Open,      1 },
 
   { "@import",  Import,    1 },
 
