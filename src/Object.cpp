@@ -107,7 +107,7 @@ ObjString::ObjString(std::string const& str)
 
 std::string ObjEnumerator::ToString() const {
   return this->ast->GetName() + "." +
-         this->ast->enumerators[this->index].str;
+         this->ast->enumerators->list[this->index]->token.str;
 }
 
 ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)

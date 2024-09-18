@@ -73,6 +73,16 @@ ASTPointer Parser::Stmt() {
     return ast;
   }
 
+  if (this->eat("throw")) {
+    auto ast = AST::Statement::New(ASTKind::Throw, tok);
+
+    ast->set_data(this->Expr());
+
+    this->expect(";");
+
+    return ast;
+  }
+
   if (this->eat("let")) {
     auto ast = AST::VarDef::New(tok, *this->expectIdentifier());
 
@@ -123,7 +133,7 @@ ASTPointer Parser::Top() {
     }
 
     do {
-      ast->enumerators.emplace_back(*this->expectIdentifier());
+      ast->append(*this->expectIdentifier());
     } while (this->eat(","));
 
     this->expect("}");
@@ -140,8 +150,7 @@ ASTPointer Parser::Top() {
 
     // member variables
     while (this->cur->str == "let") {
-      ast->mb_variables.emplace_back(
-          ASTCast<AST::VarDef>(this->Stmt()));
+      ast->append(ASTCast<AST::VarDef>(this->Stmt()));
     }
 
     // constructor
@@ -163,7 +172,7 @@ ASTPointer Parser::Top() {
       this->expect("{", true);
       ctor->block = ASTCast<AST::Block>(this->Stmt());
 
-      ast->constructor = ctor;
+      ast->constructor = ASTCast<AST::Function>(ast->append(ctor));
     }
 
     // member functions
@@ -171,8 +180,7 @@ ASTPointer Parser::Top() {
       if (!this->match("fn", TokenKind::Identifier))
         Error(*this->cur, "expected definition of member function")();
 
-      ast->mb_functions.emplace_back(
-          ASTCast<AST::Function>(this->Top()));
+      ast->append(ASTCast<AST::Function>(this->Top()));
     }
 
     if (!closed)

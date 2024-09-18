@@ -53,6 +53,8 @@ enum class ASTKind {
   Continue,
   Return,
 
+  Throw,
+
   TryCatch,
 
   // FuncArg,
@@ -238,13 +240,18 @@ struct Statement : Base {
     ASTPtr<Block> catched;
   };
 
-  //
-  // astdata
-  //
-  // ASTKind::Return
-  //  --> astdata = ASTPtr<AST::Expr>
-  //
-  std::any astdata;
+  template <class T>
+  T get_data() const {
+    return std::any_cast<T>(this->_astdata);
+  }
+
+  void set_data(auto data) {
+    this->_astdata = data;
+  }
+
+  ASTPtr<AST::Expr> get_expr() const {
+    return ASTCast<AST::Expr>(this->get_data<ASTPointer>());
+  }
 
   static ASTPtr<Statement> NewIf(Token tok, ASTPointer cond,
                                  ASTPointer if_true,
@@ -268,8 +275,11 @@ struct Statement : Base {
 
   Statement(ASTKind kind, Token tok, std::any data)
       : Base(kind, tok),
-        astdata(data) {
+        _astdata(data) {
   }
+
+private:
+  std::any _astdata;
 };
 
 struct TypeName : Named {
@@ -324,7 +334,11 @@ struct Function : Named {
 };
 
 struct Enum : Named {
-  TokenVector enumerators;
+  ASTPtr<Block> enumerators; // ->list = ASTVec<Variable>
+
+  ASTPointer& append(Token name /* , todo: typename*/) {
+    return this->enumerators->list.emplace_back(Variable::New(name));
+  }
 
   static ASTPtr<Enum> New(Token tok, Token name);
 
@@ -334,20 +348,41 @@ struct Enum : Named {
 };
 
 struct Class : Named {
-  ASTVec<VarDef> mb_variables;
-  ASTVec<Function> mb_functions;
-
+  ASTPtr<Block> block;
   ASTPtr<Function> constructor = nullptr;
+
+  ASTPointer& append(ASTPointer ast) {
+    return this->block->list.emplace_back(ast);
+  }
+
+  ASTVec<VarDef> get_member_variables() {
+    ASTVec<VarDef> v;
+
+    for (auto&& x : this->block->list)
+      if (x->kind == ASTKind::Vardef)
+        v.emplace_back(ASTCast<VarDef>(x));
+
+    return v;
+  }
+
+  ASTVec<Function> get_member_functions() {
+    ASTVec<Function> v;
+
+    for (auto&& x : this->block->list)
+      if (x->kind == ASTKind::Function)
+        v.emplace_back(ASTCast<Function>(x));
+
+    return v;
+  }
 
   static ASTPtr<Class> New(Token tok, Token name);
 
   static ASTPtr<Class> New(Token tok, Token name,
-                           ASTVec<VarDef> var_decl_list,
-                           ASTVec<Function> func_list,
-                           ASTPtr<Function> ctor);
+                           ASTPtr<Block> definitions);
 
   Class(Token tok, Token name)
-      : Named(ASTKind::Class, tok, name) {
+      : Named(ASTKind::Class, tok, name),
+        block(Block::New("")) {
   }
 };
 

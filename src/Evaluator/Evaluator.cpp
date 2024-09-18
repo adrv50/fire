@@ -81,15 +81,16 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
     auto typeobj = obj->As<ObjType>();
 
     if (typeobj->ast_class) {
-      for (auto&& func : typeobj->ast_class->mb_functions) {
+      for (auto&& func : typeobj->ast_class->get_member_functions()) {
         if (func->GetName() == name)
           return ObjNew<ObjCallable>(func);
       }
     }
 
     else if (typeobj->ast_enum) {
-      for (int index = 0; auto&& e : typeobj->ast_enum->enumerators) {
-        if (e.str == name)
+      for (int index = 0;
+           auto&& e : typeobj->ast_enum->enumerators->list) {
+        if (e->As<AST::Variable>()->GetName() == name)
           return ObjNew<ObjEnumerator>(typeobj->ast_enum, index);
 
         index++;
@@ -312,8 +313,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   case Kind::Return: {
     auto& stack = this->GetCurrentStack();
 
-    stack.result = this->evaluate(std::any_cast<ASTPointer>(
-        ast->As<AST::Statement>()->astdata));
+    stack.result =
+        this->evaluate(ast->As<AST::Statement>()->get_expr());
 
     stack.is_returned = true;
 
@@ -331,9 +332,13 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     break;
 
+  case Kind::Throw:
+    throw this->evaluate(ast->As<AST::Statement>()->get_expr());
+
   case Kind::If: {
     auto x = ast->As<AST::Statement>();
-    auto data = std::any_cast<Statement::If>(x->astdata);
+    auto data = std::any_cast<Statement::If>(
+        x->get_data<AST::Statement::If>());
 
     auto cond = this->evaluate(data.cond);
 
@@ -351,7 +356,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
   case Kind::TryCatch: {
     auto data = std::any_cast<AST::Statement::TryCatch>(
-        ASTCast<AST::Statement>(ast)->astdata);
+        ASTCast<AST::Statement>(ast)
+            ->get_data<Statement::TryCatch>());
 
     try {
       this->evaluate(data.tryblock);

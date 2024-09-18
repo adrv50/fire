@@ -119,15 +119,10 @@ ASTPtr<Class> Class::New(Token tok, Token name) {
 }
 
 ASTPtr<Class> Class::New(Token tok, Token name,
-                         ASTVec<VarDef> var_decl_list,
-                         ASTVec<Function> func_list,
-                         ASTPtr<Function> ctor) {
+                         ASTPtr<Block> definitions) {
   auto ast = ASTNew<Class>(tok, name);
 
-  ast->mb_variables = std::move(var_decl_list);
-  ast->mb_functions = std::move(func_list);
-
-  ast->constructor = ctor;
+  ast->block = definitions;
 
   return ast;
 }

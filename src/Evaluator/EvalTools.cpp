@@ -50,7 +50,7 @@ ObjPtr<ObjInstance>
 Evaluator::new_class_instance(ASTPtr<AST::Class> ast) {
   auto obj = ObjNew<ObjInstance>(ast);
 
-  for (auto&& var : ast->mb_variables) {
+  for (auto&& var : ast->get_member_variables()) {
     auto& v = obj->member[var->GetName()];
 
     if (var->init) {
@@ -58,7 +58,7 @@ Evaluator::new_class_instance(ASTPtr<AST::Class> ast) {
     }
   }
 
-  for (auto&& func : ast->mb_functions) {
+  for (auto&& func : ast->get_member_functions()) {
     obj->add_member_func(ObjNew<ObjCallable>(func));
   }
 
