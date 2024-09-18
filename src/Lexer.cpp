@@ -97,14 +97,17 @@ TokenVector Lexer::Lex() {
 
     // char or string literal
     else if (this->eat('\'') || this->eat('"')) {
-      tok.kind = c == '"' ? TokenKind::String : TokenKind::Char;
+      char quat = c;
+      bool is_str = quat == '"';
 
-      while (this->check() && this->peek() != c)
+      tok.kind = is_str ? TokenKind::String : TokenKind::Char;
+
+      while (this->check() && (c = this->peek()) != quat)
         this->position++;
 
-      if (!this->check() || !this->eat(c)) {
+      if (!this->check() || !this->eat(quat)) {
         Error(tok).format("not terminated %s literal",
-                          c == '"' ? "string" : "character")();
+                          is_str ? "string" : "character")();
       }
     }
 

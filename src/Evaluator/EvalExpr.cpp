@@ -135,7 +135,7 @@ ObjPointer Evaluator::eval_expr(ASTPtr<AST::Expr> ast) {
     auto ret = ObjNew<ObjPrimitive>(false);
     bool or_equal = ast->kind == Kind::BiggerOrEqual;
 
-    if (lhs->is_numeric() && rhs->is_numeric()) {
+    if (lhs->is_numeric(true) && rhs->is_numeric(true)) {
       auto [lv, rv] = to_primitive_pair(lhs, rhs);
 
       adjust_numeric_type_object(lv, rv);

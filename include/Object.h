@@ -20,8 +20,9 @@ struct Object {
     return this->type.kind == TypeKind::Function;
   }
 
-  bool is_numeric() const {
-    return this->type.is_numeric();
+  bool is_numeric(bool contain_char = false) const {
+    return this->type.is_numeric() ||
+           (contain_char && this->type.kind == TypeKind::Char);
   }
 
   bool is_float() const {

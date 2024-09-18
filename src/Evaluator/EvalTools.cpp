@@ -147,6 +147,12 @@ void Evaluator::adjust_numeric_type_object(
 
   auto lk = left->type.kind, rk = right->type.kind;
 
+  if (lk == TypeKind::Char)
+    left->type = TypeKind::Int;
+
+  if (rk == TypeKind::Char)
+    right->type = TypeKind::Int;
+
   if (lk == rk)
     return;
 

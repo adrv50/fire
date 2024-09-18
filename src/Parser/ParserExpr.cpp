@@ -72,6 +72,33 @@ ASTPointer Parser::Factor() {
 
   auto& tok = *this->cur++;
 
+  if (tok.kind == TokenKind::Char || tok.kind == TokenKind::String) {
+    auto it = tok.str.begin();
+    auto end = tok.str.end();
+
+    while (it != end) {
+      if (*it == '\\') {
+        switch (it[1]) {
+        case 'n':
+          tok.str.replace(it, it + 2, "\n");
+          break;
+
+        case 'r':
+          tok.str.replace(it, it + 2, "\r");
+          break;
+
+        default:
+          tok.sourceloc.position += (end - it);
+          tok.sourceloc.length = 1;
+
+          Error(tok, "invalid escape sequence")();
+        }
+      }
+
+      it++;
+    }
+  }
+
   switch (tok.kind) {
   case TokenKind::Int:
   case TokenKind::Float:
