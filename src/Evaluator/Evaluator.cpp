@@ -313,8 +313,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   case Kind::Return: {
     auto& stack = this->GetCurrentStack();
 
-    stack.result =
-        this->evaluate(ast->As<AST::Statement>()->get_expr());
+    stack.result = this->evaluate(ast->as_stmt()->get_expr());
 
     stack.is_returned = true;
 
@@ -333,10 +332,10 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     break;
 
   case Kind::Throw:
-    throw this->evaluate(ast->As<AST::Statement>()->get_expr());
+    throw this->evaluate(ast->as_stmt()->get_expr());
 
   case Kind::If: {
-    auto x = ast->As<AST::Statement>();
+    auto x = ast->as_stmt();
     auto data = std::any_cast<Statement::If>(
         x->get_data<AST::Statement::If>());
 

@@ -13,6 +13,22 @@ ASTPtr<T> ASTNew(Args&&... args) {
 #endif
 }
 
+Expr const* Base::as_expr() const {
+  return static_cast<Expr const*>(this);
+}
+
+Statement const* Base::as_stmt() const {
+  return static_cast<Statement const*>(this);
+}
+
+Expr* Base::as_expr() {
+  return static_cast<Expr*>(this);
+}
+
+Statement* Base::as_stmt() {
+  return static_cast<Statement*>(this);
+}
+
 i64 Base::GetChilds(ASTVector& out) const {
 
   using K = ASTKind;

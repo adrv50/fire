@@ -92,6 +92,12 @@ struct Base {
     return static_cast<T const*>(this);
   }
 
+  Expr const* as_expr() const;
+  Statement const* as_stmt() const;
+
+  Expr* as_expr();
+  Statement* as_stmt();
+
   i64 GetChilds(ASTVector& out) const;
 
   virtual std::string_view GetSourceView() const {
