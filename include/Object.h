@@ -148,7 +148,11 @@ struct ObjIterable : Object {
 };
 
 struct ObjString : ObjIterable {
-  ObjPointer SubString(size_t pos, size_t length);
+  ObjPointer SubString(size_t pos, size_t length = 0);
+
+  size_t Length() const {
+    return this->list.size();
+  }
 
   std::string ToString() const override;
 

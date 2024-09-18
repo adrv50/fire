@@ -121,6 +121,33 @@ define_builtin_func(Import) {
   return ret;
 }
 
+define_builtin_func(Substr) {
+  expect_type(0, TypeKind::String);
+  expect_type(1, TypeKind::Int);
+
+  if (args.size() > 3)
+    Error(ast, "too many arguments");
+
+  auto str = args[0]->As<ObjString>();
+  auto pos = args[1]->As<ObjPrimitive>()->vi;
+
+  if (args.size() == 3) {
+    expect_type(2, TypeKind::Int);
+
+    auto len = args[2]->As<ObjPrimitive>()->vi;
+
+    if (pos + len >= str->Length())
+      Error(ast->args[2], "out of range")();
+
+    return str->SubString(pos, len);
+  }
+
+  if (pos < 0 || pos >= str->Length())
+    Error(ast->args[1], "out of range")();
+
+  return str->SubString(pos);
+}
+
 // clang-format off
 static const std::vector<Function> g_builtin_functions = {
 
@@ -128,6 +155,10 @@ static const std::vector<Function> g_builtin_functions = {
   { "println",  Println,   0, true },
 
   { "open",     Open,      1 },
+
+  //
+  // substr:  (str, index, len=0)
+  { "substr",   Substr,    2, true },
 
   { "@import",  Import,    1 },
 

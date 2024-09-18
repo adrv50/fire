@@ -75,7 +75,10 @@ std::string ObjIterable::ToString() const {
 ObjPointer ObjString::SubString(size_t pos, size_t length) {
   auto obj = ObjNew<ObjString>();
 
-  for (size_t i = pos, end = pos + length; i < end; i++) {
+  for (size_t i = pos,
+              end = pos +
+                    (length == 0 ? this->list.size() - pos : length);
+       i < end; i++) {
     obj->Append(this->list[i]->Clone());
   }
 

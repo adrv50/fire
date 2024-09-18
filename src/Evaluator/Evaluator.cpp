@@ -252,6 +252,15 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     // builtin func
     if (cb->builtin) {
+
+      if (args.size() < cb->builtin->argcount) {
+        Error(ast->token, "too few arguments")();
+      }
+      else if (!cb->builtin->is_variable_args &&
+               args.size() > cb->builtin->argcount) {
+        Error(ast->token, "too many arguments")();
+      }
+
       return cb->builtin->Call(cf, std::move(args));
     }
 
