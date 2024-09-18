@@ -98,14 +98,22 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
     }
   }
 
-  if (auto [fn_ast, blt] = this->find_func(name); fn_ast)
-    return ObjNew<ObjCallable>(fn_ast);
-  else if (blt)
-    return ObjNew<ObjCallable>(blt);
+  ObjPtr<ObjCallable> callable;
 
-  Error(ast->token, "not found the name '" + ast->rhs->token.str +
-                        "' in `" + obj->type.to_string() +
-                        "` type object.")();
+  if (auto [fn_ast, blt] = this->find_func(name); fn_ast)
+    callable = ObjNew<ObjCallable>(fn_ast);
+  else if (blt)
+    callable = ObjNew<ObjCallable>(blt);
+  else {
+    Error(ast->token, "not found the name '" + ast->rhs->token.str +
+                          "' in `" + obj->type.to_string() +
+                          "` type object.")();
+  }
+
+  callable->selfobj = obj;
+  callable->is_member_call = true;
+
+  return callable;
 }
 
 ObjPointer& Evaluator::eval_as_writable(ASTPointer ast) {
@@ -249,6 +257,10 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     }
 
     auto cb = obj->As<ObjCallable>();
+
+    if (cb->is_member_call) {
+      args.insert(args.begin(), cb->selfobj);
+    }
 
     // builtin func
     if (cb->builtin) {

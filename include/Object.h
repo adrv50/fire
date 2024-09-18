@@ -221,6 +221,9 @@ struct ObjCallable : Object {
   builtins::Function const* builtin;
   bool is_named = false;
 
+  ObjPointer selfobj = nullptr;
+  bool is_member_call = false;
+
   std::string GetName() const;
 
   ObjPointer Clone() const override;
