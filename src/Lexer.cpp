@@ -13,49 +13,7 @@ static char const* punctuaters[] = {
     "*",   "%",   "=",  ";",  ":",  ",",  ".",  "[",  "]",
     "(",   ")",   "{",  "}",  "!",  "?",  "&",  "^",  "|",
 };
-
-static char const* keywords[] = {
-  //
-  // built-in type names
-  "none",
-  "int",
-  "float",
-  "usize",
-  "bool",
-  "char",
-  "string",
-  "vector",
-  "tuple",
-  "dict",
-  "Module",
-  "Func",
-
-  "enum",
-  "class",
-  "fn",
-
-  "let",
-  "if",
-  "switch",
-  "case",
-  "match",  // feature
-  "loop",
-  "for",
-  "do",
-  "while",
-
-  "getid",
-  "typeof",
-};
 // clang-format on
-
-static bool is_keyword(std::string_view str) {
-  for (auto&& kwd : keywords)
-    if (str == kwd)
-      return true;
-
-  return false;
-}
 
 Lexer::Lexer(SourceStorage const& source)
     : source(source),
@@ -167,8 +125,6 @@ TokenVector Lexer::Lex() {
 
     if (tok.str == "true" || tok.str == "false")
       tok.kind = TokenKind::Boolean;
-    else if (tok.kind == TokenKind::Identifier && is_keyword(tok.str))
-      tok.kind = TokenKind::Keyword;
 
   found_punct:
     tok.sourceloc =

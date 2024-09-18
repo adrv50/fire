@@ -16,7 +16,6 @@ enum class TokenKind : u8 {
   Char,
   String,
   Identifier,
-  Keyword,
   CommentLine,
   CommentBlock,
   Punctuater,
