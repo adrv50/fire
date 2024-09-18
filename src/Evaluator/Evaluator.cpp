@@ -215,6 +215,16 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     Error(ast->token, "no name defined")();
   }
 
+  case Kind::Array: {
+    auto x = ASTCast<Array>(ast);
+    auto obj = ObjNew<ObjIterable>(TypeKind::Vector);
+
+    for (auto&& e : x->elements)
+      obj->Append(this->evaluate(e));
+
+    return obj;
+  }
+
   case Kind::CallFunc: {
     auto cf = ASTCast<CallFunc>(ast);
 
@@ -292,6 +302,25 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
             "use variable before assignment")();
 
     return ret;
+  }
+
+  case Kind::IndexRef: {
+    auto x = ast->as_expr();
+
+    auto content = this->evaluate(x->lhs);
+    auto index_obj = this->evaluate(x->rhs);
+
+    if (!index_obj->is_int())
+      Error(ast->token, "indexer must be int.")();
+
+    auto index = index_obj->As<ObjPrimitive>()->vi;
+
+    if (content->is_vector() || content->is_string()) {
+      return content->As<ObjIterable>()->list[index];
+    }
+
+    Error(ast->token, "'" + content->type.to_string() +
+                          "' type object is not subscriptable")();
   }
 
   case Kind::Assign: {

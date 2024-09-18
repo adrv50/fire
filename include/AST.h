@@ -30,9 +30,14 @@ enum class ASTKind {
   Sub,
   LShift,
   RShift,
+
+  //
+  // Compare
+  //
   Bigger,        // a > b
   BiggerOrEqual, // a >= b
   Equal,
+  // NotEqual  => replace: (a != b) -> (!(a == b))
 
   BitAND,
   BitXOR,

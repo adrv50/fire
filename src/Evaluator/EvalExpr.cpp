@@ -126,6 +126,10 @@ ObjPointer Evaluator::eval_expr(ASTPtr<AST::Expr> ast) {
                                     : lv->vi >> rv->vi);
   }
 
+  case Kind::Equal: {
+    return ObjNew<ObjPrimitive>((bool)lhs->Equals(rhs));
+  }
+
   case Kind::Bigger:
   case Kind::BiggerOrEqual: {
     auto ret = ObjNew<ObjPrimitive>(false);
@@ -192,9 +196,9 @@ ObjPointer Evaluator::eval_expr(ASTPtr<AST::Expr> ast) {
   }
   }
 
-  Error(ast->token, "invalid operator '" + ast->op.str +
-                        "' for type `" + lhs->type.to_string() +
-                        "` and `" + rhs->type.to_string() + "`")();
+  Error(ast->token, "invalid operator '" + ast->op.str + "' with (" +
+                        lhs->type.to_string() + ", " +
+                        rhs->type.to_string() + ")")();
 }
 
 } // namespace fire::eval

@@ -65,6 +65,10 @@ struct Object {
   virtual ObjPointer Clone() const = 0;
   virtual std::string ToString() const = 0;
 
+  virtual bool Equals(ObjPointer obj) const {
+    return false;
+  }
+
   template <std::derived_from<Object> T>
   T* As() {
     return static_cast<T*>(this);
@@ -88,6 +92,10 @@ struct ObjNone : Object {
     return "none";
   }
 
+  bool Equals(ObjPointer) const override {
+    return true;
+  }
+
   ObjNone()
       : Object(TypeKind::None) {
   }
@@ -109,6 +117,11 @@ struct ObjPrimitive : Object {
 
   ObjPointer Clone() const override;
   std::string ToString() const override;
+
+  bool Equals(ObjPointer obj) const override {
+    return this->type.equals(obj->type) &&
+           this->_data == obj->As<ObjPrimitive>()->_data;
+  }
 
   ObjPrimitive(i64 vi = 0)
       : Object(TypeKind::Int),
@@ -150,6 +163,18 @@ struct ObjIterable : Object {
   ObjPointer Clone() const override;
   std::string ToString() const override;
 
+  bool Equals(ObjPointer obj) const override {
+    if (this->list.size() != obj->As<ObjIterable>()->list.size())
+      return false;
+
+    for (auto it = this->list.begin();
+         auto&& e : obj->As<ObjIterable>()->list)
+      if (!(*it++)->Equals(e))
+        return false;
+
+    return true;
+  }
+
   ObjIterable(TypeInfo type)
       : Object(type) {
   }
@@ -187,6 +212,12 @@ struct ObjEnumerator : Object {
 
   std::string ToString() const override;
 
+  bool Equals(ObjPointer obj) const override {
+    return obj->type.equals(TypeKind::Enumerator) &&
+           this->ast == obj->As<ObjEnumerator>()->ast &&
+           this->index == obj->As<ObjEnumerator>()->index;
+  }
+
   ObjEnumerator(ASTPtr<AST::Enum> ast, int index);
 };
 
@@ -214,6 +245,10 @@ struct ObjInstance : Object {
   ObjPointer Clone() const override;
   std::string ToString() const override;
 
+  bool Equals(ObjPointer obj) const override {
+    return this->ast == obj->As<ObjInstance>()->ast;
+  }
+
   ObjInstance(ASTPtr<AST::Class> ast);
 };
 
@@ -236,6 +271,13 @@ struct ObjCallable : Object {
 
   ObjPointer Clone() const override;
   std::string ToString() const override;
+
+  bool Equals(ObjPointer obj) const override {
+    auto x = obj->As<ObjCallable>();
+
+    return this->func == x->func && this->builtin == x->builtin &&
+           this->is_named == x->is_named;
+  }
 
   ObjCallable(ASTPtr<AST::Function> fp);
   ObjCallable(builtins::Function const* fp);

@@ -49,6 +49,27 @@ static ObjPtr<ObjPrimitive> make_value_from_token(Token const& tok) {
 }
 
 ASTPointer Parser::Factor() {
+
+  if (this->eat("(")) {
+    auto x = this->Expr();
+    this->expect(")");
+    return x;
+  }
+
+  if (this->eat("[")) {
+    auto x = AST::Array::New(*this->ate);
+
+    if (!this->eat("]")) {
+      do {
+        x->elements.emplace_back(this->Expr());
+      } while (this->eat(","));
+
+      this->expect("]");
+    }
+
+    return x;
+  }
+
   auto& tok = *this->cur++;
 
   switch (tok.kind) {
@@ -78,7 +99,7 @@ ASTPointer Parser::IndexRef() {
 
     // index reference
     if (this->eat("[")) {
-      x = new_expr(ASTKind::IndexRef, op, x, this->Factor());
+      x = new_expr(ASTKind::IndexRef, op, x, this->Expr());
       this->expect("]");
     }
 

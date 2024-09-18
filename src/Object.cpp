@@ -66,7 +66,15 @@ ObjPointer ObjIterable::Clone() const {
 }
 
 std::string ObjIterable::ToString() const {
-  return "(obj-iterable)";
+  std::string ret;
+
+  for (auto it = this->list.begin(); it != this->list.end(); it++) {
+    ret += (*it)->ToString();
+    if (it < this->list.end() - 1)
+      ret += ", ";
+  }
+
+  return "[" + ret + "]";
 }
 
 // ----------------------------
@@ -91,7 +99,7 @@ std::string ObjString::ToString() const {
   for (auto&& c : this->list)
     temp.push_back(c->As<ObjPrimitive>()->vc);
 
-  return utils::to_u8string(temp + u'\0');
+  return utils::to_u8string(temp);
 }
 
 ObjString::ObjString(std::u16string const& str)
