@@ -141,7 +141,7 @@ ASTPointer Parser::Top() {
     return ast;
   }
 
-  if (this->eat("class")) {
+  if (this->eat("class") || this->eat("struct")) {
     auto ast = AST::Class::New(tok, *this->expectIdentifier());
 
     this->expect("{");

@@ -126,7 +126,7 @@ define_builtin_func(Substr) {
   expect_type(1, TypeKind::Int);
 
   if (args.size() > 3)
-    Error(ast, "too many arguments");
+    Error(ast, "too many arguments")();
 
   auto str = args[0]->As<ObjString>();
   auto pos = args[1]->As<ObjPrimitive>()->vi;
@@ -148,6 +148,17 @@ define_builtin_func(Substr) {
   return str->SubString(pos);
 }
 
+define_builtin_func(Length) {
+  auto content = args[0];
+
+  if (content->is_string() || content->is_vector()) {
+    return ObjNew<ObjPrimitive>(
+        (i64)content->As<ObjString>()->list.size());
+  }
+
+  Error(ast->args[0], "argument is not a string or vector.")();
+}
+
 // clang-format off
 static const std::vector<Function> g_builtin_functions = {
 
@@ -159,6 +170,8 @@ static const std::vector<Function> g_builtin_functions = {
   //
   // substr:  (str, index, len=0)
   { "substr",   Substr,    2, true },
+
+  { "length",   Length,    1 },
 
   { "@import",  Import,    1 },
 

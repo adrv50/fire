@@ -59,7 +59,10 @@ Evaluator::new_class_instance(ASTPtr<AST::Class> ast) {
   }
 
   for (auto&& func : ast->get_member_functions()) {
-    obj->add_member_func(ObjNew<ObjCallable>(func));
+    auto objcb = obj->add_member_func(ObjNew<ObjCallable>(func));
+
+    objcb->selfobj = obj;
+    objcb->is_member_call = true;
   }
 
   return obj;
@@ -85,10 +88,6 @@ ObjPointer Evaluator::call_function_ast(bool have_self,
     stack.append("self", args[0]);
     formal++;
   }
-
-  alert;
-  alertmsg("formal->str = " << formal->str);
-  alertmsg("(*act)->token.str = " << (*act)->token.str);
 
   for (auto itobj = args.begin() + (int)have_self;
        act != call->args.end(); act++) {

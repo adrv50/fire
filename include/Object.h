@@ -52,6 +52,14 @@ struct Object {
     return this->type.kind == TypeKind::Instance;
   }
 
+  bool is_string() const {
+    return this->type.equals(TypeKind::String);
+  }
+
+  bool is_vector() const {
+    return this->type.equals(TypeKind::Vector);
+  }
+
   virtual ~Object() = default;
 
   virtual ObjPointer Clone() const = 0;

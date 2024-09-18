@@ -33,8 +33,9 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
     }
 
     for (auto&& mf : inst->member_funcs) {
-      if (mf->GetName() == name)
+      if (mf->GetName() == name) {
         return mf;
+      }
     }
   }
 
@@ -136,6 +137,9 @@ ObjPointer& Evaluator::eval_as_writable(ASTPointer ast) {
 
     auto& obj = this->eval_as_writable(x->lhs);
     auto index = this->evaluate(x->rhs);
+
+    (void)obj;
+    (void)index;
 
     todo_impl;
   }
@@ -276,7 +280,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       return cb->builtin->Call(cf, std::move(args));
     }
 
-    return this->call_function_ast(false, cb->func, cf, args);
+    return this->call_function_ast(cb->is_member_call, cb->func, cf,
+                                   args);
   }
 
   case Kind::MemberAccess: {

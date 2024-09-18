@@ -30,22 +30,7 @@ Statement* Base::as_stmt() {
 }
 
 i64 Base::GetChilds(ASTVector& out) const {
-
-  using K = ASTKind;
-
-  if (this->is_expr) {
-    auto x = this->As<Expr>();
-
-    out.emplace_back(x->lhs);
-    out.emplace_back(x->rhs);
-
-    return 2;
-  }
-
-  todo_impl;
-  switch (this->kind) {}
-
-  return (i64)out.size();
+  return 0;
 }
 
 ASTPtr<Value> Value::New(Token tok, ObjPointer val) {
@@ -54,6 +39,10 @@ ASTPtr<Value> Value::New(Token tok, ObjPointer val) {
 
 ASTPtr<Variable> Variable::New(Token tok) {
   return ASTNew<Variable>(tok);
+}
+
+ASTPtr<Array> Array::New(Token tok) {
+  return ASTNew<Array>(tok);
 }
 
 ASTPtr<CallFunc> CallFunc::New(ASTPointer expr, ASTVector args) {

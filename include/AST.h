@@ -14,6 +14,7 @@ namespace fire {
 enum class ASTKind {
   Value,
   Variable,
+  Array,
 
   IndexRef,
   MemberAccess,
@@ -98,6 +99,7 @@ struct Base {
   Expr* as_expr();
   Statement* as_stmt();
 
+  [[maybe_unused]]
   i64 GetChilds(ASTVector& out) const;
 
   virtual std::string_view GetSourceView() const {
@@ -155,6 +157,16 @@ struct Variable : Named {
 
   Variable(Token tok)
       : Named(ASTKind::Variable, tok, tok) {
+  }
+};
+
+struct Array : Base {
+  ASTVector elements;
+
+  static ASTPtr<Array> New(Token tok);
+
+  Array(Token tok)
+      : Base(ASTKind::Array, tok) {
   }
 };
 
@@ -349,7 +361,8 @@ struct Enum : Named {
   static ASTPtr<Enum> New(Token tok, Token name);
 
   Enum(Token tok, Token name)
-      : Named(ASTKind::Enum, tok, name) {
+      : Named(ASTKind::Enum, tok, name),
+        enumerators(Block::New("")) {
   }
 };
 
