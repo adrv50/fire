@@ -51,6 +51,21 @@ ASTPointer Parser::Stmt() {
     return AST::Statement::NewIf(tok, cond, if_true, if_false);
   }
 
+  if (this->eat("while")) {
+    auto cond = this->Expr();
+
+    this->expect("{", true);
+    auto block = ASTCast<AST::Block>(this->Stmt());
+
+    return AST::Statement::NewFor(tok, {}, cond, block);
+  }
+
+  if (this->eat("for")) {
+    ASTVector init;
+
+    auto ast_1 = this->Expr();
+  }
+
   if (this->eat("return")) {
     auto ast =
         AST::Statement::New(ASTKind::Return, tok, this->Expr());
@@ -196,7 +211,11 @@ ASTPointer Parser::Top() {
 
     if (!this->eat(")")) {
       do {
-        func->add_arg(*this->expectIdentifier());
+        auto& arg = func->add_arg(*this->expectIdentifier());
+
+        if (this->eat(":")) {
+          arg.type = this->expectTypeName();
+        }
       } while (this->eat(","));
 
       this->expect(")");
@@ -206,9 +225,7 @@ ASTPointer Parser::Top() {
       func->return_type = this->expectTypeName();
     }
 
-    if (this->cur->str != "{")
-      todo_impl;
-
+    this->expect("{", true);
     func->block = ASTCast<AST::Block>(this->Stmt());
 
     return func;

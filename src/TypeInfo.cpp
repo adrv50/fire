@@ -32,7 +32,7 @@ bool TypeInfo::equals(TypeInfo const& type) const {
 
 std::string TypeInfo::to_string() const {
   // clang-format off
-  std::map<TypeKind, char const*> kind_name_map {
+  static std::map<TypeKind, char const*> kind_name_map {
     { TypeKind::None,       "none" },
     { TypeKind::Int,        "int" },
     { TypeKind::Float,      "float" },

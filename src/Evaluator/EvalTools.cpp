@@ -9,8 +9,7 @@ namespace fire::eval {
 using namespace AST;
 
 ObjPointer* Evaluator::find_var(std::string const& name) {
-  for (auto it = this->stack.rbegin(); it != this->stack.rend();
-       it++) {
+  for (auto it = this->stack.rbegin(); it != this->stack.rend(); it++) {
     if (auto pvar = it->find_variable(name); pvar)
       return &pvar->value;
   }
@@ -30,12 +29,14 @@ Evaluator::find_func(std::string const& name) {
 
 std::pair<ASTPtr<AST::Class>, ASTPtr<AST::Enum>>
 Evaluator::find_class_or_enum(std::string const& name) {
-  for (auto&& ast : this->classes) {
-    if (ast->GetName() == name)
-      return {ast, nullptr};
+  auto e = this->find_enum(name);
+
+  for (auto&& c : this->classes) {
+    if (c->GetName() == name)
+      return {c, e};
   }
 
-  return {nullptr, this->find_enum(name)};
+  return {nullptr, e};
 }
 
 ASTPtr<AST::Enum> Evaluator::find_enum(std::string const& name) {
@@ -46,8 +47,7 @@ ASTPtr<AST::Enum> Evaluator::find_enum(std::string const& name) {
   return nullptr;
 }
 
-ObjPtr<ObjInstance>
-Evaluator::new_class_instance(ASTPtr<AST::Class> ast) {
+ObjPtr<ObjInstance> Evaluator::new_class_instance(ASTPtr<AST::Class> ast) {
   auto obj = ObjNew<ObjInstance>(ast);
 
   for (auto&& var : ast->get_member_variables()) {
@@ -68,55 +68,71 @@ Evaluator::new_class_instance(ASTPtr<AST::Class> ast) {
   return obj;
 }
 
-ObjPointer Evaluator::call_function_ast(bool have_self,
-                                        ASTPtr<AST::Function> ast,
-                                        ASTPtr<AST::CallFunc> call,
-                                        ObjVector& args) {
+ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> ast,
+                                        ASTPtr<AST::CallFunc> call, ObjVector& args) {
 
   if (this->stack.size() >= EVALUATOR_STACK_MAX_SIZE)
     Error(call->token, "stack over flow.")();
 
   auto& stack = this->PushStack();
 
-  std::map<std::string, bool> wasset;
+  std::map<std::string, bool> assignmented;
 
-  auto formal = ast->arg_names.begin();
+  auto formal = ast->arguments.begin();
   auto act = call->args.begin();
 
   if (have_self) {
-    wasset["self"] = true;
+    assignmented["self"] = true;
     stack.append("self", args[0]);
     formal++;
   }
 
-  for (auto itobj = args.begin() + (int)have_self;
-       act != call->args.end(); act++) {
-    if (formal == ast->arg_names.end() && !ast->is_var_arg) {
+  for (auto itobj = args.begin() + (int)have_self; act != call->args.end(); act++) {
+    if (formal == ast->arguments.end() && !ast->is_var_arg) {
       Error(call->token, "too many arguments")();
     }
 
     std::string name;
+    Function::Argument* target = nullptr;
 
     if ((*act)->kind == ASTKind::SpecifyArgumentName) {
-      name = (*act)->As<AST::Expr>()->lhs->token.str;
+      auto expr = (*act)->As<AST::Expr>();
+
+      name = expr->lhs->token.str;
+
+      if (!(target = ast->find_arg(name))) {
+        Error(expr->lhs,
+              "'" + name + "' is not found in arguments of function '" + ast->GetName() + "'")();
+      }
     }
     else {
-      name = formal++->str;
+      target = &*formal;
+      name = (formal++)->get_name();
     }
 
-    if (wasset[name]) {
+    if (assignmented[name]) {
       Error(*act, "set to same argument name again.")();
     }
 
-    wasset[name] = true;
+    if (target->type) {
+      auto formaltype = this->evaluate(target->type)->As<ObjType>()->typeinfo;
+
+      if (!(*itobj)->type.equals(formaltype)) {
+        Error((*act)->token, "expected '" + formaltype.to_string() + "', but found '" +
+                                 (*itobj)->type.to_string() + "'")
+            .emit();
+
+        Error(target->type, "specified type here").emit(Error::ErrorLevel::Note).stop();
+      }
+    }
 
     stack.append(name, *itobj++);
+    assignmented[name] = true;
   }
 
-  for (auto&& arg : ast->arg_names) {
-    if (!wasset[arg.str]) {
-      Error(call->token,
-            "argument '" + arg.str + "' was not assignment")();
+  for (auto&& arg : ast->arguments) {
+    if (!assignmented[arg.get_name()]) {
+      Error(call->token, "argument '" + arg.get_name() + "' was not assignment")();
     }
   }
 
@@ -129,8 +145,7 @@ ObjPointer Evaluator::call_function_ast(bool have_self,
   return ret ? ret : ObjNew<ObjNone>();
 }
 
-Evaluator::LoopContext&
-Evaluator::EnterLoopStatement(ASTPtr<AST::Statement> ast) {
+Evaluator::LoopContext& Evaluator::EnterLoopStatement(ASTPtr<AST::Statement> ast) {
   return this->loop_stack.emplace_back(ast);
 }
 
@@ -142,8 +157,7 @@ Evaluator::LoopContext& Evaluator::GetCurrentLoop() {
   return *this->loop_stack.rbegin();
 }
 
-void Evaluator::adjust_numeric_type_object(
-    ObjPtr<ObjPrimitive> left, ObjPtr<ObjPrimitive> right) {
+void Evaluator::adjust_numeric_type_object(ObjPtr<ObjPrimitive> left, ObjPtr<ObjPrimitive> right) {
 
   auto lk = left->type.kind, rk = right->type.kind;
 

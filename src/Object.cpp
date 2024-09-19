@@ -83,10 +83,7 @@ std::string ObjIterable::ToString() const {
 ObjPointer ObjString::SubString(size_t pos, size_t length) {
   auto obj = ObjNew<ObjString>();
 
-  for (size_t i = pos,
-              end = pos +
-                    (length == 0 ? this->list.size() - pos : length);
-       i < end; i++) {
+  for (size_t i = pos, end = pos + (length == 0 ? this->list.size() - pos : length); i < end; i++) {
     obj->Append(this->list[i]->Clone());
   }
 
@@ -117,8 +114,7 @@ ObjString::ObjString(std::string const& str)
 //  ObjEnumerator
 
 std::string ObjEnumerator::ToString() const {
-  return this->ast->GetName() + "." +
-         this->ast->enumerators->list[this->index]->token.str;
+  return this->ast->GetName() + "." + this->ast->enumerators->list[this->index]->token.str;
 }
 
 ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)
@@ -131,13 +127,11 @@ ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)
 // ----------------------------
 //  ObjInstance
 
-ObjPointer& ObjInstance::set_member_var(std::string const& name,
-                                        ObjPointer obj) {
+ObjPointer& ObjInstance::set_member_var(std::string const& name, ObjPointer obj) {
   return this->member[name] = obj;
 }
 
-ObjPtr<ObjCallable>&
-ObjInstance::add_member_func(ObjPtr<ObjCallable> obj) {
+ObjPtr<ObjCallable>& ObjInstance::add_member_func(ObjPtr<ObjCallable> obj) {
   return this->member_funcs.emplace_back(obj);
 }
 
@@ -216,8 +210,7 @@ std::string ObjModule::ToString() const {
 //  ObjType
 
 std::string ObjType::GetName() const {
-  return this->ast_class ? this->ast_class->GetName()
-                         : this->ast_enum->GetName();
+  return this->ast_class ? this->ast_class->GetName() : this->ast_enum->GetName();
 }
 
 std::string ObjType::ToString() const {
@@ -227,7 +220,8 @@ std::string ObjType::ToString() const {
 ObjType::ObjType(ASTPtr<AST::Enum> x)
     : Object(TypeKind::TypeName),
       ast_enum(x) {
-  this->type.name = this->ast_enum->GetName();
+  if (x)
+    this->type.name = this->ast_enum->GetName();
 }
 
 ObjType::ObjType(ASTPtr<AST::Class> x)

@@ -21,8 +21,7 @@ struct Object {
   }
 
   bool is_numeric(bool contain_char = false) const {
-    return this->type.is_numeric() ||
-           (contain_char && this->type.kind == TypeKind::Char);
+    return this->type.is_numeric() || (contain_char && this->type.kind == TypeKind::Char);
   }
 
   bool is_float() const {
@@ -120,8 +119,7 @@ struct ObjPrimitive : Object {
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
-    return this->type.equals(obj->type) &&
-           this->_data == obj->As<ObjPrimitive>()->_data;
+    return this->type.equals(obj->type) && this->_data == obj->As<ObjPrimitive>()->_data;
   }
 
   ObjPrimitive(i64 vi = 0)
@@ -168,8 +166,7 @@ struct ObjIterable : Object {
     if (this->list.size() != obj->As<ObjIterable>()->list.size())
       return false;
 
-    for (auto it = this->list.begin();
-         auto&& e : obj->As<ObjIterable>()->list)
+    for (auto it = this->list.begin(); auto&& e : obj->As<ObjIterable>()->list)
       if (!(*it++)->Equals(e))
         return false;
 
@@ -214,8 +211,7 @@ struct ObjEnumerator : Object {
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
-    return obj->type.equals(TypeKind::Enumerator) &&
-           this->ast == obj->As<ObjEnumerator>()->ast &&
+    return obj->type.equals(TypeKind::Enumerator) && this->ast == obj->As<ObjEnumerator>()->ast &&
            this->index == obj->As<ObjEnumerator>()->index;
   }
 
@@ -276,8 +272,7 @@ struct ObjCallable : Object {
   bool Equals(ObjPointer obj) const override {
     auto x = obj->As<ObjCallable>();
 
-    return this->func == x->func && this->builtin == x->builtin &&
-           this->is_named == x->is_named;
+    return this->func == x->func && this->builtin == x->builtin && this->is_named == x->is_named;
   }
 
   ObjCallable(ASTPtr<AST::Function> fp);
@@ -303,8 +298,7 @@ struct ObjModule : Object {
 
   std::string ToString() const override;
 
-  ObjModule(std::shared_ptr<SourceStorage> src,
-            ASTPtr<AST::Program> ast = nullptr)
+  ObjModule(std::shared_ptr<SourceStorage> src, ASTPtr<AST::Program> ast = nullptr)
       : Object(TypeKind::Module),
         source(src),
         ast(ast) {
@@ -327,6 +321,11 @@ struct ObjType : Object {
   std::string GetName() const;
 
   std::string ToString() const override;
+
+  ObjType(TypeInfo type)
+      : Object(TypeKind::TypeName),
+        typeinfo(std::move(type)) {
+  }
 
   ObjType(ASTPtr<AST::Enum> x = nullptr);
   ObjType(ASTPtr<AST::Class> x);

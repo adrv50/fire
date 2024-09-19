@@ -19,7 +19,7 @@ options:
 )";
 
 static constexpr auto command_version = R"(
-flame 0.0.1
+fire 0.0.1
 )";
 
 struct CmdLineArguments {
@@ -66,6 +66,8 @@ void execute_file(std::string const& path) {
 
   parser::Parser parser{lexer.Lex()};
   auto prg = parser.Parse();
+
+  checker::Checker checker;
 
   try {
     eval::Evaluator eval{prg};

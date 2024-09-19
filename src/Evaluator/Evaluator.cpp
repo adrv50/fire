@@ -89,8 +89,7 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
     }
 
     else if (typeobj->ast_enum) {
-      for (int index = 0;
-           auto&& e : typeobj->ast_enum->enumerators->list) {
+      for (int index = 0; auto&& e : typeobj->ast_enum->enumerators->list) {
         if (e->As<AST::Variable>()->GetName() == name)
           return ObjNew<ObjEnumerator>(typeobj->ast_enum, index);
 
@@ -106,9 +105,8 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
   else if (blt)
     callable = ObjNew<ObjCallable>(blt);
   else {
-    Error(ast->token, "not found the name '" + ast->rhs->token.str +
-                          "' in `" + obj->type.to_string() +
-                          "` type object.")();
+    Error(ast->token, "not found the name '" + ast->rhs->token.str + "' in `" +
+                          obj->type.to_string() + "` type object.")();
   }
 
   callable->selfobj = obj;
@@ -155,13 +153,11 @@ ObjPointer& Evaluator::eval_as_writable(ASTPointer ast) {
       if (inst->member.contains(name))
         return inst->member[name];
 
-      Error(x->rhs->token, "class '" + inst->ast->GetName() +
-                               "' don't have member '" + name +
-                               "'")();
+      Error(x->rhs->token,
+            "class '" + inst->ast->GetName() + "' don't have member '" + name + "'")();
     }
 
-    else if (obj->type.kind == TypeKind::Enumerator &&
-             name == "data") {
+    else if (obj->type.kind == TypeKind::Enumerator && name == "data") {
       return obj->As<ObjEnumerator>()->data;
     }
   }
@@ -177,6 +173,57 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     return ObjNew<ObjNone>();
 
   switch (ast->kind) {
+  case Kind::TypeName: {
+    // clang-format off
+    static std::map<TypeKind, char const*> kind_name_map {
+      { TypeKind::None,       "none" },
+      { TypeKind::Int,        "int" },
+      { TypeKind::Float,      "float" },
+      { TypeKind::Size,       "usize" },
+      { TypeKind::Bool,       "bool" },
+      { TypeKind::Char,       "char" },
+      { TypeKind::String,     "string" },
+      { TypeKind::Vector,     "vector" },
+      { TypeKind::Tuple,      "tuple" },
+      { TypeKind::Dict,       "dict" },
+      { TypeKind::Instance,   "instance" },
+      { TypeKind::Module,     "module" },
+      { TypeKind::Function,   "function" },
+      { TypeKind::Module,     "module" },
+      { TypeKind::TypeName,   "type" },
+    };
+    // clang-format on
+
+    auto x = ast->As<AST::TypeName>();
+    std::string name = x->GetName();
+
+    TypeInfo type;
+
+    for (auto&& [key, val] : kind_name_map) {
+      if (val == name) {
+        alert;
+        return ObjNew<ObjType>(key);
+      }
+    }
+
+    auto obj = ObjNew<ObjType>(TypeKind::TypeName);
+    obj->typeinfo.name = name;
+
+    alertmsg(name);
+
+    if (auto [C, E] = this->find_class_or_enum(name); C) {
+      obj->ast_class = C;
+    }
+    else if (E) {
+      obj->ast_enum = E;
+    }
+    else {
+      Error(ast->token, "type name not found")();
+    }
+
+    return obj;
+  }
+
   case Kind::Value:
     return ASTCast<Value>(ast)->value;
 
@@ -234,9 +281,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     for (auto&& x : cf->args) {
       args.emplace_back(
-          this->evaluate(x->kind == ASTKind::SpecifyArgumentName
-                             ? x->As<AST::Expr>()->rhs
-                             : x));
+          this->evaluate(x->kind == ASTKind::SpecifyArgumentName ? x->As<AST::Expr>()->rhs : x));
     }
 
     // type
@@ -250,14 +295,11 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
         if (inst->have_constructor()) {
           args.insert(args.begin(), inst);
 
-          this->call_function_ast(true, inst->get_constructor(), cf,
-                                  args);
+          this->call_function_ast(true, inst->get_constructor(), cf, args);
         }
         else if (args.size() >= 1) {
-          Error(
-              cf->args[0]->token,
-              "class '" + typeobj->ast_class->GetName() +
-                  "' don't have constructor, but given arguments.")();
+          Error(cf->args[0]->token, "class '" + typeobj->ast_class->GetName() +
+                                        "' don't have constructor, but given arguments.")();
         }
 
         return inst;
@@ -266,8 +308,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     // not callable object --> error
     if (!obj->is_callable()) {
-      Error(cf->expr->token,
-            "`" + obj->type.to_string() + "` is not callable")();
+      Error(cf->expr->token, "`" + obj->type.to_string() + "` is not callable")();
     }
 
     auto cb = obj->As<ObjCallable>();
@@ -282,24 +323,21 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       if (args.size() < cb->builtin->argcount) {
         Error(ast->token, "too few arguments")();
       }
-      else if (!cb->builtin->is_variable_args &&
-               args.size() > cb->builtin->argcount) {
+      else if (!cb->builtin->is_variable_args && args.size() > cb->builtin->argcount) {
         Error(ast->token, "too many arguments")();
       }
 
       return cb->builtin->Call(cf, std::move(args));
     }
 
-    return this->call_function_ast(cb->is_member_call, cb->func, cf,
-                                   args);
+    return this->call_function_ast(cb->is_member_call, cb->func, cf, args);
   }
 
   case Kind::MemberAccess: {
     auto ret = this->eval_member_access(ASTCast<AST::Expr>(ast));
 
     if (!ret)
-      Error(ast->As<AST::Expr>()->rhs->token,
-            "use variable before assignment")();
+      Error(ast->As<AST::Expr>()->rhs->token, "use variable before assignment")();
 
     return ret;
   }
@@ -319,8 +357,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       return content->As<ObjIterable>()->list[index];
     }
 
-    Error(ast->token, "'" + content->type.to_string() +
-                          "' type object is not subscriptable")();
+    Error(ast->token, "'" + content->type.to_string() + "' type object is not subscriptable")();
   }
 
   case Kind::Assign: {
@@ -340,8 +377,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
         break;
 
       if (this->loop_stack.size())
-        if (auto& L = this->GetCurrentLoop();
-            L.is_breaked || L.is_continued)
+        if (auto& L = this->GetCurrentLoop(); L.is_breaked || L.is_continued)
           break;
     }
 
@@ -381,8 +417,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       Error(ast->token, "cannot use in out of loop statement")();
 
     (ast->kind == Kind::Break ? this->GetCurrentLoop().is_breaked
-                              : this->GetCurrentLoop().is_continued) =
-        true;
+                              : this->GetCurrentLoop().is_continued) = true;
 
     break;
 
@@ -391,8 +426,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
   case Kind::If: {
     auto x = ast->as_stmt();
-    auto data = std::any_cast<Statement::If>(
-        x->get_data<AST::Statement::If>());
+    auto data = x->get_data<AST::Statement::If>();
 
     auto cond = this->evaluate(data.cond);
 
@@ -405,13 +439,30 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   }
 
   case Kind::For: {
-    todo_impl;
+    auto s = ast->as_stmt();
+    auto data = s->get_data<AST::Statement::For>();
+
+    for (auto&& x : data.init)
+      if (x)
+        this->evaluate(x);
+
+    for (ObjPointer cond;;) {
+      cond = this->evaluate(data.cond);
+
+      if (!cond->is_boolean())
+        Error(data.cond, "expected boolean expression")();
+
+      if (!cond->As<ObjPrimitive>()->vb)
+        break;
+
+      this->evaluate(data.block);
+    }
+
+    break;
   }
 
   case Kind::TryCatch: {
-    auto data = std::any_cast<AST::Statement::TryCatch>(
-        ASTCast<AST::Statement>(ast)
-            ->get_data<Statement::TryCatch>());
+    auto data = ASTCast<AST::Statement>(ast)->get_data<Statement::TryCatch>();
 
     try {
       this->evaluate(data.tryblock);
@@ -436,8 +487,6 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   default:
     if (ast->is_expr)
       return this->eval_expr(ASTCast<AST::Expr>(ast));
-
-    todo_impl;
   }
 
   return ObjNew<ObjNone>();
@@ -448,14 +497,17 @@ Evaluator::Evaluator(ASTPtr<AST::Program> prg)
   for (auto&& ast : prg->list) {
     switch (ast->kind) {
     case ASTKind::Function:
+      alertmsg(ast->As<AST::Named>()->GetName());
       this->functions.emplace_back(ASTCast<AST::Function>(ast));
       break;
 
     case ASTKind::Class:
+      alertmsg(ast->As<AST::Named>()->GetName());
       this->classes.emplace_back(ASTCast<AST::Class>(ast));
       break;
 
     case ASTKind::Enum:
+      alertmsg(ast->As<AST::Named>()->GetName());
       this->enums.emplace_back(ASTCast<AST::Enum>(ast));
       break;
     }

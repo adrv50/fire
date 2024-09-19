@@ -21,4 +21,4 @@ test.fire
 test.*
 
 a.*
-aaa.*
+a*.*

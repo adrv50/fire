@@ -63,7 +63,6 @@ enum class ASTKind {
 
   TryCatch,
 
-  // FuncArg,
   Function,
 
   Enumerator,
@@ -193,8 +192,7 @@ struct Expr : Base {
   ASTPointer lhs;
   ASTPointer rhs;
 
-  static ASTPtr<Expr> New(ASTKind kind, Token optok, ASTPointer lhs,
-                          ASTPointer rhs);
+  static ASTPtr<Expr> New(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs);
 
   Expr(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs)
       : Base(kind, optok),
@@ -220,15 +218,13 @@ struct VarDef : Named {
   ASTPtr<TypeName> type;
   ASTPointer init;
 
-  static ASTPtr<VarDef> New(Token tok, Token name,
-                            ASTPtr<TypeName> type, ASTPointer init);
+  static ASTPtr<VarDef> New(Token tok, Token name, ASTPtr<TypeName> type, ASTPointer init);
 
   static ASTPtr<VarDef> New(Token tok, Token name) {
     return New(tok, name, nullptr, nullptr);
   }
 
-  VarDef(Token tok, Token name, ASTPtr<TypeName> type = nullptr,
-         ASTPointer init = nullptr)
+  VarDef(Token tok, Token name, ASTPtr<TypeName> type = nullptr, ASTPointer init = nullptr)
       : Named(ASTKind::Vardef, tok, name),
         type(type),
         init(init) {
@@ -252,7 +248,6 @@ struct Statement : Base {
   struct For {
     ASTVector init;
     ASTPointer cond;
-    ASTVector count;
     ASTPtr<Block> block;
   };
 
@@ -276,25 +271,18 @@ struct Statement : Base {
     return ASTCast<AST::Expr>(this->get_data<ASTPointer>());
   }
 
-  static ASTPtr<Statement> NewIf(Token tok, ASTPointer cond,
-                                 ASTPointer if_true,
+  static ASTPtr<Statement> NewIf(Token tok, ASTPointer cond, ASTPointer if_true,
                                  ASTPointer if_false = nullptr);
 
-  static ASTPtr<Statement>
-  NewSwitch(Token tok, ASTPointer cond,
-            std::vector<Switch::Case> cases = {});
+  static ASTPtr<Statement> NewSwitch(Token tok, ASTPointer cond,
+                                     std::vector<Switch::Case> cases = {});
 
-  static ASTPtr<Statement> NewFor(Token tok, ASTVector init,
-                                  ASTPointer cond, ASTVector count,
-                                  ASTPtr<Block> block);
+  static ASTPtr<Statement> NewFor(Token tok, ASTVector init, ASTPointer cond, ASTPtr<Block> block);
 
-  static ASTPtr<Statement> NewTryCatch(Token tok,
-                                       ASTPtr<Block> tryblock,
-                                       Token vname,
+  static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock, Token vname,
                                        ASTPtr<Block> catched);
 
-  static ASTPtr<Statement> New(ASTKind kind, Token tok,
-                               std::any data = (ASTPointer) nullptr);
+  static ASTPtr<Statement> New(ASTKind kind, Token tok, std::any data = (ASTPointer) nullptr);
 
   Statement(ASTKind kind, Token tok, std::any data)
       : Base(kind, tok),
@@ -322,22 +310,42 @@ struct TypeName : Named {
 };
 
 struct Function : Named {
-  TokenVector arg_names;
+  struct Argument {
+    Token name;
+    ASTPtr<TypeName> type;
+
+    std::string get_name() const {
+      return this->name.str;
+    }
+
+    Argument(Token name, ASTPtr<TypeName> type = nullptr)
+        : name(name),
+          type(type) {
+    }
+  };
+
+  std::vector<Argument> arguments;
   ASTPtr<TypeName> return_type;
   ASTPtr<Block> block;
 
   bool is_var_arg;
 
-  Token& add_arg(Token const& tok) {
-    return this->arg_names.emplace_back(tok);
+  Argument& add_arg(Token const& tok, ASTPtr<TypeName> type = nullptr) {
+    return this->arguments.emplace_back(tok, type);
+  }
+
+  Argument* find_arg(std::string const& name) {
+    for (auto&& arg : this->arguments)
+      if (arg.get_name() == name)
+        return &arg;
+
+    return nullptr;
   }
 
   static ASTPtr<Function> New(Token tok, Token name);
 
-  static ASTPtr<Function> New(Token tok, Token name,
-                              TokenVector arg_names, bool is_var_arg,
-                              ASTPtr<TypeName> rettype,
-                              ASTPtr<Block> block);
+  static ASTPtr<Function> New(Token tok, Token name, std::vector<Argument> args, bool is_var_arg,
+                              ASTPtr<TypeName> rettype, ASTPtr<Block> block);
 
   Function(Token tok, Token name)
       : Named(ASTKind::Function, tok, name),
@@ -346,10 +354,10 @@ struct Function : Named {
         is_var_arg(false) {
   }
 
-  Function(Token tok, Token name, TokenVector args, bool is_var_arg,
+  Function(Token tok, Token name, std::vector<Argument> args, bool is_var_arg,
            ASTPtr<TypeName> rettype, ASTPtr<Block> block)
       : Named(ASTKind::Function, tok, name),
-        arg_names(args),
+        arguments(args),
         return_type(rettype),
         block(block),
         is_var_arg(is_var_arg) {
@@ -401,8 +409,7 @@ struct Class : Named {
 
   static ASTPtr<Class> New(Token tok, Token name);
 
-  static ASTPtr<Class> New(Token tok, Token name,
-                           ASTPtr<Block> definitions);
+  static ASTPtr<Class> New(Token tok, Token name, ASTPtr<Block> definitions);
 
   Class(Token tok, Token name)
       : Named(ASTKind::Class, tok, name),

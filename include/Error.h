@@ -7,6 +7,12 @@ namespace fire {
 
 class Error {
 public:
+  enum class ErrorLevel {
+    Error,
+    Warning,
+    Note,
+  };
+
   Error(Token tok, std::string msg = "");
   Error(ASTPointer ast, std::string msg = "");
 
@@ -16,7 +22,7 @@ public:
     return *this;
   }
 
-  Error& emit(bool as_warn = false);
+  Error& emit(ErrorLevel lv = ErrorLevel::Error);
 
   [[noreturn]]
   void operator()();
