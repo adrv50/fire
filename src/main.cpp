@@ -7,7 +7,7 @@
 #include "Error.h"
 
 #include "Parser.h"
-#include "Checker.h"
+#include "Sema.h"
 #include "Evaluator.h"
 
 static constexpr auto command_help = R"(
@@ -64,20 +64,25 @@ void execute_file(std::string const& path) {
 
   Lexer lexer{source};
 
-  parser::Parser parser{lexer.Lex()};
+  auto tokens = lexer.Lex();
+
+  if (tokens.empty())
+    return;
+
+  parser::Parser parser{tokens};
   auto prg = parser.Parse();
 
-  checker::Checker checker{prg};
+  semantics_checker::Sema sema{prg};
 
-  checker.check();
+  sema.check_full();
 
-  try {
-    eval::Evaluator eval{prg};
-    eval.do_eval();
-  }
-  catch (ObjPointer obj) {
-    Error::fatal_error("unhandled exception: " + obj->ToString());
-  }
+  // try {
+  //   eval::Evaluator eval{prg};
+  //   eval.do_eval();
+  // }
+  // catch (ObjPointer obj) {
+  //   Error::fatal_error("unhandled exception: " + obj->ToString());
+  // }
 }
 
 int main(int argc, char** argv) {

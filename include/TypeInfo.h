@@ -22,10 +22,15 @@ enum class TypeKind : u8 {
   Enumerator,
   Instance, // instance of class
 
+  //
+  // Function:
+  //   params[  0]  = result
+  //   params[>=1]  = args
   Function,
+
   Module,
 
-  TypeName, // name of class or etc
+  TypeName, // class or enum or etc...
 };
 
 struct TypeInfo {
@@ -35,6 +40,18 @@ struct TypeInfo {
   std::string name;
 
   bool is_const = false;
+
+  // TypeKind::TypeName
+  //
+  // AST::Enum
+  // AST::Class
+  ASTPointer type_ast = nullptr;
+
+  //
+  //   0  = no need
+  //  -1  = infinity
+  // >=1  =
+  int needed_param_count() const;
 
   bool is_numeric() const {
     switch (this->kind) {
@@ -62,6 +79,9 @@ struct TypeInfo {
 
     return false;
   }
+
+  static TypeInfo from_enum(ASTPtr<AST::Enum> ast);
+  static TypeInfo from_class(ASTPtr<AST::Class> ast);
 
   static std::vector<char const*> get_primitive_names();
 

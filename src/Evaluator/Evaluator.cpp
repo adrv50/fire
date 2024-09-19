@@ -89,7 +89,8 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
     }
 
     else if (typeobj->ast_enum) {
-      for (int index = 0; auto&& e : typeobj->ast_enum->enumerators->list) {
+      for (int index = 0;
+           auto&& e : typeobj->ast_enum->enumerators->list) {
         if (e->As<AST::Variable>()->GetName() == name)
           return ObjNew<ObjEnumerator>(typeobj->ast_enum, index);
 
@@ -100,14 +101,17 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
 
   ObjPtr<ObjCallable> callable;
 
-  if (auto R = this->find_func(name); R.userdef)
-    callable = ObjNew<ObjCallable>(R.userdef);
-  else if (R.builtin)
-    callable = ObjNew<ObjCallable>(R.builtin);
-  else {
-    Error(ast->token, "not found the name '" + ast->rhs->token.str + "' in `" +
-                          obj->type.to_string() + "` type object.")();
-  }
+  // if (auto R = this->find_func(name); R.userdef)
+  //   callable = ObjNew<ObjCallable>(R.userdef);
+  // else if (R.builtin)
+  //   callable = ObjNew<ObjCallable>(R.builtin);
+  // else {
+  //   Error(ast->token, "not found the name '" + ast->rhs->token.str + "'
+  //   in `" +
+  //                         obj->type.to_string() + "` type object.")();
+  // }
+
+  todo_impl;
 
   callable->selfobj = obj;
   callable->is_member_call = true;
@@ -153,8 +157,8 @@ ObjPointer& Evaluator::eval_as_writable(ASTPointer ast) {
       if (inst->member.contains(name))
         return inst->member[name];
 
-      Error(x->rhs->token,
-            "class '" + inst->ast->GetName() + "' don't have member '" + name + "'")();
+      Error(x->rhs->token, "class '" + inst->ast->GetName() +
+                               "' don't have member '" + name + "'")();
     }
 
     else if (obj->type.kind == TypeKind::Enumerator && name == "data") {
@@ -241,14 +245,16 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       Error(ast->token, "use variable before assignment")();
     }
 
-    // find function
-    if (auto R = this->find_func(name); R.userdef) {
-      return ObjNew<ObjCallable>(R.userdef);
-    }
-    else if (R.builtin) {
-      // builtin-func
-      return ObjNew<ObjCallable>(R.builtin);
-    }
+    todo_impl;
+
+    // // find function
+    // if (auto R = this->find_func(name); R.userdef) {
+    //   return ObjNew<ObjCallable>(R.userdef);
+    // }
+    // else if (R.builtin) {
+    //   // builtin-func
+    //   return ObjNew<ObjCallable>(R.builtin);
+    // }
 
     // find class or enum
     if (auto [C, E] = this->find_class_or_enum(name); C) {
@@ -280,8 +286,9 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     ObjVector args;
 
     for (auto&& x : cf->args) {
-      args.emplace_back(
-          this->evaluate(x->kind == ASTKind::SpecifyArgumentName ? x->As<AST::Expr>()->rhs : x));
+      args.emplace_back(this->evaluate(
+          x->kind == ASTKind::SpecifyArgumentName ? x->As<AST::Expr>()->rhs
+                                                  : x));
     }
 
     // type
@@ -298,8 +305,9 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
           this->call_function_ast(true, inst->get_constructor(), cf, args);
         }
         else if (args.size() >= 1) {
-          Error(cf->args[0]->token, "class '" + typeobj->ast_class->GetName() +
-                                        "' don't have constructor, but given arguments.")();
+          Error(cf->args[0]->token,
+                "class '" + typeobj->ast_class->GetName() +
+                    "' don't have constructor, but given arguments.")();
         }
 
         return inst;
@@ -308,7 +316,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     // not callable object --> error
     if (!obj->is_callable()) {
-      Error(cf->expr->token, "`" + obj->type.to_string() + "` is not callable")();
+      Error(cf->expr->token,
+            "`" + obj->type.to_string() + "` is not callable")();
     }
 
     auto cb = obj->As<ObjCallable>();
@@ -323,7 +332,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       if (args.size() < cb->builtin->argcount) {
         Error(ast->token, "too few arguments")();
       }
-      else if (!cb->builtin->is_variable_args && args.size() > cb->builtin->argcount) {
+      else if (!cb->builtin->is_variable_args &&
+               args.size() > cb->builtin->argcount) {
         Error(ast->token, "too many arguments")();
       }
 
@@ -337,7 +347,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     auto ret = this->eval_member_access(ASTCast<AST::Expr>(ast));
 
     if (!ret)
-      Error(ast->As<AST::Expr>()->rhs->token, "use variable before assignment")();
+      Error(ast->As<AST::Expr>()->rhs->token,
+            "use variable before assignment")();
 
     return ret;
   }
@@ -357,7 +368,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       return content->As<ObjIterable>()->list[index];
     }
 
-    Error(ast->token, "'" + content->type.to_string() + "' type object is not subscriptable")();
+    Error(ast->token, "'" + content->type.to_string() +
+                          "' type object is not subscriptable")();
   }
 
   case Kind::Assign: {
@@ -377,7 +389,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
         break;
 
       if (this->loop_stack.size())
-        if (auto& L = this->GetCurrentLoop(); L.is_breaked || L.is_continued)
+        if (auto& L = this->GetCurrentLoop();
+            L.is_breaked || L.is_continued)
           break;
     }
 
@@ -417,7 +430,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       Error(ast->token, "cannot use in out of loop statement")();
 
     (ast->kind == Kind::Break ? this->GetCurrentLoop().is_breaked
-                              : this->GetCurrentLoop().is_continued) = true;
+                              : this->GetCurrentLoop().is_continued) =
+        true;
 
     break;
 
@@ -462,7 +476,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   }
 
   case Kind::TryCatch: {
-    auto data = ASTCast<AST::Statement>(ast)->get_data<Statement::TryCatch>();
+    auto data =
+        ASTCast<AST::Statement>(ast)->get_data<Statement::TryCatch>();
 
     try {
       this->evaluate(data.tryblock);
@@ -492,7 +507,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   return ObjNew<ObjNone>();
 }
 
-Evaluator::Evaluator(ASTPtr<AST::Program> prg)
+Evaluator::Evaluator(ASTPtr<AST::Block> prg)
     : root(prg) {
   for (auto&& ast : prg->list) {
     switch (ast->kind) {

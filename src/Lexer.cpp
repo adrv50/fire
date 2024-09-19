@@ -31,29 +31,31 @@ TokenVector Lexer::Lex() {
     auto s = this->source.data.data() + this->position;
     auto pos = this->position;
 
+    // comment line
+    if (this->eat("//")) {
+      while (this->check() && !this->eat('\n'))
+        this->position++;
+
+      this->pass_space();
+      continue;
+    }
+
+    // comment block
+    if (this->eat("/*")) {
+      while (this->check() && !this->eat("*/"))
+        this->position++;
+
+      this->pass_space();
+      continue;
+    }
+
     auto& tok = vec.emplace_back();
 
     tok.str = " ";
     tok.sourceloc = SourceLocation(pos, 1, &this->source);
 
-    // comment line
-    if (this->eat("//")) {
-      tok.kind = TokenKind::CommentLine;
-
-      while (this->check() && !this->eat('\n'))
-        this->position++;
-    }
-
-    // comment block
-    else if (this->eat("/*")) {
-      tok.kind = TokenKind::CommentBlock;
-
-      while (this->check() && !this->eat("*/"))
-        this->position++;
-    }
-
     // hex
-    else if (this->eat("0x") || this->eat("0X")) {
+    if (this->eat("0x") || this->eat("0X")) {
       tok.kind = TokenKind::Hex;
 
       while (isxdigit(this->peek()))
@@ -130,8 +132,7 @@ TokenVector Lexer::Lex() {
       tok.kind = TokenKind::Boolean;
 
   found_punct:
-    tok.sourceloc =
-        SourceLocation(pos, tok.str.length(), &this->source);
+    tok.sourceloc = SourceLocation(pos, tok.str.length(), &this->source);
 
     this->pass_space();
   }

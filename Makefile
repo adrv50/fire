@@ -6,7 +6,8 @@ BUILD		:= 	build
 INCLUDE		:= 	include
 SOURCE		:= 	src	\
 				src/Evaluator \
-				src/Parser
+				src/Parser \
+				src/Sema
 
 CC			:=	clang
 CXX			:=	clang++

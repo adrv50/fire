@@ -3,6 +3,7 @@
 
 #include "alert.h"
 #include "TypeInfo.h"
+#include "AST.h"
 
 namespace fire {
 
@@ -26,6 +27,13 @@ bool TypeInfo::is_primitive_name(std::string_view name) {
 bool TypeInfo::equals(TypeInfo const& type) const {
   if (this->kind != type.kind)
     return false;
+
+  if (this->params.size() != type.params.size())
+    return false;
+
+  for (auto it = this->params.begin(); auto&& t : type.params)
+    if (!it->equals(t))
+      return false;
 
   return true;
 }
@@ -74,6 +82,46 @@ std::string TypeInfo::to_string() const {
     ret += " const";
 
   return ret;
+}
+
+int TypeInfo::needed_param_count() const {
+  switch (this->kind) {
+  case TypeKind::Vector:
+    return 1;
+
+  case TypeKind::Tuple:
+    return -1;
+
+  case TypeKind::Dict:
+    return 2; // key, value
+
+  case TypeKind::TypeName: {
+    if (auto x = ASTCast<AST::Templatable>(this->type_ast);
+        x->is_templated) {
+      return x->template_params.size();
+    }
+
+    break;
+  }
+  }
+
+  return 0;
+}
+
+TypeInfo TypeInfo::from_enum(ASTPtr<AST::Enum> ast) {
+  TypeInfo t = TypeKind::TypeName;
+
+  t.type_ast = ast;
+
+  return t;
+}
+
+TypeInfo TypeInfo::from_class(ASTPtr<AST::Class> ast) {
+  TypeInfo t = TypeKind::TypeName;
+
+  t.type_ast = ast;
+
+  return t;
 }
 
 } // namespace fire

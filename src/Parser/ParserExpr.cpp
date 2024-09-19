@@ -108,18 +108,66 @@ ASTPointer Parser::Factor() {
     return AST::Value::New(tok, make_value_from_token(tok));
 
   case TokenKind::String:
-    return AST::Value::New(tok, ObjNew<ObjString>(tok.str.substr(
-                                    1, tok.str.length() - 2)));
+    return AST::Value::New(
+        tok, ObjNew<ObjString>(tok.str.substr(1, tok.str.length() - 2)));
 
-  case TokenKind::Identifier:
-    return AST::Variable::New(tok);
+  case TokenKind::Identifier: {
+    static int _prs_depth = 0;
+
+    auto x = AST::Identifier::New(tok);
+
+    if (this->match("::", "<")) {
+      alert;
+
+      _prs_depth++;
+
+      x->paramtok = this->cur[1];
+      this->cur += 2;
+
+      do {
+        x->id_params.emplace_back(this->expectTypeName());
+      } while (this->eat(","));
+
+      if (_prs_depth >= 2 && this->match(">>")) {
+        this->insert_token(">");
+        this->cur++;
+      }
+      else {
+        this->expect(">");
+      }
+
+      _prs_depth--;
+    }
+
+    return x;
+  }
+    /*
+    define:
+      fn func <T, U> (...) {
+      }
+
+    use:
+      func::<int, string>(...)
+    */
   }
 
   Error(tok, "invalid syntax")();
 }
 
-ASTPointer Parser::IndexRef() {
+ASTPointer Parser::ScopeResol() {
   auto x = this->Factor();
+
+  while (this->eat("::")) {
+    auto& op = *(this->cur - 1);
+
+    x = new_expr(ASTKind::ScopeResol, op, x, this->Factor());
+  }
+
+  return x;
+}
+
+ASTPointer Parser::IndexRef() {
+  auto x = this->ScopeResol();
 
   while (this->check()) {
     auto& op = *this->cur;
@@ -132,7 +180,7 @@ ASTPointer Parser::IndexRef() {
 
     // member access
     else if (this->eat(".")) {
-      auto rhs = this->Factor();
+      auto rhs = this->ScopeResol();
 
       if (rhs->kind != ASTKind::Variable) {
         Error(op, "syntax error")();
@@ -148,13 +196,13 @@ ASTPointer Parser::IndexRef() {
       if (!this->eat(")")) {
         do {
           if (this->match(TokenKind::Identifier, ":")) {
-            auto _name = this->Factor();
+            auto _name = this->ScopeResol();
 
             auto colon = this->cur++;
             auto _expr = this->Expr();
 
-            call->args.emplace_back(new_expr(
-                ASTKind::SpecifyArgumentName, *colon, _name, _expr));
+            call->args.emplace_back(new_expr(ASTKind::SpecifyArgumentName,
+                                             *colon, _name, _expr));
           }
           else {
             call->args.emplace_back(this->Expr());
@@ -175,10 +223,9 @@ ASTPointer Parser::Unary() {
   auto& tok = *this->cur;
 
   if (this->eat("-")) {
-    return new_expr(
-        ASTKind::Sub, tok,
-        AST::Value::New("0", ObjNew<ObjPrimitive>((i64)0)),
-        this->IndexRef());
+    return new_expr(ASTKind::Sub, tok,
+                    AST::Value::New("0", ObjNew<ObjPrimitive>((i64)0)),
+                    this->IndexRef());
   }
 
   this->eat("+");

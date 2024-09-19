@@ -70,7 +70,6 @@ struct Enum;
 struct Class;
 struct Templator;
 struct Module;
-struct Program;
 
 } // namespace AST
 

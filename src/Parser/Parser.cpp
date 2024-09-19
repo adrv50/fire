@@ -67,8 +67,7 @@ ASTPointer Parser::Stmt() {
   }
 
   if (this->eat("return")) {
-    auto ast =
-        AST::Statement::New(ASTKind::Return, tok, this->Expr());
+    auto ast = AST::Statement::New(ASTKind::Return, tok, this->Expr());
 
     this->expect(";");
     return ast;
@@ -213,9 +212,8 @@ ASTPointer Parser::Top() {
       do {
         auto& arg = func->add_arg(*this->expectIdentifier());
 
-        if (this->eat(":")) {
-          arg.type = this->expectTypeName();
-        }
+        this->expect(":");
+        arg.type = this->expectTypeName();
       } while (this->eat(","));
 
       this->expect(")");
@@ -289,8 +287,8 @@ ASTPointer Parser::Top() {
   return this->Stmt();
 }
 
-ASTPtr<AST::Program> Parser::Parse() {
-  auto ret = AST::Program::New();
+ASTPtr<AST::Block> Parser::Parse() {
+  auto ret = AST::Block::New("");
 
   while (this->check())
     ret->list.emplace_back(this->Top());

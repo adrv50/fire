@@ -24,7 +24,8 @@ static inline ObjPair<T> pair_ptr_cast(ObjPtr<U> a, ObjPtr<U> b) {
 }
 
 template <class T>
-static inline PrimitiveObjPair to_primitive_pair(ObjPtr<T> a, ObjPtr<T> b) {
+static inline PrimitiveObjPair to_primitive_pair(ObjPtr<T> a,
+                                                 ObjPtr<T> b) {
   return pair_ptr_cast<ObjPrimitive>(a, b);
 }
 
@@ -90,7 +91,7 @@ class Evaluator {
   };
 
 public:
-  Evaluator(ASTPtr<AST::Program> ast);
+  Evaluator(ASTPtr<AST::Block> ast);
 
   void do_eval();
 
@@ -104,16 +105,19 @@ public:
 private:
   ObjPointer* find_var(std::string const& name);
 
-  FunctionFindResult find_func(std::string const& name, ASTPtr<AST::CallFunc> call = nullptr);
+  FunctionFindResult find_func(std::string const& name,
+                               ASTPtr<AST::CallFunc> call = nullptr);
 
-  std::pair<ASTPtr<AST::Class>, ASTPtr<AST::Enum>> find_class_or_enum(std::string const& name);
+  std::pair<ASTPtr<AST::Class>, ASTPtr<AST::Enum>>
+  find_class_or_enum(std::string const& name);
 
   ASTPtr<AST::Enum> find_enum(std::string const& name);
 
   ObjPtr<ObjInstance> new_class_instance(ASTPtr<AST::Class> ast);
 
   ObjPointer call_function_ast(bool have_self, ASTPtr<AST::Function> ast,
-                               ASTPtr<AST::CallFunc> call, ObjVector& args);
+                               ASTPtr<AST::CallFunc> call,
+                               ObjVector& args);
 
   EvalStack& GetCurrentStack() {
     return *this->stack.rbegin();
@@ -132,14 +136,15 @@ private:
 
   LoopContext& GetCurrentLoop();
 
-  static void adjust_numeric_type_object(ObjPtr<ObjPrimitive> left, ObjPtr<ObjPrimitive> right);
+  static void adjust_numeric_type_object(ObjPtr<ObjPrimitive> left,
+                                         ObjPtr<ObjPrimitive> right);
 
   static auto adjust_numeric_type_object(ObjPair<ObjPrimitive> pair) {
     adjust_numeric_type_object(pair.first, pair.second);
     return pair;
   }
 
-  ASTPtr<AST::Program> root;
+  ASTPtr<AST::Block> root;
 
   ASTVec<AST::Function> functions;
   ASTVec<AST::Class> classes;

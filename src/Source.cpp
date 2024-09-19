@@ -4,8 +4,7 @@
 
 namespace fire {
 
-SourceStorage::LineRange
-SourceStorage::GetLineRange(i64 position) const {
+SourceStorage::LineRange SourceStorage::GetLineRange(i64 position) const {
   for (auto&& line : this->line_range_list) {
     if (line.begin <= position && position <= line.end)
       return line;
@@ -14,10 +13,8 @@ SourceStorage::GetLineRange(i64 position) const {
   throw std::out_of_range("GetLineRange()");
 }
 
-std::string_view
-SourceStorage::GetLineView(LineRange const& line) const {
-  return std::string_view(this->data.c_str() + line.begin,
-                          line.length);
+std::string_view SourceStorage::GetLineView(LineRange const& line) const {
+  return std::string_view(this->data.c_str() + line.begin, line.length);
 }
 
 std::vector<SourceStorage::LineRange>
@@ -36,11 +33,17 @@ bool SourceStorage::Open() {
   i64 pos = 0;
 
   for (std::string line; std::getline(*this->file, line);) {
-    this->line_range_list.emplace_back(this->line_range_list.size(),
-                                       pos, pos + line.length());
+    this->line_range_list.emplace_back(this->line_range_list.size(), pos,
+                                       pos + line.length());
 
     this->data += line + '\n';
     pos += line.length() + 1;
+  }
+
+  this->data += "\n";
+
+  if (this->line_range_list.empty()) {
+    this->line_range_list.emplace_back(0, 0, 0);
   }
 
   return true;

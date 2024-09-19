@@ -13,7 +13,13 @@ namespace fire {
 
 enum class ASTKind {
   Value,
-  Variable,
+
+  Identifier,
+  ScopeResol, // => AST::Expr
+
+  Variable, //
+  FuncName, // AST::Identifier
+
   Array,
 
   IndexRef,
@@ -121,15 +127,16 @@ struct Base {
 
 protected:
   Base(ASTKind kind, Token token)
-      : kind(kind),
-        token(token),
-        endtok(token) {
+      : Base(kind, token, token) {
   }
 
   Base(ASTKind kind, Token token, Token endtok)
       : kind(kind),
         token(token),
         endtok(endtok) {
+
+    // if (this->kind == ASTKind::Variable)
+    //   this->kind = ASTKind::Identifier;
   }
 };
 
@@ -164,10 +171,24 @@ protected:
 };
 
 struct Variable : Named {
+  int index = 0;
+  int backstep = 0; // N 個前のスコープに戻る
+
   static ASTPtr<Variable> New(Token tok);
 
   Variable(Token tok)
       : Named(ASTKind::Variable, tok, tok) {
+  }
+};
+
+struct Identifier : Named {
+  Token paramtok; // "<"
+  ASTVec<TypeName> id_params;
+
+  static ASTPtr<Identifier> New(Token tok);
+
+  Identifier(Token tok)
+      : Named(ASTKind::Identifier, tok, tok) {
   }
 };
 
@@ -284,14 +305,15 @@ struct Statement : Base {
     return ASTCast<AST::Expr>(this->get_data<ASTPointer>());
   }
 
-  static ASTPtr<Statement> NewIf(Token tok, ASTPointer cond, ASTPointer if_true,
+  static ASTPtr<Statement> NewIf(Token tok, ASTPointer cond,
+                                 ASTPointer if_true,
                                  ASTPointer if_false = nullptr);
 
   static ASTPtr<Statement> NewSwitch(Token tok, ASTPointer cond,
                                      std::vector<Switch::Case> cases = {});
 
-  static ASTPtr<Statement> NewFor(Token tok, ASTVector init, ASTPointer cond,
-                                  ASTPtr<Block> block);
+  static ASTPtr<Statement> NewFor(Token tok, ASTVector init,
+                                  ASTPointer cond, ASTPtr<Block> block);
 
   static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock,
                                        Token vname, ASTPtr<Block> catched);
@@ -308,9 +330,18 @@ private:
   std::any _astdata;
 };
 
+struct Templatable : Named {
+  Token tok_template;
+
+  bool is_templated = false;
+  ASTVec<TypeName> template_params;
+
+protected:
+  using Named::Named;
+};
+
 struct TypeName : Named {
   ASTVector type_params;
-  ASTVec<TypeName> scope_resol;
   bool is_const;
 
   TypeInfo type;
@@ -324,7 +355,7 @@ struct TypeName : Named {
   }
 };
 
-struct Function : Named {
+struct Function : Templatable {
   struct Argument {
     Token name;
     ASTPtr<TypeName> type;
@@ -359,20 +390,21 @@ struct Function : Named {
 
   static ASTPtr<Function> New(Token tok, Token name);
 
-  static ASTPtr<Function> New(Token tok, Token name, std::vector<Argument> args,
-                              bool is_var_arg, ASTPtr<TypeName> rettype,
+  static ASTPtr<Function> New(Token tok, Token name,
+                              std::vector<Argument> args, bool is_var_arg,
+                              ASTPtr<TypeName> rettype,
                               ASTPtr<Block> block);
 
   Function(Token tok, Token name)
-      : Named(ASTKind::Function, tok, name),
+      : Templatable(ASTKind::Function, tok, name),
         return_type(nullptr),
         block(nullptr),
         is_var_arg(false) {
   }
 
-  Function(Token tok, Token name, std::vector<Argument> args, bool is_var_arg,
-           ASTPtr<TypeName> rettype, ASTPtr<Block> block)
-      : Named(ASTKind::Function, tok, name),
+  Function(Token tok, Token name, std::vector<Argument> args,
+           bool is_var_arg, ASTPtr<TypeName> rettype, ASTPtr<Block> block)
+      : Templatable(ASTKind::Function, tok, name),
         arguments(args),
         return_type(rettype),
         block(block),
@@ -380,7 +412,7 @@ struct Function : Named {
   }
 };
 
-struct Enum : Named {
+struct Enum : Templatable {
   ASTPtr<Block> enumerators; // ->list = ASTVec<Variable>
 
   ASTPointer& append(Token name /* , todo: typename*/) {
@@ -390,12 +422,12 @@ struct Enum : Named {
   static ASTPtr<Enum> New(Token tok, Token name);
 
   Enum(Token tok, Token name)
-      : Named(ASTKind::Enum, tok, name),
+      : Templatable(ASTKind::Enum, tok, name),
         enumerators(Block::New("")) {
   }
 };
 
-struct Class : Named {
+struct Class : Templatable {
   ASTPtr<Block> block;
   ASTPtr<Function> constructor = nullptr;
 
@@ -425,21 +457,12 @@ struct Class : Named {
 
   static ASTPtr<Class> New(Token tok, Token name);
 
-  static ASTPtr<Class> New(Token tok, Token name, ASTPtr<Block> definitions);
+  static ASTPtr<Class> New(Token tok, Token name,
+                           ASTPtr<Block> definitions);
 
   Class(Token tok, Token name)
-      : Named(ASTKind::Class, tok, name),
+      : Templatable(ASTKind::Class, tok, name),
         block(Block::New("")) {
-  }
-};
-
-struct Program : Base {
-  ASTVector list;
-
-  static ASTPtr<Program> New();
-
-  Program()
-      : Base(ASTKind::Program, {}) {
   }
 };
 

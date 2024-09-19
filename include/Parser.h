@@ -57,6 +57,7 @@ public:
   // ASTPointer Ident();
 
   ASTPointer Factor();
+  ASTPointer ScopeResol();
 
   ASTPointer IndexRef();
   ASTPointer Unary();
@@ -74,7 +75,7 @@ public:
 
   ASTPointer Top();
 
-  ASTPtr<AST::Program> Parse();
+  ASTPtr<AST::Block> Parse();
 
 private:
   bool check() const;
@@ -109,14 +110,13 @@ private:
     this->cur = save;
     return ret;
   }
-  static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op,
-                                    ASTPointer lhs, ASTPointer rhs) {
+  static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op, ASTPointer lhs,
+                                    ASTPointer rhs) {
     return AST::Expr::New(k, op, lhs, rhs);
   }
 
   static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op,
-                                      ASTPointer lhs,
-                                      ASTPointer rhs) {
+                                      ASTPointer lhs, ASTPointer rhs) {
     return new_expr(ASTKind::Assign, op, lhs,
                     new_expr(kind, op, lhs, rhs));
   }
