@@ -14,11 +14,12 @@ namespace fire {
 enum class ASTKind {
   Value,
 
-  Identifier,
-  ScopeResol, // => AST::Expr
+  Identifier, // => AST::Identifier
+  ScopeResol, // => AST::ScopeResol
 
-  Variable, //
-  FuncName, // AST::Identifier
+  Variable,   //
+  FuncName,   //
+  Enumerator, // AST::Identifier
 
   Array,
 
@@ -74,12 +75,8 @@ enum class ASTKind {
 
   Function,
 
-  Enumerator,
   Enum,
-
   Class,
-
-  Module,
 
   TypeName,
 
@@ -185,10 +182,25 @@ struct Identifier : Named {
   Token paramtok; // "<"
   ASTVec<TypeName> id_params;
 
+  // for FuncName
+  ASTVec<Function> func_candidates;
+
   static ASTPtr<Identifier> New(Token tok);
 
   Identifier(Token tok)
       : Named(ASTKind::Identifier, tok, tok) {
+  }
+};
+
+struct ScopeResol : Named {
+  ASTPtr<Identifier> first;
+  ASTVec<Identifier> idlist;
+
+  static ASTPtr<ScopeResol> New(ASTPtr<Identifier> first);
+
+  ScopeResol(ASTPtr<Identifier> first)
+      : Named(ASTKind::ScopeResol, first->token),
+        first(first) {
   }
 };
 
@@ -464,6 +476,14 @@ struct Class : Templatable {
       : Templatable(ASTKind::Class, tok, name),
         block(Block::New("")) {
   }
+};
+
+struct Namespace : Block {
+  Token nametok;
+
+  static ASTPtr<Namespace> New(Token tok, Token name);
+
+  using Block::Block;
 };
 
 } // namespace AST

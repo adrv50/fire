@@ -116,9 +116,7 @@ ASTPointer Parser::Factor() {
 
     auto x = AST::Identifier::New(tok);
 
-    if (this->match("::", "<")) {
-      alert;
-
+    if (this->match("@", "<")) {
       _prs_depth++;
 
       x->paramtok = this->cur[1];
@@ -157,10 +155,22 @@ ASTPointer Parser::Factor() {
 ASTPointer Parser::ScopeResol() {
   auto x = this->Factor();
 
-  while (this->eat("::")) {
-    auto& op = *(this->cur - 1);
+  if (this->match("::")) {
+    if (x->kind != ASTKind::Identifier)
+      Error(*this->cur, "invalid syntax")();
 
-    x = new_expr(ASTKind::ScopeResol, op, x, this->Factor());
+    auto sr = AST::ScopeResol::New(ASTCast<AST::Identifier>(x));
+
+    while (this->eat("::")) {
+      auto op = *this->ate;
+
+      if (sr->idlist
+              .emplace_back(ASTCast<AST::Identifier>(this->Factor()))
+              ->kind != ASTKind::Identifier)
+        Error(op, "invalid syntax")();
+    }
+
+    x = sr;
   }
 
   return x;

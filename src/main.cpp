@@ -6,6 +6,7 @@
 #include "Utils.h"
 #include "Error.h"
 
+#include "Lexer.h"
 #include "Parser.h"
 #include "Sema.h"
 #include "Evaluator.h"

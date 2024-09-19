@@ -65,11 +65,12 @@ struct Block;
 struct VarDef;
 struct Statement;
 struct TypeName;
+
 struct Function;
 struct Enum;
 struct Class;
-struct Templator;
-struct Module;
+
+struct Namespace;
 
 } // namespace AST
 

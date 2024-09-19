@@ -1,6 +1,6 @@
 #include "alert.h"
 
-#include "Parser.h"
+#include "Lexer.h"
 #include "Utils.h"
 #include "Error.h"
 
@@ -12,6 +12,7 @@ static char const* punctuaters[] = {
     "&&",  "||",  "->", "::", "<",  ">",  "+",  "-",  "/",
     "*",   "%",   "=",  ";",  ":",  ",",  ".",  "[",  "]",
     "(",   ")",   "{",  "}",  "!",  "?",  "&",  "^",  "|",
+    "@",
 };
 // clang-format on
 

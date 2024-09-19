@@ -45,6 +45,10 @@ ASTPtr<Identifier> Identifier::New(Token tok) {
   return ASTNew<Identifier>(tok);
 }
 
+ASTPtr<ScopeResol> ScopeResol::New(ASTPtr<Identifier> first) {
+  return ASTNew<ScopeResol>(first);
+}
+
 ASTPtr<Array> Array::New(Token tok) {
   return ASTNew<Array>(tok);
 }
@@ -128,6 +132,14 @@ ASTPtr<Class> Class::New(Token tok, Token name,
   ast->block = definitions;
 
   return ast;
+}
+
+ASTPtr<Namespace> Namespace::New(Token tok, Token name) {
+  auto x = ASTNew<Namespace>(tok);
+
+  x->nametok = name;
+
+  return x;
 }
 
 } // namespace fire::AST

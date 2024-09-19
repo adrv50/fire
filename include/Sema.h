@@ -79,20 +79,23 @@ class Sema {
     Var,
     Func,
     Enum,
+    Enumerator,
     Class,
+    Namespace,
   };
 
   struct NameFindResult {
     NameType type = NameType::Unknown;
 
     std::string name;
-
     ScopeContext::LocalVar* lvar = nullptr; // if variable
 
     ASTVec<Function> functions;
 
     ASTPtr<Enum> ast_enum;
     ASTPtr<Class> ast_class;
+
+    ASTPtr<Namespace> ast_namespace;
   };
 
   ScopeContext::LocalVar* _find_variable(string const& name);
@@ -171,6 +174,26 @@ class Sema {
     return id_info;
   }
 
+  // scope-resolution
+  IdentifierInfo get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
+    auto info = this->get_identifier_info(ast->first);
+
+    for (auto&& id : ast->idlist) {
+      switch (info.result.type) {
+      case NameType::Enum:
+        todo_impl;
+
+      case NameType::Class:
+        todo_impl;
+
+      default:
+        return info;
+      }
+    }
+
+    return info;
+  }
+
 public:
   Sema(ASTPtr<AST::Block> prg);
 
@@ -189,13 +212,10 @@ private:
 
     ScopeContext* enter(ASTPtr<Block> block) {
       for (auto&& c : this->_ptr->child_scopes) {
-        if (c->ast == block) {
-          alert;
+        if (c->ast == block)
           return this->_ptr = c;
-        }
       }
 
-      alert;
       return nullptr;
     }
 

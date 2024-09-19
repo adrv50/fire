@@ -1,30 +1,31 @@
 #include <iostream>
 #include <sstream>
 
-#include "Builtin.h"
+#include "Lexer.h"
 #include "Parser.h"
 #include "Evaluator.h"
 
 #include "AST.h"
+#include "Builtin.h"
+
 #include "Error.h"
 
 #include "alert.h"
 
-#define define_builtin_func(_Name_)                                  \
+#define define_builtin_func(_Name_)                                       \
   ObjPointer _Name_(ASTPtr<AST::CallFunc> ast, ObjVector args)
 
 #define expect_type(_Idx, _Type) _expect_type(ast, args, _Idx, _Type)
 
 namespace fire::builtins {
 
-void _expect_type(ASTPtr<AST::CallFunc> ast, ObjVector& args,
-                  int index, TypeInfo const& type) {
+void _expect_type(ASTPtr<AST::CallFunc> ast, ObjVector& args, int index,
+                  TypeInfo const& type) {
   if (!args[index]->type.equals(type))
     Error(ast->args[index]->token,
-          "expected '" + type.to_string() +
-              "' type object at argument " + std::to_string(index) +
-              ", but given '" + args[index]->type.to_string() +
-              "'")();
+          "expected '" + type.to_string() + "' type object at argument " +
+              std::to_string(index) + ", but given '" +
+              args[index]->type.to_string() + "'")();
 }
 
 define_builtin_func(Print) {
@@ -95,8 +96,7 @@ define_builtin_func(Import) {
   for (auto&& x : prg->list) {
     switch (x->kind) {
     case ASTKind::Class:
-      ret->types.emplace_back(
-          ObjNew<ObjType>(ASTCast<AST::Class>(x)));
+      ret->types.emplace_back(ObjNew<ObjType>(ASTCast<AST::Class>(x)));
       break;
 
     case ASTKind::Enum:

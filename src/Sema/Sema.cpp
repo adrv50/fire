@@ -64,8 +64,6 @@ int Sema::_construct_scope_context(ScopeContext& S, ASTPointer ast) {
   }
 
   case ASTKind::Function: {
-    alert;
-
     auto astfunc = ASTCast<Function>(ast);
     auto c = new ScopeContext(*this, astfunc->block, &S);
 
@@ -149,12 +147,12 @@ Sema::NameFindResult Sema::find_name(std::string const& name) {
 
   result.functions = this->_find_func(name);
 
-  if (result.functions.empty()) {
-    if ((result.ast_enum = this->_find_enum(name)))
-      result.type = NameType::Enum;
-    else if ((result.ast_class = this->_find_class(name)))
-      result.type = NameType::Class;
-  }
+  if (result.functions.size() >= 1)
+    result.type = NameType::Func;
+  else if ((result.ast_enum = this->_find_enum(name)))
+    result.type = NameType::Enum;
+  else if ((result.ast_class = this->_find_class(name)))
+    result.type = NameType::Class;
 
   return result;
 }
@@ -281,8 +279,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
     switch (res.type) {
     case NameType::Var:
-      alert;
-      ast->kind = ASTKind::Variable;
+      id->kind = ASTKind::Variable;
 
       if (id->id_params.size() >= 1)
         Error(id->paramtok, "invalid use type argument for variable")();
@@ -293,20 +290,23 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       return res.lvar->type;
 
     case NameType::Func: {
-      alert;
-      ast->kind = ASTKind::FuncName;
+      id->kind = ASTKind::FuncName;
 
-      ASTVec<Function> candidates;
-
-      for (auto&& f : res.functions) {
-        if (!id->id_params.empty()) {
-          if (!f->is_templated ||
-              (f->template_params.size() != id->id_params.size()))
-            continue;
-        }
+      if (res.functions.size() >= 2) {
+        Error(id->token,
+              "function name '" + id->GetName() + "' is ambigous.")();
       }
 
-      break;
+      auto func = res.functions[0];
+
+      TypeInfo type = TypeKind::Function;
+
+      type.params.emplace_back(this->evaltype(func->return_type));
+
+      for (auto&& arg : func->arguments)
+        type.params.emplace_back(this->evaltype(arg.type));
+
+      return type;
     }
 
     case NameType::Unknown:
@@ -320,39 +320,11 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
   }
 
   case Kind::ScopeResol: {
-    alert;
+    auto idinfo = this->get_identifier_info(ASTCast<AST::ScopeResol>(ast));
 
-    ASTPtr<Identifier> id_first;
-    std::list<ASTPtr<AST::Identifier>> idlist;
-
-    {
-      ASTPointer x = ASTCast<AST::Expr>(ast);
-
-      while (x->kind == ASTKind::ScopeResol) {
-        idlist.push_front(ASTCast<AST::Identifier>(x->as_expr()->rhs));
-        x = x->as_expr()->lhs;
-      }
-
-      id_first = ASTCast<AST::Identifier>(x);
-    }
-
-    IdentifierInfo idinfo = this->get_identifier_info(id_first);
-
-    for (auto&& id : idlist) {
-      switch (idinfo.result.type) {
-      case NameType::Enum:
-        todo_impl;
-
-      case NameType::Class:
-        todo_impl;
-
-      case NameType::Unknown:
-        Error(idinfo.ast, "unknown identifier name")();
-
-      default:
-        Error(idinfo.ast, "'" + idinfo.ast->GetName() +
-                              "' is not a class or enum or namespace")();
-      }
+    switch (idinfo.result.type) {
+    case NameType::Var:
+      break;
     }
 
     todo_impl;
@@ -363,10 +335,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
   case Kind::CallFunc: {
     auto x = ASTCast<AST::CallFunc>(ast);
 
-    auto func = this->evaltype(x->expr);
-
-    TypeVec func_arg_types = {func.params.begin() + 1, func.params.end()};
-    TypeInfo func_result = func.params[0];
+    todo_impl;
 
     break;
   }
