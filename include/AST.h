@@ -26,8 +26,11 @@ enum class ASTKind {
 
   Mul,
   Div,
+  Mod,
+
   Add,
   Sub,
+
   LShift,
   RShift,
 
@@ -102,6 +105,10 @@ struct Base {
 
   Expr* as_expr();
   Statement* as_stmt();
+
+  Value const* as_value() const {
+    return (Value const*)this;
+  }
 
   [[maybe_unused]]
   i64 GetChilds(ASTVector& out) const;
@@ -178,6 +185,9 @@ struct CallFunc : Base {
   ASTPointer expr; // left side
   ASTVector args;
 
+  ASTPtr<Function> callee_ast = nullptr;
+  builtins::Function const* callee_builtin = nullptr;
+
   static ASTPtr<CallFunc> New(ASTPointer expr, ASTVector args = {});
 
   CallFunc(ASTPointer expr, ASTVector args = {})
@@ -192,7 +202,8 @@ struct Expr : Base {
   ASTPointer lhs;
   ASTPointer rhs;
 
-  static ASTPtr<Expr> New(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs);
+  static ASTPtr<Expr> New(ASTKind kind, Token optok, ASTPointer lhs,
+                          ASTPointer rhs);
 
   Expr(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs)
       : Base(kind, optok),
@@ -218,13 +229,15 @@ struct VarDef : Named {
   ASTPtr<TypeName> type;
   ASTPointer init;
 
-  static ASTPtr<VarDef> New(Token tok, Token name, ASTPtr<TypeName> type, ASTPointer init);
+  static ASTPtr<VarDef> New(Token tok, Token name, ASTPtr<TypeName> type,
+                            ASTPointer init);
 
   static ASTPtr<VarDef> New(Token tok, Token name) {
     return New(tok, name, nullptr, nullptr);
   }
 
-  VarDef(Token tok, Token name, ASTPtr<TypeName> type = nullptr, ASTPointer init = nullptr)
+  VarDef(Token tok, Token name, ASTPtr<TypeName> type = nullptr,
+         ASTPointer init = nullptr)
       : Named(ASTKind::Vardef, tok, name),
         type(type),
         init(init) {
@@ -277,12 +290,14 @@ struct Statement : Base {
   static ASTPtr<Statement> NewSwitch(Token tok, ASTPointer cond,
                                      std::vector<Switch::Case> cases = {});
 
-  static ASTPtr<Statement> NewFor(Token tok, ASTVector init, ASTPointer cond, ASTPtr<Block> block);
+  static ASTPtr<Statement> NewFor(Token tok, ASTVector init, ASTPointer cond,
+                                  ASTPtr<Block> block);
 
-  static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock, Token vname,
-                                       ASTPtr<Block> catched);
+  static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock,
+                                       Token vname, ASTPtr<Block> catched);
 
-  static ASTPtr<Statement> New(ASTKind kind, Token tok, std::any data = (ASTPointer) nullptr);
+  static ASTPtr<Statement> New(ASTKind kind, Token tok,
+                               std::any data = (ASTPointer) nullptr);
 
   Statement(ASTKind kind, Token tok, std::any data)
       : Base(kind, tok),
@@ -344,8 +359,9 @@ struct Function : Named {
 
   static ASTPtr<Function> New(Token tok, Token name);
 
-  static ASTPtr<Function> New(Token tok, Token name, std::vector<Argument> args, bool is_var_arg,
-                              ASTPtr<TypeName> rettype, ASTPtr<Block> block);
+  static ASTPtr<Function> New(Token tok, Token name, std::vector<Argument> args,
+                              bool is_var_arg, ASTPtr<TypeName> rettype,
+                              ASTPtr<Block> block);
 
   Function(Token tok, Token name)
       : Named(ASTKind::Function, tok, name),

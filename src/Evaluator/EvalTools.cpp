@@ -17,14 +17,22 @@ ObjPointer* Evaluator::find_var(std::string const& name) {
   return nullptr;
 }
 
-std::pair<ASTPtr<AST::Function>, builtins::Function const*>
-Evaluator::find_func(std::string const& name) {
+Evaluator::FunctionFindResult Evaluator::find_func(std::string const& name,
+                                                   ASTPtr<AST::CallFunc> call) {
+  FunctionFindResult result;
+
   for (auto&& ast : this->functions) {
-    if (ast->GetName() == name)
-      return {ast, nullptr};
+    if (ast->GetName() == name) {
+      result.append(ast);
+    }
   }
 
-  return {nullptr, builtins::find_builtin_func(name)};
+  for (auto&& b : builtins::get_builtin_functions()) {
+    if (b.name == name)
+      result.append(&b);
+  }
+
+  return result;
 }
 
 std::pair<ASTPtr<AST::Class>, ASTPtr<AST::Enum>>
@@ -68,8 +76,10 @@ ObjPtr<ObjInstance> Evaluator::new_class_instance(ASTPtr<AST::Class> ast) {
   return obj;
 }
 
-ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> ast,
-                                        ASTPtr<AST::CallFunc> call, ObjVector& args) {
+ObjPointer Evaluator::call_function_ast(bool have_self,
+                                        ASTPtr<AST::Function> ast,
+                                        ASTPtr<AST::CallFunc> call,
+                                        ObjVector& args) {
 
   if (this->stack.size() >= EVALUATOR_STACK_MAX_SIZE)
     Error(call->token, "stack over flow.")();
@@ -87,7 +97,8 @@ ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> as
     formal++;
   }
 
-  for (auto itobj = args.begin() + (int)have_self; act != call->args.end(); act++) {
+  for (auto itobj = args.begin() + (int)have_self; act != call->args.end();
+       act++) {
     if (formal == ast->arguments.end() && !ast->is_var_arg) {
       Error(call->token, "too many arguments")();
     }
@@ -101,8 +112,9 @@ ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> as
       name = expr->lhs->token.str;
 
       if (!(target = ast->find_arg(name))) {
-        Error(expr->lhs,
-              "'" + name + "' is not found in arguments of function '" + ast->GetName() + "'")();
+        Error(expr->lhs, "'" + name +
+                             "' is not found in arguments of function '" +
+                             ast->GetName() + "'")();
       }
     }
     else {
@@ -118,11 +130,16 @@ ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> as
       auto formaltype = this->evaluate(target->type)->As<ObjType>()->typeinfo;
 
       if (!(*itobj)->type.equals(formaltype)) {
-        Error((*act)->token, "expected '" + formaltype.to_string() + "', but found '" +
-                                 (*itobj)->type.to_string() + "'")
+        Error((*act)->kind == ASTKind::SpecifyArgumentName
+                  ? (*act)->As<Expr>()->rhs
+                  : (*act),
+              "expected '" + formaltype.to_string() + "', but found '" +
+                  (*itobj)->type.to_string() + "'")
             .emit();
 
-        Error(target->type, "specified type here").emit(Error::ErrorLevel::Note).stop();
+        Error(target->type, "specified type here")
+            .emit(Error::ErrorLevel::Note)
+            .stop();
       }
     }
 
@@ -132,7 +149,8 @@ ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> as
 
   for (auto&& arg : ast->arguments) {
     if (!assignmented[arg.get_name()]) {
-      Error(call->token, "argument '" + arg.get_name() + "' was not assignment")();
+      Error(call->token,
+            "argument '" + arg.get_name() + "' was not assignment")();
     }
   }
 
@@ -145,7 +163,8 @@ ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> as
   return ret ? ret : ObjNew<ObjNone>();
 }
 
-Evaluator::LoopContext& Evaluator::EnterLoopStatement(ASTPtr<AST::Statement> ast) {
+Evaluator::LoopContext&
+Evaluator::EnterLoopStatement(ASTPtr<AST::Statement> ast) {
   return this->loop_stack.emplace_back(ast);
 }
 
@@ -157,7 +176,8 @@ Evaluator::LoopContext& Evaluator::GetCurrentLoop() {
   return *this->loop_stack.rbegin();
 }
 
-void Evaluator::adjust_numeric_type_object(ObjPtr<ObjPrimitive> left, ObjPtr<ObjPrimitive> right) {
+void Evaluator::adjust_numeric_type_object(ObjPtr<ObjPrimitive> left,
+                                           ObjPtr<ObjPrimitive> right) {
 
   auto lk = left->type.kind, rk = right->type.kind;
 

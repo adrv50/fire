@@ -1,6 +1,7 @@
 #pragma once
 
 #include <list>
+
 #include "Object.h"
 
 #define EVALUATOR_STACK_MAX_SIZE 416
@@ -23,12 +24,24 @@ static inline ObjPair<T> pair_ptr_cast(ObjPtr<U> a, ObjPtr<U> b) {
 }
 
 template <class T>
-static inline PrimitiveObjPair to_primitive_pair(ObjPtr<T> a,
-                                                 ObjPtr<T> b) {
+static inline PrimitiveObjPair to_primitive_pair(ObjPtr<T> a, ObjPtr<T> b) {
   return pair_ptr_cast<ObjPrimitive>(a, b);
 }
 
 class Evaluator {
+
+  struct FunctionFindResult {
+    ASTVec<AST::Function> userdef;
+    std::vector<builtins::Function const*> builtin;
+
+    auto& append(ASTPtr<AST::Function> ast) {
+      return this->userdef.emplace_back(ast);
+    }
+
+    auto& append(builtins::Function const* builtin) {
+      return this->builtin.emplace_back(builtin);
+    }
+  };
 
   struct EvalStack {
     struct LocalVar {
@@ -57,8 +70,7 @@ class Evaluator {
       return nullptr;
     }
 
-    LocalVar& append(std::string const& name,
-                     ObjPointer val = nullptr) {
+    LocalVar& append(std::string const& name, ObjPointer val = nullptr) {
       return this->localvar.emplace_back(name, val);
     }
 
@@ -92,20 +104,16 @@ public:
 private:
   ObjPointer* find_var(std::string const& name);
 
-  std::pair<ASTPtr<AST::Function>, builtins::Function const*>
-  find_func(std::string const& name);
+  FunctionFindResult find_func(std::string const& name, ASTPtr<AST::CallFunc> call = nullptr);
 
-  std::pair<ASTPtr<AST::Class>, ASTPtr<AST::Enum>>
-  find_class_or_enum(std::string const& name);
+  std::pair<ASTPtr<AST::Class>, ASTPtr<AST::Enum>> find_class_or_enum(std::string const& name);
 
   ASTPtr<AST::Enum> find_enum(std::string const& name);
 
   ObjPtr<ObjInstance> new_class_instance(ASTPtr<AST::Class> ast);
 
-  ObjPointer call_function_ast(bool have_self,
-                               ASTPtr<AST::Function> ast,
-                               ASTPtr<AST::CallFunc> call,
-                               ObjVector& args);
+  ObjPointer call_function_ast(bool have_self, ASTPtr<AST::Function> ast,
+                               ASTPtr<AST::CallFunc> call, ObjVector& args);
 
   EvalStack& GetCurrentStack() {
     return *this->stack.rbegin();
@@ -124,8 +132,7 @@ private:
 
   LoopContext& GetCurrentLoop();
 
-  static void adjust_numeric_type_object(ObjPtr<ObjPrimitive> left,
-                                         ObjPtr<ObjPrimitive> right);
+  static void adjust_numeric_type_object(ObjPtr<ObjPrimitive> left, ObjPtr<ObjPrimitive> right);
 
   static auto adjust_numeric_type_object(ObjPair<ObjPrimitive> pair) {
     adjust_numeric_type_object(pair.first, pair.second);

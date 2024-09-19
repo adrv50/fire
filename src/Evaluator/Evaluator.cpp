@@ -100,10 +100,10 @@ ObjPointer Evaluator::eval_member_access(ASTPtr<AST::Expr> ast) {
 
   ObjPtr<ObjCallable> callable;
 
-  if (auto [fn_ast, blt] = this->find_func(name); fn_ast)
-    callable = ObjNew<ObjCallable>(fn_ast);
-  else if (blt)
-    callable = ObjNew<ObjCallable>(blt);
+  if (auto R = this->find_func(name); R.userdef)
+    callable = ObjNew<ObjCallable>(R.userdef);
+  else if (R.builtin)
+    callable = ObjNew<ObjCallable>(R.builtin);
   else {
     Error(ast->token, "not found the name '" + ast->rhs->token.str + "' in `" +
                           obj->type.to_string() + "` type object.")();
@@ -242,12 +242,12 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     }
 
     // find function
-    if (auto [func, bfn] = this->find_func(name); func) {
-      return ObjNew<ObjCallable>(func);
+    if (auto R = this->find_func(name); R.userdef) {
+      return ObjNew<ObjCallable>(R.userdef);
     }
-    else if (bfn) {
+    else if (R.builtin) {
       // builtin-func
-      return ObjNew<ObjCallable>(bfn);
+      return ObjNew<ObjCallable>(R.builtin);
     }
 
     // find class or enum

@@ -47,6 +47,22 @@ struct TypeInfo {
     return false;
   }
 
+  bool is_numeric_or_char() const {
+    return this->is_numeric() || this->kind == TypeKind::Char;
+  }
+
+  bool is_char_or_str() const {
+    return this->kind == TypeKind::Char || this->kind == TypeKind::String;
+  }
+
+  bool is_hit(std::vector<TypeInfo> types) const {
+    for (auto&& _t : types)
+      if (this->equals(_t))
+        return true;
+
+    return false;
+  }
+
   static std::vector<char const*> get_primitive_names();
 
   static bool is_primitive_name(std::string_view);

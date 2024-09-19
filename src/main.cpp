@@ -67,7 +67,9 @@ void execute_file(std::string const& path) {
   parser::Parser parser{lexer.Lex()};
   auto prg = parser.Parse();
 
-  checker::Checker checker;
+  checker::Checker checker{prg};
+
+  checker.check();
 
   try {
     eval::Evaluator eval{prg};

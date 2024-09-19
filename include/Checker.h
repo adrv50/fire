@@ -1,34 +1,94 @@
 #pragma once
 
+#include <optional>
+
 #include "AST.h"
 
-/*
-・構文木を探索しているとき、class, enum,
-  など型を定義する構文に遭遇したら
-  = リストに名前を追加する
-    --->
-    追加した名前に、付属情報として（どこのスコープに属しているか）を付与。
+namespace fire::sema {
 
+template <class T>
+using vec = std::vector<T>;
 
-・型名として評価される構文に遭遇
-  = 型名の先頭につける、暗黙的に省略されたスコープ名を調べる。
+template <class T>
+using Node = ASTPtr<T>;
 
-    AA::BB に自分が位置するとき、C を見つけたとすると、
-    BB の中で C を探し、なければ AA 、グローバルの順で探す。
+template <class T>
+using WeakVec = vec<std::weak_ptr<T>>;
 
+using TypeVec = vec<TypeInfo>;
 
+using namespace AST;
 
-A::B::C
-  -->  C{ parent={B, A}, ... }
+class Sema {
 
+  enum class NameType {
+    Unknown,
+    Var,
+    Func,
+    Enum,
+    Class,
+  };
 
+  struct NameFindResult {
+    NameType type = NameType::Unknown;
 
-*/
+    std::string name;
 
-namespace fire::checker {
+    Node<VarDef> ast_var_decl; // if variable
+    WeakVec<Function> ast_function;
+    Node<Enum> ast_enum;
+    Node<Class> ast_class;
+  };
 
-class Checker {
+  struct ArgumentCheckResult {
+    enum Result {
+      Ok,
+      TooFewArguments,
+      TooManyArguments,
+      TypeMismatch,
+    };
+
+    Result result;
+    int index;
+
+    ArgumentCheckResult(Result r, int i = 0)
+        : result(r),
+          index(i) {
+    }
+  };
+
+  ArgumentCheckResult
+  check_function_call_parameters(Node<CallFunc> call, bool isVariableArg,
+                                 TypeVec const& formal,
+                                 TypeVec const& actual);
+
 public:
+  Sema(Node<AST::Program> prg);
+
+  void check();
+
+  TypeInfo evaltype(ASTPointer ast);
+
+  NameFindResult find_name(std::string const& name);
+
+private:
+  auto& add_func(Node<Function> f) {
+    return this->functions.emplace_back(f);
+  }
+
+  auto& add_enum(Node<Enum> e) {
+    return this->enums.emplace_back(e);
+  }
+
+  auto& add_class(Node<Class> c) {
+    return this->classes.emplace_back(c);
+  }
+
+  Node<Program> root;
+
+  WeakVec<Function> functions;
+  WeakVec<Enum> enums;
+  WeakVec<Class> classes;
 };
 
-} // namespace fire::checker
+} // namespace fire::sema
