@@ -96,7 +96,6 @@ int Sema::_construct_scope_context(ScopeContext& S, ASTPointer ast) {
   }
 
   case ASTKind::Enum:
-    alert;
     this->add_enum(ASTCast<AST::Enum>(ast));
     break;
 
@@ -343,14 +342,16 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
     auto idinfo = this->get_identifier_info(scoperesol);
 
     switch (idinfo.result.type) {
-    case NameType::Var:
+    case NameType::Var: {
       todo_impl;
       break;
+    }
 
     case NameType::Enumerator: {
+      ast->kind = Kind::Enumerator;
+
       TypeInfo type = TypeKind::Enumerator;
       type.name = scoperesol->first->GetName();
-      alertmsg(type.name);
       return type;
     }
 
@@ -365,7 +366,89 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
   }
 
   case Kind::CallFunc: {
-    auto x = ASTCast<AST::CallFunc>(ast);
+    auto call = ASTCast<AST::CallFunc>(ast);
+
+    auto expr = call->expr;
+
+    TypeInfo type = TypeKind::Function;
+
+    TypeVec arg_types;
+
+    for (auto&& arg : call->args) {
+      arg_types.emplace_back(this->evaltype(arg));
+    }
+
+    if (expr->kind == Kind::Identifier || expr->kind == Kind::ScopeResol) {
+      IdentifierInfo idinfo =
+          expr->kind == Kind::Identifier
+              ? this->get_identifier_info(ASTCast<AST::Identifier>(expr))
+              : this->get_identifier_info(ASTCast<AST::ScopeResol>(expr));
+
+      if (idinfo.result.type != NameType::Func) {
+        Error(expr, "'" + idinfo.to_string() + "' is not a function")();
+      }
+
+      ASTVec<AST::Function> candidates;
+
+      for (auto&& func : idinfo.result.functions) {
+
+        TypeVec formal_arg_types;
+
+        for (auto&& arg : func->arguments) {
+          formal_arg_types.emplace_back(this->evaltype(arg.type));
+        }
+
+        auto res = this->check_function_call_parameters(
+            call, func->is_var_arg, formal_arg_types, arg_types);
+
+        if (res.result == ArgumentCheckResult::Ok)
+          candidates.emplace_back(func);
+
+        else if (idinfo.result.functions.size() == 1) {
+          switch (res.result) {
+          case ArgumentCheckResult::TooFewArguments:
+            Error(call->token, "too few arguments").emit();
+            break;
+
+          case ArgumentCheckResult::TooManyArguments:
+            Error(call->token, "too many arguments").emit();
+            break;
+
+          case ArgumentCheckResult::TypeMismatch:
+            Error(call->args[res.index], "type mismatch").emit();
+
+            Error(func->arguments[res.index].type,
+                  "declared type as '" +
+                      formal_arg_types[res.index].to_string() +
+                      "', but given '" + arg_types[res.index].to_string() +
+                      "'")
+                .emit(Error::ErrorLevel::Note);
+            break;
+          }
+
+          return this->evaltype(func->return_type);
+        }
+      }
+
+      if (candidates.empty()) {
+        std::string arg_types_str;
+
+        for (int i = 0; i < arg_types.size(); i++) {
+          arg_types_str += arg_types[i].to_string();
+          if (i + 1 < arg_types.size())
+            arg_types_str += ", ";
+        }
+
+        Error(expr, "function '" + idinfo.to_string() + "(" +
+                        arg_types_str + ")" + "' is not defined")
+            .emit();
+      }
+
+      if (candidates.size() >= 2)
+        Error(expr, "eeee555555")();
+
+      return this->evaltype(candidates[0]->return_type);
+    }
 
     todo_impl;
 

@@ -184,15 +184,11 @@ class Sema {
     for (auto&& id : ast->idlist) {
       auto name = id->GetName();
 
-      alertmsg(name);
-
       switch (info.result.type) {
       case NameType::Enum: {
         auto _enum = info.result.ast_enum;
 
         for (int _idx = 0; auto&& _e : _enum->enumerators->list) {
-          alertmsg(_e->token.str);
-
           if (_e->token.str == name) {
             info.ast = id;
 
@@ -201,7 +197,7 @@ class Sema {
             info.result.enumerator_index = _idx;
             info.result.name = name;
 
-            goto _found_enumerator;
+            goto _loop_continue;
           }
 
           _idx++;
@@ -210,18 +206,19 @@ class Sema {
         Error(id->token, "enumerator '" + id->GetName() +
                              "' is not found in enum '" +
                              _enum->GetName() + "'")();
-
-      _found_enumerator:
-        break;
       }
 
-      case NameType::Class:
+      case NameType::Class: {
+        // auto _class = info.result.ast_class;
+
         todo_impl;
+      }
 
       default:
         Error(id->token, "'" + idname + "' is not enum or class")();
       }
 
+    _loop_continue:;
       idname += "::" + name;
     }
 
