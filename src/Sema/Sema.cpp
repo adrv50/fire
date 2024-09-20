@@ -63,16 +63,6 @@ int Sema::_construct_scope_context(ScopeContext& S, ASTPointer ast) {
     break;
   }
 
-  case ASTKind::Function: {
-    auto astfunc = ASTCast<Function>(ast);
-    auto c = new ScopeContext(*this, astfunc->block, &S);
-
-    _construct_scope_context(*S.child_scopes.emplace_back(c),
-                             astfunc->block);
-
-    break;
-  }
-
   case ASTKind::Block: {
     auto x = ASTCast<Block>(ast);
 
@@ -83,6 +73,8 @@ int Sema::_construct_scope_context(ScopeContext& S, ASTPointer ast) {
       switch (y->kind) {
       case ASTKind::Vardef:
       case ASTKind::Function:
+      case ASTKind::Enum:
+      case ASTKind::Class:
         _construct_scope_context(*c, y);
         break;
       }
@@ -90,6 +82,27 @@ int Sema::_construct_scope_context(ScopeContext& S, ASTPointer ast) {
 
     break;
   }
+
+  case ASTKind::Function: {
+    auto astfunc = ASTCast<Function>(ast);
+    auto c = new ScopeContext(*this, astfunc->block, &S);
+
+    _construct_scope_context(*S.child_scopes.emplace_back(c),
+                             astfunc->block);
+
+    this->add_func(astfunc);
+
+    break;
+  }
+
+  case ASTKind::Enum:
+    alert;
+    this->add_enum(ASTCast<AST::Enum>(ast));
+    break;
+
+  case ASTKind::Class:
+    this->add_class(ASTCast<AST::Class>(ast));
+    break;
   }
 
   return 0;
@@ -175,12 +188,14 @@ void Sema::check(ASTPointer ast) {
   case ASTKind::Function: {
     auto x = ASTCast<AST::Function>(ast);
 
-    SemaFunction& func = this->add_func(x);
+    auto func = this->get_func(x);
 
-    func.result_type = this->evaltype(x->return_type);
+    assert(func);
+
+    func->result_type = this->evaltype(x->return_type);
 
     for (auto&& arg : x->arguments)
-      func.arg_types.emplace_back(this->evaltype(arg.type));
+      func->arg_types.emplace_back(this->evaltype(arg.type));
 
     this->check(x->block);
 
@@ -217,6 +232,10 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
     return {};
 
   switch (ast->kind) {
+  case Kind::Enum:
+  case Kind::Function:
+    return {};
+
   case Kind::TypeName: {
     // clang-format off
     static std::map<TypeKind, char const*> kind_name_map {
@@ -320,10 +339,23 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
   }
 
   case Kind::ScopeResol: {
-    auto idinfo = this->get_identifier_info(ASTCast<AST::ScopeResol>(ast));
+    auto scoperesol = ASTCast<AST::ScopeResol>(ast);
+    auto idinfo = this->get_identifier_info(scoperesol);
 
     switch (idinfo.result.type) {
     case NameType::Var:
+      todo_impl;
+      break;
+
+    case NameType::Enumerator: {
+      TypeInfo type = TypeKind::Enumerator;
+      type.name = scoperesol->first->GetName();
+      alertmsg(type.name);
+      return type;
+    }
+
+    case NameType::Unknown:
+      todo_impl;
       break;
     }
 

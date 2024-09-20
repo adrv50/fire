@@ -134,12 +134,4 @@ ASTPtr<Class> Class::New(Token tok, Token name,
   return ast;
 }
 
-ASTPtr<Namespace> Namespace::New(Token tok, Token name) {
-  auto x = ASTNew<Namespace>(tok);
-
-  x->nametok = name;
-
-  return x;
-}
-
 } // namespace fire::AST

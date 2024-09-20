@@ -478,14 +478,6 @@ struct Class : Templatable {
   }
 };
 
-struct Namespace : Block {
-  Token nametok;
-
-  static ASTPtr<Namespace> New(Token tok, Token name);
-
-  using Block::Block;
-};
-
 } // namespace AST
 
 } // namespace fire

@@ -5,6 +5,7 @@
 #include <tuple>
 
 #include "AST.h"
+#include "Error.h"
 
 namespace fire::semantics_checker {
 
@@ -92,10 +93,10 @@ class Sema {
 
     ASTVec<Function> functions;
 
-    ASTPtr<Enum> ast_enum;
-    ASTPtr<Class> ast_class;
+    ASTPtr<Enum> ast_enum; // NameType::Enum
+    int enumerator_index;  // NameType::Enumerator
 
-    ASTPtr<Namespace> ast_namespace;
+    ASTPtr<Class> ast_class;
   };
 
   ScopeContext::LocalVar* _find_variable(string const& name);
@@ -178,17 +179,50 @@ class Sema {
   IdentifierInfo get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
     auto info = this->get_identifier_info(ast->first);
 
+    std::string idname = ast->first->GetName();
+
     for (auto&& id : ast->idlist) {
+      auto name = id->GetName();
+
+      alertmsg(name);
+
       switch (info.result.type) {
-      case NameType::Enum:
-        todo_impl;
+      case NameType::Enum: {
+        auto _enum = info.result.ast_enum;
+
+        for (int _idx = 0; auto&& _e : _enum->enumerators->list) {
+          alertmsg(_e->token.str);
+
+          if (_e->token.str == name) {
+            info.ast = id;
+
+            info.result.type = NameType::Enumerator;
+            info.result.ast_enum = _enum;
+            info.result.enumerator_index = _idx;
+            info.result.name = name;
+
+            goto _found_enumerator;
+          }
+
+          _idx++;
+        }
+
+        Error(id->token, "enumerator '" + id->GetName() +
+                             "' is not found in enum '" +
+                             _enum->GetName() + "'")();
+
+      _found_enumerator:
+        break;
+      }
 
       case NameType::Class:
         todo_impl;
 
       default:
-        return info;
+        Error(id->token, "'" + idname + "' is not enum or class")();
       }
+
+      idname += "::" + name;
     }
 
     return info;
@@ -264,6 +298,14 @@ private:
     x.result_type = this->evaltype(f->return_type);
 
     return x;
+  }
+
+  SemaFunction* get_func(ASTPtr<Function> f) {
+    for (auto&& sf : this->functions)
+      if (sf.func == f)
+        return &sf;
+
+    return nullptr;
   }
 
   auto& add_enum(ASTPtr<Enum> e) {
