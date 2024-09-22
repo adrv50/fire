@@ -67,9 +67,13 @@ ASTPointer Parser::Stmt() {
   }
 
   if (this->eat("return")) {
-    auto ast = AST::Statement::New(ASTKind::Return, tok, this->Expr());
+    if (this->eat(";")) {
+      return AST::Statement::New(ASTKind::Return, tok);
+    }
 
+    auto ast = AST::Statement::New(ASTKind::Return, tok, this->Expr());
     this->expect(";");
+
     return ast;
   }
 

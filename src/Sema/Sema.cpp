@@ -276,8 +276,59 @@ void Sema::check(ASTPointer ast) {
 
     func->result_type = this->evaltype(x->return_type);
 
-    for (auto&& arg : x->arguments)
+    AST::walk_ast(func->func->block, [&func](AST::ASTWalkerLocation loc,
+                                             ASTPointer _ast) {
+      if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
+        func->return_stmt_list.emplace_back(ASTCast<AST::Statement>(_ast));
+      }
+    });
+
+    for (auto&& arg : x->arguments) {
       func->arg_types.emplace_back(this->evaltype(arg.type));
+    }
+
+    for (auto&& ret : func->return_stmt_list) {
+      auto expr = ret->As<AST::Statement>()->get_expr();
+
+      if (auto type = this->evaltype(expr);
+          !type.equals(func->result_type)) {
+        if (func->result_type.equals(TypeKind::None)) {
+          Error(ret->token, "expected ';' after this token")();
+        }
+        else if (!expr) {
+          Error(ret->token, "expected '" + func->result_type.to_string() +
+                                "' type expression after this token")
+              .emit();
+        }
+        else {
+          Error(expr, "expected '" + func->result_type.to_string() +
+                          "' type expression, but found '" +
+                          type.to_string() + "'")
+              .emit();
+        }
+
+        goto _return_type_note;
+      }
+    }
+
+    if (!func->result_type.equals(TypeKind::None)) {
+      if (func->return_stmt_list.empty()) {
+        Error(func->func->token, "function must return value of type '" +
+                                     func->result_type.to_string() +
+                                     "', but don't return "
+                                     "anything.")
+            .emit();
+
+      _return_type_note:
+        Error(func->func->return_type, "specified here")
+            .emit(Error::ErrorLevel::Note);
+      }
+      else if (auto block = func->func->block;
+               (*block->list.rbegin())->kind != ASTKind::Return) {
+        Error(block->endtok,
+              "expected return-statement before this token")();
+      }
+    }
 
     this->check(x->block);
 

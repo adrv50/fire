@@ -160,6 +160,7 @@ class Sema {
 
     vec<ASTPtr<AST::Statement>>
         return_stmt_list; // use to check return-type specification.
+                          // (append only that contains a expression)
 
     SemaFunction(ASTPtr<Function> func);
   };

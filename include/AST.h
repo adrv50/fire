@@ -493,7 +493,7 @@ enum ASTWalkerLocation {
 };
 
 void walk_ast(ASTPointer ast,
-              std::function<std::any(ASTWalkerLocation, ASTPointer)> fn);
+              std::function<void(ASTWalkerLocation, ASTPointer)> fn);
 
 } // namespace AST
 
