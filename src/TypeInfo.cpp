@@ -38,7 +38,7 @@ bool TypeInfo::equals(TypeInfo const& type) const {
   return true;
 }
 
-std::string TypeInfo::to_string() const {
+string TypeInfo::to_string() const {
   // clang-format off
   static std::map<TypeKind, char const*> kind_name_map {
     { TypeKind::None,       "none" },
@@ -61,7 +61,7 @@ std::string TypeInfo::to_string() const {
 
   debug(assert(kind_name_map.contains(this->kind)));
 
-  std::string ret;
+  string ret;
 
   switch (this->kind) {
   case TypeKind::Instance:

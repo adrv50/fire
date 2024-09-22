@@ -215,17 +215,17 @@ struct Array : Base {
 };
 
 struct CallFunc : Base {
-  ASTPointer expr; // left side
+  ASTPointer callee; // left side, evaluated to be callable object.
   ASTVector args;
 
   ASTPtr<Function> callee_ast = nullptr;
   builtins::Function const* callee_builtin = nullptr;
 
-  static ASTPtr<CallFunc> New(ASTPointer expr, ASTVector args = {});
+  static ASTPtr<CallFunc> New(ASTPointer callee, ASTVector args = {});
 
-  CallFunc(ASTPointer expr, ASTVector args = {})
-      : Base(ASTKind::CallFunc, expr->token, expr->token),
-        expr(expr),
+  CallFunc(ASTPointer callee, ASTVector args = {})
+      : Base(ASTKind::CallFunc, callee->token, callee->token),
+        callee(callee),
         args(std::move(args)) {
   }
 };
@@ -346,6 +346,7 @@ struct Templatable : Named {
   Token tok_template;
 
   bool is_templated = false;
+
   ASTVec<TypeName> template_params;
 
 protected:
@@ -477,6 +478,8 @@ struct Class : Templatable {
         block(Block::New("")) {
   }
 };
+
+void walk_ast(ASTPointer ast, std::function<std::any(ASTPointer)> fn);
 
 } // namespace AST
 

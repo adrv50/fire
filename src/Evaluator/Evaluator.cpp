@@ -281,7 +281,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   case Kind::CallFunc: {
     auto cf = ASTCast<CallFunc>(ast);
 
-    auto obj = this->evaluate(cf->expr);
+    auto obj = this->evaluate(cf->callee);
 
     ObjVector args;
 
@@ -316,7 +316,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     // not callable object --> error
     if (!obj->is_callable()) {
-      Error(cf->expr->token,
+      Error(cf->callee->token,
             "`" + obj->type.to_string() + "` is not callable")();
     }
 

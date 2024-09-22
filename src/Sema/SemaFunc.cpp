@@ -2,14 +2,19 @@
 #include <sstream>
 
 #include "alert.h"
-#include "AST.h"
+#include "Utils.h"
 
-#include "Sema.h"
+#include "AST.h"
 #include "Error.h"
+#include "Sema.h"
 
 #define foreach(_Name, _Content) for (auto&& _Name : _Content)
 
 namespace fire::semantics_checker {
+
+Sema::SemaFunction::SemaFunction(ASTPtr<AST::Function> func)
+    : func(func) {
+}
 
 Sema::ArgumentCheckResult Sema::check_function_call_parameters(
     ASTPtr<CallFunc> call, bool isVariableArg, TypeVec const& formal,
@@ -24,27 +29,15 @@ Sema::ArgumentCheckResult Sema::check_function_call_parameters(
     return ArgumentCheckResult::TooManyArguments;
   }
 
-  for (auto it = formal.begin(); auto&& act : actual)
-    if (!it->equals(act))
+  for (auto f = formal.begin(), a = actual.begin(); f != formal.end();
+       f++, a++) {
+    if (!f->equals(*a)) {
       return {ArgumentCheckResult::TypeMismatch,
-              static_cast<int>(it - formal.begin())};
+              static_cast<int>(f - formal.begin())};
+    }
+  }
 
   return ArgumentCheckResult::Ok;
-}
-
-Sema::CallableExprResult Sema::check_as_callable(ASTPointer ast) {
-
-  CallableExprResult result = {.ast = ast};
-
-  switch (ast->kind) {
-  case ASTKind::Identifier: {
-  }
-
-  default:
-    todo_impl;
-  }
-
-  return result;
 }
 
 } // namespace fire::semantics_checker

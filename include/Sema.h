@@ -9,8 +9,6 @@
 
 namespace fire::semantics_checker {
 
-using std::string;
-
 template <class T>
 using vec = std::vector<T>;
 
@@ -73,6 +71,33 @@ struct ScopeContext {
   }
 };
 
+struct ScopeContextPointer {
+
+  ScopeContext* get() {
+    return this->_ptr;
+  }
+
+  ScopeContext* enter(ASTPtr<Block> block) {
+    for (auto&& c : this->_ptr->child_scopes) {
+      if (c->ast == block)
+        return this->_ptr = c;
+    }
+
+    return nullptr;
+  }
+
+  ScopeContext* leave() {
+    return this->_ptr = this->_ptr->parent;
+  }
+
+  ScopeContextPointer(ScopeContext* p)
+      : _ptr(p) {
+  }
+
+private:
+  ScopeContext* _ptr;
+};
+
 class Sema {
 
   enum class NameType {
@@ -88,23 +113,16 @@ class Sema {
   struct NameFindResult {
     NameType type = NameType::Unknown;
 
-    std::string name;
+    string name;
     ScopeContext::LocalVar* lvar = nullptr; // if variable
 
     ASTVec<Function> functions;
 
-    ASTPtr<Enum> ast_enum; // NameType::Enum
-    int enumerator_index;  // NameType::Enumerator
+    ASTPtr<Enum> ast_enum = nullptr; // NameType::Enum
+    int enumerator_index = 0;        // NameType::Enumerator
 
     ASTPtr<Class> ast_class;
   };
-
-  ScopeContext::LocalVar* _find_variable(string const& name);
-  ASTVec<Function> _find_func(string const& name);
-  ASTPtr<Enum> _find_enum(string const& name);
-  ASTPtr<Class> _find_class(string const& name);
-
-  NameFindResult find_name(string const& name);
 
   struct ArgumentCheckResult {
     enum Result {
@@ -123,20 +141,6 @@ class Sema {
     }
   };
 
-  ArgumentCheckResult
-  check_function_call_parameters(ASTPtr<CallFunc> call, bool isVariableArg,
-                                 TypeVec const& formal,
-                                 TypeVec const& actual);
-
-  struct CallableExprResult {
-    ASTPtr<Function> func_userdef = nullptr;
-    builtins::Function const* func_builtin = nullptr;
-
-    ASTPointer ast;
-  };
-
-  CallableExprResult check_as_callable(ASTPointer ast);
-
   struct IdentifierInfo {
     ASTPtr<AST::Identifier> ast;
 
@@ -144,86 +148,36 @@ class Sema {
 
     NameFindResult result;
 
-    std::string to_string() const {
-      std::string s = this->ast->GetName();
-
-      if (!this->id_params.empty()) {
-        s += "<";
-
-        for (int i = 0; i < this->id_params.size(); i++) {
-          s += this->id_params[i].to_string();
-
-          if (i + 1 < this->id_params.size())
-            s += ", ";
-        }
-
-        s += ">";
-      }
-
-      return s;
-    }
+    string to_string() const;
   };
 
-  IdentifierInfo get_identifier_info(ASTPtr<AST::Identifier> ast) {
-    IdentifierInfo id_info = {.ast = ast};
+  struct SemaFunction {
+    ASTPtr<Function> func;
 
-    id_info.result = this->find_name(ast->GetName());
+    vec<TypeInfo> arg_types;
 
-    for (auto&& x : ast->id_params)
-      id_info.id_params.emplace_back(this->evaltype(x));
+    TypeInfo result_type;
 
-    return id_info;
-  }
+    vec<ASTPtr<AST::Statement>>
+        return_stmt_list; // use to check return-type specification.
 
-  // scope-resolution
-  IdentifierInfo get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
-    auto info = this->get_identifier_info(ast->first);
+    SemaFunction(ASTPtr<Function> func);
+  };
 
-    std::string idname = ast->first->GetName();
+  ArgumentCheckResult
+  check_function_call_parameters(ASTPtr<CallFunc> call, bool isVariableArg,
+                                 TypeVec const& formal,
+                                 TypeVec const& actual);
 
-    for (auto&& id : ast->idlist) {
-      auto name = id->GetName();
+  ScopeContext::LocalVar* _find_variable(string const& name);
+  ASTVec<Function> _find_func(string const& name);
+  ASTPtr<Enum> _find_enum(string const& name);
+  ASTPtr<Class> _find_class(string const& name);
 
-      switch (info.result.type) {
-      case NameType::Enum: {
-        auto _enum = info.result.ast_enum;
+  NameFindResult find_name(string const& name);
 
-        for (int _idx = 0; auto&& _e : _enum->enumerators->list) {
-          if (_e->token.str == name) {
-            info.ast = id;
-
-            info.result.type = NameType::Enumerator;
-            info.result.ast_enum = _enum;
-            info.result.enumerator_index = _idx;
-            info.result.name = name;
-
-            goto _loop_continue;
-          }
-
-          _idx++;
-        }
-
-        Error(id->token, "enumerator '" + id->GetName() +
-                             "' is not found in enum '" +
-                             _enum->GetName() + "'")();
-      }
-
-      case NameType::Class: {
-        // auto _class = info.result.ast_class;
-
-        todo_impl;
-      }
-
-      default:
-        Error(id->token, "'" + idname + "' is not enum or class")();
-      }
-
-    _loop_continue:;
-      idname += "::" + name;
-    }
-
-    return info;
-  }
+  IdentifierInfo get_identifier_info(ASTPtr<AST::Identifier> ast);
+  IdentifierInfo get_identifier_info(ASTPtr<AST::ScopeResol> ast);
 
 public:
   Sema(ASTPtr<AST::Block> prg);
@@ -235,33 +189,6 @@ public:
   TypeInfo evaltype(ASTPointer ast);
 
 private:
-  struct ScopeContextPointer {
-
-    ScopeContext* get() {
-      return this->_ptr;
-    }
-
-    ScopeContext* enter(ASTPtr<Block> block) {
-      for (auto&& c : this->_ptr->child_scopes) {
-        if (c->ast == block)
-          return this->_ptr = c;
-      }
-
-      return nullptr;
-    }
-
-    ScopeContext* leave() {
-      return this->_ptr = this->_ptr->parent;
-    }
-
-    ScopeContextPointer(ScopeContext* p)
-        : _ptr(p) {
-    }
-
-  private:
-    ScopeContext* _ptr;
-  };
-
   int _construct_scope_context(ScopeContext& S, ASTPointer ast);
 
   ASTPtr<Block> root;
@@ -269,24 +196,12 @@ private:
 
   ScopeContextPointer scope_ptr = &_scope_context;
 
-  struct SemaFunction {
-    ASTPtr<Function> func;
-
-    vec<TypeInfo> arg_types;
-
-    TypeInfo result_type;
-
-    SemaFunction(ASTPtr<Function> func)
-        : func(func) {
-    }
-  };
-
   vec<SemaFunction> functions;
 
   ASTVec<Enum> enums;
   ASTVec<Class> classes;
 
-  auto& add_func(ASTPtr<Function> f) {
+  SemaFunction& add_func(ASTPtr<Function> f) {
     auto& x = this->functions.emplace_back(f);
 
     for (auto&& arg : f->arguments)
@@ -305,11 +220,11 @@ private:
     return nullptr;
   }
 
-  auto& add_enum(ASTPtr<Enum> e) {
+  ASTPtr<Enum>& add_enum(ASTPtr<Enum> e) {
     return this->enums.emplace_back(e);
   }
 
-  auto& add_class(ASTPtr<Class> c) {
+  ASTPtr<Class>& add_class(ASTPtr<Class> c) {
     return this->classes.emplace_back(c);
   }
 };

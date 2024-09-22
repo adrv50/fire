@@ -107,7 +107,7 @@ int Sema::_construct_scope_context(ScopeContext& S, ASTPointer ast) {
   return 0;
 }
 
-ScopeContext::LocalVar* Sema::_find_variable(std::string const& name) {
+ScopeContext::LocalVar* Sema::_find_variable(string const& name) {
   auto scope = this->scope_ptr.get();
 
   for (; scope->parent; scope = scope->parent) {
@@ -120,7 +120,7 @@ ScopeContext::LocalVar* Sema::_find_variable(std::string const& name) {
   return nullptr;
 }
 
-ASTVec<Function> Sema::_find_func(std::string const& name) {
+ASTVec<Function> Sema::_find_func(string const& name) {
   ASTVec<Function> vec;
 
   for (auto&& f : this->functions)
@@ -146,7 +146,7 @@ ASTPtr<Class> Sema::_find_class(string const& name) {
   return nullptr;
 }
 
-Sema::NameFindResult Sema::find_name(std::string const& name) {
+Sema::NameFindResult Sema::find_name(string const& name) {
 
   NameFindResult result;
 
@@ -167,6 +167,88 @@ Sema::NameFindResult Sema::find_name(std::string const& name) {
     result.type = NameType::Class;
 
   return result;
+}
+
+string Sema::IdentifierInfo::to_string() const {
+  string s = this->ast->GetName();
+
+  if (!this->id_params.empty()) {
+    s += "<";
+
+    for (int i = 0; i < this->id_params.size(); i++) {
+      s += this->id_params[i].to_string();
+
+      if (i + 1 < this->id_params.size())
+        s += ", ";
+    }
+
+    s += ">";
+  }
+
+  return s;
+}
+
+Sema::IdentifierInfo
+Sema::get_identifier_info(ASTPtr<AST::Identifier> ast) {
+  IdentifierInfo id_info = {.ast = ast};
+
+  id_info.result = this->find_name(ast->GetName());
+
+  for (auto&& x : ast->id_params)
+    id_info.id_params.emplace_back(this->evaltype(x));
+
+  return id_info;
+}
+
+// scope-resolution
+Sema::IdentifierInfo
+Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
+  auto info = this->get_identifier_info(ast->first);
+
+  string idname = ast->first->GetName();
+
+  for (auto&& id : ast->idlist) {
+    auto name = id->GetName();
+
+    switch (info.result.type) {
+    case NameType::Enum: {
+      auto _enum = info.result.ast_enum;
+
+      for (int _idx = 0; auto&& _e : _enum->enumerators->list) {
+        if (_e->token.str == name) {
+          info.ast = id;
+
+          info.result.type = NameType::Enumerator;
+          info.result.ast_enum = _enum;
+          info.result.enumerator_index = _idx;
+          info.result.name = name;
+
+          goto _loop_continue;
+        }
+
+        _idx++;
+      }
+
+      Error(id->token, "enumerator '" + id->GetName() +
+                           "' is not found in enum '" + _enum->GetName() +
+                           "'")();
+    }
+
+    case NameType::Class: {
+      // auto _class = info.result.ast_class;
+
+      todo_impl;
+    }
+
+    default:
+      Error(id->token, "'" + idname + "' is not enum or class")();
+    }
+
+  _loop_continue:;
+    idname += "::" + name;
+  }
+
+  return info;
 }
 
 void Sema::check_full() {
@@ -215,6 +297,9 @@ void Sema::check(ASTPointer ast) {
   }
 
   case ASTKind::Vardef: {
+
+    todo_impl;
+
     break;
   }
 
@@ -266,8 +351,8 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
         if (auto c = type.needed_param_count();
             c == 0 && x->type_params.size() >= 1) {
-          Error(x->token, "type '" + std::string(val) +
-                              "' cannot have parameters")();
+          Error(x->token,
+                "type '" + string(val) + "' cannot have parameters")();
         }
         else if (c >= 1) {
           if (x->type_params.size() < c)
@@ -368,29 +453,32 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
   case Kind::CallFunc: {
     auto call = ASTCast<AST::CallFunc>(ast);
 
-    auto expr = call->expr;
+    auto callee = call->callee;
 
     TypeInfo type = TypeKind::Function;
 
     TypeVec arg_types;
 
-    for (auto&& arg : call->args) {
+    for (ASTPointer arg : call->args) {
       arg_types.emplace_back(this->evaltype(arg));
     }
 
-    if (expr->kind == Kind::Identifier || expr->kind == Kind::ScopeResol) {
+    if (callee->kind == Kind::Identifier ||
+        callee->kind == Kind::ScopeResol) {
       IdentifierInfo idinfo =
-          expr->kind == Kind::Identifier
-              ? this->get_identifier_info(ASTCast<AST::Identifier>(expr))
-              : this->get_identifier_info(ASTCast<AST::ScopeResol>(expr));
+          callee->kind == Kind::Identifier
+              ? this->get_identifier_info(ASTCast<AST::Identifier>(callee))
+              : this->get_identifier_info(
+                    ASTCast<AST::ScopeResol>(callee));
 
       if (idinfo.result.type != NameType::Func) {
-        Error(expr, "'" + idinfo.to_string() + "' is not a function")();
+        Error(callee, "'" + idinfo.to_string() + "' is not a function")();
       }
 
       ASTVec<AST::Function> candidates;
+      ASTVec<AST::Function> const& hits = idinfo.result.functions;
 
-      for (auto&& func : idinfo.result.functions) {
+      for (auto&& func : hits) {
 
         TypeVec formal_arg_types;
 
@@ -404,17 +492,21 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
         if (res.result == ArgumentCheckResult::Ok)
           candidates.emplace_back(func);
 
-        else if (idinfo.result.functions.size() == 1) {
+        // ヒットした数が 1
+        else if (hits.size() == 1) {
           switch (res.result) {
           case ArgumentCheckResult::TooFewArguments:
+            alert;
             Error(call->token, "too few arguments").emit();
             break;
 
           case ArgumentCheckResult::TooManyArguments:
+            alert;
             Error(call->token, "too many arguments").emit();
             break;
 
           case ArgumentCheckResult::TypeMismatch:
+            alert;
             Error(call->args[res.index], "type mismatch").emit();
 
             Error(func->arguments[res.index].type,
@@ -428,10 +520,11 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
           return this->evaltype(func->return_type);
         }
-      }
+      } // for (auto&& func : hits)
 
+      // 一致する候補がない
       if (candidates.empty()) {
-        std::string arg_types_str;
+        string arg_types_str;
 
         for (int i = 0; i < arg_types.size(); i++) {
           arg_types_str += arg_types[i].to_string();
@@ -439,16 +532,19 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
             arg_types_str += ", ";
         }
 
-        Error(expr, "function '" + idinfo.to_string() + "(" +
-                        arg_types_str + ")" + "' is not defined")
+        Error(callee, "function '" + idinfo.to_string() + "(" +
+                          arg_types_str + ")" + "' is not defined")
             .emit();
       }
 
-      if (candidates.size() >= 2)
-        Error(expr, "eeee555555")();
+      if (candidates.size() >= 2) {
+        Error(callee,
+              "call function '" + idinfo.to_string() + "' is ambigious")();
+      }
 
       return this->evaltype(candidates[0]->return_type);
-    }
+
+    } // if Identifier or ScopeResol
 
     todo_impl;
 
