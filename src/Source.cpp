@@ -21,6 +21,9 @@ std::vector<SourceStorage::LineRange>
 SourceStorage::GetLinesOfAST(ASTPointer ast) {
   std::vector<LineRange> lines;
 
+  (void)ast;
+  todo_impl;
+
   return lines;
 }
 

@@ -155,7 +155,7 @@ void Lexer::pass_space() {
 }
 
 bool Lexer::match(std::string_view str) {
-  return this->position + str.length() <= this->length &&
+  return (i64)(this->position + str.length()) <= this->length &&
          this->trim(str.length()) == str;
 }
 

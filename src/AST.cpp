@@ -30,6 +30,10 @@ Statement* Base::as_stmt() {
 }
 
 i64 Base::GetChilds(ASTVector& out) const {
+
+  (void)out;
+  todo_impl;
+
   return 0;
 }
 

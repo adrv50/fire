@@ -5,6 +5,7 @@
 #include <concepts>
 #include <string>
 #include <fstream>
+#include <functional>
 
 #include "Object.h"
 #include "Token.h"
@@ -17,9 +18,14 @@ enum class ASTKind {
   Identifier, // => AST::Identifier
   ScopeResol, // => AST::ScopeResol
 
-  Variable,   //
-  FuncName,   //
-  Enumerator, // AST::Identifier
+  //
+  // /--------------
+  //  replaced to this kind from Identifier or ScopeResol in
+  //  Semantics-Checker. Don't use this.
+  Variable,
+  FuncName,
+  Enumerator,
+  // ------------------/
 
   Array,
 
@@ -27,9 +33,11 @@ enum class ASTKind {
   MemberAccess,
   CallFunc,
 
-  SpecifyArgumentName, // func(a: 2, b: "aiue")
+  //
+  // in call-func expr.
+  SpecifyArgumentName, // => AST::Expr
 
-  Not, // !
+  Not, // => todo impl.
 
   Mul,
   Div,
@@ -93,6 +101,8 @@ struct Base {
   bool is_named = false;
   bool is_expr = false;
 
+  ASTKind _constructed_as;
+
   template <class T>
   T* As() {
     return static_cast<T*>(this);
@@ -130,10 +140,8 @@ protected:
   Base(ASTKind kind, Token token, Token endtok)
       : kind(kind),
         token(token),
-        endtok(endtok) {
-
-    // if (this->kind == ASTKind::Variable)
-    //   this->kind = ASTKind::Identifier;
+        endtok(endtok),
+        _constructed_as(kind) {
   }
 };
 
@@ -479,7 +487,13 @@ struct Class : Templatable {
   }
 };
 
-void walk_ast(ASTPointer ast, std::function<std::any(ASTPointer)> fn);
+enum ASTWalkerLocation {
+  AW_Begin,
+  AW_End,
+};
+
+void walk_ast(ASTPointer ast,
+              std::function<std::any(ASTWalkerLocation, ASTPointer)> fn);
 
 } // namespace AST
 

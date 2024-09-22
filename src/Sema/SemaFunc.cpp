@@ -20,6 +20,8 @@ Sema::ArgumentCheckResult Sema::check_function_call_parameters(
     ASTPtr<CallFunc> call, bool isVariableArg, TypeVec const& formal,
     TypeVec const& actual) {
 
+  (void)call;
+
   if (actual.size() < formal.size()) // 少なすぎる
     return ArgumentCheckResult::TooFewArguments;
 

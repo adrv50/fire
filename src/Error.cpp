@@ -64,10 +64,12 @@ struct line_data_wrapper_t {
     if (this->src) {
       std::stringstream ss;
 
-      ss << utils::Format(
-                utils::Format("%s%% %dd", is_main ? COL_LINENUM : COL_GRAY, LINENUM_WIDTH),
-                this->linenum)
-         << COL_BORDER_LINE << " | " << (is_main ? COL_BOLD COL_WHITE : COL_UNBOLD COL_GRAY)
+      ss << utils::Format(utils::Format("%s%% %dd",
+                                        is_main ? COL_LINENUM : COL_GRAY,
+                                        LINENUM_WIDTH),
+                          this->linenum)
+         << COL_BORDER_LINE << " | "
+         << (is_main ? COL_BOLD COL_WHITE : COL_UNBOLD COL_GRAY)
          << this->view;
 
       return ss.str();
@@ -81,7 +83,8 @@ Error& Error::emit(Error::ErrorLevel lv) {
 
   auto& err_token = this->loc_ast ? this->loc_ast->token : this->loc_token;
 
-  line_data_wrapper_t line_top, line_bottom, line_err = line_data_wrapper_t(err_token);
+  line_data_wrapper_t line_top, line_bottom,
+      line_err = line_data_wrapper_t(err_token);
 
   line_err.get_other_line(line_top, -1);
   line_err.get_other_line(line_bottom, 1);
@@ -107,8 +110,8 @@ Error& Error::emit(Error::ErrorLevel lv) {
   }
 
   // path and location
-  ss << COL_BOLD COL_WHITE << loc.ref->path << ":" << line_err.linenum << ":" << line_err.pos
-     << ": ";
+  ss << COL_BOLD COL_WHITE << loc.ref->path << ":" << line_err.linenum
+     << ":" << line_err.pos << ": ";
 
   // message
   ss << errlvstr << COL_BOLD COL_WHITE << this->msg << std::endl;
@@ -124,12 +127,14 @@ Error& Error::emit(Error::ErrorLevel lv) {
   {
     auto& s = screen[3];
 
-    auto cursorpos = line_err.pos + LINENUM_WIDTH + 3 + utils::get_color_length_in_str(s);
+    auto cursorpos = line_err.pos + LINENUM_WIDTH + 3 +
+                     utils::get_color_length_in_str(s);
 
-    if (s.length() <= cursorpos)
+    if ((int)s.length() <= cursorpos)
       s += std::string(cursorpos - s.length() + 10, ' ');
 
-    s = s.substr(0, cursorpos) + COL_DEFAULT COL_BOLD COL_WHITE "^" COL_UNBOLD COL_GRAY +
+    s = s.substr(0, cursorpos) +
+        COL_DEFAULT COL_BOLD COL_WHITE "^" COL_UNBOLD COL_GRAY +
         s.substr(cursorpos + 1);
   }
 
@@ -163,7 +168,8 @@ void Error::stop() {
 }
 
 void Error::fatal_error(std::string const& msg) {
-  std::cout << COL_BOLD COL_RED << "fatal error: " << COL_DEFAULT << msg << std::endl;
+  std::cout << COL_BOLD COL_RED << "fatal error: " << COL_DEFAULT << msg
+            << std::endl;
 
   std::exit(2);
 }

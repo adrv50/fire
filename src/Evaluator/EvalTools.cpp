@@ -17,9 +17,11 @@ ObjPointer* Evaluator::find_var(std::string const& name) {
   return nullptr;
 }
 
-Evaluator::FunctionFindResult Evaluator::find_func(std::string const& name,
-                                                   ASTPtr<AST::CallFunc> call) {
+Evaluator::FunctionFindResult
+Evaluator::find_func(std::string const& name, ASTPtr<AST::CallFunc> call) {
   FunctionFindResult result;
+
+  (void)call;
 
   for (auto&& ast : this->functions) {
     if (ast->GetName() == name) {
@@ -127,7 +129,8 @@ ObjPointer Evaluator::call_function_ast(bool have_self,
     }
 
     if (target->type) {
-      auto formaltype = this->evaluate(target->type)->As<ObjType>()->typeinfo;
+      auto formaltype =
+          this->evaluate(target->type)->As<ObjType>()->typeinfo;
 
       if (!(*itobj)->type.equals(formaltype)) {
         Error((*act)->kind == ASTKind::SpecifyArgumentName

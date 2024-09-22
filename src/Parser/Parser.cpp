@@ -88,12 +88,9 @@ ASTPointer Parser::Stmt() {
   }
 
   if (this->eat("throw")) {
-    auto ast = AST::Statement::New(ASTKind::Throw, tok);
-
-    ast->set_data(this->Expr());
+    auto ast = AST::Statement::New(ASTKind::Throw, tok, this->Expr());
 
     this->expect(";");
-
     return ast;
   }
 
@@ -115,7 +112,10 @@ ASTPointer Parser::Stmt() {
     auto block = ASTCast<AST::Block>(this->Stmt());
 
     this->expect("catch");
+
     auto vname = *this->expectIdentifier();
+    todo_impl;
+    /* vname -> "e: Type" の構文を実装する (例外型) */
 
     this->expect("{", true);
     auto catched = ASTCast<AST::Block>(this->Stmt());

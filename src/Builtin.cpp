@@ -13,7 +13,8 @@
 #include "alert.h"
 
 #define define_builtin_func(_Name_)                                       \
-  ObjPointer _Name_(ASTPtr<AST::CallFunc> ast, ObjVector args)
+  ObjPointer _Name_([[maybe_unused]] ASTPtr<AST::CallFunc> ast,           \
+                    [[maybe_unused]] ObjVector args)
 
 #define expect_type(_Idx, _Type) _expect_type(ast, args, _Idx, _Type)
 
@@ -136,13 +137,13 @@ define_builtin_func(Substr) {
 
     auto len = args[2]->As<ObjPrimitive>()->vi;
 
-    if (pos + len >= str->Length())
+    if (pos + len >= (i64)str->Length())
       Error(ast->args[2], "out of range")();
 
     return str->SubString(pos, len);
   }
 
-  if (pos < 0 || pos >= str->Length())
+  if (pos < 0 || pos >= (i64)str->Length())
     Error(ast->args[1], "out of range")();
 
   return str->SubString(pos);

@@ -175,10 +175,10 @@ string Sema::IdentifierInfo::to_string() const {
   if (!this->id_params.empty()) {
     s += "<";
 
-    for (int i = 0; i < this->id_params.size(); i++) {
+    for (i64 i = 0; i < (i64)this->id_params.size(); i++) {
       s += this->id_params[i].to_string();
 
-      if (i + 1 < this->id_params.size())
+      if (i + 1 < (i64)this->id_params.size())
         s += ", ";
     }
 
@@ -190,8 +190,9 @@ string Sema::IdentifierInfo::to_string() const {
 
 Sema::IdentifierInfo
 Sema::get_identifier_info(ASTPtr<AST::Identifier> ast) {
-  IdentifierInfo id_info = {.ast = ast};
+  IdentifierInfo id_info{};
 
+  id_info.ast = ast;
   id_info.result = this->find_name(ast->GetName());
 
   for (auto&& x : ast->id_params)
@@ -349,15 +350,15 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       if (val == x->GetName()) {
         type = key;
 
-        if (auto c = type.needed_param_count();
-            c == 0 && x->type_params.size() >= 1) {
+        if (int c = type.needed_param_count();
+            c == 0 && (int)x->type_params.size() >= 1) {
           Error(x->token,
                 "type '" + string(val) + "' cannot have parameters")();
         }
         else if (c >= 1) {
-          if (x->type_params.size() < c)
+          if ((int)x->type_params.size() < c)
             Error(x->token, "too few parameters")();
-          else if (x->type_params.size() > c)
+          else if ((int)x->type_params.size() > c)
             Error(x->token, "too many parameters")();
         }
       }
@@ -526,9 +527,9 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       if (candidates.empty()) {
         string arg_types_str;
 
-        for (int i = 0; i < arg_types.size(); i++) {
+        for (i64 i = 0; i < (i64)arg_types.size(); i++) {
           arg_types_str += arg_types[i].to_string();
-          if (i + 1 < arg_types.size())
+          if (i + 1 < (i64)arg_types.size())
             arg_types_str += ", ";
         }
 

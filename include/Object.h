@@ -66,7 +66,9 @@ struct Object {
   virtual ObjPointer Clone() const = 0;
   virtual std::string ToString() const = 0;
 
+  [[maybe_unused]]
   virtual bool Equals(ObjPointer obj) const {
+    (void)obj;
     return false;
   }
 
