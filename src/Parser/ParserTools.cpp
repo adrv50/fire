@@ -22,8 +22,7 @@ bool Parser::eat(std::string_view str) {
 
 void Parser::expect(std::string_view str, bool no_next) {
   if (!this->eat(str)) {
-    Error(*this->cur, "expected '" + std::string(str) +
-                          "' buf found '" +
+    Error(*this->cur, "expected '" + std::string(str) + "' buf found '" +
                           std::string(this->cur->str) + "'")();
   }
 
@@ -31,10 +30,49 @@ void Parser::expect(std::string_view str, bool no_next) {
     this->cur--;
 }
 
+bool Parser::eat_typeparam_bracket_open() {
+  alertmsg(_typeparam_bracket_depth);
+
+  if (this->eat("<")) {
+    _typeparam_bracket_depth++;
+    return true;
+  }
+
+  return false;
+}
+
+bool Parser::eat_typeparam_bracket_close() {
+  alertmsg(_typeparam_bracket_depth);
+
+  alert;
+  if (_typeparam_bracket_depth >= 1 && this->match(">>")) {
+    alert;
+    this->cur->str = ">";
+
+    alert;
+    this->cur = this->insert_token(">");
+  }
+
+  alert;
+  if (this->eat(">")) {
+    alert;
+    _typeparam_bracket_depth--;
+    return true;
+  }
+
+  return false;
+}
+
+void Parser::expect_typeparam_bracket_close() {
+  if (!this->eat_typeparam_bracket_close()) {
+    Error(*this->cur, "expected '>'")();
+  }
+}
+
 TokenIterator Parser::expectIdentifier() {
   if (this->cur->kind != TokenKind::Identifier) {
-    Error(*this->cur, "expected identifier but found '" +
-                          std::string(this->cur->str) + "'")();
+    Error(*this->cur,
+          "expected identifier but found '" + std::string(this->cur->str) + "'")();
   }
 
   return this->cur++;
@@ -43,18 +81,12 @@ TokenIterator Parser::expectIdentifier() {
 ASTPtr<AST::TypeName> Parser::expectTypeName() {
   auto ast = AST::TypeName::New(*this->expectIdentifier());
 
-  if (this->eat("<")) {
+  if (this->eat_typeparam_bracket_open()) {
     do {
       ast->type_params.emplace_back(this->expectTypeName());
     } while (this->eat(","));
 
-    if (this->cur->str == ">>") {
-      this->cur->str = ">";
-      this->cur = this->insert_token(">") + 1;
-    }
-    else {
-      this->expect(">");
-    }
+    this->expect_typeparam_bracket_close();
   }
 
   return ast;

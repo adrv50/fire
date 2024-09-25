@@ -3,8 +3,7 @@
 
 namespace fire::AST {
 
-void walk_ast(ASTPointer ast,
-              std::function<void(ASTWalkerLocation, ASTPointer)> fn) {
+void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)> fn) {
 
   using Kind = ASTKind;
 
@@ -27,15 +26,26 @@ void walk_ast(ASTPointer ast,
   case Kind::Variable:
   case Kind::FuncName:
   case Kind::Enumerator:
-    if (ast->_constructed_as == Kind::Identifier)
+    if (ast->_constructed_as == Kind::ScopeResol)
       goto _label_scope_resol;
 
   case Kind::Identifier:
+    for (auto&& id_param : ASTCast<AST::Identifier>(ast)->id_params)
+      walk_ast(id_param, fn);
+
     break;
 
   _label_scope_resol:
-  case Kind::ScopeResol:
+  case Kind::ScopeResol: {
+    auto x = ASTCast<AST::ScopeResol>(ast);
+
+    walk_ast(x->first, fn);
+
+    for (auto&& id : x->idlist)
+      walk_ast(id, fn);
+
     break;
+  }
 
   case Kind::Array: {
     auto x = ast->As<AST::Array>();
@@ -85,8 +95,7 @@ void walk_ast(ASTPointer ast,
     break;
 
   case Kind::TryCatch: {
-    auto x =
-        ast->As<AST::Statement>()->get_data<AST::Statement::TryCatch>();
+    auto x = ast->As<AST::Statement>()->get_data<AST::Statement::TryCatch>();
 
     walk_ast(x.tryblock, fn);
     walk_ast(x.catched, fn);
@@ -106,7 +115,19 @@ void walk_ast(ASTPointer ast,
     break;
   }
 
+  case Kind::TypeName: {
+    auto x = ASTCast<AST::TypeName>(ast);
+
+    for (auto&& param : x->type_params)
+      walk_ast(param, fn);
+
+    walk_ast(x->ast_class, fn);
+
+    break;
+  }
+
   default:
+    alertmsg(static_cast<int>(ast->kind));
     todo_impl;
   }
 

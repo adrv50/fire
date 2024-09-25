@@ -16,9 +16,11 @@ Sema::SemaFunction::SemaFunction(ASTPtr<AST::Function> func)
     : func(func) {
 }
 
-Sema::ArgumentCheckResult Sema::check_function_call_parameters(
-    ASTPtr<CallFunc> call, bool isVariableArg, TypeVec const& formal,
-    TypeVec const& actual) {
+Sema::ArgumentCheckResult Sema::check_function_call_parameters(ASTPtr<CallFunc> call,
+                                                               bool isVariableArg,
+                                                               TypeVec const& formal,
+                                                               TypeVec const& actual,
+                                                               bool ignore_mismatch) {
 
   (void)call;
 
@@ -31,11 +33,11 @@ Sema::ArgumentCheckResult Sema::check_function_call_parameters(
     return ArgumentCheckResult::TooManyArguments;
   }
 
-  for (auto f = formal.begin(), a = actual.begin(); f != formal.end();
-       f++, a++) {
-    if (!f->equals(*a)) {
-      return {ArgumentCheckResult::TypeMismatch,
-              static_cast<int>(f - formal.begin())};
+  if (!ignore_mismatch) {
+    for (auto f = formal.begin(), a = actual.begin(); f != formal.end(); f++, a++) {
+      if (!f->equals(*a)) {
+        return {ArgumentCheckResult::TypeMismatch, static_cast<int>(f - formal.begin())};
+      }
     }
   }
 

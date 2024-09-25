@@ -83,7 +83,8 @@ std::string ObjIterable::ToString() const {
 ObjPointer ObjString::SubString(size_t pos, size_t length) {
   auto obj = ObjNew<ObjString>();
 
-  for (size_t i = pos, end = pos + (length == 0 ? this->list.size() - pos : length); i < end; i++) {
+  for (size_t i = pos, end = pos + (length == 0 ? this->list.size() - pos : length);
+       i < end; i++) {
     obj->Append(this->list[i]->Clone());
   }
 
@@ -114,7 +115,8 @@ ObjString::ObjString(std::string const& str)
 //  ObjEnumerator
 
 std::string ObjEnumerator::ToString() const {
-  return this->ast->GetName() + "." + this->ast->enumerators->list[this->index]->token.str;
+  return this->ast->GetName() + "." +
+         this->ast->enumerators->list[this->index]->token.str;
 }
 
 ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)
@@ -136,11 +138,11 @@ ObjPtr<ObjCallable>& ObjInstance::add_member_func(ObjPtr<ObjCallable> obj) {
 }
 
 bool ObjInstance::have_constructor() const {
-  return (bool)this->ast->constructor;
+  return (bool)this->ast->constructor.lock();
 }
 
 ASTPtr<AST::Function> ObjInstance::get_constructor() const {
-  return this->ast->constructor;
+  return this->ast->constructor.lock();
 }
 
 ObjPointer ObjInstance::Clone() const {

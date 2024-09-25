@@ -31,6 +31,8 @@ enum class TypeKind : u8 {
   Module,
 
   TypeName, // class or enum or etc...
+
+  Unknown, // or template param
 };
 
 struct TypeInfo {

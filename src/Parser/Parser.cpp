@@ -210,6 +210,16 @@ ASTPointer Parser::Top() {
   if (this->eat("fn")) {
     auto func = AST::Function::New(tok, *this->expectIdentifier());
 
+    if (this->eat_typeparam_bracket_open()) {
+      func->is_templated = true;
+
+      do {
+        func->template_param_names.emplace_back(*this->expectIdentifier());
+      } while (this->eat(","));
+
+      this->expect_typeparam_bracket_close();
+    }
+
     this->expect("(");
 
     if (!this->eat(")")) {
@@ -240,8 +250,7 @@ ASTPointer Parser::Top() {
   // replace to variable declaration,
   //  and assignment result of call "import" func.
   //
-  if (this->match("import", TokenKind::Identifier) ||
-      this->match("import", ".")) {
+  if (this->match("import", TokenKind::Identifier) || this->match("import", ".")) {
 
     // import a;
     // import ./b;
@@ -280,8 +289,7 @@ ASTPointer Parser::Top() {
     mod_name_token.str = name;
     mod_name_token.sourceloc.length = name.length();
 
-    call->args.emplace_back(
-        AST::Value::New(mod_name_token, ObjNew<ObjString>(name)));
+    call->args.emplace_back(AST::Value::New(mod_name_token, ObjNew<ObjString>(name)));
 
     ast->init = call;
 

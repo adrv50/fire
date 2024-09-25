@@ -61,8 +61,12 @@ struct SourceLocation;
 
 namespace AST {
 struct Base;
+
 struct Value;
 struct Variable;
+struct Identifier;
+struct ScopeResol;
+
 struct CallFunc;
 struct Expr;
 struct Block;
@@ -74,7 +78,7 @@ struct Function;
 struct Enum;
 struct Class;
 
-struct Namespace;
+// struct Namespace;
 
 } // namespace AST
 

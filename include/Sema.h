@@ -98,6 +98,8 @@ private:
   ScopeContext* _ptr;
 };
 
+class TemplateChecker;
+
 class Sema {
 
   enum class NameType {
@@ -165,10 +167,21 @@ class Sema {
     SemaFunction(ASTPtr<Function> func);
   };
 
-  ArgumentCheckResult
-  check_function_call_parameters(ASTPtr<CallFunc> call, bool isVariableArg,
-                                 TypeVec const& formal,
-                                 TypeVec const& actual);
+  struct TemplateInstantiator {
+    ASTPointer ast_cloned;
+
+    vector<std::pair<string, TypeInfo>> name_and_type;
+
+    void do_replace();
+
+    TemplateInstantiator(ASTPtr<AST::Templatable> templatable);
+  };
+
+  ArgumentCheckResult check_function_call_parameters(ASTPtr<CallFunc> call,
+                                                     bool isVariableArg,
+                                                     TypeVec const& formal,
+                                                     TypeVec const& actual,
+                                                     bool ignore_mismatch);
 
   ScopeContext::LocalVar* _find_variable(string const& name);
   ASTVec<Function> _find_func(string const& name);

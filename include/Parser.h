@@ -38,6 +38,10 @@ private:
   bool eat(std::string_view str);
   void expect(std::string_view str, bool keep_position = false);
 
+  bool eat_typeparam_bracket_open();
+  bool eat_typeparam_bracket_close();
+  void expect_typeparam_bracket_close();
+
   bool match(std::string_view s) {
     return this->cur->str == s;
   }
@@ -59,8 +63,7 @@ private:
     auto save = this->cur;
     this->cur++;
 
-    auto ret =
-        this->match(std::forward<U>(u), std::forward<Args>(args)...);
+    auto ret = this->match(std::forward<U>(u), std::forward<Args>(args)...);
 
     this->cur = save;
     return ret;
@@ -71,10 +74,9 @@ private:
     return AST::Expr::New(k, op, lhs, rhs);
   }
 
-  static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op,
-                                      ASTPointer lhs, ASTPointer rhs) {
-    return new_expr(ASTKind::Assign, op, lhs,
-                    new_expr(kind, op, lhs, rhs));
+  static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op, ASTPointer lhs,
+                                      ASTPointer rhs) {
+    return new_expr(ASTKind::Assign, op, lhs, new_expr(kind, op, lhs, rhs));
   }
 
   TokenIterator insert_token(Token tok) {
@@ -90,6 +92,8 @@ private:
 
   TokenVector tokens;
   TokenIterator cur, end, ate;
+
+  int _typeparam_bracket_depth = 0;
 };
 
 } // namespace fire::parser

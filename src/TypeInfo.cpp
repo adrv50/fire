@@ -67,6 +67,7 @@ string TypeInfo::to_string() const {
   case TypeKind::Instance:
   case TypeKind::Enumerator:
   case TypeKind::TypeName:
+  case TypeKind::Unknown:
     ret = name;
     break;
 
@@ -96,9 +97,8 @@ int TypeInfo::needed_param_count() const {
     return 2; // key, value
 
   case TypeKind::TypeName: {
-    if (auto x = ASTCast<AST::Templatable>(this->type_ast);
-        x->is_templated) {
-      return x->template_params.size();
+    if (auto x = ASTCast<AST::Templatable>(this->type_ast); x->is_templated) {
+      return x->template_param_names.size();
     }
 
     break;
