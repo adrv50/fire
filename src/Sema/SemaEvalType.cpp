@@ -204,12 +204,14 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       ASTVec<AST::Function> candidates;
 
       // ヒットした関数の中から candidates に追加
-      for (auto&& func : hits) {
+      for (ASTPtr<AST::Function> func : hits) {
         // テンプレートの場合
         if (func->is_templated) {
           // パラメータの数が多すぎる場合はスキップ
           if (idinfo.id_params.size() > func->template_param_names.size())
             continue;
+
+          // パラメータが少ない場合は引数からの推論を試みる
 
           // 引数の数だけみて、もし一致すれば
           if ((func->is_var_arg && call->args.size() + 1 >= func->arguments.size()) ||
@@ -217,8 +219,13 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
             alert;
             // candidates.emplace_back(func);
 
-            std::map<string /* = name*/, std::pair<ASTPtr<AST::TypeName>, TypeInfo>>
-                param_types;
+            struct _Data {
+              ASTPtr<AST::TypeName> ast;
+              TypeInfo type;
+              ScopeContext::LocalVar* lvar;
+            };
+
+            std::map<string /* = name*/, _Data> param_types;
 
             for (i64 i = 0; i < (i64)callee_as_id->id_params.size(); i++) {
               // ASTPtr<AST::TypeName> actual_param = callee_as_id->id_params[i];
@@ -237,8 +244,10 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
               }
 
               alert;
-              param_types[formal_param_name] = std::make_pair(
-                  actual_parameter_type, this->evaltype(actual_parameter_type));
+              param_types[formal_param_name] = _Data{
+                  .ast = actual_parameter_type,
+                  .type = this->evaltype(actual_parameter_type),
+              };
             }
 
             alert;
@@ -260,13 +269,26 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
             cloned_func->is_templated = false;
 
             alert;
-            call->callee_ast = cloned_func;
-
-            alert;
-            AST::walk_ast(call->callee_ast, [&param_types](AST::ASTWalkerLocation _loc,
-                                                           ASTPointer _ast) {
+            AST::walk_ast(cloned_func, [&param_types, instantiated_func_scope](
+                                           AST::ASTWalkerLocation _loc, ASTPointer _ast) {
               if (_loc != AST::AW_Begin) {
                 return;
+              }
+
+              if (_ast->kind == ASTKind::Argument) {
+                alert;
+
+                auto _arg = ASTCast<AST::Argument>(_ast);
+
+                auto pvar = instantiated_func_scope->find_var(_arg->GetName());
+                assert(pvar);
+                assert(pvar->is_argument);
+
+                pvar->is_type_deducted = true;
+                pvar->deducted_type = param_types[_arg->type->GetName()].type;
+
+                alertexpr(pvar->name);
+                alertexpr(pvar->deducted_type.to_string());
               }
 
               if (_ast->kind == ASTKind::TypeName) {
@@ -278,20 +300,26 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
                 alertmsg(name);
 
                 if (param_types.contains(name)) {
-                  _ast_type->name.str = param_types[name].second.to_string();
+                  _ast_type->name.str = param_types[name].type.to_string();
 
-                  alertmsg("replace " << name << " to " << _ast_type->name.str);
+                  alertmsg("(var) replace " << name << " to " << _ast_type->name.str);
                   // todo_impl;
                 }
               }
             });
 
             alert;
+            call->callee_ast = cloned_func;
+
+            alert;
             // this->add_func(cloned_func);
 
             alert;
+            alertexpr(this->GetCurScope());
+            alertexpr(this->_scope_history.size());
             this->SaveScopeInfo();
 
+            alert;
             this->BackToDepth(template_func_scope->depth - 1);
 
             alertexpr(template_func_scope->depth);
@@ -306,12 +334,28 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
             this->RestoreScopeInfo();
 
-            auto xxx = this->evaltype(cloned_func->return_type);
+            TypeVec formal_arg_types;
 
-            alertexpr(xxx.to_string());
-            todo_impl;
+            for (auto&& arg : cloned_func->arguments) {
+              formal_arg_types.emplace_back(this->evaltype(arg->type));
+            }
 
-            return this->evaltype(cloned_func->return_type);
+            auto res = this->check_function_call_parameters(
+                call, cloned_func->is_var_arg, formal_arg_types, arg_types, false);
+
+            if (res.result == ArgumentCheckResult::Ok) {
+              candidates.emplace_back(cloned_func);
+            }
+
+            else {
+              switch (res.result) {
+              case ArgumentCheckResult::TypeMismatch:
+                Error(call->args[res.index],
+                      "expected '" + formal_arg_types[res.index].to_string() +
+                          "' type expression, but found '" +
+                          arg_types[res.index].to_string() + "'")();
+              }
+            }
           }
 
           continue;

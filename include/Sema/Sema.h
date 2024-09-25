@@ -142,10 +142,11 @@ private:
   ScopeContext* GetScopeOf(ASTPointer ast);
 
   ScopeContext* EnterScope(ASTPointer ast);
-  void LeaveScope(ASTPointer ast);
-
   ScopeContext* EnterScope(ScopeContext* ctx);
-  void LeaveScope(ScopeContext* ctx);
+
+  // void LeaveScope(ASTPointer ast);
+  // void LeaveScope(ScopeContext* ctx);
+  void LeaveScope();
 
   void SaveScopeInfo();
   void RestoreScopeInfo();

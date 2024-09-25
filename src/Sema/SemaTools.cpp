@@ -1,3 +1,5 @@
+#include <list>
+
 #include "alert.h"
 #include "Error.h"
 #include "Sema/Sema.h"
@@ -7,12 +9,12 @@
 
 namespace fire::semantics_checker {
 
-namespace __saved {
+struct ScopeInfoSave {
+  ScopeContext* _Cur;
+  vector<ScopeContext*> _History;
+};
 
-ScopeContext* _Cur;
-vector<ScopeContext*> _History;
-
-} // namespace __saved
+std::list<ScopeInfoSave> _bak_list;
 
 ScopeContext*& Sema::GetCurScope() {
   return this->_cur_scope;
@@ -32,16 +34,6 @@ ScopeContext* Sema::EnterScope(ASTPointer ast) {
   return scope;
 }
 
-void Sema::LeaveScope(ASTPointer ast) {
-  assert(this->GetCurScope()->GetAST() == ast);
-
-  alert;
-  this->_scope_history.pop_back();
-
-  alert;
-  this->GetCurScope() = *this->_scope_history.rbegin();
-}
-
 ScopeContext* Sema::EnterScope(ScopeContext* ctx) {
   auto scope = this->GetCurScope()->find_child_scope(ctx);
 
@@ -50,6 +42,25 @@ ScopeContext* Sema::EnterScope(ScopeContext* ctx) {
   this->GetCurScope() = this->_scope_history.emplace_back(scope);
 
   return scope;
+}
+
+void Sema::LeaveScope() {
+  alert;
+  this->_scope_history.pop_back();
+
+  alert;
+  this->GetCurScope() = *this->_scope_history.rbegin();
+}
+
+/*
+void Sema::LeaveScope(ASTPointer ast) {
+  // assert(this->GetCurScope()->GetAST() == ast);
+
+  alert;
+  this->_scope_history.pop_back();
+
+  alert;
+  this->GetCurScope() = *this->_scope_history.rbegin();
 }
 
 void Sema::LeaveScope(ScopeContext* ctx) {
@@ -61,26 +72,30 @@ void Sema::LeaveScope(ScopeContext* ctx) {
   alert;
   this->GetCurScope() = *this->_scope_history.rbegin();
 }
+*/
 
 void Sema::SaveScopeInfo() {
   alert;
-
-  __saved::_Cur = this->_cur_scope;
-  __saved::_History = this->_scope_history;
+  _bak_list.push_front(
+      ScopeInfoSave{._Cur = this->_cur_scope, ._History = this->_scope_history});
 }
 
 void Sema::RestoreScopeInfo() {
   alert;
 
-  this->_cur_scope = __saved::_Cur;
-  this->_scope_history = __saved::_History;
+  auto& save = *_bak_list.begin();
+
+  this->_cur_scope = save._Cur;
+  this->_scope_history = std::move(save._History);
+
+  _bak_list.pop_front();
 }
 
 void Sema::BackToDepth(int depth) {
   alert;
 
   while (this->GetCurScope()->depth != depth)
-    this->LeaveScope(this->GetCurScope()->GetAST());
+    this->LeaveScope();
 }
 
 int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth) {

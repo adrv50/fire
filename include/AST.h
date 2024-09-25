@@ -516,8 +516,9 @@ struct Function : Templatable {
 
     x->_Copy(this);
 
-    for (auto&& arg : this->arguments)
+    for (auto&& arg : this->arguments) {
       x->arguments.emplace_back(ASTCast<Argument>(arg->Clone()));
+    }
 
     if (this->return_type)
       x->return_type = ASTCast<TypeName>(this->return_type->Clone());

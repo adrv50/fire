@@ -106,7 +106,7 @@ void Sema::check(ASTPointer ast) {
     alert;
     this->check(x->block);
 
-    this->LeaveScope(x);
+    this->LeaveScope();
 
     break;
   }
@@ -119,7 +119,7 @@ void Sema::check(ASTPointer ast) {
     for (auto&& e : x->list)
       this->check(e);
 
-    this->LeaveScope(x);
+    this->LeaveScope();
 
     break;
   }
