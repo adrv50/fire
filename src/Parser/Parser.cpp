@@ -227,7 +227,7 @@ ASTPointer Parser::Top() {
         auto& arg = func->add_arg(*this->expectIdentifier());
 
         this->expect(":");
-        arg.type = this->expectTypeName();
+        arg->type = this->expectTypeName();
       } while (this->eat(","));
 
       this->expect(")");

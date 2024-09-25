@@ -21,8 +21,7 @@ struct Object {
   }
 
   bool is_numeric(bool contain_char = false) const {
-    return this->type.is_numeric() ||
-           (contain_char && this->type.kind == TypeKind::Char);
+    return this->type.is_numeric() || (contain_char && this->type.kind == TypeKind::Char);
   }
 
   bool is_float() const {
@@ -66,8 +65,7 @@ struct Object {
   virtual ObjPointer Clone() const = 0;
   virtual std::string ToString() const = 0;
 
-  [[maybe_unused]]
-  virtual bool Equals(ObjPointer obj) const {
+  [[maybe_unused]] virtual bool Equals(ObjPointer obj) const {
     (void)obj;
     return false;
   }
@@ -122,29 +120,28 @@ struct ObjPrimitive : Object {
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
-    return this->type.equals(obj->type) &&
-           this->_data == obj->As<ObjPrimitive>()->_data;
+    return this->type.equals(obj->type) && this->_data == obj->As<ObjPrimitive>()->_data;
   }
 
   ObjPrimitive(i64 vi = 0)
       : Object(TypeKind::Int),
-        vi(vi) {};
+        vi(vi){};
 
   ObjPrimitive(double vf)
       : Object(TypeKind::Float),
-        vf(vf) {};
+        vf(vf){};
 
   ObjPrimitive(size_t vsize)
       : Object(TypeKind::Size),
-        vsize(vsize) {};
+        vsize(vsize){};
 
   ObjPrimitive(bool vb)
       : Object(TypeKind::Bool),
-        vb(vb) {};
+        vb(vb){};
 
   ObjPrimitive(char16_t vc)
       : Object(TypeKind::Char),
-        vc(vc) {};
+        vc(vc){};
 };
 
 struct ObjIterable : Object {
@@ -170,8 +167,7 @@ struct ObjIterable : Object {
     if (this->list.size() != obj->As<ObjIterable>()->list.size())
       return false;
 
-    for (auto it = this->list.begin();
-         auto&& e : obj->As<ObjIterable>()->list)
+    for (auto it = this->list.begin(); auto&& e : obj->As<ObjIterable>()->list)
       if (!(*it++)->Equals(e))
         return false;
 
@@ -192,9 +188,7 @@ struct ObjString : ObjIterable {
 
   std::string ToString() const override;
 
-  ObjPointer Clone() const override {
-    return PtrDynamicCast<ObjString>(this->ObjIterable::Clone());
-  }
+  ObjPointer Clone() const override;
 
   ObjString(std::u16string const& str = u"");
   ObjString(std::string const& str);
@@ -305,8 +299,7 @@ struct ObjModule : Object {
 
   std::string ToString() const override;
 
-  ObjModule(std::shared_ptr<SourceStorage> src,
-            ASTPtr<AST::Block> ast = nullptr)
+  ObjModule(std::shared_ptr<SourceStorage> src, ASTPtr<AST::Block> ast = nullptr)
       : Object(TypeKind::Module),
         source(src),
         ast(ast) {

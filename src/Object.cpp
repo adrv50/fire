@@ -100,6 +100,16 @@ std::string ObjString::ToString() const {
   return utils::to_u8string(temp);
 }
 
+ObjPointer ObjString::Clone() const {
+  auto obj = ObjNew<ObjString>();
+
+  for (auto&& c : obj->list) {
+    obj->Append(c->Clone());
+  }
+
+  return obj;
+}
+
 ObjString::ObjString(std::u16string const& str)
     : ObjIterable(TypeKind::String) {
   if (!str.empty())

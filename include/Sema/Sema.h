@@ -79,8 +79,9 @@ class Sema {
 
     FunctionScope* scope = nullptr;
 
-    vector<TypeInfo> arg_types;
+    // vector<TypeInfo> arg_types;
 
+    bool is_type_deducted = false; // of result_type
     TypeInfo result_type;
 
     vector<ASTPtr<AST::Statement>>
@@ -138,8 +139,20 @@ private:
   vector<ScopeContext*> _scope_history;
 
   ScopeContext*& GetCurScope();
+  ScopeContext* GetScopeOf(ASTPointer ast);
+
   ScopeContext* EnterScope(ASTPointer ast);
   void LeaveScope(ASTPointer ast);
+
+  ScopeContext* EnterScope(ScopeContext* ctx);
+  void LeaveScope(ScopeContext* ctx);
+
+  void SaveScopeInfo();
+  void RestoreScopeInfo();
+
+  void BackToDepth(int depth);
+
+  int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth);
 
   vector<SemaFunction> functions;
 
@@ -147,14 +160,7 @@ private:
   ASTVec<Class> classes;
 
   SemaFunction& add_func(ASTPtr<Function> f) {
-    auto& x = this->functions.emplace_back(f);
-
-    for (auto&& arg : f->arguments)
-      x.arg_types.emplace_back(this->evaltype(arg.type));
-
-    x.result_type = this->evaltype(f->return_type);
-
-    return x;
+    return this->functions.emplace_back(f);
   }
 
   SemaFunction* get_func(ASTPtr<Function> f) {

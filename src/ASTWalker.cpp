@@ -103,11 +103,16 @@ void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)>
     break;
   }
 
+  case Kind::Argument: {
+    walk_ast(ASTCast<AST::Argument>(ast)->type, fn);
+    break;
+  }
+
   case Kind::Function: {
     auto x = ast->As<AST::Function>();
 
     for (auto&& y : x->arguments)
-      walk_ast(y.type, fn);
+      walk_ast(y, fn);
 
     walk_ast(x->return_type, fn);
     walk_ast(x->block, fn);

@@ -18,6 +18,9 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
   printkind;
 
+  // if (ast->token.sourceloc.ref)
+  //   Error(ast->token, "uouo").emit();
+
   switch (ast->kind) {
   case Kind::Enum:
   case Kind::Function:
@@ -67,18 +70,26 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       }
     }
 
-    type.name = x->GetName();
-    type.kind = TypeKind::Unknown;
+    // type.name = x->GetName();
+    // type.kind = TypeKind::Unknown;
+    // return type;
 
-    return type;
+    Error(x->token, "unknown type name")();
   }
 
   case Kind::Value:
     return ast->as_value()->value->type;
 
-  case Kind::Variable:
-    todo_impl;
-    break;
+  case Kind::Variable: {
+    alert;
+    auto pvar = this->_find_variable(ast->GetID()->GetName());
+
+    alert;
+    assert(pvar->is_type_deducted);
+
+    alert;
+    return pvar->deducted_type;
+  }
 
   case Kind::Identifier: {
 
@@ -113,7 +124,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       type.params.emplace_back(this->evaltype(func->return_type));
 
       for (auto&& arg : func->arguments) {
-        type.params.emplace_back(this->evaltype(arg.type));
+        type.params.emplace_back(this->evaltype(arg->type));
       }
 
       return type;
@@ -209,30 +220,6 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
             std::map<string /* = name*/, std::pair<ASTPtr<AST::TypeName>, TypeInfo>>
                 param_types;
 
-            // _Replacer = 再帰関数;
-            // 対象の TypeInfo::name が param_types の KEY として存在する場合、
-            // その対象の TypeInfo の .kind を VALUE で置き換える。
-            // そしてそれを TypeInfo::params に対しても、同様の処理を再帰的に行う関数。
-            auto _Replacer = [this, &param_types](auto _Replacer_func_ptr,
-                                                  TypeInfo _Target) -> TypeInfo {
-              alert;
-              for (auto&& [_name, _type_pair] : param_types) {
-                auto&& [_type_ast, _typeinfo] = _type_pair;
-
-                if (_typeinfo.kind == TypeKind::Unknown && _Target.name == _name) {
-                  alert;
-                  _Target.kind = _typeinfo.kind;
-                }
-              }
-
-              for (TypeInfo& _Param_In_Target : _Target.params) {
-                alert;
-                _Param_In_Target = _Replacer_func_ptr(_Replacer_func_ptr, _Target);
-              }
-
-              return _Target;
-            };
-
             for (i64 i = 0; i < (i64)callee_as_id->id_params.size(); i++) {
               // ASTPtr<AST::TypeName> actual_param = callee_as_id->id_params[i];
 
@@ -258,6 +245,18 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
             ASTPtr<AST::Function> cloned_func =
                 ASTCast<AST::Function>(func->Clone()); // Instantiate.
 
+            alert;
+
+            // original.
+            FunctionScope* template_func_scope = (FunctionScope*)this->GetScopeOf(func);
+
+            assert(template_func_scope);
+
+            alert;
+            // instantiated.
+            FunctionScope* instantiated_func_scope =
+                template_func_scope->AppendInstantiated(cloned_func);
+
             cloned_func->is_templated = false;
 
             alert;
@@ -266,33 +265,51 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
             alert;
             AST::walk_ast(call->callee_ast, [&param_types](AST::ASTWalkerLocation _loc,
                                                            ASTPointer _ast) {
-              alert;
-              if (_loc != AST::AW_Begin)
+              if (_loc != AST::AW_Begin) {
                 return;
+              }
 
-              alert;
               if (_ast->kind == ASTKind::TypeName) {
+
                 alert;
                 ASTPtr<AST::TypeName> _ast_type = ASTCast<AST::TypeName>(_ast);
                 string name = _ast_type->GetName();
 
-                alert;
                 alertmsg(name);
 
                 if (param_types.contains(name)) {
                   _ast_type->name.str = param_types[name].second.to_string();
 
-                  alertmsg(_ast_type->name.str);
+                  alertmsg("replace " << name << " to " << _ast_type->name.str);
                   // todo_impl;
                 }
               }
             });
 
             alert;
-            this->add_func(cloned_func);
+            // this->add_func(cloned_func);
+
+            alert;
+            this->SaveScopeInfo();
+
+            this->BackToDepth(template_func_scope->depth - 1);
+
+            alertexpr(template_func_scope->depth);
+            alertexpr(this->_scope_history.size());
+
+            alert;
+            // this->EnterScope(instantiated_func_scope);
+            this->_cur_scope = this->_scope_history.emplace_back(instantiated_func_scope);
 
             alert;
             this->check(cloned_func);
+
+            this->RestoreScopeInfo();
+
+            auto xxx = this->evaltype(cloned_func->return_type);
+
+            alertexpr(xxx.to_string());
+            todo_impl;
 
             return this->evaltype(cloned_func->return_type);
           }
@@ -303,11 +320,11 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
         TypeVec formal_arg_types;
 
         for (auto&& arg : func->arguments) {
-          formal_arg_types.emplace_back(this->evaltype(arg.type));
+          formal_arg_types.emplace_back(this->evaltype(arg->type));
         }
 
         auto res = this->check_function_call_parameters(
-            call, func->is_var_arg, formal_arg_types, arg_types, !func->is_templated);
+            call, func->is_var_arg, formal_arg_types, arg_types, false);
 
         if (res.result == ArgumentCheckResult::Ok)
           candidates.emplace_back(func);
@@ -327,6 +344,10 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
         Error(callee, "function '" + idinfo.to_string() + "(" + arg_types_str + ")" +
                           "' is not defined")();
+
+        // TODO:
+        // もし (hits.size() >= 1)
+        // である場合、同じ名前の関数があること、引数間違いなどをヒントとして表示する
       }
 
       alert;

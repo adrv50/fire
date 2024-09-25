@@ -4,8 +4,7 @@
 namespace fire::AST {
 
 template <class T, class... Args>
-requires std::constructible_from<T, Args...>
-ASTPtr<T> ASTNew(Args&&... args) {
+requires std::constructible_from<T, Args...> ASTPtr<T> ASTNew(Args&&... args) {
 #if _DBG_DONT_USE_SMART_PTR_
   return new T(std::forward<Args>(args)...);
 #else
@@ -103,11 +102,15 @@ ASTPtr<TypeName> TypeName::New(Token nametok) {
   return ASTNew<TypeName>(nametok);
 }
 
+ASTPtr<Argument> Argument::New(Token nametok, ASTPtr<TypeName> type) {
+  return ASTNew<Argument>(nametok, type);
+}
+
 ASTPtr<Function> Function::New(Token tok, Token name) {
   return ASTNew<Function>(tok, name);
 }
 
-ASTPtr<Function> Function::New(Token tok, Token name, std::vector<Argument> args,
+ASTPtr<Function> Function::New(Token tok, Token name, ASTVec<Argument> args,
                                bool is_var_arg, ASTPtr<TypeName> rettype,
                                ASTPtr<Block> block) {
   return ASTNew<Function>(tok, name, std::move(args), is_var_arg, rettype, block);

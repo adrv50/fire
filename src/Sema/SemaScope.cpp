@@ -7,11 +7,47 @@ namespace fire::semantics_checker {
 // ------------------------------------
 //  ScopeContext ( base-struct )
 
+bool ScopeContext::Contains(ScopeContext* scope, bool recursive) const {
+
+  switch (this->type) {
+  case SC_Block: {
+    auto block = (BlockScope*)scope;
+
+    alert;
+
+    for (auto&& c : block->child_scopes) {
+      if (c == scope)
+        return true;
+
+      if (recursive && c->Contains(scope, recursive))
+        return true;
+    }
+
+    break;
+  }
+
+  case SC_Func: {
+    auto func = (FunctionScope*)scope;
+
+    return func->block == scope || (recursive && func->block->Contains(scope, recursive));
+  }
+
+  default:
+    todo_impl;
+  }
+
+  return false;
+}
+
+ASTPointer ScopeContext::GetAST() const {
+  return nullptr;
+}
+
 ScopeContext* ScopeContext::find_child_scope(ASTPointer ast) {
   return nullptr;
 }
 
-ASTPointer ScopeContext::GetAST() const {
+ScopeContext* ScopeContext::find_child_scope(ScopeContext* ctx) {
   return nullptr;
 }
 
@@ -69,6 +105,18 @@ ScopeContext* BlockScope::find_child_scope(ASTPointer ast) {
   return nullptr;
 }
 
+ScopeContext* BlockScope::find_child_scope(ScopeContext* ctx) {
+  if (this == ctx)
+    return this;
+
+  for (auto&& c : this->child_scopes) {
+    if (c == ctx)
+      return c;
+  }
+
+  return nullptr;
+}
+
 // ------------------------------------
 //  FunctionScope
 
@@ -80,14 +128,15 @@ FunctionScope::FunctionScope(ASTPtr<AST::Function> ast)
 
   alert;
   for (auto&& arg : ast->arguments) {
-    this->add_arg(&arg);
+    this->add_arg(arg);
   }
 
   this->block = new BlockScope(ast->block);
+  this->block->depth = this->depth + 1;
 }
 
-ScopeContext::LocalVar& FunctionScope::add_arg(AST::Function::Argument* def) {
-  auto& arg = this->arguments.emplace_back(def->get_name());
+ScopeContext::LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
+  auto& arg = this->arguments.emplace_back(def->GetName());
 
   arg.arg = def;
   arg.is_argument = true;
@@ -117,7 +166,24 @@ ScopeContext* FunctionScope::find_child_scope(ASTPointer ast) {
   if (this->ast == ast)
     return this;
 
+  for (auto&& I : this->instantiated) {
+    if (I->GetAST() == ast)
+      return I;
+  }
+
   return this->block->find_child_scope(ast);
+}
+
+ScopeContext* FunctionScope::find_child_scope(ScopeContext* ctx) {
+  if (this == ctx)
+    return this;
+
+  for (auto&& I : this->instantiated) {
+    if (I == ctx)
+      return I;
+  }
+
+  return this->block->find_child_scope(ctx);
 }
 
 // ------------------------------------

@@ -54,12 +54,13 @@ void Sema::check(ASTPointer ast) {
                     }
                   });
 
-    alert;
-    for (auto&& arg : x->arguments) {
-      alert;
-      func->arg_types.emplace_back(this->evaltype(arg.type));
-    }
+    // alert;
+    // for (auto&& arg : x->arguments) {
+    //   alert;
+    //   func->arg_types.emplace_back(this->evaltype(arg.type));
+    // }
 
+    alert;
     for (auto&& ret : func->return_stmt_list) {
       auto expr = ret->As<AST::Statement>()->get_expr();
       alert;
@@ -133,6 +134,7 @@ void Sema::check(ASTPointer ast) {
     break;
   }
 
+  case ASTKind::Throw:
   case ASTKind::Return: {
     auto x = ASTCast<AST::Statement>(ast);
 

@@ -6,6 +6,7 @@
 #include <string>
 #include <fstream>
 #include <functional>
+#include <cassert>
 
 #include "alert.h"
 #include "Object.h"
@@ -82,6 +83,7 @@ enum class ASTKind {
 
   TryCatch,
 
+  Argument,
   Function,
 
   Enum,
@@ -124,10 +126,13 @@ struct Base {
     return (Value const*)this;
   }
 
+  virtual Identifier* GetID() {
+    return nullptr;
+  }
+
   virtual ASTPointer Clone() const = 0;
 
-  [[maybe_unused]]
-  i64 GetChilds(ASTVector& out) const;
+  [[maybe_unused]] i64 GetChilds(ASTVector& out) const;
 
   virtual std::string_view GetSourceView() const {
     return token.sourceloc.GetLine();
@@ -154,7 +159,13 @@ struct Value : Base {
   static ASTPtr<Value> New(Token tok, ObjPointer val);
 
   ASTPointer Clone() const override {
-    return New(this->token, this->value->Clone());
+    assert(this->value);
+
+    auto xx = New(this->token, this->value->Clone());
+
+    assert(xx->value);
+
+    return xx;
   }
 
   Value(Token tok, ObjPointer value)
@@ -182,6 +193,9 @@ protected:
   }
 };
 
+// ------------------
+// not used
+//
 struct Variable : Named {
   int index = 0;
   int backstep = 0; // N 個前のスコープに戻る
@@ -198,6 +212,7 @@ struct Variable : Named {
         backstep(backstep) {
   }
 };
+// ------------------
 
 struct Identifier : Named {
   Token paramtok; // "<"
@@ -209,6 +224,10 @@ struct Identifier : Named {
   static ASTPtr<Identifier> New(Token tok);
 
   ASTPointer Clone() const override;
+
+  Identifier* GetID() override {
+    return this;
+  }
 
   Identifier(Token tok)
       : Named(ASTKind::Identifier, tok, tok) {
@@ -228,6 +247,10 @@ struct ScopeResol : Named {
       x->idlist.emplace_back(ASTCast<Identifier>(id->Clone()));
 
     return x;
+  }
+
+  Identifier* GetID() override {
+    return (*idlist.rbegin()).get();
   }
 
   ScopeResol(ASTPtr<Identifier> first)
@@ -447,42 +470,44 @@ protected:
   }
 };
 
+struct Argument : Named {
+  ASTPtr<TypeName> type;
+
+  static ASTPtr<Argument> New(Token nametok, ASTPtr<TypeName> type);
+
+  ASTPointer Clone() const {
+    return New(this->name,
+               ASTCast<AST::TypeName>(this->type ? this->type->Clone() : nullptr));
+  }
+
+  Argument(Token nametok, ASTPtr<TypeName> type)
+      : Named(ASTKind::Argument, nametok),
+        type(type) {
+  }
+};
+
 struct Function : Templatable {
-  struct Argument {
-    Token name;
-    ASTPtr<TypeName> type;
-
-    std::string get_name() const {
-      return this->name.str;
-    }
-
-    Argument(Token name, ASTPtr<TypeName> type = nullptr)
-        : name(name),
-          type(type) {
-    }
-  };
-
-  std::vector<Argument> arguments;
+  ASTVec<Argument> arguments;
   ASTPtr<TypeName> return_type;
   ASTPtr<Block> block;
 
   bool is_var_arg;
 
-  Argument& add_arg(Token const& tok, ASTPtr<TypeName> type = nullptr) {
-    return this->arguments.emplace_back(tok, type);
+  ASTPtr<Argument>& add_arg(Token const& tok, ASTPtr<TypeName> type = nullptr) {
+    return this->arguments.emplace_back(Argument::New(tok, type));
   }
 
-  Argument* find_arg(std::string const& name) {
+  ASTPtr<Argument> find_arg(std::string const& name) {
     for (auto&& arg : this->arguments)
-      if (arg.get_name() == name)
-        return &arg;
+      if (arg->GetName() == name)
+        return arg;
 
     return nullptr;
   }
 
   static ASTPtr<Function> New(Token tok, Token name);
 
-  static ASTPtr<Function> New(Token tok, Token name, std::vector<Argument> args,
+  static ASTPtr<Function> New(Token tok, Token name, ASTVec<Argument> args,
                               bool is_var_arg, ASTPtr<TypeName> rettype,
                               ASTPtr<Block> block);
 
@@ -492,7 +517,7 @@ struct Function : Templatable {
     x->_Copy(this);
 
     for (auto&& arg : this->arguments)
-      x->arguments.emplace_back(arg.name, ASTCast<TypeName>(arg.type->Clone()));
+      x->arguments.emplace_back(ASTCast<Argument>(arg->Clone()));
 
     if (this->return_type)
       x->return_type = ASTCast<TypeName>(this->return_type->Clone());
@@ -504,13 +529,10 @@ struct Function : Templatable {
   }
 
   Function(Token tok, Token name)
-      : Templatable(ASTKind::Function, tok, name),
-        return_type(nullptr),
-        block(nullptr),
-        is_var_arg(false) {
+      : Function(tok, name, {}, false, nullptr, nullptr) {
   }
 
-  Function(Token tok, Token name, std::vector<Argument> args, bool is_var_arg,
+  Function(Token tok, Token name, ASTVec<Argument> args, bool is_var_arg,
            ASTPtr<TypeName> rettype, ASTPtr<Block> block)
       : Templatable(ASTKind::Function, tok, name),
         arguments(args),

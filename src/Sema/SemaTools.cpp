@@ -7,8 +7,19 @@
 
 namespace fire::semantics_checker {
 
+namespace __saved {
+
+ScopeContext* _Cur;
+vector<ScopeContext*> _History;
+
+} // namespace __saved
+
 ScopeContext*& Sema::GetCurScope() {
   return this->_cur_scope;
+}
+
+ScopeContext* Sema::GetScopeOf(ASTPointer ast) {
+  return this->_scope_context->find_child_scope(ast);
 }
 
 ScopeContext* Sema::EnterScope(ASTPointer ast) {
@@ -22,9 +33,84 @@ ScopeContext* Sema::EnterScope(ASTPointer ast) {
 }
 
 void Sema::LeaveScope(ASTPointer ast) {
+  assert(this->GetCurScope()->GetAST() == ast);
 
+  alert;
   this->_scope_history.pop_back();
+
+  alert;
   this->GetCurScope() = *this->_scope_history.rbegin();
+}
+
+ScopeContext* Sema::EnterScope(ScopeContext* ctx) {
+  auto scope = this->GetCurScope()->find_child_scope(ctx);
+
+  assert(scope);
+
+  this->GetCurScope() = this->_scope_history.emplace_back(scope);
+
+  return scope;
+}
+
+void Sema::LeaveScope(ScopeContext* ctx) {
+  assert(this->GetCurScope() == ctx);
+
+  alert;
+  this->_scope_history.pop_back();
+
+  alert;
+  this->GetCurScope() = *this->_scope_history.rbegin();
+}
+
+void Sema::SaveScopeInfo() {
+  alert;
+
+  __saved::_Cur = this->_cur_scope;
+  __saved::_History = this->_scope_history;
+}
+
+void Sema::RestoreScopeInfo() {
+  alert;
+
+  this->_cur_scope = __saved::_Cur;
+  this->_scope_history = __saved::_History;
+}
+
+void Sema::BackToDepth(int depth) {
+  alert;
+
+  while (this->GetCurScope()->depth != depth)
+    this->LeaveScope(this->GetCurScope()->GetAST());
+}
+
+int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth) {
+  alert;
+
+  if (scope->depth == depth) {
+    out.emplace_back(scope);
+  }
+
+  switch (scope->type) {
+  case ScopeContext::SC_Block: {
+    auto block = (BlockScope*)scope;
+
+    for (auto&& child : block->child_scopes) {
+      GetScopesOfDepth(out, child, depth);
+    }
+
+    break;
+  }
+
+  case ScopeContext::SC_Func: {
+    GetScopesOfDepth(out, ((FunctionScope*)scope)->block, depth);
+    break;
+  }
+
+  default:
+    todo_impl;
+  }
+
+  return (int)out.size();
 }
 
 ScopeContext::LocalVar* Sema::_find_variable(string const& name) {

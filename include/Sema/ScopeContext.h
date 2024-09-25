@@ -34,7 +34,7 @@ struct ScopeContext {
 
     bool is_argument = false;
     ASTPtr<AST::VarDef> decl = nullptr;
-    AST::Function::Argument* arg = nullptr;
+    ASTPtr<AST::Argument> arg = nullptr;
 
     int depth = 0;
     int index = 0;
@@ -46,11 +46,16 @@ struct ScopeContext {
 
   Types type;
 
+  int depth = 0;
+
+  bool Contains(ScopeContext* scope, bool recursive = false) const;
+
   virtual ASTPointer GetAST() const;
 
   virtual LocalVar* find_var(string const& name);
 
   virtual ScopeContext* find_child_scope(ASTPointer ast);
+  virtual ScopeContext* find_child_scope(ScopeContext* ctx);
 
   virtual ~ScopeContext() = default;
 
@@ -71,6 +76,8 @@ struct BlockScope : ScopeContext {
   vector<ScopeContext*> child_scopes;
 
   ScopeContext*& AddScope(ScopeContext* s) {
+    s->depth = this->depth + 1;
+
     return this->child_scopes.emplace_back(s);
   }
 
@@ -88,6 +95,7 @@ struct BlockScope : ScopeContext {
   LocalVar* find_var(string const& name) override;
 
   ScopeContext* find_child_scope(ASTPointer ast) override;
+  ScopeContext* find_child_scope(ScopeContext* ctx) override;
 
   BlockScope(ASTPtr<AST::Block> ast);
 };
@@ -102,17 +110,26 @@ struct FunctionScope : ScopeContext {
 
   BlockScope* block = nullptr;
 
-  vector<FunctionScope*> instantiated_templates;
+  vector<FunctionScope*> instantiated;
+
+  FunctionScope*& AppendInstantiated(ASTPtr<AST::Function> fn) {
+    auto& fs = this->instantiated.emplace_back(new FunctionScope(fn));
+
+    fs->depth = this->depth;
+
+    return fs;
+  }
 
   bool is_templated() const {
     return ast->is_templated;
   }
 
-  LocalVar& add_arg(AST::Function::Argument* def);
+  LocalVar& add_arg(ASTPtr<AST::Argument> def);
 
   ASTPointer GetAST() const override;
 
   LocalVar* find_var(string const& name) override;
+  ScopeContext* find_child_scope(ScopeContext* ctx) override;
 
   ScopeContext* find_child_scope(ASTPointer ast) override;
 
