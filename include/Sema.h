@@ -4,6 +4,8 @@
 #include <optional>
 #include <tuple>
 
+#include "Utils.h"
+
 #include "AST.h"
 #include "Error.h"
 
@@ -25,82 +27,93 @@ using namespace AST;
 class Sema;
 
 struct ScopeContext {
+
+  enum Types {
+    SC_Block,
+    SC_Func,
+    SC_Enum,
+    SC_Class,
+  };
+
   struct LocalVar {
     string name;
-    TypeInfo type;
 
-    ASTPtr<VarDef> decl = nullptr;
-
+    TypeInfo deducted_type;
     bool is_type_deducted = false;
 
+    bool is_argument = false;
+    ASTPtr<AST::VarDef> decl = nullptr;
+    AST::Function::Argument* arg = nullptr;
+
+    int depth = 0;
     int index = 0;
 
-    LocalVar(string const& name, TypeInfo type = {})
-        : name(name),
-          type(std::move(type)) {
+    LocalVar(string name)
+        : name(name) {
     }
   };
 
-  Sema& S;
+  Types type;
 
-  ASTPtr<Block> ast;
-  ScopeContext* parent = nullptr;
+  virtual ScopeContext* find_child_scope(ASTPointer ast) const;
 
-  vec<LocalVar> variables;
+  virtual ~ScopeContext() = default;
 
-  vec<ScopeContext*> child_scopes;
-
-  LocalVar* get_var(string const& name);
-
-  //
-  // result:
-  //   [0]      = if found same name, true
-  //   [1], [2] = index or pointer to var
-  //
-  std::tuple<bool, int, LocalVar*> define_var(ASTPtr<VarDef> ast);
-
-  ScopeContext(Sema& S, ASTPtr<Block> ast, ScopeContext* parent)
-      : S(S),
-        ast(ast),
-        parent(parent) {
-  }
-
-  ~ScopeContext() {
-    for (auto&& _c : this->child_scopes)
-      delete _c;
+protected:
+  ScopeContext(Types type)
+      : type(type) {
   }
 };
 
-struct ScopeContextPointer {
+struct BlockScope : ScopeContext {
+  ASTPtr<AST::Block> ast;
 
-  ScopeContext* get() {
-    return this->_ptr;
+  vector<LocalVar> variables;
+
+  vector<ScopeContext*> child_scopes;
+
+  ScopeContext*& AddScope(ScopeContext* s) {
+    return this->child_scopes.emplace_back(s);
   }
 
-  ScopeContext* enter(ASTPtr<Block> block) {
-    for (auto&& c : this->_ptr->child_scopes) {
-      if (c->ast == block)
-        return this->_ptr = c;
-    }
+  LocalVar& add_var(ASTPtr<AST::VarDef> def) {
+    auto& var = this->variables.emplace_back(def->GetName());
 
-    return nullptr;
+    (void)var;
+    todo_impl;
+
+    return var;
   }
 
-  ScopeContext* leave() {
-    return this->_ptr = this->_ptr->parent;
-  }
+  ScopeContext* find_child_scope(ASTPointer ast) const override;
 
-  ScopeContextPointer(ScopeContext* p)
-      : _ptr(p) {
-  }
-
-private:
-  ScopeContext* _ptr;
+  BlockScope(ASTPtr<AST::Block> ast);
 };
 
-class TemplateChecker;
+struct FunctionScope : ScopeContext {
+  ASTPtr<AST::Function> ast = nullptr;
+
+  vector<LocalVar> arguments;
+
+  BlockScope* block = nullptr;
+
+  vector<FunctionScope*> instantiated_templates;
+
+  bool is_templated() const {
+    return ast->is_templated;
+  }
+
+  LocalVar& add_arg(AST::Function::Argument* def);
+
+  ScopeContext* find_child_scope(ASTPointer ast) const override;
+
+  FunctionScope(ASTPtr<AST::Function> ast);
+};
 
 class Sema {
+
+  friend struct BlockScope;
+  friend struct FunctionScope;
 
   enum class NameType {
     Unknown,
@@ -156,6 +169,8 @@ class Sema {
   struct SemaFunction {
     ASTPtr<Function> func;
 
+    FunctionScope* scope = nullptr;
+
     vec<TypeInfo> arg_types;
 
     TypeInfo result_type;
@@ -195,6 +210,7 @@ class Sema {
 
 public:
   Sema(ASTPtr<AST::Block> prg);
+  ~Sema();
 
   void check_full();
 
@@ -202,13 +218,19 @@ public:
 
   TypeInfo evaltype(ASTPointer ast);
 
+  static Sema* GetInstance();
+
 private:
   int _construct_scope_context(ScopeContext& S, ASTPointer ast);
 
   ASTPtr<Block> root;
-  ScopeContext _scope_context;
 
-  ScopeContextPointer scope_ptr = &_scope_context;
+  BlockScope* _scope_context = nullptr;
+  ScopeContext* _cur_scope = _scope_context;
+
+  ScopeContext* GetCurScope();
+  ScopeContext* EnterScope(ASTPointer ast);
+  void LeaveScope(ASTPointer ast);
 
   vec<SemaFunction> functions;
 
