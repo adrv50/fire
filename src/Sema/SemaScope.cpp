@@ -1,24 +1,26 @@
-#include <iostream>
-#include <sstream>
-#include <list>
-
 #include "alert.h"
-#include "AST.h"
-
-#include "Sema.h"
 #include "Error.h"
+#include "Sema/Sema.h"
 
 namespace fire::semantics_checker {
 
-ScopeContext* ScopeContext::find_child_scope(ASTPointer ast) const {
+// ------------------------------------
+//  ScopeContext ( base-struct )
+
+ScopeContext* ScopeContext::find_child_scope(ASTPointer ast) {
   return nullptr;
 }
 
-ScopeContext* FunctionScope::find_child_scope(ASTPointer ast) const {
+ASTPointer ScopeContext::GetAST() const {
+  return nullptr;
 }
 
-ScopeContext* BlockScope::find_child_scope(ASTPointer ast) const {
+ScopeContext::LocalVar* ScopeContext::find_var(string const& name) {
+  return nullptr;
 }
+
+// ------------------------------------
+//  BlockScope
 
 BlockScope::BlockScope(ASTPtr<AST::Block> ast)
     : ScopeContext(SC_Block),
@@ -42,19 +44,33 @@ BlockScope::BlockScope(ASTPtr<AST::Block> ast)
   }
 }
 
-ScopeContext::LocalVar& FunctionScope::add_arg(AST::Function::Argument* def) {
-  auto& arg = this->arguments.emplace_back(def->get_name());
+ASTPointer BlockScope::GetAST() const {
+  return this->ast;
+}
 
-  arg.arg = def;
-  arg.is_argument = true;
-
-  if (!this->is_templated()) {
-    arg.deducted_type = Sema::GetInstance()->evaltype(def->type);
-    arg.is_type_deducted = true;
+ScopeContext::LocalVar* BlockScope::find_var(string const& name) {
+  for (auto&& var : this->variables) {
+    if (var.name == name)
+      return &var;
   }
 
-  return arg;
+  return nullptr;
 }
+
+ScopeContext* BlockScope::find_child_scope(ASTPointer ast) {
+  if (this->ast == ast)
+    return this;
+
+  for (auto&& c : this->child_scopes) {
+    if (auto s = c->find_child_scope(ast); s)
+      return s;
+  }
+
+  return nullptr;
+}
+
+// ------------------------------------
+//  FunctionScope
 
 FunctionScope::FunctionScope(ASTPtr<AST::Function> ast)
     : ScopeContext(SC_Func),
@@ -69,5 +85,41 @@ FunctionScope::FunctionScope(ASTPtr<AST::Function> ast)
 
   this->block = new BlockScope(ast->block);
 }
+
+ScopeContext::LocalVar& FunctionScope::add_arg(AST::Function::Argument* def) {
+  auto& arg = this->arguments.emplace_back(def->get_name());
+
+  arg.arg = def;
+  arg.is_argument = true;
+
+  if (!this->is_templated()) {
+    arg.deducted_type = Sema::GetInstance()->evaltype(def->type);
+    arg.is_type_deducted = true;
+  }
+
+  return arg;
+}
+
+ASTPointer FunctionScope::GetAST() const {
+  return this->ast;
+}
+
+ScopeContext::LocalVar* FunctionScope::find_var(string const& name) {
+  for (auto&& arg : this->arguments) {
+    if (arg.name == name)
+      return &arg;
+  }
+
+  return nullptr;
+}
+
+ScopeContext* FunctionScope::find_child_scope(ASTPointer ast) {
+  if (this->ast == ast)
+    return this;
+
+  return this->block->find_child_scope(ast);
+}
+
+// ------------------------------------
 
 } // namespace fire::semantics_checker

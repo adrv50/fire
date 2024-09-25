@@ -1,17 +1,10 @@
-#include <iostream>
-#include <sstream>
-#include <list>
-
 #include "alert.h"
-#include "AST.h"
-
-#include "Sema.h"
+#include "Sema/Sema.h"
 #include "Error.h"
 
 #define foreach(_Name, _Content) for (auto&& _Name : _Content)
 
 #define printkind alertmsg(static_cast<int>(ast->kind))
-
 #define printkind_of(_A) alertmsg(static_cast<int>((_A)->kind))
 
 namespace fire::semantics_checker {

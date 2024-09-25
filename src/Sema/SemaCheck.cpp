@@ -1,17 +1,10 @@
-#include <iostream>
-#include <sstream>
-#include <list>
-
 #include "alert.h"
-#include "AST.h"
-
-#include "Sema.h"
 #include "Error.h"
+#include "Sema/Sema.h"
 
 #define foreach(_Name, _Content) for (auto&& _Name : _Content)
 
 #define printkind alertmsg(static_cast<int>(ast->kind))
-
 #define printkind_of(_A) alertmsg(static_cast<int>((_A)->kind))
 
 namespace fire::semantics_checker {
@@ -36,6 +29,8 @@ void Sema::check(ASTPointer ast) {
   case ASTKind::Function: {
     alert;
     auto x = ASTCast<AST::Function>(ast);
+
+    this->EnterScope(x);
 
     alert;
     auto func = this->get_func(x);
@@ -110,14 +105,20 @@ void Sema::check(ASTPointer ast) {
     alert;
     this->check(x->block);
 
+    this->LeaveScope(x);
+
     break;
   }
 
   case ASTKind::Block: {
     auto x = ASTCast<AST::Block>(ast);
 
+    this->EnterScope(x);
+
     for (auto&& e : x->list)
       this->check(e);
+
+    this->LeaveScope(x);
 
     break;
   }
@@ -128,6 +129,14 @@ void Sema::check(ASTPointer ast) {
 
     this->check(x->type);
     this->check(x->init);
+
+    break;
+  }
+
+  case ASTKind::Return: {
+    auto x = ASTCast<AST::Statement>(ast);
+
+    this->check(x->get_expr());
 
     break;
   }

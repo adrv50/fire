@@ -1,12 +1,6 @@
-#include <iostream>
-#include <sstream>
-
 #include "alert.h"
-#include "Utils.h"
-
-#include "AST.h"
+#include "Sema/Sema.h"
 #include "Error.h"
-#include "Sema.h"
 
 #define foreach(_Name, _Content) for (auto&& _Name : _Content)
 

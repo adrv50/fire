@@ -9,106 +9,14 @@
 #include "AST.h"
 #include "Error.h"
 
+#include "ScopeContext.h"
+
 namespace fire::semantics_checker {
 
-template <class T>
-using vec = std::vector<T>;
-
-template <class T>
-using ASTPtr = ASTPtr<T>;
-
-template <class T>
-using WeakVec = vec<std::weak_ptr<T>>;
-
-using TypeVec = vec<TypeInfo>;
-
 using namespace AST;
+using TypeVec = vector<TypeInfo>;
 
 class Sema;
-
-struct ScopeContext {
-
-  enum Types {
-    SC_Block,
-    SC_Func,
-    SC_Enum,
-    SC_Class,
-  };
-
-  struct LocalVar {
-    string name;
-
-    TypeInfo deducted_type;
-    bool is_type_deducted = false;
-
-    bool is_argument = false;
-    ASTPtr<AST::VarDef> decl = nullptr;
-    AST::Function::Argument* arg = nullptr;
-
-    int depth = 0;
-    int index = 0;
-
-    LocalVar(string name)
-        : name(name) {
-    }
-  };
-
-  Types type;
-
-  virtual ScopeContext* find_child_scope(ASTPointer ast) const;
-
-  virtual ~ScopeContext() = default;
-
-protected:
-  ScopeContext(Types type)
-      : type(type) {
-  }
-};
-
-struct BlockScope : ScopeContext {
-  ASTPtr<AST::Block> ast;
-
-  vector<LocalVar> variables;
-
-  vector<ScopeContext*> child_scopes;
-
-  ScopeContext*& AddScope(ScopeContext* s) {
-    return this->child_scopes.emplace_back(s);
-  }
-
-  LocalVar& add_var(ASTPtr<AST::VarDef> def) {
-    auto& var = this->variables.emplace_back(def->GetName());
-
-    (void)var;
-    todo_impl;
-
-    return var;
-  }
-
-  ScopeContext* find_child_scope(ASTPointer ast) const override;
-
-  BlockScope(ASTPtr<AST::Block> ast);
-};
-
-struct FunctionScope : ScopeContext {
-  ASTPtr<AST::Function> ast = nullptr;
-
-  vector<LocalVar> arguments;
-
-  BlockScope* block = nullptr;
-
-  vector<FunctionScope*> instantiated_templates;
-
-  bool is_templated() const {
-    return ast->is_templated;
-  }
-
-  LocalVar& add_arg(AST::Function::Argument* def);
-
-  ScopeContext* find_child_scope(ASTPointer ast) const override;
-
-  FunctionScope(ASTPtr<AST::Function> ast);
-};
 
 class Sema {
 
@@ -171,11 +79,11 @@ class Sema {
 
     FunctionScope* scope = nullptr;
 
-    vec<TypeInfo> arg_types;
+    vector<TypeInfo> arg_types;
 
     TypeInfo result_type;
 
-    vec<ASTPtr<AST::Statement>>
+    vector<ASTPtr<AST::Statement>>
         return_stmt_list; // use to check return-type specification.
                           // (append only that contains a expression)
 
@@ -227,12 +135,13 @@ private:
 
   BlockScope* _scope_context = nullptr;
   ScopeContext* _cur_scope = _scope_context;
+  vector<ScopeContext*> _scope_history;
 
-  ScopeContext* GetCurScope();
+  ScopeContext*& GetCurScope();
   ScopeContext* EnterScope(ASTPointer ast);
   void LeaveScope(ASTPointer ast);
 
-  vec<SemaFunction> functions;
+  vector<SemaFunction> functions;
 
   ASTVec<Enum> enums;
   ASTVec<Class> classes;
