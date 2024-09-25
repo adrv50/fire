@@ -10,9 +10,6 @@
 namespace fire::semantics_checker {
 
 void Sema::check_full() {
-  alert;
-
-  alert;
   this->check(this->root);
 }
 
@@ -22,31 +19,23 @@ void Sema::check(ASTPointer ast) {
     return;
   }
 
-  printkind;
-
   switch (ast->kind) {
 
   case ASTKind::Function: {
-    alert;
     auto x = ASTCast<AST::Function>(ast);
 
-    this->EnterScope(x);
-
-    alert;
     auto func = this->get_func(x);
 
-    alert;
     if (func->func->is_templated) {
-      alert;
       break;
     }
 
-    alert;
+    this->EnterScope(x);
+
     assert(func != nullptr);
 
     func->result_type = this->evaltype(x->return_type);
 
-    alert;
     AST::walk_ast(func->func->block,
                   [&func](AST::ASTWalkerLocation loc, ASTPointer _ast) {
                     if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
@@ -54,19 +43,10 @@ void Sema::check(ASTPointer ast) {
                     }
                   });
 
-    // alert;
-    // for (auto&& arg : x->arguments) {
-    //   alert;
-    //   func->arg_types.emplace_back(this->evaltype(arg.type));
-    // }
-
-    alert;
     for (auto&& ret : func->return_stmt_list) {
       auto expr = ret->As<AST::Statement>()->get_expr();
-      alert;
 
       if (auto type = this->evaltype(expr); !type.equals(func->result_type)) {
-        alert;
         if (func->result_type.equals(TypeKind::None)) {
           Error(ret->token, "expected ';' after this token")();
         }
@@ -85,7 +65,6 @@ void Sema::check(ASTPointer ast) {
       }
     }
 
-    alert;
     if (!func->result_type.equals(TypeKind::None)) {
       if (func->return_stmt_list.empty()) {
         Error(func->func->token, "function must return value of type '" +
@@ -103,7 +82,6 @@ void Sema::check(ASTPointer ast) {
       }
     }
 
-    alert;
     this->check(x->block);
 
     this->LeaveScope();

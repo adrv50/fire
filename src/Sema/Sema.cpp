@@ -10,18 +10,13 @@ Sema* Sema::GetInstance() {
 
 Sema::Sema(ASTPtr<AST::Block> prg)
     : root(prg) {
-  alert;
   _sema_instances.emplace_back(this);
 
-  alert;
   this->_scope_context = new BlockScope(prg);
-
-  alert;
   this->_cur_scope = this->_scope_context;
 }
 
 Sema::~Sema() {
-  alert;
   _sema_instances.pop_back();
 }
 

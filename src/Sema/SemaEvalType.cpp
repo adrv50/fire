@@ -16,11 +16,6 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
   if (!ast)
     return {};
 
-  printkind;
-
-  // if (ast->token.sourceloc.ref)
-  //   Error(ast->token, "uouo").emit();
-
   switch (ast->kind) {
   case Kind::Enum:
   case Kind::Function:
@@ -81,13 +76,10 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
     return ast->as_value()->value->type;
 
   case Kind::Variable: {
-    alert;
     auto pvar = this->_find_variable(ast->GetID()->GetName());
 
-    alert;
     assert(pvar->is_type_deducted);
 
-    alert;
     return pvar->deducted_type;
   }
 
@@ -216,7 +208,6 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
           // 引数の数だけみて、もし一致すれば
           if ((func->is_var_arg && call->args.size() + 1 >= func->arguments.size()) ||
               (call->args.size() == func->arguments.size())) {
-            alert;
             // candidates.emplace_back(func);
 
             struct _Data {
@@ -228,47 +219,37 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
             std::map<string /* = name*/, _Data> param_types;
 
             for (i64 i = 0; i < (i64)callee_as_id->id_params.size(); i++) {
-              // ASTPtr<AST::TypeName> actual_param = callee_as_id->id_params[i];
-
               // formal_param = パラメータ ("T" とか) のトークンへのポインタ
               string formal_param_name = func->template_param_names[i].str;
 
-              alert;
               ASTPtr<AST::TypeName> actual_parameter_type = callee_as_id->id_params[i];
 
-              alert;
               if (param_types.contains(formal_param_name)) {
                 Error(actual_parameter_type->token, "redefined the parameter name '" +
                                                         actual_parameter_type->token.str +
                                                         "'")();
               }
 
-              alert;
               param_types[formal_param_name] = _Data{
                   .ast = actual_parameter_type,
                   .type = this->evaltype(actual_parameter_type),
               };
             }
 
-            alert;
             ASTPtr<AST::Function> cloned_func =
                 ASTCast<AST::Function>(func->Clone()); // Instantiate.
-
-            alert;
 
             // original.
             FunctionScope* template_func_scope = (FunctionScope*)this->GetScopeOf(func);
 
             assert(template_func_scope);
 
-            alert;
             // instantiated.
             FunctionScope* instantiated_func_scope =
                 template_func_scope->AppendInstantiated(cloned_func);
 
             cloned_func->is_templated = false;
 
-            alert;
             AST::walk_ast(cloned_func, [&param_types, instantiated_func_scope](
                                            AST::ASTWalkerLocation _loc, ASTPointer _ast) {
               if (_loc != AST::AW_Begin) {
@@ -276,60 +257,32 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
               }
 
               if (_ast->kind == ASTKind::Argument) {
-                alert;
-
                 auto _arg = ASTCast<AST::Argument>(_ast);
 
                 auto pvar = instantiated_func_scope->find_var(_arg->GetName());
-                assert(pvar);
-                assert(pvar->is_argument);
 
                 pvar->is_type_deducted = true;
                 pvar->deducted_type = param_types[_arg->type->GetName()].type;
-
-                alertexpr(pvar->name);
-                alertexpr(pvar->deducted_type.to_string());
               }
 
               if (_ast->kind == ASTKind::TypeName) {
-
-                alert;
                 ASTPtr<AST::TypeName> _ast_type = ASTCast<AST::TypeName>(_ast);
                 string name = _ast_type->GetName();
 
-                alertmsg(name);
-
                 if (param_types.contains(name)) {
                   _ast_type->name.str = param_types[name].type.to_string();
-
-                  alertmsg("(var) replace " << name << " to " << _ast_type->name.str);
-                  // todo_impl;
                 }
               }
             });
 
-            alert;
             call->callee_ast = cloned_func;
 
-            alert;
-            // this->add_func(cloned_func);
-
-            alert;
-            alertexpr(this->GetCurScope());
-            alertexpr(this->_scope_history.size());
             this->SaveScopeInfo();
 
-            alert;
             this->BackToDepth(template_func_scope->depth - 1);
 
-            alertexpr(template_func_scope->depth);
-            alertexpr(this->_scope_history.size());
-
-            alert;
-            // this->EnterScope(instantiated_func_scope);
             this->_cur_scope = this->_scope_history.emplace_back(instantiated_func_scope);
 
-            alert;
             this->check(cloned_func);
 
             this->RestoreScopeInfo();
@@ -375,9 +328,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       }
 
       // 一致する候補がない
-      alert;
       if (candidates.empty()) {
-        alert;
         string arg_types_str;
 
         for (i64 i = 0; i < (i64)arg_types.size(); i++) {
@@ -394,15 +345,12 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
         // である場合、同じ名前の関数があること、引数間違いなどをヒントとして表示する
       }
 
-      alert;
       if (candidates.size() >= 2) {
         Error(callee, "call function '" + idinfo.to_string() + "' is ambigious")();
       }
 
-      alert;
       call->callee_ast = candidates[0];
 
-      alert;
       return this->evaltype(candidates[0]->return_type);
 
     } // if Identifier or ScopeResol

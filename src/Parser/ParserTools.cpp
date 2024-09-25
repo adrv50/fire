@@ -31,8 +31,6 @@ void Parser::expect(std::string_view str, bool no_next) {
 }
 
 bool Parser::eat_typeparam_bracket_open() {
-  alertmsg(_typeparam_bracket_depth);
-
   if (this->eat("<")) {
     _typeparam_bracket_depth++;
     return true;
@@ -42,20 +40,12 @@ bool Parser::eat_typeparam_bracket_open() {
 }
 
 bool Parser::eat_typeparam_bracket_close() {
-  alertmsg(_typeparam_bracket_depth);
-
-  alert;
   if (_typeparam_bracket_depth >= 1 && this->match(">>")) {
-    alert;
     this->cur->str = ">";
-
-    alert;
     this->cur = this->insert_token(">");
   }
 
-  alert;
   if (this->eat(">")) {
-    alert;
     _typeparam_bracket_depth--;
     return true;
   }

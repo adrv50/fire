@@ -27,8 +27,6 @@ ScopeContext* Sema::GetScopeOf(ASTPointer ast) {
 ScopeContext* Sema::EnterScope(ASTPointer ast) {
   auto scope = this->GetCurScope()->find_child_scope(ast);
 
-  assert(scope);
-
   this->GetCurScope() = this->_scope_history.emplace_back(scope);
 
   return scope;
@@ -37,52 +35,23 @@ ScopeContext* Sema::EnterScope(ASTPointer ast) {
 ScopeContext* Sema::EnterScope(ScopeContext* ctx) {
   auto scope = this->GetCurScope()->find_child_scope(ctx);
 
-  assert(scope);
-
   this->GetCurScope() = this->_scope_history.emplace_back(scope);
 
   return scope;
 }
 
 void Sema::LeaveScope() {
-  alert;
   this->_scope_history.pop_back();
 
-  alert;
   this->GetCurScope() = *this->_scope_history.rbegin();
 }
-
-/*
-void Sema::LeaveScope(ASTPointer ast) {
-  // assert(this->GetCurScope()->GetAST() == ast);
-
-  alert;
-  this->_scope_history.pop_back();
-
-  alert;
-  this->GetCurScope() = *this->_scope_history.rbegin();
-}
-
-void Sema::LeaveScope(ScopeContext* ctx) {
-  assert(this->GetCurScope() == ctx);
-
-  alert;
-  this->_scope_history.pop_back();
-
-  alert;
-  this->GetCurScope() = *this->_scope_history.rbegin();
-}
-*/
 
 void Sema::SaveScopeInfo() {
-  alert;
   _bak_list.push_front(
       ScopeInfoSave{._Cur = this->_cur_scope, ._History = this->_scope_history});
 }
 
 void Sema::RestoreScopeInfo() {
-  alert;
-
   auto& save = *_bak_list.begin();
 
   this->_cur_scope = save._Cur;
@@ -92,15 +61,11 @@ void Sema::RestoreScopeInfo() {
 }
 
 void Sema::BackToDepth(int depth) {
-  alert;
-
   while (this->GetCurScope()->depth != depth)
     this->LeaveScope();
 }
 
 int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth) {
-  alert;
-
   if (scope->depth == depth) {
     out.emplace_back(scope);
   }

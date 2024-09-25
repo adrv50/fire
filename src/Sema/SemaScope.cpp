@@ -13,8 +13,6 @@ bool ScopeContext::Contains(ScopeContext* scope, bool recursive) const {
   case SC_Block: {
     auto block = (BlockScope*)scope;
 
-    alert;
-
     for (auto&& c : block->child_scopes) {
       if (c == scope)
         return true;
@@ -61,19 +59,13 @@ ScopeContext::LocalVar* ScopeContext::find_var(string const& name) {
 BlockScope::BlockScope(ASTPtr<AST::Block> ast)
     : ScopeContext(SC_Block),
       ast(ast) {
-  alert;
-
   for (auto&& e : ast->list) {
-    alert;
-
     switch (e->kind) {
     case ASTKind::Block:
-      alert;
       this->AddScope(new BlockScope(ASTCast<AST::Block>(e)));
       break;
 
     case ASTKind::Function:
-      alert;
       this->AddScope(new FunctionScope(ASTCast<AST::Function>(e)));
       break;
     }
@@ -126,7 +118,6 @@ FunctionScope::FunctionScope(ASTPtr<AST::Function> ast)
 
   Sema::GetInstance()->add_func(ast);
 
-  alert;
   for (auto&& arg : ast->arguments) {
     this->add_arg(arg);
   }
