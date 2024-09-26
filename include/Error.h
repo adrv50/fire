@@ -24,14 +24,13 @@ public:
 
   Error& emit(ErrorLevel lv = ErrorLevel::Error);
 
-  [[noreturn]]
-  void operator()();
+  static int GetEmittedCount();
 
-  [[noreturn]]
-  void stop();
+  [[noreturn]] void operator()();
 
-  [[noreturn]]
-  static void fatal_error(std::string const& msg);
+  [[noreturn]] void stop();
+
+  [[noreturn]] static void fatal_error(std::string const& msg);
 
 private:
   Token loc_token;

@@ -64,13 +64,11 @@ struct line_data_wrapper_t {
     if (this->src) {
       std::stringstream ss;
 
-      ss << utils::Format(utils::Format("%s%% %dd",
-                                        is_main ? COL_LINENUM : COL_GRAY,
+      ss << utils::Format(utils::Format("%s%% %dd", is_main ? COL_LINENUM : COL_GRAY,
                                         LINENUM_WIDTH),
                           this->linenum)
          << COL_BORDER_LINE << " | "
-         << (is_main ? COL_BOLD COL_WHITE : COL_UNBOLD COL_GRAY)
-         << this->view;
+         << (is_main ? COL_BOLD COL_WHITE : COL_UNBOLD COL_GRAY) << this->view;
 
       return ss.str();
     }
@@ -79,12 +77,13 @@ struct line_data_wrapper_t {
   }
 };
 
+static int _err_emitted_count = 0;
+
 Error& Error::emit(Error::ErrorLevel lv) {
 
   auto& err_token = this->loc_ast ? this->loc_ast->token : this->loc_token;
 
-  line_data_wrapper_t line_top, line_bottom,
-      line_err = line_data_wrapper_t(err_token);
+  line_data_wrapper_t line_top, line_bottom, line_err = line_data_wrapper_t(err_token);
 
   line_err.get_other_line(line_top, -1);
   line_err.get_other_line(line_bottom, 1);
@@ -109,15 +108,14 @@ Error& Error::emit(Error::ErrorLevel lv) {
     break;
   }
 
-  // path and location
-  ss << COL_BOLD COL_WHITE << loc.ref->path << ":" << line_err.linenum
-     << ":" << line_err.pos << ": ";
-
   // message
-  ss << errlvstr << COL_BOLD COL_WHITE << this->msg << std::endl;
+  ss << COL_BOLD << errlvstr << COL_WHITE << this->msg << std::endl;
+
+  // path and location
+  ss << "     " << COL_BOLD COL_UNDERLINE COL_BORDER_LINE << "--> " << loc.ref->path
+     << ":" << line_err.linenum << ":" << line_err.pos << COL_DEFAULT << std::endl;
 
   StringVector screen = {
-      COL_BORDER_LINE + std::string(10, '-'),
       line_top.to_print_str(false),
       line_err.to_print_str(true),
       line_bottom.to_print_str(false),
@@ -125,33 +123,29 @@ Error& Error::emit(Error::ErrorLevel lv) {
 
   // insert cursor '^'
   {
-    auto& s = screen[3];
+    auto& s = screen[2];
 
-    auto cursorpos = line_err.pos + LINENUM_WIDTH + 3 +
-                     utils::get_color_length_in_str(s);
+    auto cursorpos = line_err.pos + LINENUM_WIDTH + 3 + utils::get_color_length_in_str(s);
 
     if ((int)s.length() <= cursorpos)
       s += std::string(cursorpos - s.length() + 10, ' ');
 
-    s = s.substr(0, cursorpos) +
-        COL_DEFAULT COL_BOLD COL_WHITE "^" COL_UNBOLD COL_GRAY +
+    s = s.substr(0, cursorpos) + COL_DEFAULT COL_BOLD COL_WHITE "^" COL_UNBOLD COL_GRAY +
         s.substr(cursorpos + 1);
   }
 
-  // border
-  // -------
-  ss << screen[0] << std::endl;
-
   // | (and back line if got)
-  ss << COL_DEFAULT << screen[1] << std::endl;
+  ss << COL_DEFAULT << screen[0] << std::endl;
 
   // | error line
-  ss << COL_DEFAULT << screen[2] << std::endl;
+  ss << COL_DEFAULT << screen[1] << std::endl;
 
   // | (and next line if got)  and cursor
-  ss << COL_DEFAULT << screen[3] << std::endl;
+  ss << COL_DEFAULT << screen[2] << std::endl;
 
   std::cout << COL_DEFAULT << ss.str() << COL_DEFAULT << std::endl;
+
+  _err_emitted_count++;
 
   return *this;
 }
@@ -159,17 +153,22 @@ Error& Error::emit(Error::ErrorLevel lv) {
 // Error& Error::emit_as_hint() {
 // }
 
+int Error::GetEmittedCount() {
+  return _err_emitted_count;
+}
+
 void Error::operator()() {
   this->emit().stop();
 }
 
 void Error::stop() {
-  std::exit(1);
+  // std::exit(1);
+
+  throw this;
 }
 
 void Error::fatal_error(std::string const& msg) {
-  std::cout << COL_BOLD COL_RED << "fatal error: " << COL_DEFAULT << msg
-            << std::endl;
+  std::cout << COL_BOLD COL_RED << "fatal error: " << COL_DEFAULT << msg << std::endl;
 
   std::exit(2);
 }

@@ -63,21 +63,28 @@ void execute_file(std::string const& path) {
     Error::fatal_error("cannot open file '" + path + "'");
   }
 
-  Lexer lexer{source};
+  try {
+    Lexer lexer{source};
 
-  auto tokens = lexer.Lex();
+    auto tokens = lexer.Lex();
 
-  if (tokens.empty())
-    return;
+    if (tokens.empty())
+      return;
 
-  parser::Parser parser{tokens};
-  ASTPtr<AST::Block> prg = parser.Parse();
+    parser::Parser parser{tokens};
+    ASTPtr<AST::Block> prg = parser.Parse();
 
-  prg = ASTCast<AST::Block>(prg->Clone());
+    prg = ASTCast<AST::Block>(prg->Clone());
 
-  semantics_checker::Sema sema{prg};
+    semantics_checker::Sema sema{prg};
 
-  sema.check_full();
+    sema.check_full();
+  }
+
+  catch (Error*) {
+    std::cout << "emitted " << Error::GetEmittedCount() << " errors." << std::endl;
+    ;
+  }
 
   // try {
   //   eval::Evaluator eval{prg};

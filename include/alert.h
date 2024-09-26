@@ -4,6 +4,7 @@
 
 #define COL_DEFAULT "\033[0m"
 #define COL_BOLD "\033[1m"
+#define COL_UNDERLINE "\033[4m"
 #define COL_UNBOLD "\033[2m"
 
 #define COL_BLACK "\033[30m"
