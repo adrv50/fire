@@ -16,6 +16,8 @@ void Sema::check_full() {
   alert;
   this->SaveScopeLocation();
 
+  alertexpr(this->ins_requests.size());
+
   alert;
   for (auto&& req : this->ins_requests) {
     alert;
@@ -24,8 +26,11 @@ void Sema::check_full() {
 
     alert;
     try {
+
       alert;
       alertexpr(req.cloned.get());
+
+      assert(req.cloned != nullptr);
       this->check(req.cloned);
 
       alert;

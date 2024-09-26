@@ -48,7 +48,7 @@ release: $(BUILD)
 		LDFLAGS="-Wl,--gc-sections,-s" -C $(BUILD) -f $(TOPDIR)/Makefile
 
 run: all
-	@./fired test.fire
+	@./fired test.fr
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@

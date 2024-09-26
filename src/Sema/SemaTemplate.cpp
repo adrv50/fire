@@ -2,10 +2,11 @@
 
 namespace fire::semantics_checker {
 
-Sema::InstantiateRequest* Sema::find_request_of_func(TypeInfo ret_type, TypeVec args) {
+Sema::InstantiateRequest* Sema::find_request_of_func(ASTPtr<AST::Function> func,
+                                                     TypeInfo ret_type, TypeVec args) {
 
   for (auto&& r : this->ins_requests) {
-    if (r.result_type.equals(ret_type)) {
+    if (r.original == func && r.result_type.equals(ret_type)) {
       if (r.arg_types.size() == args.size()) {
         for (i64 i = 0; i < (i64)args.size(); i++) {
           if (!r.arg_types[i].equals(args[i]))
@@ -25,7 +26,12 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
                                         ASTPtr<AST::Identifier> id,
                                         TypeVec const& arg_types) {
 
-  InstantiateRequest req{};
+  InstantiateRequest req{
+      .requested = call,
+      .idinfo = idinfo,
+      .original = func,
+      .arg_types = arg_types,
+  };
 
   req.idinfo = idinfo;
 
@@ -79,6 +85,8 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
                   "the type of template parameter '" + _name + "' is not deducted yet");
     }
   }
+
+  req.requested = call;
 
   req.cloned = ASTCast<AST::Function>(func->Clone()); // Instantiate.
 
@@ -148,7 +156,14 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
                                            arg_types[res.index].to_string() + "'");
 
   case ArgumentCheckResult::Ok: {
-    this->ins_requests.emplace_back(req);
+    req.result_type = this->evaltype(req.cloned->return_type);
+
+    if (!this->find_request_of_func(func, req.result_type, arg_types)) {
+      alert;
+
+      this->ins_requests.emplace_back(req);
+    }
+
     return req.cloned;
   }
   }

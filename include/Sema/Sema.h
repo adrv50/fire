@@ -144,6 +144,7 @@ private:
     // パラメータとして渡された型
     std::map<string, Argument> param_types;
 
+    ASTPtr<AST::Function> original = nullptr;
     ASTPtr<AST::Function> cloned = nullptr;
 
     TypeInfo result_type; //
@@ -152,7 +153,8 @@ private:
 
   std::vector<InstantiateRequest> ins_requests;
 
-  InstantiateRequest* find_request_of_func(TypeInfo ret_type, TypeVec args);
+  InstantiateRequest* find_request_of_func(ASTPtr<AST::Function> func, TypeInfo ret_type,
+                                           TypeVec args);
 
   ASTPtr<AST::Function> Instantiate(ASTPtr<AST::Function> func,
                                     ASTPtr<AST::CallFunc> call, IdentifierInfo idinfo,
