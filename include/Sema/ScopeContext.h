@@ -39,9 +39,12 @@ struct ScopeContext {
     int depth = 0;
     int index = 0;
 
-    LocalVar(string name)
-        : name(name) {
+    LocalVar(string name = "")
+        : name(std::move(name)) {
     }
+
+    LocalVar(ASTPtr<AST::VarDef> vardef);
+    LocalVar(ASTPtr<AST::Argument> arg);
   };
 
   Types type;
@@ -50,12 +53,19 @@ struct ScopeContext {
 
   bool Contains(ScopeContext* scope, bool recursive = false) const;
 
+  virtual bool IsNamedAs(string const&) const {
+    return false;
+  }
+
   virtual ASTPointer GetAST() const;
 
   virtual LocalVar* find_var(string const& name);
 
   virtual ScopeContext* find_child_scope(ASTPointer ast);
   virtual ScopeContext* find_child_scope(ScopeContext* ctx);
+
+  // find a named scope
+  virtual vector<ScopeContext*> find_name(string const& name);
 
   virtual ~ScopeContext() = default;
 
@@ -81,14 +91,7 @@ struct BlockScope : ScopeContext {
     return this->child_scopes.emplace_back(s);
   }
 
-  LocalVar& add_var(ASTPtr<AST::VarDef> def) {
-    auto& var = this->variables.emplace_back(def->GetName());
-
-    (void)var;
-    todo_impl;
-
-    return var;
-  }
+  LocalVar& add_var(ASTPtr<AST::VarDef> def);
 
   ASTPointer GetAST() const override;
 
@@ -97,7 +100,10 @@ struct BlockScope : ScopeContext {
   ScopeContext* find_child_scope(ASTPointer ast) override;
   ScopeContext* find_child_scope(ScopeContext* ctx) override;
 
+  vector<ScopeContext*> find_name(string const& name) override;
+
   BlockScope(ASTPtr<AST::Block> ast);
+  ~BlockScope();
 };
 
 // ------------------------------------
@@ -126,14 +132,21 @@ struct FunctionScope : ScopeContext {
 
   LocalVar& add_arg(ASTPtr<AST::Argument> def);
 
+  bool IsNamedAs(string const& name) const override {
+    return this->ast->GetName() == name;
+  }
+
   ASTPointer GetAST() const override;
 
   LocalVar* find_var(string const& name) override;
-  ScopeContext* find_child_scope(ScopeContext* ctx) override;
 
+  ScopeContext* find_child_scope(ScopeContext* ctx) override;
   ScopeContext* find_child_scope(ASTPointer ast) override;
 
+  vector<ScopeContext*> find_name(string const& name) override;
+
   FunctionScope(ASTPtr<AST::Function> ast);
+  ~FunctionScope();
 };
 
 } // namespace fire::semantics_checker

@@ -18,6 +18,13 @@ using TypeVec = vector<TypeInfo>;
 
 class Sema;
 
+class TemplateMatcher {
+public:
+  struct Argument {
+    string name;
+  };
+};
+
 class Sema {
 
   friend struct BlockScope;
@@ -138,6 +145,8 @@ private:
   ScopeContext* _cur_scope = _scope_context;
   vector<ScopeContext*> _scope_history;
 
+  ScopeContext* GetRootScope();
+
   ScopeContext*& GetCurScope();
   ScopeContext* GetScopeOf(ASTPointer ast);
 
@@ -155,22 +164,10 @@ private:
 
   int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth);
 
-  vector<SemaFunction> functions;
+  vector<std::pair<ASTPtr<AST::Function>, SemaFunction>> function_scope_map;
 
   ASTVec<Enum> enums;
   ASTVec<Class> classes;
-
-  SemaFunction& add_func(ASTPtr<Function> f) {
-    return this->functions.emplace_back(f);
-  }
-
-  SemaFunction* get_func(ASTPtr<Function> f) {
-    for (auto&& sf : this->functions)
-      if (sf.func == f)
-        return &sf;
-
-    return nullptr;
-  }
 
   ASTPtr<Enum>& add_enum(ASTPtr<Enum> e) {
     return this->enums.emplace_back(e);

@@ -211,29 +211,66 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
             // candidates.emplace_back(func);
 
             struct _Data {
-              ASTPtr<AST::TypeName> ast;
               TypeInfo type;
-              ScopeContext::LocalVar* lvar;
+
+              ASTPtr<AST::TypeName> ast = nullptr; // @<...> で渡される型名
+              // ScopeContext::LocalVar* lvar=nullptr;
+
+              bool is_deducted = false;
             };
 
-            std::map<string /* = name*/, _Data> param_types;
+            //
+            // < string = name , >
+            std::map<string, _Data> param_types;
 
+            for (auto&& param : func->template_param_names) {
+              param_types[param.str] = {};
+            }
+
+            //
+            // 呼び出し式の、関数名のあとにある "@<...>" の構文から、
+            // 明示的に指定されている型をパラメータに当てはめる。
+            //
             for (i64 i = 0; i < (i64)callee_as_id->id_params.size(); i++) {
-              // formal_param = パラメータ ("T" とか) のトークンへのポインタ
               string formal_param_name = func->template_param_names[i].str;
 
               ASTPtr<AST::TypeName> actual_parameter_type = callee_as_id->id_params[i];
 
-              if (param_types.contains(formal_param_name)) {
-                Error(actual_parameter_type->token, "redefined the parameter name '" +
-                                                        actual_parameter_type->token.str +
-                                                        "'")();
+              param_types[formal_param_name] =
+                  _Data{.type = this->evaltype(actual_parameter_type),
+                        .ast = actual_parameter_type,
+                        .is_deducted = true};
+            }
+
+            //
+            // 引数の型から推論する
+            for (auto formal_arg_begin = func->arguments.begin();
+                 auto&& arg_type : arg_types) {
+
+              // formal_arg_begin   = 引数を定義してる構文へのポインタ
+              // arg_type           = 渡された引数の型
+
+              string param_name = (*formal_arg_begin)->type->GetName();
+
+              if (!param_types[param_name].is_deducted) {
+
+                auto& _Param = param_types[param_name];
+
+                _Param.ast = (*formal_arg_begin)->type;
+                _Param.type = arg_type;
+                _Param.is_deducted = true;
               }
 
-              param_types[formal_param_name] = _Data{
-                  .ast = actual_parameter_type,
-                  .type = this->evaltype(actual_parameter_type),
-              };
+              formal_arg_begin++;
+            }
+
+            //
+            // 推論できていないパラメータがある場合、エラー
+            for (auto&& [_name, _data] : param_types) {
+              if (!_data.is_deducted) {
+                Error(call, "the type of template parameter '" + _name +
+                                "' is not deducted yet")();
+              }
             }
 
             ASTPtr<AST::Function> cloned_func =
@@ -346,7 +383,13 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       }
 
       if (candidates.size() >= 2) {
-        Error(callee, "call function '" + idinfo.to_string() + "' is ambigious")();
+        Error(callee, "call function '" + idinfo.to_string() + "' is ambigious").emit();
+
+        for (auto&& C : hits) {
+          Error(C->name, "uoo").emit();
+        }
+
+        todo_impl;
       }
 
       call->callee_ast = candidates[0];

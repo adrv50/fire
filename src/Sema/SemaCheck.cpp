@@ -24,7 +24,18 @@ void Sema::check(ASTPointer ast) {
   case ASTKind::Function: {
     auto x = ASTCast<AST::Function>(ast);
 
-    auto func = this->get_func(x);
+    // auto func = this->get_func(x);
+    SemaFunction* func = nullptr;
+
+    for (auto&& [_Key, _Val] : this->function_scope_map) {
+      if (_Key == x) {
+        func = &_Val;
+        break;
+      }
+    }
+
+    alert;
+    assert(func);
 
     if (func->func->is_templated) {
       break;

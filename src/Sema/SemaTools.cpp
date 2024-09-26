@@ -16,6 +16,10 @@ struct ScopeInfoSave {
 
 std::list<ScopeInfoSave> _bak_list;
 
+ScopeContext* Sema::GetRootScope() {
+  return this->_scope_context;
+}
+
 ScopeContext*& Sema::GetCurScope() {
   return this->_cur_scope;
 }
@@ -108,9 +112,14 @@ ScopeContext::LocalVar* Sema::_find_variable(string const& name) {
 ASTVec<Function> Sema::_find_func(string const& name) {
   ASTVec<Function> vec;
 
-  for (auto&& f : this->functions)
-    if (f.func->GetName() == name)
-      vec.emplace_back(f.func);
+  auto&& found = this->GetRootScope()->find_name(name);
+
+  for (auto&& _s : found) {
+    if (_s->type == ScopeContext::SC_Func &&
+        _s->depth <= this->GetCurScope()->depth + 1) {
+      vec.emplace_back(ASTCast<AST::Function>(_s->GetAST()));
+    }
+  }
 
   return vec;
 }
@@ -146,8 +155,10 @@ Sema::NameFindResult Sema::find_name(string const& name) {
 
   if (result.functions.size() >= 1)
     result.type = NameType::Func;
+
   else if ((result.ast_enum = this->_find_enum(name)))
     result.type = NameType::Enum;
+
   else if ((result.ast_class = this->_find_class(name)))
     result.type = NameType::Class;
 

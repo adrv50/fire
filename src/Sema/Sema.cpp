@@ -18,6 +18,8 @@ Sema::Sema(ASTPtr<AST::Block> prg)
 
 Sema::~Sema() {
   _sema_instances.pop_back();
+
+  delete this->_scope_context;
 }
 
 } // namespace fire::semantics_checker
