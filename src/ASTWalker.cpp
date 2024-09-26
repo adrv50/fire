@@ -47,6 +47,17 @@ void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)>
     break;
   }
 
+  case Kind::CallFunc: {
+    auto x = ASTCast<AST::CallFunc>(ast);
+
+    walk_ast(x->callee, fn);
+
+    for (auto&& arg : x->args)
+      walk_ast(arg, fn);
+
+    break;
+  }
+
   case Kind::Array: {
     auto x = ast->As<AST::Array>();
 

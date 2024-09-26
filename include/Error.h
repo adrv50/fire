@@ -7,11 +7,14 @@ namespace fire {
 
 class Error {
 public:
-  enum class ErrorLevel {
-    Error,
-    Warning,
-    Note,
+  enum ErrorKind {
+    ER_Error,
+    ER_Warning,
+    ER_Note,
   };
+
+  Error(ErrorKind k, Token tok, std::string msg = "");
+  Error(ErrorKind k, ASTPointer ast, std::string msg = "");
 
   Error(Token tok, std::string msg = "");
   Error(ASTPointer ast, std::string msg = "");
@@ -22,7 +25,12 @@ public:
     return *this;
   }
 
-  Error& emit(ErrorLevel lv = ErrorLevel::Error);
+  Error const& emit() const;
+
+  Error& InLocation(string _loc) {
+    this->location.emplace_back(std::move(_loc));
+    return *this;
+  }
 
   static int GetEmittedCount();
 
@@ -33,10 +41,14 @@ public:
   [[noreturn]] static void fatal_error(std::string const& msg);
 
 private:
+  ErrorKind kind;
+
   Token loc_token;
   ASTPointer loc_ast = nullptr;
 
   std::string msg;
+
+  StringVector location;
 };
 
 } // namespace fire

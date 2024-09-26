@@ -109,8 +109,8 @@ TokenVector Lexer::Lex() {
         this->position++;
 
       if (!this->check() || !this->eat(quat)) {
-        Error(tok).format("not terminated %s literal",
-                          is_str ? "string" : "character")();
+        throw Error(tok).format("not terminated %s literal",
+                                is_str ? "string" : "character");
       }
     }
 

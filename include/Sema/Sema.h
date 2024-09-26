@@ -18,13 +18,6 @@ using TypeVec = vector<TypeInfo>;
 
 class Sema;
 
-class TemplateMatcher {
-public:
-  struct Argument {
-    string name;
-  };
-};
-
 class Sema {
 
   friend struct BlockScope;
@@ -98,16 +91,6 @@ class Sema {
     SemaFunction(ASTPtr<Function> func);
   };
 
-  struct TemplateInstantiator {
-    ASTPointer ast_cloned;
-
-    vector<std::pair<string, TypeInfo>> name_and_type;
-
-    void do_replace();
-
-    TemplateInstantiator(ASTPtr<AST::Templatable> templatable);
-  };
-
   ArgumentCheckResult check_function_call_parameters(ASTPtr<CallFunc> call,
                                                      bool isVariableArg,
                                                      TypeVec const& formal,
@@ -125,6 +108,11 @@ class Sema {
   IdentifierInfo get_identifier_info(ASTPtr<AST::ScopeResol> ast);
 
 public:
+  struct ScopeLocation {
+    ScopeContext* Current;
+    vector<ScopeContext*> History;
+  };
+
   Sema(ASTPtr<AST::Block> prg);
   ~Sema();
 
@@ -137,13 +125,49 @@ public:
   static Sema* GetInstance();
 
 private:
+  struct InstantiateRequest {
+
+    struct Argument {
+      TypeInfo type;
+
+      ASTPtr<AST::TypeName> ast = nullptr; // 明示的に渡された場合
+
+      bool is_deducted = false;
+    };
+
+    ASTPointer requested = nullptr;
+
+    ScopeLocation scope_loc;
+
+    IdentifierInfo idinfo;
+
+    // パラメータとして渡された型
+    std::map<string, Argument> param_types;
+
+    ASTPtr<AST::Function> cloned = nullptr;
+
+    TypeInfo result_type; //
+    TypeVec arg_types;    // function
+  };
+
+  std::vector<InstantiateRequest> ins_requests;
+
+  InstantiateRequest* find_request_of_func(TypeInfo ret_type, TypeVec args);
+
+  ASTPtr<AST::Function> Instantiate(ASTPtr<AST::Function> func,
+                                    ASTPtr<AST::CallFunc> call, IdentifierInfo idinfo,
+                                    ASTPtr<AST::Identifier> id, TypeVec const& arg_types);
+
   int _construct_scope_context(ScopeContext& S, ASTPointer ast);
 
   ASTPtr<Block> root;
 
   BlockScope* _scope_context = nullptr;
-  ScopeContext* _cur_scope = _scope_context;
-  vector<ScopeContext*> _scope_history;
+
+  // ScopeContext* _cur_scope = _scope_context;
+  // vector<ScopeContext*> _scope_history;
+
+  ScopeLocation _location;
 
   ScopeContext* GetRootScope();
 
@@ -157,8 +181,9 @@ private:
   // void LeaveScope(ScopeContext* ctx);
   void LeaveScope();
 
-  void SaveScopeInfo();
-  void RestoreScopeInfo();
+  void SaveScopeLocation();
+  void RestoreScopeLocation();
+  ScopeLocation GetScopeLoc();
 
   void BackToDepth(int depth);
 

@@ -10,7 +10,55 @@
 namespace fire::semantics_checker {
 
 void Sema::check_full() {
+  alert;
   this->check(this->root);
+
+  alert;
+  this->SaveScopeLocation();
+
+  alert;
+  for (auto&& req : this->ins_requests) {
+    alert;
+
+    this->_location = req.scope_loc;
+
+    alert;
+    try {
+      alert;
+      alertexpr(req.cloned.get());
+      this->check(req.cloned);
+
+      alert;
+    }
+    catch (Error err) {
+      alert;
+      string func_name = req.idinfo.to_string() + "@<";
+
+      for (int i = -1; auto&& [_name, _data] : req.param_types) {
+        i++;
+
+        func_name += _name + "=" + _data.type.to_string();
+
+        if (i + 1 < req.param_types.size())
+          func_name += ", ";
+      }
+
+      func_name += ">(" +
+                   utils::join<TypeInfo>(", ", req.arg_types,
+                                         [](TypeInfo t) -> string {
+                                           return t.to_string();
+                                         }) +
+                   ")";
+
+      throw err.InLocation("in instantiation of '" + func_name + "'");
+    }
+    alert;
+  }
+
+  alert;
+  this->RestoreScopeLocation();
+
+  alert;
 }
 
 void Sema::check(ASTPointer ast) {
@@ -34,7 +82,6 @@ void Sema::check(ASTPointer ast) {
       }
     }
 
-    alert;
     assert(func);
 
     if (func->func->is_templated) {
@@ -42,8 +89,6 @@ void Sema::check(ASTPointer ast) {
     }
 
     this->EnterScope(x);
-
-    assert(func != nullptr);
 
     func->result_type = this->evaltype(x->return_type);
 
@@ -59,7 +104,7 @@ void Sema::check(ASTPointer ast) {
 
       if (auto type = this->evaltype(expr); !type.equals(func->result_type)) {
         if (func->result_type.equals(TypeKind::None)) {
-          Error(ret->token, "expected ';' after this token")();
+          throw Error(ret->token, "expected ';' after this token");
         }
         else if (!expr) {
           Error(ret->token, "expected '" + func->result_type.to_string() +
@@ -85,11 +130,11 @@ void Sema::check(ASTPointer ast) {
             .emit();
 
       _return_type_note:
-        Error(func->func->return_type, "specified here").emit(Error::ErrorLevel::Note);
+        throw Error(func->func->return_type, "specified here");
       }
       else if (auto block = func->func->block;
                (*block->list.rbegin())->kind != ASTKind::Return) {
-        Error(block->endtok, "expected return-statement before this token")();
+        throw Error(block->endtok, "expected return-statement before this token");
       }
     }
 

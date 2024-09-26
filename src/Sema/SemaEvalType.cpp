@@ -52,13 +52,13 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
         if (int c = type.needed_param_count();
             c == 0 && (int)x->type_params.size() >= 1) {
-          Error(x->token, "type '" + string(val) + "' cannot have parameters")();
+          throw Error(x->token, "type '" + string(val) + "' cannot have parameters");
         }
         else if (c >= 1) {
           if ((int)x->type_params.size() < c)
-            Error(x->token, "too few parameters")();
+            throw Error(x->token, "too few parameters");
           else if ((int)x->type_params.size() > c)
-            Error(x->token, "too many parameters")();
+            throw Error(x->token, "too many parameters");
         }
 
         return type;
@@ -69,7 +69,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
     // type.kind = TypeKind::Unknown;
     // return type;
 
-    Error(x->token, "unknown type name")();
+    throw Error(x->token, "unknown type name");
   }
 
   case Kind::Value:
@@ -95,10 +95,10 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       id->kind = ASTKind::Variable;
 
       if (id->id_params.size() >= 1)
-        Error(id->paramtok, "invalid use type argument for variable")();
+        throw Error(id->paramtok, "invalid use type argument for variable");
 
       if (!res.lvar->is_type_deducted)
-        Error(ast->token, "cannot use variable before assignment")();
+        throw Error(ast->token, "cannot use variable before assignment");
 
       return res.lvar->deducted_type;
 
@@ -106,7 +106,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       id->kind = ASTKind::FuncName;
 
       if (res.functions.size() >= 2) {
-        Error(id->token, "function name '" + id->GetName() + "' is ambigous.")();
+        throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
       }
 
       auto func = res.functions[0];
@@ -123,7 +123,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
     }
 
     case NameType::Unknown:
-      Error(ast->token, "cannot find name '" + id->GetName() + "'")();
+      throw Error(ast->token, "cannot find name '" + id->GetName() + "'");
 
     default:
       todo_impl;
@@ -180,7 +180,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
               : this->get_identifier_info(ASTCast<AST::ScopeResol>(callee));
 
       if (idinfo.result.type != NameType::Func) {
-        Error(callee, "'" + idinfo.to_string() + "' is not a function")();
+        throw Error(callee, "'" + idinfo.to_string() + "' is not a function");
       }
 
       ASTPtr<AST::Identifier> callee_as_id;
@@ -190,10 +190,10 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       else
         callee_as_id = *ASTCast<AST::ScopeResol>(callee)->idlist.rbegin();
 
+      // 同じ名前の関数リスト
       ASTVec<AST::Function> const& hits = idinfo.result.functions;
 
-      // テンプレート以外で一致する場合追加する
-      ASTVec<AST::Function> candidates;
+      ASTVec<AST::Function> candidates; // 一致する関数を追加する
 
       // ヒットした関数の中から candidates に追加
       for (ASTPtr<AST::Function> func : hits) {
@@ -205,166 +205,15 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
           // パラメータが少ない場合は引数からの推論を試みる
 
-          // 引数の数だけみて、もし一致すれば
+          // 引数の数が一致、かつインスタンス化に成功
+          //  => 候補に追加
           if ((func->is_var_arg && call->args.size() + 1 >= func->arguments.size()) ||
               (call->args.size() == func->arguments.size())) {
-            // candidates.emplace_back(func);
 
-            struct _Data {
-              TypeInfo type;
+            auto inst = this->Instantiate(func, call, idinfo, callee_as_id, arg_types);
 
-              ASTPtr<AST::TypeName> ast = nullptr; // @<...> で渡される型名
-              // ScopeContext::LocalVar* lvar=nullptr;
-
-              bool is_deducted = false;
-            };
-
-            //
-            // < string = name , >
-            std::map<string, _Data> param_types;
-
-            for (auto&& param : func->template_param_names) {
-              param_types[param.str] = {};
-            }
-
-            //
-            // 呼び出し式の、関数名のあとにある "@<...>" の構文から、
-            // 明示的に指定されている型をパラメータに当てはめる。
-            //
-            for (i64 i = 0; i < (i64)callee_as_id->id_params.size(); i++) {
-              string formal_param_name = func->template_param_names[i].str;
-
-              ASTPtr<AST::TypeName> actual_parameter_type = callee_as_id->id_params[i];
-
-              param_types[formal_param_name] =
-                  _Data{.type = this->evaltype(actual_parameter_type),
-                        .ast = actual_parameter_type,
-                        .is_deducted = true};
-            }
-
-            //
-            // 引数の型から推論する
-            for (auto formal_arg_begin = func->arguments.begin();
-                 auto&& arg_type : arg_types) {
-
-              // formal_arg_begin   = 引数を定義してる構文へのポインタ
-              // arg_type           = 渡された引数の型
-
-              string param_name = (*formal_arg_begin)->type->GetName();
-
-              if (!param_types[param_name].is_deducted) {
-
-                auto& _Param = param_types[param_name];
-
-                _Param.ast = (*formal_arg_begin)->type;
-                _Param.type = arg_type;
-                _Param.is_deducted = true;
-              }
-
-              formal_arg_begin++;
-            }
-
-            //
-            // 推論できていないパラメータがある場合、エラー
-            for (auto&& [_name, _data] : param_types) {
-              if (!_data.is_deducted) {
-                Error(call, "the type of template parameter '" + _name +
-                                "' is not deducted yet")();
-              }
-            }
-
-            ASTPtr<AST::Function> cloned_func =
-                ASTCast<AST::Function>(func->Clone()); // Instantiate.
-
-            // original.
-            FunctionScope* template_func_scope = (FunctionScope*)this->GetScopeOf(func);
-
-            assert(template_func_scope);
-
-            // instantiated.
-            FunctionScope* instantiated_func_scope =
-                template_func_scope->AppendInstantiated(cloned_func);
-
-            cloned_func->is_templated = false;
-
-            AST::walk_ast(cloned_func, [&param_types, instantiated_func_scope](
-                                           AST::ASTWalkerLocation _loc, ASTPointer _ast) {
-              if (_loc != AST::AW_Begin) {
-                return;
-              }
-
-              if (_ast->kind == ASTKind::Argument) {
-                auto _arg = ASTCast<AST::Argument>(_ast);
-
-                auto pvar = instantiated_func_scope->find_var(_arg->GetName());
-
-                pvar->is_type_deducted = true;
-                pvar->deducted_type = param_types[_arg->type->GetName()].type;
-              }
-
-              if (_ast->kind == ASTKind::TypeName) {
-                ASTPtr<AST::TypeName> _ast_type = ASTCast<AST::TypeName>(_ast);
-                string name = _ast_type->GetName();
-
-                if (param_types.contains(name)) {
-                  _ast_type->name.str = param_types[name].type.to_string();
-                }
-              }
-            });
-
-            // call->callee_ast = cloned_func;
-
-            this->SaveScopeInfo();
-
-            this->BackToDepth(template_func_scope->depth - 1);
-
-            this->_cur_scope = this->_scope_history.emplace_back(instantiated_func_scope);
-
-            try {
-              this->check(cloned_func);
-            }
-            catch (Error* _err) {
-              string func_name = idinfo.to_string() + "@<";
-
-              for (int i = -1; auto&& [_name, _data] : param_types) {
-                i++;
-
-                func_name += _name + "=" + _data.type.to_string();
-
-                if (i + 1 < param_types.size())
-                  func_name += ", ";
-              }
-
-              func_name += '>';
-
-              Error(call, "in instantiation of '" + func_name + "'")
-                  .emit(Error::ErrorLevel::Note)
-                  .stop();
-            }
-
-            this->RestoreScopeInfo();
-
-            TypeVec formal_arg_types;
-
-            for (auto&& arg : cloned_func->arguments) {
-              formal_arg_types.emplace_back(this->evaltype(arg->type));
-            }
-
-            auto res = this->check_function_call_parameters(
-                call, cloned_func->is_var_arg, formal_arg_types, arg_types, false);
-
-            if (res.result == ArgumentCheckResult::Ok) {
-              candidates.emplace_back(cloned_func);
-            }
-
-            else {
-              switch (res.result) {
-              case ArgumentCheckResult::TypeMismatch:
-                Error(call->args[res.index],
-                      "expected '" + formal_arg_types[res.index].to_string() +
-                          "' type expression, but found '" +
-                          arg_types[res.index].to_string() + "'")();
-              }
+            if (inst) {
+              candidates.emplace_back(inst);
             }
           }
 
@@ -394,8 +243,8 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
             arg_types_str += ", ";
         }
 
-        Error(callee, "function '" + idinfo.to_string() + "(" + arg_types_str + ")" +
-                          "' is not defined")();
+        throw Error(callee, "function '" + idinfo.to_string() + "(" + arg_types_str +
+                                ")" + "' is not defined");
 
         // TODO:
         // もし (hits.size() >= 1)
@@ -403,13 +252,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       }
 
       if (candidates.size() >= 2) {
-        Error(callee, "call function '" + idinfo.to_string() + "' is ambigious").emit();
-
-        for (auto&& C : hits) {
-          Error(C->name, "uoo").emit();
-        }
-
-        todo_impl;
+        throw Error(callee, "call function '" + idinfo.to_string() + "' is ambigious");
       }
 
       call->callee_ast = candidates[0];
@@ -437,6 +280,9 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
     // 基本的な数値演算を除外
     switch (ast->kind) {
     case Kind::Add:
+      if (is_same && lhs.equals(TypeKind::String))
+        return lhs;
+
     case Kind::Sub:
     case Kind::Mul:
     case Kind::Div:
@@ -509,8 +355,8 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       break;
     }
 
-    Error(x->op, "invalid operator for '" + lhs.to_string() + "' and '" +
-                     rhs.to_string() + "'")();
+    throw Error(x->op, "invalid operator for '" + lhs.to_string() + "' and '" +
+                           rhs.to_string() + "'");
   }
 
   alertmsg(static_cast<int>(ast->kind));

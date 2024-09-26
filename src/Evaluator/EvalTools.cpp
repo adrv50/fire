@@ -81,8 +81,9 @@ ObjPtr<ObjInstance> Evaluator::new_class_instance(ASTPtr<AST::Class> ast) {
 ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> ast,
                                         ASTPtr<AST::CallFunc> call, ObjVector& args) {
 
-  if (this->stack.size() >= EVALUATOR_STACK_MAX_SIZE)
-    Error(call->token, "stack over flow.")();
+  if (this->stack.size() >= EVALUATOR_STACK_MAX_SIZE) {
+    throw Error(call->token, "stack over flow.");
+  }
 
   auto& stack = this->PushStack();
 
@@ -99,7 +100,7 @@ ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> as
 
   for (auto itobj = args.begin() + (int)have_self; act != call->args.end(); act++) {
     if (formal == ast->arguments.end() && !ast->is_var_arg) {
-      Error(call->token, "too many arguments")();
+      throw Error(call->token, "too many arguments");
     }
 
     std::string name;
@@ -111,8 +112,8 @@ ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> as
       name = expr->lhs->token.str;
 
       if (!(target = ast->find_arg(name))) {
-        Error(expr->lhs, "'" + name + "' is not found in arguments of function '" +
-                             ast->GetName() + "'")();
+        throw Error(expr->lhs, "'" + name + "' is not found in arguments of function '" +
+                                   ast->GetName() + "'");
       }
     }
     else {
@@ -121,7 +122,7 @@ ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> as
     }
 
     if (assignmented[name]) {
-      Error(*act, "set to same argument name again.")();
+      throw Error(*act, "set to same argument name again.");
     }
 
     if (target->type) {
@@ -134,7 +135,7 @@ ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> as
                   (*itobj)->type.to_string() + "'")
             .emit();
 
-        Error(target->type, "specified type here").emit(Error::ErrorLevel::Note).stop();
+        throw Error(Error::ER_Note, target->type, "specified type here");
       }
     }
 
@@ -144,7 +145,7 @@ ObjPointer Evaluator::call_function_ast(bool have_self, ASTPtr<AST::Function> as
 
   for (auto&& arg : ast->arguments) {
     if (!assignmented[arg->GetName()]) {
-      Error(call->token, "argument '" + arg->GetName() + "' was not assignment")();
+      throw Error(call->token, "argument '" + arg->GetName() + "' was not assignment");
     }
   }
 

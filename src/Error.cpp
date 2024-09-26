@@ -79,33 +79,38 @@ struct line_data_wrapper_t {
 
 static int _err_emitted_count = 0;
 
-Error& Error::emit(Error::ErrorLevel lv) {
+Error const& Error::emit() const {
 
-  auto& err_token = this->loc_ast ? this->loc_ast->token : this->loc_token;
+  Token const& err_token = this->loc_ast ? this->loc_ast->token : this->loc_token;
 
   line_data_wrapper_t line_top, line_bottom, line_err = line_data_wrapper_t(err_token);
 
   line_err.get_other_line(line_top, -1);
   line_err.get_other_line(line_bottom, 1);
 
-  SourceLocation& loc = err_token.sourceloc;
+  SourceLocation const& loc = err_token.sourceloc;
 
   std::stringstream ss;
 
   std::string errlvstr;
 
-  switch (lv) {
-  case ErrorLevel::Error:
+  switch (this->kind) {
+  case ER_Error:
     errlvstr = COL_ERROR "error: ";
     break;
 
-  case ErrorLevel::Warning:
+  case ER_Warning:
     errlvstr = COL_WARNING "warning: ";
     break;
 
-  case ErrorLevel::Note:
+  case ER_Note:
     errlvstr = COL_CYAN "note: ";
     break;
+  }
+
+  // location
+  for (auto&& _loc : this->location) {
+    ss << COL_BOLD << loc.ref->path << ": " << _loc << ":" << std::endl;
   }
 
   // message
@@ -158,13 +163,11 @@ int Error::GetEmittedCount() {
 }
 
 void Error::operator()() {
-  this->emit().stop();
+  this->stop();
 }
 
 void Error::stop() {
-  // std::exit(1);
-
-  throw this;
+  std::exit(1);
 }
 
 void Error::fatal_error(std::string const& msg) {
@@ -173,14 +176,24 @@ void Error::fatal_error(std::string const& msg) {
   std::exit(2);
 }
 
-Error::Error(Token tok, std::string msg)
-    : loc_token(tok),
+Error::Error(ErrorKind k, Token tok, std::string msg)
+    : kind(k),
+      loc_token(tok),
       msg(std::move(msg)) {
 }
 
-Error::Error(ASTPointer ast, std::string msg)
-    : loc_ast(ast),
+Error::Error(ErrorKind k, ASTPointer ast, std::string msg)
+    : kind(k),
+      loc_ast(ast),
       msg(std::move(msg)) {
+}
+
+Error::Error(Token tok, std::string msg)
+    : Error(ER_Error, tok, std::move(msg)) {
+}
+
+Error::Error(ASTPointer ast, std::string msg)
+    : Error(ER_Error, ast, std::move(msg)) {
 }
 
 } // namespace fire

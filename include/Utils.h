@@ -19,13 +19,12 @@ string Format(string const& fmt, Args&&... args) {
 }
 
 template <class T>
-string join(string const& s, vector<T> const& vec,
-            std::function<string(T)> tostrfn) {
+string join(string const& s, vector<T> const& vec, std::function<string(T)> tostrfn) {
   string ret;
 
-  for (i64 i = 0; i < vec.size(); i++) {
+  for (i64 i = 0; i < (i64)vec.size(); i++) {
     ret += tostrfn(vec[i]);
-    if (i + 1 < vec.size())
+    if (i + 1 < (i64)vec.size())
       ret += s;
   }
 

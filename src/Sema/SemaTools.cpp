@@ -9,19 +9,14 @@
 
 namespace fire::semantics_checker {
 
-struct ScopeInfoSave {
-  ScopeContext* _Cur;
-  vector<ScopeContext*> _History;
-};
-
-std::list<ScopeInfoSave> _bak_list;
+std::list<Sema::ScopeLocation> _bak_list;
 
 ScopeContext* Sema::GetRootScope() {
   return this->_scope_context;
 }
 
 ScopeContext*& Sema::GetCurScope() {
-  return this->_cur_scope;
+  return this->_location.Current;
 }
 
 ScopeContext* Sema::GetScopeOf(ASTPointer ast) {
@@ -31,7 +26,7 @@ ScopeContext* Sema::GetScopeOf(ASTPointer ast) {
 ScopeContext* Sema::EnterScope(ASTPointer ast) {
   auto scope = this->GetCurScope()->find_child_scope(ast);
 
-  this->GetCurScope() = this->_scope_history.emplace_back(scope);
+  this->GetCurScope() = this->_location.History.emplace_back(scope);
 
   return scope;
 }
@@ -39,29 +34,33 @@ ScopeContext* Sema::EnterScope(ASTPointer ast) {
 ScopeContext* Sema::EnterScope(ScopeContext* ctx) {
   auto scope = this->GetCurScope()->find_child_scope(ctx);
 
-  this->GetCurScope() = this->_scope_history.emplace_back(scope);
+  this->GetCurScope() = this->_location.History.emplace_back(scope);
 
   return scope;
 }
 
 void Sema::LeaveScope() {
-  this->_scope_history.pop_back();
+  this->_location.History.pop_back();
 
-  this->GetCurScope() = *this->_scope_history.rbegin();
+  this->GetCurScope() = *this->_location.History.rbegin();
 }
 
-void Sema::SaveScopeInfo() {
-  _bak_list.push_front(
-      ScopeInfoSave{._Cur = this->_cur_scope, ._History = this->_scope_history});
+void Sema::SaveScopeLocation() {
+  _bak_list.push_front(ScopeLocation{.Current = this->_location.Current,
+                                     .History = this->_location.History});
 }
 
-void Sema::RestoreScopeInfo() {
+void Sema::RestoreScopeLocation() {
   auto& save = *_bak_list.begin();
 
-  this->_cur_scope = save._Cur;
-  this->_scope_history = std::move(save._History);
+  this->_location.Current = save.Current;
+  this->_location.History = std::move(save.History);
 
   _bak_list.pop_front();
+}
+
+Sema::ScopeLocation Sema::GetScopeLoc() {
+  return this->_location;
 }
 
 void Sema::BackToDepth(int depth) {
@@ -99,7 +98,8 @@ int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth)
 
 ScopeContext::LocalVar* Sema::_find_variable(string const& name) {
 
-  for (auto it = this->_scope_history.rbegin(); it != this->_scope_history.rend(); it++) {
+  for (auto it = this->_location.History.rbegin(); it != this->_location.History.rend();
+       it++) {
     auto lvar = (*it)->find_var(name);
 
     if (lvar)
@@ -224,8 +224,8 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
         _idx++;
       }
 
-      Error(id->token, "enumerator '" + id->GetName() + "' is not found in enum '" +
-                           _enum->GetName() + "'")();
+      throw Error(id->token, "enumerator '" + id->GetName() + "' is not found in enum '" +
+                                 _enum->GetName() + "'");
     }
 
     case NameType::Class: {
@@ -235,7 +235,7 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
     }
 
     default:
-      Error(id->token, "'" + idname + "' is not enum or class")();
+      throw Error(id->token, "'" + idname + "' is not enum or class");
     }
 
   _loop_continue:;

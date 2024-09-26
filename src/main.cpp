@@ -81,9 +81,8 @@ void execute_file(std::string const& path) {
     sema.check_full();
   }
 
-  catch (Error*) {
-    std::cout << "emitted " << Error::GetEmittedCount() << " errors." << std::endl;
-    ;
+  catch (Error const& err) {
+    err.emit();
   }
 
   // try {
