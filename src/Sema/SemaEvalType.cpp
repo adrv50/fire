@@ -312,7 +312,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
               }
             });
 
-            call->callee_ast = cloned_func;
+            // call->callee_ast = cloned_func;
 
             this->SaveScopeInfo();
 
@@ -320,7 +320,27 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
             this->_cur_scope = this->_scope_history.emplace_back(instantiated_func_scope);
 
-            this->check(cloned_func);
+            try {
+              this->check(cloned_func);
+            }
+            catch (Error* _err) {
+              string func_name = idinfo.to_string() + "@<";
+
+              for (int i = -1; auto&& [_name, _data] : param_types) {
+                i++;
+
+                func_name += _name + "=" + _data.type.to_string();
+
+                if (i + 1 < param_types.size())
+                  func_name += ", ";
+              }
+
+              func_name += '>';
+
+              Error(call, "in instantiation of '" + func_name + "'")
+                  .emit(Error::ErrorLevel::Note)
+                  .stop();
+            }
 
             this->RestoreScopeInfo();
 
