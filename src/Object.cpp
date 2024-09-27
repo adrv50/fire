@@ -20,10 +20,6 @@ ObjPrimitive* ObjPrimitive::to_float() {
     this->vf = static_cast<double>(this->vi);
     break;
 
-  case TypeKind::Size:
-    this->vf = static_cast<double>(this->vsize);
-    break;
-
   default:
     return nullptr;
   }
@@ -42,9 +38,6 @@ std::string ObjPrimitive::ToString() const {
 
   case TypeKind::Float:
     return std::to_string(this->vf);
-
-  case TypeKind::Size:
-    return std::to_string(this->vsize);
 
   case TypeKind::Bool:
     return this->vb ? "true" : "false";

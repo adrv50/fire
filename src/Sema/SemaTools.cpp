@@ -4,6 +4,8 @@
 #include "Error.h"
 #include "Sema/Sema.h"
 
+#include "Builtin.h"
+
 #define printkind alertmsg(static_cast<int>(ast->kind))
 #define printkind_of(_A) alertmsg(static_cast<int>((_A)->kind))
 
@@ -161,6 +163,19 @@ Sema::NameFindResult Sema::find_name(string const& name) {
 
   else if ((result.ast_class = this->_find_class(name)))
     result.type = NameType::Class;
+
+  else {
+    // find builtin func
+    for (builtins::Function const& bfunc : builtins::get_builtin_functions()) {
+      if (bfunc.name == name) {
+        result.builtin_funcs.emplace_back(&bfunc);
+      }
+    }
+
+    if (result.builtin_funcs.size() >= 1) {
+      result.type = NameType::BuiltinFunc;
+    }
+  }
 
   return result;
 }

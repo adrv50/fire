@@ -12,8 +12,8 @@
 
 #include "alert.h"
 
-#define define_builtin_func(_Name_)                                       \
-  ObjPointer _Name_([[maybe_unused]] ASTPtr<AST::CallFunc> ast,           \
+#define define_builtin_func(_Name_)                                                      \
+  ObjPointer _Name_([[maybe_unused]] ASTPtr<AST::CallFunc> ast,                          \
                     [[maybe_unused]] ObjVector args)
 
 #define expect_type(_Idx, _Type) _expect_type(ast, args, _Idx, _Type)
@@ -23,10 +23,10 @@ namespace fire::builtins {
 void _expect_type(ASTPtr<AST::CallFunc> ast, ObjVector& args, int index,
                   TypeInfo const& type) {
   if (!args[index]->type.equals(type))
-    Error(ast->args[index]->token,
-          "expected '" + type.to_string() + "' type object at argument " +
-              std::to_string(index) + ", but given '" +
-              args[index]->type.to_string() + "'")();
+    Error(ast->args[index]->token, "expected '" + type.to_string() +
+                                       "' type object at argument " +
+                                       std::to_string(index) + ", but given '" +
+                                       args[index]->type.to_string() + "'")();
 }
 
 define_builtin_func(Print) {
@@ -43,8 +43,8 @@ define_builtin_func(Print) {
 }
 
 define_builtin_func(Println) {
-  auto ret = ObjNew<ObjPrimitive>(
-      Print(ast, std::move(args))->As<ObjPrimitive>()->vi + 1);
+  auto ret =
+      ObjNew<ObjPrimitive>(Print(ast, std::move(args))->As<ObjPrimitive>()->vi + 1);
 
   std::cout << std::endl;
 
@@ -84,8 +84,6 @@ define_builtin_func(Import) {
 
   auto prg = parser::Parser(lexer.Lex()).Parse();
 
-  eval::Evaluator ev{prg};
-
   auto ret = ObjNew<ObjModule>(source, prg);
 
   ret->name = path.substr(0, path.rfind('.'));
@@ -94,30 +92,7 @@ define_builtin_func(Import) {
     ret->name = ret->name.substr(slash + 1);
   }
 
-  for (auto&& x : prg->list) {
-    switch (x->kind) {
-    case ASTKind::Class:
-      ret->types.emplace_back(ObjNew<ObjType>(ASTCast<AST::Class>(x)));
-      break;
-
-    case ASTKind::Enum:
-      ret->types.emplace_back(ObjNew<ObjType>(ASTCast<AST::Enum>(x)));
-      break;
-
-    case ASTKind::Function:
-      ret->functions.emplace_back(
-          ObjNew<ObjCallable>(ASTCast<AST::Function>(x)));
-      break;
-
-    case ASTKind::Vardef: {
-      auto y = ASTCast<AST::VarDef>(x);
-
-      ret->variables[y->GetName()] = ev.evaluate(y->init);
-
-      break;
-    }
-    }
-  }
+  todo_impl;
 
   return ret;
 }
@@ -153,8 +128,7 @@ define_builtin_func(Length) {
   auto content = args[0];
 
   if (content->is_string() || content->is_vector()) {
-    return ObjNew<ObjPrimitive>(
-        (i64)content->As<ObjString>()->list.size());
+    return ObjNew<ObjPrimitive>((i64)content->As<ObjString>()->list.size());
   }
 
   Error(ast->args[0], "argument is not a string or vector.")();
@@ -163,24 +137,23 @@ define_builtin_func(Length) {
 // clang-format off
 static const std::vector<Function> g_builtin_functions = {
 
-  { "print",    Print,     0, true },
-  { "println",  Println,   0, true },
+  { "print",    Print,     TypeKind::Int, { }, true },
+  { "println",  Println,   TypeKind::Int, { }, true },
 
-  { "open",     Open,      1 },
+  { "open",     Open,      TypeKind::String, { TypeKind::String }, },
 
-  //
-  // substr:  (str, index, len=0)
-  { "substr",   Substr,    2, true },
+  { "substr",   Substr,    TypeKind::String, { TypeKind::String, TypeKind::Int }, true },
+  { "substr",   Substr,    TypeKind::String, { TypeKind::String, TypeKind::Int, TypeKind::Int }, true },
 
-  { "length",   Length,    1 },
+  { "length",   Length,    TypeKind::Int, { TypeKind::String }, },
+  { "length",   Length,    TypeKind::Int, { {TypeKind::Vector, {TypeKind::Unknown}} }, },
 
-  { "@import",  Import,    1 },
+  { "@import",  Import,    TypeKind::Module, { TypeKind::String }, },
 
 };
 // clang-format on
 
-ObjPointer Function::Call(ASTPtr<AST::CallFunc> ast,
-                          ObjVector args) const {
+ObjPointer Function::Call(ASTPtr<AST::CallFunc> ast, ObjVector args) const {
   return this->func(ast, std::move(args));
 }
 

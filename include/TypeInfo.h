@@ -10,11 +10,11 @@ enum class TypeKind : u8 {
 
   Int,
   Float,
-  Size,
   Bool,
-  Char,
 
+  Char,
   String,
+
   Vector,
   Tuple,
   Dict,
@@ -59,7 +59,6 @@ struct TypeInfo {
     switch (this->kind) {
     case TypeKind::Int:
     case TypeKind::Float:
-    case TypeKind::Size:
       return true;
     }
 

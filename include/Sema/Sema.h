@@ -5,10 +5,10 @@
 #include <tuple>
 
 #include "Utils.h"
-
-#include "AST.h"
 #include "Error.h"
 
+#include "AST.h"
+#include "Builtin.h"
 #include "ScopeContext.h"
 
 namespace fire::semantics_checker {
@@ -25,10 +25,16 @@ class Sema {
 
   enum class NameType {
     Unknown,
+
+    // variable
     Var,
+
     Func,
+    BuiltinFunc,
+
     Enum,
     Enumerator,
+
     Class,
     Namespace,
   };
@@ -40,6 +46,7 @@ class Sema {
     ScopeContext::LocalVar* lvar = nullptr; // if variable
 
     ASTVec<Function> functions;
+    vector<builtins::Function const*> builtin_funcs;
 
     ASTPtr<Enum> ast_enum = nullptr; // NameType::Enum
     int enumerator_index = 0;        // NameType::Enumerator

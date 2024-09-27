@@ -249,8 +249,8 @@ struct ScopeResol : Named {
     return x;
   }
 
-  Identifier* GetID() override {
-    return (*idlist.rbegin()).get();
+  ASTPtr<Identifier> GetLastID() const {
+    return *idlist.rbegin();
   }
 
   ScopeResol(ASTPtr<Identifier> first)

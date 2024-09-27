@@ -7,10 +7,29 @@
 
 namespace fire {
 
+// clang-format off
 static std::vector<char const*> g_names{
-    "int",    "float", "size", "bool",   "char",     "string",
-    "vector", "tuple", "dict", "module", "function",
+  "int",
+  "float",
+  "bool",
+  
+  "char",
+  "string",
+  
+  "vector",
+  "tuple",
+  "dict",
+
+  "(enumerator)",
+  "(instance)",
+
+  "function",
+  "module",
+
+  "(typename)",
+  "(unk)",
 };
+// clang-format on
 
 std::vector<char const*> TypeInfo::get_primitive_names() {
   return g_names;
@@ -25,6 +44,9 @@ bool TypeInfo::is_primitive_name(std::string_view name) {
 }
 
 bool TypeInfo::equals(TypeInfo const& type) const {
+  if (this->kind == TypeKind::Unknown || type.kind == TypeKind::Unknown)
+    return true;
+
   if (this->kind != type.kind)
     return false;
 
@@ -44,7 +66,6 @@ string TypeInfo::to_string() const {
     { TypeKind::None,       "none" },
     { TypeKind::Int,        "int" },
     { TypeKind::Float,      "float" },
-    { TypeKind::Size,       "usize" },
     { TypeKind::Bool,       "bool" },
     { TypeKind::Char,       "char" },
     { TypeKind::String,     "string" },

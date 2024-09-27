@@ -32,18 +32,6 @@ struct Object {
     return this->type.kind == TypeKind::Int;
   }
 
-  bool is_size() const {
-    return this->type.kind == TypeKind::Size;
-  }
-
-  bool is_int_or_size() const {
-    return this->is_int() || this->is_size();
-  }
-
-  bool is_integer() const {
-    return this->is_int_or_size();
-  }
-
   bool is_boolean() const {
     return this->type.kind == TypeKind::Bool;
   }
@@ -106,8 +94,6 @@ struct ObjPrimitive : Object {
   union {
     i64 vi;
     double vf;
-    size_t vsize;
-    size_t vs;
     bool vb;
     char16_t vc;
 
@@ -125,23 +111,19 @@ struct ObjPrimitive : Object {
 
   ObjPrimitive(i64 vi = 0)
       : Object(TypeKind::Int),
-        vi(vi){};
+        vi(vi) {};
 
   ObjPrimitive(double vf)
       : Object(TypeKind::Float),
-        vf(vf){};
-
-  ObjPrimitive(size_t vsize)
-      : Object(TypeKind::Size),
-        vsize(vsize){};
+        vf(vf) {};
 
   ObjPrimitive(bool vb)
       : Object(TypeKind::Bool),
-        vb(vb){};
+        vb(vb) {};
 
   ObjPrimitive(char16_t vc)
       : Object(TypeKind::Char),
-        vc(vc){};
+        vc(vc) {};
 };
 
 struct ObjIterable : Object {

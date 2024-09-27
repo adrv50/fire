@@ -27,7 +27,6 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       { TypeKind::None,       "none" },
       { TypeKind::Int,        "int" },
       { TypeKind::Float,      "float" },
-      { TypeKind::Size,       "usize" },
       { TypeKind::Bool,       "bool" },
       { TypeKind::Char,       "char" },
       { TypeKind::String,     "string" },
@@ -179,7 +178,8 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
               ? this->get_identifier_info(ASTCast<AST::Identifier>(callee))
               : this->get_identifier_info(ASTCast<AST::ScopeResol>(callee));
 
-      if (idinfo.result.type != NameType::Func) {
+      if (idinfo.result.type != NameType::Func &&
+          idinfo.result.type != NameType::BuiltinFunc) {
         throw Error(callee, "'" + idinfo.to_string() + "' is not a function");
       }
 
@@ -188,7 +188,24 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       if (callee->kind == Kind::Identifier)
         callee_as_id = ASTCast<AST::Identifier>(callee);
       else
-        callee_as_id = *ASTCast<AST::ScopeResol>(callee)->idlist.rbegin();
+        callee_as_id = ASTCast<AST::ScopeResol>(callee)->GetLastID();
+
+      if (idinfo.result.type == NameType::BuiltinFunc) {
+        alert;
+
+        //
+        // --- find built-in func
+        //
+        for (builtins::Function const* fn : idinfo.result.builtin_funcs) {
+          auto res = this->check_function_call_parameters(
+              call, fn->is_variable_args, fn->arg_types, arg_types, false);
+
+          if (res.result == ArgumentCheckResult::Ok) {
+            alert;
+            return fn->result_type;
+          }
+        }
+      }
 
       // 同じ名前の関数リスト
       ASTVec<AST::Function> const& hits = idinfo.result.functions;

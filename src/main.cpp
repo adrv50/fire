@@ -9,7 +9,8 @@
 #include "Lexer.h"
 #include "Parser.h"
 #include "Sema/Sema.h"
-#include "Evaluator.h"
+
+// #include "Evaluator.h"
 
 static constexpr auto command_help = R"(
 usage: flame [options] scripts...
