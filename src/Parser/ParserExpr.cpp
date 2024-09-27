@@ -108,8 +108,8 @@ ASTPointer Parser::Factor() {
     return AST::Value::New(tok, make_value_from_token(tok));
 
   case TokenKind::String:
-    return AST::Value::New(
-        tok, ObjNew<ObjString>(tok.str.substr(1, tok.str.length() - 2)));
+    return AST::Value::New(tok,
+                           ObjNew<ObjString>(tok.str.substr(1, tok.str.length() - 2)));
 
   case TokenKind::Identifier: {
     static int _prs_depth = 0;
@@ -164,9 +164,8 @@ ASTPointer Parser::ScopeResol() {
     while (this->eat("::")) {
       auto op = *this->ate;
 
-      if (sr->idlist
-              .emplace_back(ASTCast<AST::Identifier>(this->Factor()))
-              ->kind != ASTKind::Identifier)
+      if (sr->idlist.emplace_back(ASTCast<AST::Identifier>(this->Factor()))->kind !=
+          ASTKind::Identifier)
         Error(op, "invalid syntax")();
     }
 
@@ -211,8 +210,8 @@ ASTPointer Parser::IndexRef() {
             auto colon = this->cur++;
             auto _expr = this->Expr();
 
-            call->args.emplace_back(new_expr(ASTKind::SpecifyArgumentName,
-                                             *colon, _name, _expr));
+            call->args.emplace_back(
+                new_expr(ASTKind::SpecifyArgumentName, *colon, _name, _expr));
           }
           else {
             call->args.emplace_back(this->Expr());
@@ -233,8 +232,7 @@ ASTPointer Parser::Unary() {
   auto& tok = *this->cur;
 
   if (this->eat("-")) {
-    return new_expr(ASTKind::Sub, tok,
-                    AST::Value::New("0", ObjNew<ObjPrimitive>((i64)0)),
+    return new_expr(ASTKind::Sub, tok, AST::Value::New("0", ObjNew<ObjPrimitive>((i64)0)),
                     this->IndexRef());
   }
 
@@ -297,14 +295,23 @@ ASTPointer Parser::Shift() {
 ASTPointer Parser::Compare() {
   auto x = this->Shift();
 
+  int count = 0;
+  TokenIterator _tok = this->cur;
+
   while (this->check()) {
     auto& op = *this->cur;
+
+    if (++count >= 2) {
+      if (_tok->str == "<" && (_tok - 1)->kind == TokenKind::Identifier) {
+        throw Error(op, "compare operator cannot be chained")
+            .AddNote("if you want to give template argument, write as '@<...>'");
+      }
+    }
 
     if (this->eat("=="))
       x = new_expr(ASTKind::Equal, op, x, this->Shift());
     else if (this->eat("!="))
-      x = new_expr(ASTKind::Not, op,
-                   new_expr(ASTKind::Equal, op, x, this->Shift()),
+      x = new_expr(ASTKind::Not, op, new_expr(ASTKind::Equal, op, x, this->Shift()),
                    nullptr);
     else if (this->eat(">"))
       x = new_expr(ASTKind::Bigger, op, x, this->Shift());

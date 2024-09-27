@@ -27,8 +27,13 @@ public:
 
   Error const& emit() const;
 
-  Error& InLocation(string _loc) {
-    this->location.emplace_back(std::move(_loc));
+  Error& InLocation(string const& loc) {
+    this->location.emplace_back(loc);
+    return *this;
+  }
+
+  Error& AddNote(string const& note) {
+    this->notes.emplace_back(note);
     return *this;
   }
 
@@ -49,6 +54,7 @@ private:
   std::string msg;
 
   StringVector location;
+  StringVector notes;
 };
 
 } // namespace fire

@@ -8,6 +8,7 @@
 
 #define COL_WARNING COL_MAGENTA
 #define COL_ERROR COL_RED
+#define COL_NOTE COL_YELLOW
 
 #define COL_MESSAGE COL_BOLD COL_WHITE
 
@@ -104,7 +105,7 @@ Error const& Error::emit() const {
     break;
 
   case ER_Note:
-    errlvstr = COL_CYAN "note: ";
+    errlvstr = COL_NOTE "note: ";
     break;
   }
 
@@ -147,6 +148,11 @@ Error const& Error::emit() const {
 
   // | (and next line if got)  and cursor
   ss << COL_DEFAULT << screen[2] << std::endl;
+
+  for (auto&& note : this->notes) {
+    ss << "     " << COL_DEFAULT COL_BOLD COL_NOTE << "note: " << COL_WHITE << note
+       << COL_DEFAULT << std::endl;
+  }
 
   std::cout << COL_DEFAULT << ss.str() << COL_DEFAULT << std::endl;
 
