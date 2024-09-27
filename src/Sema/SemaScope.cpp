@@ -117,6 +117,8 @@ ScopeContext::LocalVar& BlockScope::add_var(ASTPtr<AST::VarDef> def) {
   var.depth = this->depth;
   var.index = this->variables.size() - 1;
 
+  this->ast->stack_size++;
+
   return var;
 }
 
@@ -195,7 +197,7 @@ FunctionScope::FunctionScope(ASTPtr<AST::Function> ast)
   }
 
   this->block = new BlockScope(ast->block);
-  this->block->depth = this->depth;
+  this->block->depth = this->depth + 1;
 }
 
 FunctionScope::~FunctionScope() {

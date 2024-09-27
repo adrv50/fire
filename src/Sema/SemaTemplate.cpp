@@ -158,10 +158,13 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
   case ArgumentCheckResult::Ok: {
     req.result_type = this->evaltype(req.cloned->return_type);
 
-    if (!this->find_request_of_func(func, req.result_type, arg_types)) {
+    if (auto found = this->find_request_of_func(func, req.result_type, arg_types);
+        !found) {
       alert;
-
       this->ins_requests.emplace_back(req);
+    }
+    else {
+      req.cloned = found->cloned;
     }
 
     return req.cloned;

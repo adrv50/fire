@@ -109,6 +109,11 @@ void Sema::check(ASTPointer ast) {
 
       if (auto type = this->evaltype(expr); !type.equals(func->result_type)) {
         if (func->result_type.equals(TypeKind::None)) {
+
+          //
+          // TODO: Suggest return type specification
+          //
+
           throw Error(ret->token, "expected ';' after this token");
         }
         else if (!expr) {
@@ -173,11 +178,27 @@ void Sema::check(ASTPointer ast) {
     break;
   }
 
-  case ASTKind::Throw:
+  case ASTKind::Throw: {
+    auto x = ASTCast<AST::Statement>(ast);
+
+    this->check(x->get_expr());
+
+    break;
+  }
+
   case ASTKind::Return: {
     auto x = ASTCast<AST::Statement>(ast);
 
     this->check(x->get_expr());
+
+    for (auto s = this->_location.History.rbegin(); s != this->_location.History.rend();
+         s++) {
+      if ((*s)->type == ScopeContext::SC_Func) {
+        break;
+      }
+
+      x->ret_func_scope_distance++;
+    }
 
     break;
   }

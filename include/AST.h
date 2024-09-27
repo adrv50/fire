@@ -219,7 +219,11 @@ struct Identifier : Named {
   ASTVec<TypeName> id_params;
 
   // for FuncName
-  ASTVec<Function> func_candidates;
+  ASTVec<Function> func_candidates; // not used. what?
+
+  // if Variable
+  int depth = 0;
+  int index = 0;
 
   static ASTPtr<Identifier> New(Token tok);
 
@@ -247,6 +251,10 @@ struct ScopeResol : Named {
       x->idlist.emplace_back(ASTCast<Identifier>(id->Clone()));
 
     return x;
+  }
+
+  Identifier* GetID() override {
+    return idlist.rbegin()->get();
   }
 
   ASTPtr<Identifier> GetLastID() const {
@@ -328,6 +336,7 @@ struct Expr : Base {
 
 struct Block : Base {
   ASTVector list;
+  int stack_size = 0; // count of variable definition
 
   static ASTPtr<Block> New(Token tok, ASTVector list = {});
 
@@ -445,6 +454,10 @@ struct Statement : Base {
       : Base(kind, tok),
         _astdata(data) {
   }
+
+  //
+  // when ASTKind::Return
+  int ret_func_scope_distance = 0;
 
 private:
   std::any _astdata;

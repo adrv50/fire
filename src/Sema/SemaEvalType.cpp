@@ -99,6 +99,13 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
       if (!res.lvar->is_type_deducted)
         throw Error(ast->token, "cannot use variable before assignment");
 
+      alertexpr(this->GetCurScope()->depth - res.lvar->depth);
+
+      // distance
+      id->depth = this->GetCurScope()->depth - res.lvar->depth;
+
+      id->index = res.lvar->index;
+
       return res.lvar->deducted_type;
 
     case NameType::Func: {
@@ -138,6 +145,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
     switch (idinfo.result.type) {
     case NameType::Var: {
       todo_impl;
+      ast->kind = ASTKind::Variable;
       break;
     }
 
@@ -201,7 +209,10 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
               call, fn->is_variable_args, fn->arg_types, arg_types, false);
 
           if (res.result == ArgumentCheckResult::Ok) {
-            alert;
+            alertexpr(fn->name);
+
+            call->callee_builtin = fn;
+
             return fn->result_type;
           }
         }
@@ -303,8 +314,9 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
     case Kind::Sub:
     case Kind::Mul:
     case Kind::Div:
-      if (lhs.is_numeric() && rhs.is_numeric())
-        return (lhs.kind == TK::Float || rhs.kind == TK::Float) ? TK::Float : TK::Int;
+      if (is_same && lhs.is_numeric()) {
+        return lhs;
+      }
 
       break;
 

@@ -161,7 +161,7 @@ private:
   std::vector<InstantiateRequest> ins_requests;
 
   InstantiateRequest* find_request_of_func(ASTPtr<AST::Function> func, TypeInfo ret_type,
-                                           TypeVec args);
+                                           TypeVec args); // args = actual
 
   ASTPtr<AST::Function> Instantiate(ASTPtr<AST::Function> func,
                                     ASTPtr<AST::CallFunc> call, IdentifierInfo idinfo,

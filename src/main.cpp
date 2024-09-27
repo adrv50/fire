@@ -9,8 +9,7 @@
 #include "Lexer.h"
 #include "Parser.h"
 #include "Sema/Sema.h"
-
-// #include "Evaluator.h"
+#include "Evaluator.h"
 
 static constexpr auto command_help = R"(
 usage: flame [options] scripts...
@@ -80,6 +79,10 @@ void execute_file(std::string const& path) {
     semantics_checker::Sema sema{prg};
 
     sema.check_full();
+
+    eval::Evaluator ev;
+
+    ev.evaluate(prg);
   }
 
   catch (Error const& err) {
