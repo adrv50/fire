@@ -81,22 +81,22 @@ class Sema {
     string to_string() const;
   };
 
-  struct SemaFunction {
-    ASTPtr<Function> func;
+  // struct SemaFunction {
+  //   ASTPtr<Function> func;
 
-    FunctionScope* scope = nullptr;
+  //   FunctionScope* scope = nullptr;
 
-    // vector<TypeInfo> arg_types;
+  //   // vector<TypeInfo> arg_types;
 
-    bool is_type_deducted = false; // of result_type
-    TypeInfo result_type;
+  //   bool is_type_deducted = false; // of result_type
+  //   TypeInfo result_type;
 
-    vector<ASTPtr<AST::Statement>>
-        return_stmt_list; // use to check return-type specification.
-                          // (append only that contains a expression)
+  //   vector<ASTPtr<AST::Statement>>
+  //       return_stmt_list; // use to check return-type specification.
+  //                         // (append only that contains a expression)
 
-    SemaFunction(ASTPtr<Function> func);
-  };
+  //   SemaFunction(ASTPtr<Function> func);
+  // };
 
   ArgumentCheckResult check_function_call_parameters(ASTPtr<CallFunc> call,
                                                      bool isVariableArg,
@@ -198,7 +198,7 @@ private:
 
   int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth);
 
-  vector<std::pair<ASTPtr<AST::Function>, SemaFunction>> function_scope_map;
+  vector<std::pair<ASTPtr<AST::Function>, FunctionScope*>> function_scope_map;
 
   ASTVec<Enum> enums;
   ASTVec<Class> classes;

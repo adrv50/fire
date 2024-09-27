@@ -78,18 +78,19 @@ void Sema::check(ASTPointer ast) {
     auto x = ASTCast<AST::Function>(ast);
 
     // auto func = this->get_func(x);
-    SemaFunction* func = nullptr;
+    // SemaFunction* func = nullptr;
+    FunctionScope* func = nullptr;
 
     for (auto&& [_Key, _Val] : this->function_scope_map) {
       if (_Key == x) {
-        func = &_Val;
+        func = _Val;
         break;
       }
     }
 
     assert(func);
 
-    if (func->func->is_templated) {
+    if (func->is_templated()) {
       break;
     }
 
@@ -97,12 +98,11 @@ void Sema::check(ASTPointer ast) {
 
     func->result_type = this->evaltype(x->return_type);
 
-    AST::walk_ast(func->func->block,
-                  [&func](AST::ASTWalkerLocation loc, ASTPointer _ast) {
-                    if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
-                      func->return_stmt_list.emplace_back(ASTCast<AST::Statement>(_ast));
-                    }
-                  });
+    AST::walk_ast(func->block->ast, [&func](AST::ASTWalkerLocation loc, ASTPointer _ast) {
+      if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
+        func->return_stmt_list.emplace_back(ASTCast<AST::Statement>(_ast));
+      }
+    });
 
     for (auto&& ret : func->return_stmt_list) {
       auto expr = ret->As<AST::Statement>()->get_expr();
@@ -133,18 +133,18 @@ void Sema::check(ASTPointer ast) {
 
     if (!func->result_type.equals(TypeKind::None)) {
       if (func->return_stmt_list.empty()) {
-        Error(func->func->token, "function must return value of type '" +
-                                     func->result_type.to_string() +
-                                     "', but don't return "
-                                     "anything.")
+        Error(func->ast->token, "function must return value of type '" +
+                                    func->result_type.to_string() +
+                                    "', but don't return "
+                                    "anything.")
             .emit();
 
       _return_type_note:
-        throw Error(func->func->return_type, "specified here");
+        throw Error(func->ast->return_type, "specified here");
       }
-      else if (auto block = func->func->block;
-               (*block->list.rbegin())->kind != ASTKind::Return) {
-        throw Error(block->endtok, "expected return-statement before this token");
+      else if (auto block = func->block;
+               (*block->ast->list.rbegin())->kind != ASTKind::Return) {
+        throw Error(block->ast->endtok, "expected return-statement before this token");
       }
     }
 

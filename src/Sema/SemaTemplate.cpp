@@ -164,7 +164,7 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
       this->ins_requests.emplace_back(req);
     }
     else {
-      req.cloned = found->cloned;
+      return found->cloned;
     }
 
     return req.cloned;

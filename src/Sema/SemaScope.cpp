@@ -186,11 +186,10 @@ FunctionScope::FunctionScope(ASTPtr<AST::Function> ast)
     }
   }
 
-  auto f = Sema::SemaFunction(ast);
+  // auto f = Sema::SemaFunction(ast);
+  // f.scope = this;
 
-  f.scope = this;
-
-  S->function_scope_map.emplace_back(ast, f);
+  S->function_scope_map.emplace_back(ast, this);
 
   for (auto&& arg : ast->arguments) {
     this->add_arg(arg);
@@ -212,6 +211,9 @@ ScopeContext::LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
 
   arg.arg = def;
   arg.is_argument = true;
+
+  arg.depth = this->depth;
+  arg.index = this->arguments.size() - 1;
 
   if (!this->is_templated()) {
     arg.deducted_type = Sema::GetInstance()->evaltype(def->type);

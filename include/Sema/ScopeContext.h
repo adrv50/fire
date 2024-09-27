@@ -116,6 +116,10 @@ struct FunctionScope : ScopeContext {
 
   BlockScope* block = nullptr;
 
+  TypeInfo result_type;
+
+  ASTVec<AST::Statement> return_stmt_list;
+
   vector<FunctionScope*> instantiated;
 
   FunctionScope*& AppendInstantiated(ASTPtr<AST::Function> fn) {

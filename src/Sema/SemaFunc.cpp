@@ -6,14 +6,14 @@
 
 namespace fire::semantics_checker {
 
-Sema::SemaFunction::SemaFunction(ASTPtr<AST::Function> func)
-    : func(func) {
+// Sema::SemaFunction::SemaFunction(ASTPtr<AST::Function> func)
+//     : func(func) {
 
-  if (!func->is_templated) {
-    this->result_type = Sema::GetInstance()->evaltype(func->return_type);
-    this->is_type_deducted = true;
-  }
-}
+//   if (!func->is_templated) {
+//     this->result_type = Sema::GetInstance()->evaltype(func->return_type);
+//     this->is_type_deducted = true;
+//   }
+// }
 
 Sema::ArgumentCheckResult Sema::check_function_call_parameters(ASTPtr<CallFunc> call,
                                                                bool isVariableArg,
