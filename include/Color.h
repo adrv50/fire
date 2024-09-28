@@ -2,16 +2,20 @@
 
 #include "types.h"
 
-namespace metro {
+namespace fire {
 
 struct Color {
   u8 r, g, b;
 
-  Color(u8 r, u8 g, u8 b) : r(r), g(g), b(b) {
+  Color(u8 r, u8 g, u8 b)
+      : r(r),
+        g(g),
+        b(b) {
   }
 
   // if repeat
-  Color(u8 x) : Color(x, x, x) {
+  Color(u8 x)
+      : Color(x, x, x) {
   }
 
   operator std::string() const {
@@ -38,4 +42,4 @@ static inline std::ostream& operator<<(std::ostream& ost,
   return ost << (std::string)c;
 }
 
-} // namespace metro
+} // namespace fire

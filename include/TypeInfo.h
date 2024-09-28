@@ -3,18 +3,18 @@
 #include <vector>
 #include "types.h"
 
-namespace metro {
+namespace fire {
 
 enum class TypeKind : u8 {
   None,
 
   Int,
   Float,
-  Size,
   Bool,
-  Char,
 
+  Char,
   String,
+
   Vector,
   Tuple,
   Dict,
@@ -22,10 +22,17 @@ enum class TypeKind : u8 {
   Enumerator,
   Instance, // instance of class
 
+  //
+  // Function:
+  //   params[  0]  = result
+  //   params[>=1]  = args
   Function,
+
   Module,
 
-  TypeName, // name of class or etc
+  TypeName, // class or enum or etc...
+
+  Unknown, // or template param
 };
 
 struct TypeInfo {
@@ -36,16 +43,46 @@ struct TypeInfo {
 
   bool is_const = false;
 
+  // TypeKind::TypeName
+  //
+  // AST::Enum
+  // AST::Class
+  ASTPointer type_ast = nullptr;
+
+  //
+  //   0  = no need
+  //  -1  = infinity
+  // >=1  =
+  int needed_param_count() const;
+
   bool is_numeric() const {
     switch (this->kind) {
     case TypeKind::Int:
     case TypeKind::Float:
-    case TypeKind::Size:
       return true;
     }
 
     return false;
   }
+
+  bool is_numeric_or_char() const {
+    return this->is_numeric() || this->kind == TypeKind::Char;
+  }
+
+  bool is_char_or_str() const {
+    return this->kind == TypeKind::Char || this->kind == TypeKind::String;
+  }
+
+  bool is_hit(std::vector<TypeInfo> types) const {
+    for (auto&& _t : types)
+      if (this->equals(_t))
+        return true;
+
+    return false;
+  }
+
+  static TypeInfo from_enum(ASTPtr<AST::Enum> ast);
+  static TypeInfo from_class(ASTPtr<AST::Class> ast);
 
   static std::vector<char const*> get_primitive_names();
 
@@ -53,6 +90,8 @@ struct TypeInfo {
 
   bool equals(TypeInfo const& type) const;
   std::string to_string() const;
+
+  TypeInfo without_params() const;
 
   TypeInfo(TypeKind kind = TypeKind::None)
       : TypeInfo(kind, {}) {
@@ -64,4 +103,4 @@ struct TypeInfo {
   }
 };
 
-} // namespace metro
+} // namespace fire

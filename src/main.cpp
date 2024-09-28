@@ -6,8 +6,9 @@
 #include "Utils.h"
 #include "Error.h"
 
+#include "Lexer.h"
 #include "Parser.h"
-#include "Checker.h"
+#include "Sema/Sema.h"
 #include "Evaluator.h"
 
 static constexpr auto command_help = R"(
@@ -19,7 +20,7 @@ options:
 )";
 
 static constexpr auto command_version = R"(
-flame 0.0.1
+fire 0.0.1
 )";
 
 struct CmdLineArguments {
@@ -54,7 +55,7 @@ int parse_command_line(CmdLineArguments& cmd, int argc, char** argv) {
 }
 
 void execute_file(std::string const& path) {
-  using namespace metro;
+  using namespace fire;
 
   SourceStorage source{path};
 
@@ -62,13 +63,39 @@ void execute_file(std::string const& path) {
     Error::fatal_error("cannot open file '" + path + "'");
   }
 
-  Lexer lexer{source};
+  try {
+    Lexer lexer{source};
 
-  parser::Parser parser{lexer.Lex()};
-  auto prg = parser.Parse();
+    auto tokens = lexer.Lex();
 
-  eval::Evaluator eval{prg};
-  eval.do_eval();
+    if (tokens.empty())
+      return;
+
+    parser::Parser parser{tokens};
+    ASTPtr<AST::Block> prg = parser.Parse();
+
+    prg = ASTCast<AST::Block>(prg->Clone());
+
+    semantics_checker::Sema sema{prg};
+
+    sema.check_full();
+
+    eval::Evaluator ev;
+
+    ev.evaluate(prg);
+  }
+
+  catch (Error const& err) {
+    err.emit();
+  }
+
+  // try {
+  //   eval::Evaluator eval{prg};
+  //   eval.do_eval();
+  // }
+  // catch (ObjPointer obj) {
+  //   Error::fatal_error("unhandled exception: " + obj->ToString());
+  // }
 }
 
 int main(int argc, char** argv) {
@@ -87,7 +114,7 @@ int main(int argc, char** argv) {
   }
 
   if (args.sources.empty()) {
-    metro::Error::fatal_error("no input files.");
+    fire::Error::fatal_error("no input files.");
   }
 
   for (auto&& path : args.sources) {

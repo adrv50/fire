@@ -4,7 +4,7 @@
 #include "Builtin.h"
 #include "alert.h"
 
-namespace metro::eval {
+namespace fire::eval {
 
 using namespace AST;
 
@@ -126,12 +126,16 @@ ObjPointer Evaluator::eval_expr(ASTPtr<AST::Expr> ast) {
                                     : lv->vi >> rv->vi);
   }
 
+  case Kind::Equal: {
+    return ObjNew<ObjPrimitive>((bool)lhs->Equals(rhs));
+  }
+
   case Kind::Bigger:
   case Kind::BiggerOrEqual: {
     auto ret = ObjNew<ObjPrimitive>(false);
     bool or_equal = ast->kind == Kind::BiggerOrEqual;
 
-    if (lhs->is_numeric() && rhs->is_numeric()) {
+    if (lhs->is_numeric(true) && rhs->is_numeric(true)) {
       auto [lv, rv] = to_primitive_pair(lhs, rhs);
 
       adjust_numeric_type_object(lv, rv);
@@ -192,9 +196,9 @@ ObjPointer Evaluator::eval_expr(ASTPtr<AST::Expr> ast) {
   }
   }
 
-  Error(ast->token, "invalid operator '" + ast->op.str +
-                        "' for type `" + lhs->type.to_string() +
-                        "` and `" + rhs->type.to_string() + "`")();
+  Error(ast->token, "invalid operator '" + ast->op.str + "' with (" +
+                        lhs->type.to_string() + ", " +
+                        rhs->type.to_string() + ")")();
 }
 
-} // namespace metro::eval
+} // namespace fire::eval

@@ -5,149 +5,59 @@
 #include <concepts>
 #include <string>
 #include <fstream>
+#include <functional>
+#include <cassert>
 
+#include "alert.h"
 #include "Object.h"
+#include "Token.h"
 
-namespace metro {
-
-struct SourceStorage {
-  struct LineRange {
-    i64 index, begin, end, length;
-
-    LineRange(i64 index, i64 begin, i64 end)
-        : index(index),
-          begin(begin),
-          end(end),
-          length(end - begin) {
-    }
-
-    LineRange()
-        : LineRange(0, 0, 0) {
-    }
-  };
-
-  std::string path;
-  std::string data;
-
-  std::unique_ptr<std::ifstream> file;
-
-  std::vector<LineRange> line_range_list;
-
-  bool Open();
-  bool IsOpen() const;
-
-  LineRange GetLineRange(i64 position) const;
-  std::string_view GetLineView(LineRange const& line) const;
-  std::vector<LineRange> GetLinesOfAST(ASTPointer ast);
-
-  std::string_view GetLineView(i64 index) const {
-    return this->GetLineView(this->line_range_list[index]);
-  }
-
-  int Count() const {
-    return this->line_range_list.size();
-  }
-
-  char operator[](size_t N) const {
-    return this->data[N];
-  }
-
-  SourceStorage(std::string path);
-};
-
-struct SourceLocation {
-  i64 position;
-  i64 length;
-  i64 pos_in_line;
-
-  SourceStorage const* ref;
-  SourceStorage::LineRange line;
-
-  std::string_view GetLine() const {
-    return this->ref->GetLineView(this->line);
-  }
-
-  SourceLocation(i64 pos, i64 len, SourceStorage const* r)
-      : position(pos),
-        length(len),
-        pos_in_line(0),
-        ref(r) {
-    if (this->ref) {
-      this->line = this->ref->GetLineRange(this->position);
-      this->pos_in_line = this->position - this->line.begin;
-    }
-  }
-
-  SourceLocation()
-      : SourceLocation(0, 0, nullptr) {
-  }
-};
-
-enum class TokenKind : u8 {
-  Unknown,
-  Int,
-  Hex,
-  Bin,
-  Float,
-  Size,
-  Boolean,
-  Char,
-  String,
-  Identifier,
-  Keyword,
-  Punctuater,
-};
-
-struct Token {
-  TokenKind kind;
-  std::string str;
-  SourceLocation sourceloc;
-
-  bool operator==(Token const& tok) const {
-    return this->kind == tok.kind && this->str == tok.str;
-  }
-
-  Token(TokenKind kind, std::string const& str,
-        SourceLocation sourceloc = {})
-      : kind(kind),
-        str(str),
-        sourceloc(sourceloc) {
-  }
-
-  Token(std::string str)
-      : Token(TokenKind::Unknown, str) {
-  }
-
-  Token(char const* str = "")
-      : Token(std::string(str)) {
-  }
-
-  Token(TokenKind kind)
-      : Token(kind, "") {
-  }
-};
+namespace fire {
 
 enum class ASTKind {
   Value,
+
+  Identifier, // => AST::Identifier
+  ScopeResol, // => AST::ScopeResol
+
+  //
+  // /--------------
+  //  replaced to this kind from Identifier or ScopeResol in
+  //  Semantics-Checker. Don't use this.
   Variable,
+  FuncName,
+  Enumerator,
+  // ------------------/
+
+  Array,
 
   IndexRef,
   MemberAccess,
   CallFunc,
 
-  SpecifyArgumentName, // func(a: 2, b: "aiue")
+  //
+  // in call-func expr.
+  SpecifyArgumentName, // => AST::Expr
 
-  Not, // !
+  Not, // => todo impl.
 
   Mul,
   Div,
+  Mod,
+
   Add,
   Sub,
+
   LShift,
   RShift,
+
+  //
+  // Compare
+  //
   Bigger,        // a > b
   BiggerOrEqual, // a >= b
   Equal,
+  // NotEqual  => replace: (a != b) -> (!(a == b))
 
   BitAND,
   BitXOR,
@@ -169,15 +79,15 @@ enum class ASTKind {
   Continue,
   Return,
 
-  // FuncArg,
+  Throw,
+
+  TryCatch,
+
+  Argument,
   Function,
 
-  Enumerator,
   Enum,
-
   Class,
-
-  Module,
 
   TypeName,
 
@@ -194,6 +104,8 @@ struct Base {
   bool is_named = false;
   bool is_expr = false;
 
+  ASTKind _constructed_as;
+
   template <class T>
   T* As() {
     return static_cast<T*>(this);
@@ -204,7 +116,23 @@ struct Base {
     return static_cast<T const*>(this);
   }
 
-  i64 GetChilds(ASTVector& out) const;
+  Expr const* as_expr() const;
+  Statement const* as_stmt() const;
+
+  Expr* as_expr();
+  Statement* as_stmt();
+
+  Value const* as_value() const {
+    return (Value const*)this;
+  }
+
+  virtual Identifier* GetID() {
+    return nullptr;
+  }
+
+  virtual ASTPointer Clone() const = 0;
+
+  [[maybe_unused]] i64 GetChilds(ASTVector& out) const;
 
   virtual std::string_view GetSourceView() const {
     return token.sourceloc.GetLine();
@@ -214,15 +142,14 @@ struct Base {
 
 protected:
   Base(ASTKind kind, Token token)
-      : kind(kind),
-        token(token),
-        endtok(token) {
+      : Base(kind, token, token) {
   }
 
   Base(ASTKind kind, Token token, Token endtok)
       : kind(kind),
         token(token),
-        endtok(endtok) {
+        endtok(endtok),
+        _constructed_as(kind) {
   }
 };
 
@@ -230,6 +157,16 @@ struct Value : Base {
   ObjPointer value;
 
   static ASTPtr<Value> New(Token tok, ObjPointer val);
+
+  ASTPointer Clone() const override {
+    assert(this->value);
+
+    auto xx = New(this->token, this->value->Clone());
+
+    assert(xx->value);
+
+    return xx;
+  }
 
   Value(Token tok, ObjPointer value)
       : Base(ASTKind::Value, tok),
@@ -256,23 +193,125 @@ protected:
   }
 };
 
+// ------------------
+// not used
+//
 struct Variable : Named {
-  static ASTPtr<Variable> New(Token tok);
+  int index = 0;
+  int backstep = 0; // N 個前のスコープに戻る
 
-  Variable(Token tok)
-      : Named(ASTKind::Variable, tok, tok) {
+  static ASTPtr<Variable> New(Token tok, int index = 0, int backstep = 0);
+
+  ASTPointer Clone() const override {
+    return New(this->token);
+  }
+
+  Variable(Token tok, int index = 0, int backstep = 0)
+      : Named(ASTKind::Variable, tok, tok),
+        index(index),
+        backstep(backstep) {
+  }
+};
+// ------------------
+
+struct Identifier : Named {
+  Token paramtok; // "<"
+  ASTVec<TypeName> id_params;
+
+  // for FuncName
+  ASTVec<Function> func_candidates; // not used. what?
+
+  // if Variable
+  int depth = 0;
+  int index = 0;
+
+  static ASTPtr<Identifier> New(Token tok);
+
+  ASTPointer Clone() const override;
+
+  Identifier* GetID() override {
+    return this;
+  }
+
+  Identifier(Token tok)
+      : Named(ASTKind::Identifier, tok, tok) {
+  }
+};
+
+struct ScopeResol : Named {
+  ASTPtr<Identifier> first;
+  ASTVec<Identifier> idlist;
+
+  static ASTPtr<ScopeResol> New(ASTPtr<Identifier> first);
+
+  ASTPointer Clone() const override {
+    auto x = New(ASTCast<AST::Identifier>(this->first->Clone()));
+
+    for (auto&& id : this->idlist)
+      x->idlist.emplace_back(ASTCast<Identifier>(id->Clone()));
+
+    return x;
+  }
+
+  Identifier* GetID() override {
+    return idlist.rbegin()->get();
+  }
+
+  ASTPtr<Identifier> GetLastID() const {
+    return *idlist.rbegin();
+  }
+
+  ScopeResol(ASTPtr<Identifier> first)
+      : Named(ASTKind::ScopeResol, first->token),
+        first(first) {
+  }
+};
+
+struct Array : Base {
+  ASTVector elements;
+
+  TypeInfo elem_type; // set in Sema
+
+  static ASTPtr<Array> New(Token tok);
+
+  ASTPointer Clone() const override {
+    auto x = New(this->token);
+
+    for (auto&& e : this->elements)
+      x->elements.emplace_back(e->Clone());
+
+    return x;
+  }
+
+  Array(Token tok)
+      : Base(ASTKind::Array, tok) {
   }
 };
 
 struct CallFunc : Base {
-  ASTPointer expr; // left side
+  ASTPointer callee; // left side, evaluated to be callable object.
   ASTVector args;
 
-  static ASTPtr<CallFunc> New(ASTPointer expr, ASTVector args = {});
+  ASTPtr<Function> callee_ast = nullptr;
+  builtins::Function const* callee_builtin = nullptr;
 
-  CallFunc(ASTPointer expr, ASTVector args = {})
-      : Base(ASTKind::CallFunc, expr->token, expr->token),
-        expr(expr),
+  static ASTPtr<CallFunc> New(ASTPointer callee, ASTVector args = {});
+
+  ASTPointer Clone() const override {
+    auto x = New(this->callee);
+
+    for (auto&& a : this->args)
+      x->args.emplace_back(a->Clone());
+
+    x->callee_ast = this->callee_ast;
+    x->callee_builtin = this->callee_builtin;
+
+    return x;
+  }
+
+  CallFunc(ASTPointer callee, ASTVector args = {})
+      : Base(ASTKind::CallFunc, callee->token, callee->token),
+        callee(callee),
         args(std::move(args)) {
   }
 };
@@ -282,8 +321,11 @@ struct Expr : Base {
   ASTPointer lhs;
   ASTPointer rhs;
 
-  static ASTPtr<Expr> New(ASTKind kind, Token optok, ASTPointer lhs,
-                          ASTPointer rhs);
+  static ASTPtr<Expr> New(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs);
+
+  ASTPointer Clone() const override {
+    return New(this->kind, this->op, this->lhs->Clone(), this->rhs->Clone());
+  }
 
   Expr(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs)
       : Base(kind, optok),
@@ -296,8 +338,18 @@ struct Expr : Base {
 
 struct Block : Base {
   ASTVector list;
+  int stack_size = 0; // count of variable definition
 
   static ASTPtr<Block> New(Token tok, ASTVector list = {});
+
+  ASTPointer Clone() const override {
+    auto x = New(this->token);
+
+    for (auto&& a : this->list)
+      x->list.emplace_back(a->Clone());
+
+    return x;
+  }
 
   Block(Token tok /* "{" */, ASTVector list = {})
       : Base(ASTKind::Block, tok),
@@ -305,16 +357,37 @@ struct Block : Base {
   }
 };
 
+struct TypeName : Named {
+  ASTVector type_params;
+  bool is_const;
+
+  TypeInfo type;
+  ASTPtr<Class> ast_class = nullptr;
+
+  static ASTPtr<TypeName> New(Token nametok);
+
+  ASTPointer Clone() const override;
+
+  TypeName(Token name)
+      : Named(ASTKind::TypeName, name),
+        is_const(false) {
+  }
+};
+
 struct VarDef : Named {
   ASTPtr<TypeName> type;
   ASTPointer init;
 
-  static ASTPtr<VarDef> New(Token tok, Token name,
-                            ASTPtr<TypeName> type, ASTPointer init);
+  int index = 0;
+
+  static ASTPtr<VarDef> New(Token tok, Token name, ASTPtr<TypeName> type,
+                            ASTPointer init);
 
   static ASTPtr<VarDef> New(Token tok, Token name) {
     return New(tok, name, nullptr, nullptr);
   }
+
+  ASTPointer Clone() const override;
 
   VarDef(Token tok, Token name, ASTPtr<TypeName> type = nullptr,
          ASTPointer init = nullptr)
@@ -341,140 +414,236 @@ struct Statement : Base {
   struct For {
     ASTVector init;
     ASTPointer cond;
-    ASTVector count;
     ASTPtr<Block> block;
   };
 
-  //
-  // astdata
-  //
-  // ASTKind::Return
-  //  --> astdata = ASTPtr<AST::Expr>
-  //
-  std::any astdata;
+  struct TryCatch {
+    ASTPtr<Block> tryblock;
 
-  static ASTPtr<Statement> NewIf(Token tok, ASTPointer cond,
-                                 ASTPointer if_true,
+    Token varname; // name of variable to catch exception instance
+    ASTPtr<Block> catched;
+  };
+
+  template <class T>
+  T get_data() const {
+    return std::any_cast<T>(this->_astdata);
+  }
+
+  void set_data(auto data) {
+    this->_astdata = data;
+  }
+
+  ASTPtr<AST::Expr> get_expr() const {
+    return ASTCast<AST::Expr>(this->get_data<ASTPointer>());
+  }
+
+  static ASTPtr<Statement> NewIf(Token tok, ASTPointer cond, ASTPointer if_true,
                                  ASTPointer if_false = nullptr);
 
-  static ASTPtr<Statement>
-  NewSwitch(Token tok, ASTPointer cond,
-            std::vector<Switch::Case> cases = {});
+  static ASTPtr<Statement> NewSwitch(Token tok, ASTPointer cond,
+                                     std::vector<Switch::Case> cases = {});
 
-  static ASTPtr<Statement> NewFor(Token tok, ASTVector init,
-                                  ASTPointer cond, ASTVector count,
+  static ASTPtr<Statement> NewFor(Token tok, ASTVector init, ASTPointer cond,
                                   ASTPtr<Block> block);
+
+  static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock, Token vname,
+                                       ASTPtr<Block> catched);
 
   static ASTPtr<Statement> New(ASTKind kind, Token tok,
                                std::any data = (ASTPointer) nullptr);
 
+  ASTPointer Clone() const override;
+
   Statement(ASTKind kind, Token tok, std::any data)
       : Base(kind, tok),
-        astdata(data) {
+        _astdata(data) {
+  }
+
+  //
+  // when ASTKind::Return
+  int ret_func_scope_distance = 0;
+
+private:
+  std::any _astdata;
+};
+
+struct Templatable : Named {
+  Token tok_template;
+
+  bool is_templated = false;
+
+  TokenVector template_param_names;
+
+protected:
+  using Named::Named;
+
+  void _Copy(Templatable const* _t) {
+    this->tok_template = _t->tok_template;
+    this->is_templated = _t->is_templated;
+
+    for (auto&& e : _t->template_param_names) {
+      this->template_param_names.emplace_back(e);
+    }
   }
 };
 
-struct TypeName : Named {
-  ASTVector type_params;
-  ASTVec<TypeName> scope_resol;
-  bool is_const;
+struct Argument : Named {
+  ASTPtr<TypeName> type;
 
-  TypeInfo type;
-  ASTPtr<Class> ast_class;
+  static ASTPtr<Argument> New(Token nametok, ASTPtr<TypeName> type);
 
-  static ASTPtr<TypeName> New(Token nametok);
+  ASTPointer Clone() const {
+    return New(this->name,
+               ASTCast<AST::TypeName>(this->type ? this->type->Clone() : nullptr));
+  }
 
-  TypeName(Token name)
-      : Named(ASTKind::TypeName, name),
-        is_const(false) {
+  Argument(Token nametok, ASTPtr<TypeName> type)
+      : Named(ASTKind::Argument, nametok),
+        type(type) {
   }
 };
 
-struct Function : Named {
-  TokenVector arg_names;
+struct Function : Templatable {
+  ASTVec<Argument> arguments;
   ASTPtr<TypeName> return_type;
   ASTPtr<Block> block;
 
   bool is_var_arg;
 
-  Token& add_arg(Token const& tok) {
-    return this->arg_names.emplace_back(tok);
+  ASTPtr<Argument>& add_arg(Token const& tok, ASTPtr<TypeName> type = nullptr) {
+    return this->arguments.emplace_back(Argument::New(tok, type));
+  }
+
+  ASTPtr<Argument> find_arg(std::string const& name) {
+    for (auto&& arg : this->arguments)
+      if (arg->GetName() == name)
+        return arg;
+
+    return nullptr;
   }
 
   static ASTPtr<Function> New(Token tok, Token name);
 
-  static ASTPtr<Function> New(Token tok, Token name,
-                              TokenVector arg_names, bool is_var_arg,
-                              ASTPtr<TypeName> rettype,
+  static ASTPtr<Function> New(Token tok, Token name, ASTVec<Argument> args,
+                              bool is_var_arg, ASTPtr<TypeName> rettype,
                               ASTPtr<Block> block);
 
-  Function(Token tok, Token name)
-      : Named(ASTKind::Function, tok, name),
-        return_type(nullptr),
-        block(nullptr),
-        is_var_arg(false) {
+  ASTPointer Clone() const override {
+    auto x = New(this->token, this->name);
+
+    x->_Copy(this);
+
+    for (auto&& arg : this->arguments) {
+      x->arguments.emplace_back(ASTCast<Argument>(arg->Clone()));
+    }
+
+    if (this->return_type)
+      x->return_type = ASTCast<TypeName>(this->return_type->Clone());
+
+    x->block = ASTCast<Block>(this->block->Clone());
+    x->is_var_arg = this->is_var_arg;
+
+    return x;
   }
 
-  Function(Token tok, Token name, TokenVector args, bool is_var_arg,
+  Function(Token tok, Token name)
+      : Function(tok, name, {}, false, nullptr, nullptr) {
+  }
+
+  Function(Token tok, Token name, ASTVec<Argument> args, bool is_var_arg,
            ASTPtr<TypeName> rettype, ASTPtr<Block> block)
-      : Named(ASTKind::Function, tok, name),
-        arg_names(args),
+      : Templatable(ASTKind::Function, tok, name),
+        arguments(args),
         return_type(rettype),
         block(block),
         is_var_arg(is_var_arg) {
   }
 };
 
-struct Enumerator : Named {
-  ASTPtr<TypeName> value_type;
+struct Enum : Templatable {
+  ASTPtr<Block> enumerators; // ->list = ASTVec<Variable>
 
-  static ASTPtr<Enumerator> New(Token tok,
-                                ASTPtr<TypeName> valtype = nullptr);
-
-  Enumerator(Token tok, ASTPtr<TypeName> valtype)
-      : Named(ASTKind::Enumerator, tok, tok),
-        value_type(valtype) {
+  ASTPointer& append(Token name /* , todo: typename*/) {
+    return this->enumerators->list.emplace_back(Variable::New(name));
   }
-};
-
-struct Enum : Named {
-  ASTVec<Enumerator> enumerators;
 
   static ASTPtr<Enum> New(Token tok, Token name);
 
+  ASTPointer Clone() const override {
+    auto x = New(this->token, this->name);
+
+    x->_Copy(this);
+
+    x->enumerators = ASTCast<Block>(this->enumerators->Clone());
+
+    return x;
+  }
+
   Enum(Token tok, Token name)
-      : Named(ASTKind::Enum, tok, name) {
+      : Templatable(ASTKind::Enum, tok, name),
+        enumerators(Block::New("")) {
   }
 };
 
-struct Class : Named {
-  ASTVec<VarDef> mb_variables;
-  ASTVec<Function> mb_functions;
+struct Class : Templatable {
+  ASTPtr<Block> block;
+  std::weak_ptr<Function> constructor;
 
-  ASTPtr<Function> constructor = nullptr;
+  ASTPointer& append(ASTPointer ast) {
+    return this->block->list.emplace_back(ast);
+  }
+
+  ASTVec<VarDef> get_member_variables() {
+    ASTVec<VarDef> v;
+
+    for (auto&& x : this->block->list)
+      if (x->kind == ASTKind::Vardef)
+        v.emplace_back(ASTCast<VarDef>(x));
+
+    return v;
+  }
+
+  ASTVec<Function> get_member_functions() {
+    ASTVec<Function> v;
+
+    for (auto&& x : this->block->list)
+      if (x->kind == ASTKind::Function)
+        v.emplace_back(ASTCast<Function>(x));
+
+    return v;
+  }
 
   static ASTPtr<Class> New(Token tok, Token name);
 
-  static ASTPtr<Class> New(Token tok, Token name,
-                           ASTVec<VarDef> var_decl_list,
-                           ASTVec<Function> func_list,
-                           ASTPtr<Function> ctor);
+  static ASTPtr<Class> New(Token tok, Token name, ASTPtr<Block> definitions);
+
+  ASTPointer Clone() const override {
+    auto x = New(this->token, this->name, ASTCast<Block>(this->block->Clone()));
+
+    x->_Copy(this);
+
+    for (auto&& y : x->block->list)
+      if (y->kind == ASTKind::Function && y->As<Named>()->GetName() == x->GetName()) {
+        x->constructor = ASTCast<Function>(y);
+        break;
+      }
+
+    return x;
+  }
 
   Class(Token tok, Token name)
-      : Named(ASTKind::Class, tok, name) {
+      : Templatable(ASTKind::Class, tok, name),
+        block(Block::New("")) {
   }
 };
 
-struct Program : Base {
-  ASTVector list;
-
-  static ASTPtr<Program> New();
-
-  Program()
-      : Base(ASTKind::Program, {}) {
-  }
+enum ASTWalkerLocation {
+  AW_Begin,
+  AW_End,
 };
+
+void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)> fn);
 
 } // namespace AST
 
-} // namespace metro
+} // namespace fire

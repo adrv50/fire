@@ -1,10 +1,10 @@
 #include "alert.h"
 
-#include "Parser.h"
+#include "Lexer.h"
 #include "Utils.h"
 #include "Error.h"
 
-namespace metro {
+namespace fire {
 
 // clang-format off
 static char const* punctuaters[] = {
@@ -12,50 +12,9 @@ static char const* punctuaters[] = {
     "&&",  "||",  "->", "::", "<",  ">",  "+",  "-",  "/",
     "*",   "%",   "=",  ";",  ":",  ",",  ".",  "[",  "]",
     "(",   ")",   "{",  "}",  "!",  "?",  "&",  "^",  "|",
-};
-
-static char const* keywords[] = {
-  //
-  // built-in type names
-  "none",
-  "int",
-  "float",
-  "usize",
-  "bool",
-  "char",
-  "string",
-  "vector",
-  "tuple",
-  "dict",
-  "Module",
-  "Func",
-
-  "enum",
-  "class",
-  "fn",
-
-  "let",
-  "if",
-  "switch",
-  "case",
-  "match",  // feature
-  "loop",
-  "for",
-  "do",
-  "while",
-
-  "getid",
-  "typeof",
+    "@",
 };
 // clang-format on
-
-static bool is_keyword(std::string_view str) {
-  for (auto&& kwd : keywords)
-    if (str == kwd)
-      return true;
-
-  return false;
-}
 
 Lexer::Lexer(SourceStorage const& source)
     : source(source),
@@ -72,6 +31,24 @@ TokenVector Lexer::Lex() {
     auto c = this->peek();
     auto s = this->source.data.data() + this->position;
     auto pos = this->position;
+
+    // comment line
+    if (this->eat("//")) {
+      while (this->check() && !this->eat('\n'))
+        this->position++;
+
+      this->pass_space();
+      continue;
+    }
+
+    // comment block
+    if (this->eat("/*")) {
+      while (this->check() && !this->eat("*/"))
+        this->position++;
+
+      this->pass_space();
+      continue;
+    }
 
     auto& tok = vec.emplace_back();
 
@@ -123,14 +100,17 @@ TokenVector Lexer::Lex() {
 
     // char or string literal
     else if (this->eat('\'') || this->eat('"')) {
-      tok.kind = c == '"' ? TokenKind::String : TokenKind::Char;
+      char quat = c;
+      bool is_str = quat == '"';
 
-      while (this->check() && this->peek() != c)
+      tok.kind = is_str ? TokenKind::String : TokenKind::Char;
+
+      while (this->check() && (c = this->peek()) != quat)
         this->position++;
 
-      if (!this->check() || !this->eat(c)) {
-        Error(tok).format("not terminated %s literal",
-                          c == '"' ? "string" : "character")();
+      if (!this->check() || !this->eat(quat)) {
+        throw Error(tok).format("not terminated %s literal",
+                                is_str ? "string" : "character");
       }
     }
 
@@ -151,12 +131,9 @@ TokenVector Lexer::Lex() {
 
     if (tok.str == "true" || tok.str == "false")
       tok.kind = TokenKind::Boolean;
-    else if (tok.kind == TokenKind::Identifier && is_keyword(tok.str))
-      tok.kind = TokenKind::Keyword;
 
   found_punct:
-    tok.sourceloc =
-        SourceLocation(pos, tok.str.length(), &this->source);
+    tok.sourceloc = SourceLocation(pos, tok.str.length(), &this->source);
 
     this->pass_space();
   }
@@ -178,8 +155,8 @@ void Lexer::pass_space() {
 }
 
 bool Lexer::match(std::string_view str) {
-  return this->position + str.length() <= this->length &&
+  return (i64)(this->position + str.length()) <= this->length &&
          this->trim(str.length()) == str;
 }
 
-} // namespace metro
+} // namespace fire

@@ -1,0 +1,9 @@
+import Lexer;
+import Node;
+
+class Parser {
+    var {
+        tokens: vector<Token>,
+        
+    }
+}

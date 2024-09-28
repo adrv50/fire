@@ -2,52 +2,7 @@
 
 #include "AST.h"
 
-namespace metro {
-
-class Lexer {
-
-public:
-  Lexer(SourceStorage const& source);
-
-  TokenVector Lex();
-
-private:
-  bool check() const;
-  char peek();
-  void pass_space();
-  bool match(std::string_view);
-
-  bool eat(char c) {
-    if (this->peek() == c) {
-      this->position++;
-      return true;
-    }
-
-    return false;
-  }
-
-  bool eat(std::string_view s) {
-    if (this->match(s)) {
-      this->position += s.length();
-      return true;
-    }
-
-    return false;
-  }
-
-  std::string_view trim(i64 len) {
-    return std::string_view(this->source.data.data() + this->position,
-                            len);
-  }
-
-  SourceStorage const& source;
-  i64 position;
-  i64 length;
-};
-
-} // namespace metro
-
-namespace metro::parser {
+namespace fire::parser {
 
 class Parser {
 
@@ -57,6 +12,7 @@ public:
   // ASTPointer Ident();
 
   ASTPointer Factor();
+  ASTPointer ScopeResol();
 
   ASTPointer IndexRef();
   ASTPointer Unary();
@@ -74,13 +30,17 @@ public:
 
   ASTPointer Top();
 
-  ASTPtr<AST::Program> Parse();
+  ASTPtr<AST::Block> Parse();
 
 private:
   bool check() const;
 
   bool eat(std::string_view str);
   void expect(std::string_view str, bool keep_position = false);
+
+  bool eat_typeparam_bracket_open();
+  bool eat_typeparam_bracket_close();
+  void expect_typeparam_bracket_close();
 
   bool match(std::string_view s) {
     return this->cur->str == s;
@@ -103,22 +63,20 @@ private:
     auto save = this->cur;
     this->cur++;
 
-    auto ret =
-        this->match(std::forward<U>(u), std::forward<Args>(args)...);
+    auto ret = this->match(std::forward<U>(u), std::forward<Args>(args)...);
 
     this->cur = save;
     return ret;
   }
-  static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op,
-                                    ASTPointer lhs, ASTPointer rhs) {
+
+  static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op, ASTPointer lhs,
+                                    ASTPointer rhs) {
     return AST::Expr::New(k, op, lhs, rhs);
   }
 
-  static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op,
-                                      ASTPointer lhs,
+  static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op, ASTPointer lhs,
                                       ASTPointer rhs) {
-    return new_expr(ASTKind::Assign, op, lhs,
-                    new_expr(kind, op, lhs, rhs));
+    return new_expr(ASTKind::Assign, op, lhs, new_expr(kind, op, lhs, rhs));
   }
 
   TokenIterator insert_token(Token tok) {
@@ -134,6 +92,8 @@ private:
 
   TokenVector tokens;
   TokenIterator cur, end, ate;
+
+  int _typeparam_bracket_depth = 0;
 };
 
-} // namespace metro::parser
+} // namespace fire::parser

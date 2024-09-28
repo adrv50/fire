@@ -1,0 +1,9 @@
+import Parser;
+
+fn main() {
+    let parser = Parser.Parser("test.fire");
+
+    let ast = parser.parse();
+
+    println("Hello, World!");
+}

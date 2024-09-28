@@ -3,10 +3,19 @@
 #include "AST.h"
 #include "Utils.h"
 
-namespace metro {
+namespace fire {
 
 class Error {
 public:
+  enum ErrorKind {
+    ER_Error,
+    ER_Warning,
+    ER_Note,
+  };
+
+  Error(ErrorKind k, Token tok, std::string msg = "");
+  Error(ErrorKind k, ASTPointer ast, std::string msg = "");
+
   Error(Token tok, std::string msg = "");
   Error(ASTPointer ast, std::string msg = "");
 
@@ -16,22 +25,43 @@ public:
     return *this;
   }
 
-  Error& emit(bool as_warn = false);
+  Error const& emit() const;
 
-  [[noreturn]]
-  void operator()();
+  Error& InLocation(string const& loc) {
+    this->location.emplace_back(loc);
+    return *this;
+  }
 
-  [[noreturn]]
-  void stop();
+  Error& AddNote(string const& note) {
+    this->notes.emplace_back(note);
+    return *this;
+  }
 
-  [[noreturn]]
-  static void fatal_error(std::string const& msg);
+  Error& AddChain(Error e) {
+    this->chained.emplace_back(std::move(e));
+    return *this;
+  }
+
+  static int GetEmittedCount();
+
+  [[noreturn]] void operator()();
+
+  [[noreturn]] void stop();
+
+  [[noreturn]] static void fatal_error(std::string const& msg);
 
 private:
+  ErrorKind kind;
+
   Token loc_token;
   ASTPointer loc_ast = nullptr;
 
   std::string msg;
+
+  StringVector location;
+  StringVector notes;
+
+  vector<Error> chained;
 };
 
-} // namespace metro
+} // namespace fire

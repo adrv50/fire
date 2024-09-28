@@ -19,9 +19,13 @@ using u32 = std::uint32_t;
 using u64 = std::uint64_t;
 
 using std::size_t;
+
+using std::string;
+using std::vector;
+
 using StringVector = std::vector<std::string>;
 
-namespace metro {
+namespace fire {
 
 enum class TypeKind : u8;
 struct TypeInfo;
@@ -30,11 +34,11 @@ struct Object;
 struct ObjPrimitive;
 struct ObjIterable;
 struct ObjString;
+struct ObjEnumerator;
 struct ObjInstance;
 struct ObjCallable;
 struct ObjModule;
 struct ObjType;
-struct ObjEnumerator;
 
 namespace value_type {
 
@@ -57,46 +61,26 @@ struct SourceLocation;
 
 namespace AST {
 struct Base;
+
 struct Value;
 struct Variable;
+struct Identifier;
+struct ScopeResol;
+
 struct CallFunc;
 struct Expr;
 struct Block;
 struct VarDef;
 struct Statement;
 struct TypeName;
+
 struct Function;
 struct Enum;
 struct Class;
-struct Templator;
-struct Module;
-struct Program;
+
+// struct Namespace;
 
 } // namespace AST
-
-namespace builtins {
-
-struct Function;
-
-} // namespace builtins
-
-class Lexer;
-
-namespace parser {
-class Parser;
-}
-
-namespace eval {
-class Evaluator;
-}
-
-namespace checker {
-class Checker;
-}
-
-namespace gc {
-class GC;
-}
 
 #if _DBG_DONT_USE_SMART_PTR_
 template <class T, class U>
@@ -170,4 +154,4 @@ using ObjVec = std::vector<ObjPtr<T>>;
 template <class T>
 using ASTVec = std::vector<ASTPtr<T>>;
 
-} // namespace metro
+} // namespace fire
