@@ -196,6 +196,9 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   }
 
   case Kind::Assign: {
+    auto x = ast->as_expr();
+
+    return this->eval_as_left(x->lhs) = this->evaluate(x->rhs);
   }
 
   default:

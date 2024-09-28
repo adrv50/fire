@@ -114,6 +114,12 @@ class Sema {
   IdentifierInfo get_identifier_info(ASTPtr<AST::Identifier> ast);
   IdentifierInfo get_identifier_info(ASTPtr<AST::ScopeResol> ast);
 
+  IdentifierInfo get_identifier_info(ASTPointer ast) {
+    return ast->kind == ASTKind::Identifier
+               ? this->get_identifier_info(ASTCast<AST::Identifier>(ast))
+               : this->get_identifier_info(ASTCast<AST::ScopeResol>(ast));
+  }
+
 public:
   struct ScopeLocation {
     ScopeContext* Current;

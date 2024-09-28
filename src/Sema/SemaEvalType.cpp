@@ -358,8 +358,25 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   case Kind::Assign: {
     auto x = ASTCast<AST::Expr>(ast);
 
+    auto src = this->EvalType(x->rhs);
+
+    if (x->lhs->kind == ASTKind::Identifier ||
+        x->lhs->kind == ASTKind::ScopeResol) {
+      auto idinfo = this->get_identifier_info(x->lhs);
+
+      if (auto lvar = idinfo.result.lvar; idinfo.result.type == NameType::Var) {
+
+        lvar->deducted_type = src;
+        lvar->is_type_deducted = true;
+      }
+    }
+
     auto dest = this->EvalType(x->lhs);
-    auto src = this->ExpectType(dest, x->rhs);
+
+    if (!dest.equals(src)) {
+      throw Error(x->rhs,
+                  "expected '" + dest.to_string() + "' type expression");
+    }
 
     if (!this->IsWritable(x->lhs)) {
       throw Error(x->lhs, "expected writable expression");
