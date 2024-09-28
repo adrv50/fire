@@ -5,6 +5,7 @@ TOPDIR		?= 	$(CURDIR)
 BUILD		:= 	build
 INCLUDE		:= 	include
 SOURCE		:= 	src	\
+				src/AST \
 				src/Evaluator \
 				src/Parser \
 				src/Sema

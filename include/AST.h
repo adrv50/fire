@@ -644,6 +644,8 @@ enum ASTWalkerLocation {
 
 void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)> fn);
 
+string ToString(ASTPointer ast);
+
 } // namespace AST
 
 } // namespace fire

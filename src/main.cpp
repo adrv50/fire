@@ -74,7 +74,7 @@ void execute_file(std::string const& path) {
     parser::Parser parser{tokens};
     ASTPtr<AST::Block> prg = parser.Parse();
 
-    prg = ASTCast<AST::Block>(prg->Clone());
+    std::cout << AST::ToString(prg) << std::endl;
 
     semantics_checker::Sema sema{prg};
 

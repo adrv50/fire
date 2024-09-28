@@ -10,33 +10,21 @@
 namespace fire::semantics_checker {
 
 void Sema::check_full() {
-  alert;
   this->check(this->root);
 
-  alert;
   this->SaveScopeLocation();
 
-  alertexpr(this->ins_requests.size());
-
-  alert;
   for (auto&& req : this->ins_requests) {
-    alert;
 
     this->_location = req.scope_loc;
 
-    alert;
     try {
 
-      alert;
-      alertexpr(req.cloned.get());
-
       assert(req.cloned != nullptr);
-      this->check(req.cloned);
 
-      alert;
+      this->check(req.cloned);
     }
     catch (Error err) {
-      alert;
       string func_name = req.idinfo.to_string() + "@<";
 
       for (int i = -1; auto&& [_name, _data] : req.param_types) {
@@ -58,13 +46,9 @@ void Sema::check_full() {
       throw err.AddChain(Error(Error::ER_Note, req.requested, "requested here"))
           .InLocation("in instantiation of '" + func_name + "'");
     }
-    alert;
   }
 
-  alert;
   this->RestoreScopeLocation();
-
-  alert;
 }
 
 void Sema::check(ASTPointer ast) {

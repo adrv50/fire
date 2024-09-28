@@ -50,6 +50,8 @@ std::string ObjPrimitive::ToString() const {
 }
 
 ObjPointer ObjIterable::Clone() const {
+  alert;
+
   auto obj = ObjNew<ObjIterable>(this->type);
 
   for (auto&& x : this->list)
@@ -96,7 +98,7 @@ std::string ObjString::ToString() const {
 ObjPointer ObjString::Clone() const {
   auto obj = ObjNew<ObjString>();
 
-  for (auto&& c : obj->list) {
+  for (auto&& c : this->list) {
     obj->Append(c->Clone());
   }
 
@@ -105,9 +107,8 @@ ObjPointer ObjString::Clone() const {
 
 ObjString::ObjString(std::u16string const& str)
     : ObjIterable(TypeKind::String) {
-  if (!str.empty())
-    for (auto&& c : str)
-      this->Append(ObjNew<ObjPrimitive>(c));
+  for (auto&& c : str)
+    this->Append(ObjNew<ObjPrimitive>(c));
 }
 
 ObjString::ObjString(std::string const& str)

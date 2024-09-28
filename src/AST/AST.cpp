@@ -4,7 +4,8 @@
 namespace fire::AST {
 
 template <class T, class... Args>
-requires std::constructible_from<T, Args...> ASTPtr<T> ASTNew(Args&&... args) {
+requires std::constructible_from<T, Args...>
+ASTPtr<T> ASTNew(Args&&... args) {
 #if _DBG_DONT_USE_SMART_PTR_
   return new T(std::forward<Args>(args)...);
 #else

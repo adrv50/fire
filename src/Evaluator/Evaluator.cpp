@@ -55,13 +55,14 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   case Kind::Enum:
     break;
 
-  case Kind::Value:
-    return ast->as_value()->value;
+  case Kind::Value: {
+    return ast->as_value()->value->Clone();
+  }
 
   case Kind::Variable: {
     auto x = ast->GetID();
 
-    return this->get_stack(x->depth /*distance*/).var_list[x->index];
+    return this->get_stack(x->depth /*distance*/).var_list[x->index]->Clone();
   }
 
   case Kind::Array: {
@@ -80,8 +81,9 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     ObjVector args;
 
-    for (auto&& arg : x->args)
+    for (auto&& arg : x->args) {
       args.emplace_back(this->evaluate(arg));
+    }
 
     if (x->callee_builtin) {
       return x->callee_builtin->Call(x, std::move(args));

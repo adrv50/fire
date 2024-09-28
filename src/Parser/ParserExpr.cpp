@@ -107,9 +107,12 @@ ASTPointer Parser::Factor() {
   case TokenKind::Boolean:
     return AST::Value::New(tok, make_value_from_token(tok));
 
-  case TokenKind::String:
-    return AST::Value::New(tok,
-                           ObjNew<ObjString>(tok.str.substr(1, tok.str.length() - 2)));
+  case TokenKind::String: {
+    auto xx =
+        AST::Value::New(tok, ObjNew<ObjString>(tok.str.substr(1, tok.str.length() - 2)));
+
+    return xx;
+  }
 
   case TokenKind::Identifier: {
     static int _prs_depth = 0;

@@ -75,8 +75,9 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     throw Error(x->token, "unknown type name");
   }
 
-  case Kind::Value:
+  case Kind::Value: {
     return ast->as_value()->value->type;
+  }
 
   case Kind::Variable: {
     auto pvar = this->_find_variable(ast->GetID()->GetName());
@@ -231,7 +232,6 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
         callee_as_id = ASTCast<AST::ScopeResol>(callee)->GetLastID();
 
       if (idinfo.result.type == NameType::BuiltinFunc) {
-        alert;
 
         //
         // --- find built-in func
@@ -241,8 +241,6 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
               call, fn->is_variable_args, fn->arg_types, arg_types, false);
 
           if (res.result == ArgumentCheckResult::Ok) {
-            alertexpr(fn->name);
-
             call->callee_builtin = fn;
 
             return fn->result_type;
