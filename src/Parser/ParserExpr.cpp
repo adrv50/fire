@@ -28,7 +28,7 @@ static ObjPtr<ObjPrimitive> make_value_from_token(Token const& tok) {
     auto s16 = utils::to_u16string(s.substr(1, s.length() - 2));
 
     if (s16.length() != 1)
-      Error(tok, "the length of character literal is must 1.")();
+      throw Error(tok, "the length of character literal is must 1.");
 
     obj->type = TypeKind::Char;
     obj->vc = s16[0];
@@ -91,7 +91,7 @@ ASTPointer Parser::Factor() {
           tok.sourceloc.position += (end - it);
           tok.sourceloc.length = 1;
 
-          Error(tok, "invalid escape sequence")();
+          throw Error(tok, "invalid escape sequence");
         }
       }
 
@@ -152,7 +152,7 @@ ASTPointer Parser::Factor() {
     */
   }
 
-  Error(tok, "invalid syntax")();
+  throw Error(tok, "invalid syntax");
 }
 
 ASTPointer Parser::ScopeResol() {
@@ -160,7 +160,7 @@ ASTPointer Parser::ScopeResol() {
 
   if (this->match("::")) {
     if (x->kind != ASTKind::Identifier)
-      Error(*this->cur, "invalid syntax")();
+      throw Error(*this->cur, "invalid syntax");
 
     auto sr = AST::ScopeResol::New(ASTCast<AST::Identifier>(x));
 
@@ -169,7 +169,7 @@ ASTPointer Parser::ScopeResol() {
 
       if (sr->idlist.emplace_back(ASTCast<AST::Identifier>(this->Factor()))
               ->kind != ASTKind::Identifier)
-        Error(op, "invalid syntax")();
+        throw Error(op, "invalid syntax");
     }
 
     x = sr;
@@ -194,8 +194,9 @@ ASTPointer Parser::IndexRef() {
     else if (this->eat(".")) {
       auto rhs = this->ScopeResol();
 
-      if (rhs->kind != ASTKind::Variable) {
-        Error(op, "syntax error")();
+      if (rhs->kind != ASTKind::Identifier &&
+          rhs->kind != ASTKind::ScopeResol) {
+        throw Error(op, "syntax error");
       }
 
       x = new_expr(ASTKind::MemberAccess, op, x, rhs);

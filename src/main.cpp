@@ -72,16 +72,22 @@ void execute_file(std::string const& path) {
       return;
 
     parser::Parser parser{tokens};
+
+    alert;
     ASTPtr<AST::Block> prg = parser.Parse();
 
     // std::cout << AST::ToString(prg) << std::endl;
 
+    alert;
     semantics_checker::Sema sema{prg};
 
+    alert;
     sema.check_full();
 
+    alert;
     eval::Evaluator ev;
 
+    alert;
     ev.evaluate(prg);
   }
 

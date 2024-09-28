@@ -250,7 +250,8 @@ ASTPointer Parser::Top() {
   // replace to variable declaration,
   //  and assignment result of call "import" func.
   //
-  if (this->match("import", TokenKind::Identifier) || this->match("import", ".")) {
+  if (this->match("import", TokenKind::Identifier) ||
+      this->match("import", ".")) {
 
     // import a;
     // import ./b;
@@ -289,7 +290,8 @@ ASTPointer Parser::Top() {
     mod_name_token.str = name;
     mod_name_token.sourceloc.length = name.length();
 
-    call->args.emplace_back(AST::Value::New(mod_name_token, ObjNew<ObjString>(name)));
+    call->args.emplace_back(
+        AST::Value::New(mod_name_token, ObjNew<ObjString>(name)));
 
     ast->init = call;
 
@@ -302,8 +304,10 @@ ASTPointer Parser::Top() {
 ASTPtr<AST::Block> Parser::Parse() {
   auto ret = AST::Block::New("");
 
-  while (this->check())
+  while (this->check()) {
+    alert;
     ret->list.emplace_back(this->Top());
+  }
 
   return ret;
 }

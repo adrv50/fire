@@ -344,6 +344,10 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     throw Error(x->op, "'" + arr.to_string() + "' type is not subscriptable");
   }
 
+  case Kind::MemberAccess: {
+    todo_impl;
+  }
+
   case Kind::Not: {
     auto x = ASTCast<AST::Expr>(ast);
 
