@@ -54,30 +54,32 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
 
     param_types[formal_param_name] = InstantiateRequest::Argument{
         .type = this->EvalType(actual_parameter_type),
-        .ast = actual_parameter_type,
+        .given = actual_parameter_type,
         .is_deducted = true};
   }
 
   //
   // 引数の型から推論する
-  for (auto formal_arg_begin = func->arguments.begin();
-       auto&& arg_type : arg_types) {
+  for (size_t i = 0; i < func->arguments.size(); i++) {
+
+    ASTPtr<AST::Argument> formal_arg = func->arguments[i];
+    ASTPointer actual = call->args[i];
+    TypeInfo const& actual_type = arg_types[i];
 
     // formal_arg_begin   = 引数を定義してる構文へのポインタ
     // arg_type           = 渡された引数の型
 
-    string param_name = (*formal_arg_begin)->type->GetName();
+    string param_name = formal_arg->type->GetName();
 
     if (!param_types[param_name].is_deducted) {
 
       auto& _Param = param_types[param_name];
 
-      _Param.ast = (*formal_arg_begin)->type;
-      _Param.type = arg_type;
+      _Param.guess = actual;
+      _Param.type = actual_type;
+
       _Param.is_deducted = true;
     }
-
-    formal_arg_begin++;
   }
 
   //

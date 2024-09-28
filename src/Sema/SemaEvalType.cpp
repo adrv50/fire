@@ -1,6 +1,7 @@
 #include "alert.h"
 #include "Sema/Sema.h"
 #include "Error.h"
+#include "Builtin.h"
 
 #define foreach(_Name, _Content) for (auto&& _Name : _Content)
 
@@ -124,8 +125,15 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     auto& res = idinfo.result;
 
+    //
+    // TypeKind::Function:
+    //
+    // type.params =
+    //   { return-type, arg1, arg2, ...(arg) }
+    //
+
     switch (res.type) {
-    case NameType::Var:
+    case NameType::Var: {
       id->kind = ASTKind::Variable;
 
       if (id->id_params.size() >= 1)
@@ -140,24 +148,59 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       id->index = res.lvar->index;
 
       return res.lvar->deducted_type;
+    }
 
     case NameType::Func: {
       id->kind = ASTKind::FuncName;
 
-      if (res.functions.size() >= 2) {
-        throw Error(id->token,
-                    "function name '" + id->GetName() + "' is ambigous.");
+      id->candidates = std::move(idinfo.result.functions);
+
+      if (id->candidates.size() >= 2) {
+        if (!id->sema_allow_ambigious)
+          throw Error(id->token,
+                      "function name '" + id->GetName() + "' is ambigous.");
+
+        return TypeKind::Function; // ambigious -> called by case CallFunc
       }
 
-      auto func = res.functions[0];
+      assert(id->candidates.size() == 1);
 
       TypeInfo type = TypeKind::Function;
 
-      type.params.emplace_back(this->EvalType(func->return_type));
+      ASTPtr<AST::Function> func = id->candidates[0];
 
-      for (auto&& arg : func->arguments) {
-        type.params.emplace_back(this->EvalType(arg->type));
+      if (!func->is_templated) {
+        type.params.emplace_back(this->EvalType(func->return_type));
+
+        for (auto&& arg : func->arguments) {
+          type.params.emplace_back(this->EvalType(arg->type));
+        }
       }
+
+      return type;
+    }
+
+    case NameType::BuiltinFunc: {
+      id->kind = ASTKind::BuiltinFuncName;
+
+      id->candidates_builtin = std::move(idinfo.result.builtin_funcs);
+
+      if (id->candidates_builtin.size() >= 2) {
+        if (!id->sema_allow_ambigious)
+          throw Error(id->token,
+                      "function name '" + id->GetName() + "' is ambigous.");
+
+        return TypeKind::Function; // ambigious -> called by case CallFunc
+      }
+
+      assert(id->candidates_builtin.size() == 1);
+
+      TypeInfo type = TypeKind::Function;
+
+      builtins::Function const* func = id->candidates_builtin[0];
+
+      type.params = func->arg_types;
+      type.params.insert(type.params.begin(), func->result_type);
 
       return type;
     }
@@ -204,9 +247,17 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   case Kind::CallFunc: {
     auto call = ASTCast<AST::CallFunc>(ast);
 
-    auto callee = call->callee;
+    ASTPointer functor = call->callee;
 
-    TypeInfo type = TypeKind::Function;
+    ASTPtr<AST::Identifier> id = nullptr;
+
+    if (functor->is_ident_or_scoperesol()) {
+      id = Sema::GetID(functor);
+
+      id->sema_allow_ambigious = true;
+    }
+
+    TypeInfo functor_type = this->EvalType(functor);
 
     TypeVec arg_types;
 
@@ -214,118 +265,84 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       arg_types.emplace_back(this->EvalType(arg));
     }
 
-    if (callee->kind == Kind::Identifier || callee->kind == Kind::ScopeResol) {
-      IdentifierInfo idinfo =
-          callee->kind == Kind::Identifier
-              ? this->get_identifier_info(ASTCast<AST::Identifier>(callee))
-              : this->get_identifier_info(ASTCast<AST::ScopeResol>(callee));
+    switch (functor->kind) {
+      //
+      // ユーザー定義の関数名:
+      //
+    case ASTKind::FuncName: {
 
-      if (idinfo.result.type != NameType::Func &&
-          idinfo.result.type != NameType::BuiltinFunc) {
-        throw Error(callee, "'" + idinfo.to_string() + "' is not a function");
-      }
+      IdentifierInfo info = this->get_identifier_info(id);
 
-      ASTPtr<AST::Identifier> callee_as_id;
+      ASTVec<AST::Function> final_candidates;
 
-      if (callee->kind == Kind::Identifier)
-        callee_as_id = ASTCast<AST::Identifier>(callee);
-      else
-        callee_as_id = ASTCast<AST::ScopeResol>(callee)->GetLastID();
-
-      if (idinfo.result.type == NameType::BuiltinFunc) {
-
-        //
-        // --- find built-in func
-        //
-        for (builtins::Function const* fn : idinfo.result.builtin_funcs) {
-          auto res = this->check_function_call_parameters(
-              call, fn->is_variable_args, fn->arg_types, arg_types, false);
-
-          if (res.result == ArgumentCheckResult::Ok) {
-            call->callee_builtin = fn;
-
-            return fn->result_type;
-          }
-        }
-      }
-
-      // 同じ名前の関数リスト
-      ASTVec<AST::Function> const& hits = idinfo.result.functions;
-
-      ASTVec<AST::Function> candidates; // 一致する関数を追加する
-
-      // ヒットした関数の中から candidates に追加
-      for (ASTPtr<AST::Function> func : hits) {
-        // テンプレートの場合
-        if (func->is_templated) {
-          // パラメータの数が多すぎる場合はスキップ
-          if (idinfo.id_params.size() > func->template_param_names.size())
+      for (ASTPtr<AST::Function> candidate : id->candidates) {
+        if (candidate->is_templated) {
+          if (info.id_params.size() > candidate->template_param_names.size())
             continue;
 
-          // パラメータが少ない場合は引数からの推論を試みる
+          if (candidate->arguments.size() == call->args.size() ||
+              (candidate->is_var_arg &&
+               candidate->arguments.size() <= call->args.size() + 1)) {
 
-          // 引数の数が一致、かつインスタンス化に成功
-          //  => 候補に追加
-          if ((func->is_var_arg &&
-               call->args.size() + 1 >= func->arguments.size()) ||
-              (call->args.size() == func->arguments.size())) {
+            auto instantiated =
+                this->Instantiate(candidate, call, info, id, arg_types);
 
-            auto inst =
-                this->Instantiate(func, call, idinfo, callee_as_id, arg_types);
-
-            if (inst) {
-              candidates.emplace_back(inst);
-            }
+            if (instantiated != nullptr)
+              final_candidates.emplace_back(instantiated);
           }
-
-          continue;
         }
+        else {
+          TypeVec formal_arg_types;
 
-        TypeVec formal_arg_types;
+          for (ASTPointer arg : candidate->arguments)
+            formal_arg_types.emplace_back(this->EvalType(arg));
 
-        for (auto&& arg : func->arguments) {
-          formal_arg_types.emplace_back(this->EvalType(arg->type));
+          auto res = this->check_function_call_parameters(
+              call, candidate->is_var_arg, formal_arg_types, arg_types, false);
+
+          if (res.result == ArgumentCheckResult::Ok) {
+            final_candidates.emplace_back(candidate);
+          }
         }
+      }
 
+      if (final_candidates.empty()) {
+        throw Error(functor, "a function '" + info.to_string() + "(" +
+                                 utils::join<TypeInfo>(", ", arg_types,
+                                                       [](TypeInfo t) {
+                                                         return t.to_string();
+                                                       }) +
+                                 ")" + "' is not defined");
+      }
+
+      else if (final_candidates.size() >= 2) {
+        throw Error(functor,
+                    "function name '" + info.to_string() + "' is ambigious");
+      }
+
+      call->callee_ast = final_candidates[0];
+
+      return this->EvalType(final_candidates[0]->return_type);
+    }
+
+    case ASTKind::BuiltinFuncName: {
+
+      for (builtins::Function const* fn : id->candidates_builtin) {
         auto res = this->check_function_call_parameters(
-            call, func->is_var_arg, formal_arg_types, arg_types, false);
+            call, fn->is_variable_args, fn->arg_types, arg_types, false);
 
-        if (res.result == ArgumentCheckResult::Ok)
-          candidates.emplace_back(func);
-      }
+        if (res.result == ArgumentCheckResult::Ok) {
+          call->callee_builtin = fn;
 
-      // 一致する候補がない
-      if (candidates.empty()) {
-        string arg_types_str;
-
-        for (i64 i = 0; i < (i64)arg_types.size(); i++) {
-          arg_types_str += arg_types[i].to_string();
-          if (i + 1 < (i64)arg_types.size())
-            arg_types_str += ", ";
+          return fn->result_type;
         }
-
-        throw Error(callee, "function '" + idinfo.to_string() + "(" +
-                                arg_types_str + ")" + "' is not defined");
-
-        // TODO:
-        // もし (hits.size() >= 1)
-        // である場合、同じ名前の関数があること、引数間違いなどをヒントとして表示する
       }
 
-      if (candidates.size() >= 2) {
-        throw Error(callee,
-                    "call function '" + idinfo.to_string() + "' is ambigious");
-      }
+      break;
+    }
+    }
 
-      call->callee_ast = candidates[0];
-
-      return this->EvalType(candidates[0]->return_type);
-
-    } // if Identifier or ScopeResol
-
-    todo_impl;
-
-    break;
+    throw Error(functor, "expected function name or callable expression");
   }
 
   case Kind::SpecifyArgumentName:

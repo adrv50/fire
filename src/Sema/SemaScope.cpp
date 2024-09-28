@@ -1,3 +1,5 @@
+#include <list>
+
 #include "alert.h"
 #include "Error.h"
 #include "Sema/Sema.h"
@@ -94,24 +96,38 @@ BlockScope::BlockScope(ASTPtr<AST::Block> ast)
   // Sema::GetInstance()->_scope_context = this;
 
   for (auto&& e : ast->list) {
-    AST::walk_ast(e, [this](ASTWalkerLocation loc, ASTPointer x) {
-      if (loc != AW_Begin)
-        return;
+    switch (e->kind) {
+    case ASTKind::Block: {
+      this->AddScope(new BlockScope(ASTCast<AST::Block>(e)));
+      break;
+    }
 
-      switch (x->kind) {
-      case ASTKind::Block:
-        this->AddScope(new BlockScope(ASTCast<AST::Block>(x)));
-        break;
+    case ASTKind::Function:
+      this->AddScope(new FunctionScope(ASTCast<AST::Function>(e)));
+      break;
 
-      case ASTKind::Function:
-        this->AddScope(new FunctionScope(ASTCast<AST::Function>(x)));
-        break;
+    case ASTKind::Vardef:
+      this->add_var(ASTCast<AST::VarDef>(e));
+      break;
 
-      case ASTKind::Vardef:
-        this->add_var(ASTCast<AST::VarDef>(x));
-        break;
+    case ASTKind::If: {
+      auto d = e->As<AST::Statement>()->get_data<AST::Statement::If>();
+
+      this->AddScope(
+          new BlockScope(ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_true))));
+
+      if (d.if_false) {
+        this->AddScope(new BlockScope(
+            ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_false))));
       }
-    });
+
+      break;
+    }
+
+    case ASTKind::For:
+    case ASTKind::Switch:
+      todo_impl;
+    }
   }
 }
 

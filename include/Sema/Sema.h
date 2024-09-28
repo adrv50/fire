@@ -145,7 +145,9 @@ private:
     struct Argument {
       TypeInfo type;
 
-      ASTPtr<AST::TypeName> ast = nullptr; // 明示的に渡された場合
+      ASTPtr<AST::TypeName> given = nullptr; // 明示的に渡された場合
+
+      ASTPointer guess = nullptr;
 
       bool is_deducted = false;
     };
@@ -228,6 +230,12 @@ private:
 
   ASTPtr<Class>& add_class(ASTPtr<Class> c) {
     return this->classes.emplace_back(c);
+  }
+
+  static ASTPtr<AST::Identifier> GetID(ASTPointer ast) {
+    return ast->kind == ASTKind::Identifier
+               ? ASTCast<AST::Identifier>(ast)
+               : ASTCast<AST::ScopeResol>(ast)->GetLastID();
   }
 };
 
