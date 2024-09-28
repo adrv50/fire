@@ -123,11 +123,15 @@ BlockScope::~BlockScope() {
 ScopeContext::LocalVar& BlockScope::add_var(ASTPtr<AST::VarDef> def) {
   LocalVar* pvar = this->find_var(def->GetName());
 
-  if (!pvar)
+  if (!pvar) {
     pvar = &this->variables.emplace_back(def);
+    pvar->index = this->variables.size() - 1;
+  }
 
   pvar->depth = this->depth;
-  pvar->index = def->index = this->variables.size() - 1;
+  def->index = pvar->index;
+
+  // pvar->index = def->index = this->variables.size() - 1;
 
   this->ast->stack_size++;
 

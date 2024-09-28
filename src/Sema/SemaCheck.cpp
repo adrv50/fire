@@ -186,7 +186,7 @@ void Sema::check(ASTPointer ast) {
     if (x->init) {
       auto type = this->EvalType(x->init);
 
-      if (var.is_type_deducted && !var.deducted_type.equals(type)) {
+      if (x->type && !var.deducted_type.equals(type)) {
         throw Error(x->init, "expected '" + var.deducted_type.to_string() +
                                  "' type expression, but found '" +
                                  type.to_string() + "'");
