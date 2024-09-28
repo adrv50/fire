@@ -129,6 +129,8 @@ public:
 
   TypeInfo EvalType(ASTPointer ast);
 
+  bool IsWritable(ASTPointer ast);
+
   static Sema* GetInstance();
 
 private:
@@ -160,12 +162,15 @@ private:
 
   std::vector<InstantiateRequest> ins_requests;
 
-  InstantiateRequest* find_request_of_func(ASTPtr<AST::Function> func, TypeInfo ret_type,
+  InstantiateRequest* find_request_of_func(ASTPtr<AST::Function> func,
+                                           TypeInfo ret_type,
                                            TypeVec args); // args = actual
 
   ASTPtr<AST::Function> Instantiate(ASTPtr<AST::Function> func,
-                                    ASTPtr<AST::CallFunc> call, IdentifierInfo idinfo,
-                                    ASTPtr<AST::Identifier> id, TypeVec const& arg_types);
+                                    ASTPtr<AST::CallFunc> call,
+                                    IdentifierInfo idinfo,
+                                    ASTPtr<AST::Identifier> id,
+                                    TypeVec const& arg_types);
 
   int _construct_scope_context(ScopeContext& S, ASTPointer ast);
 
@@ -196,7 +201,8 @@ private:
 
   void BackToDepth(int depth);
 
-  int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth);
+  int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope,
+                       int depth);
 
   TypeInfo ExpectType(TypeInfo const& type, ASTPointer ast);
   TypeInfo* GetExpectedType();

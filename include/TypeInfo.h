@@ -74,8 +74,16 @@ struct TypeInfo {
   }
 
   bool is_hit(std::vector<TypeInfo> types) const {
-    for (auto&& _t : types)
-      if (this->equals(_t))
+    for (TypeInfo const& t : types)
+      if (this->equals(t))
+        return true;
+
+    return false;
+  }
+
+  bool is_hit_kind(std::vector<TypeKind> kinds) const {
+    for (TypeKind k : kinds)
+      if (this->kind == k)
         return true;
 
     return false;

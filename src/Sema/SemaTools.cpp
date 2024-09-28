@@ -70,7 +70,8 @@ void Sema::BackToDepth(int depth) {
     this->LeaveScope();
 }
 
-int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth) {
+int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope,
+                     int depth) {
   if (scope->depth == depth) {
     out.emplace_back(scope);
   }
@@ -100,8 +101,8 @@ int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth)
 
 ScopeContext::LocalVar* Sema::_find_variable(string const& name) {
 
-  for (auto it = this->_location.History.rbegin(); it != this->_location.History.rend();
-       it++) {
+  for (auto it = this->_location.History.rbegin();
+       it != this->_location.History.rend(); it++) {
     auto lvar = (*it)->find_var(name);
 
     if (lvar)
@@ -239,8 +240,9 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
         _idx++;
       }
 
-      throw Error(id->token, "enumerator '" + id->GetName() + "' is not found in enum '" +
-                                 _enum->GetName() + "'");
+      throw Error(id->token, "enumerator '" + id->GetName() +
+                                 "' is not found in enum '" + _enum->GetName() +
+                                 "'");
     }
 
     case NameType::Class: {
@@ -258,6 +260,43 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
   }
 
   return info;
+}
+
+bool Sema::IsWritable(ASTPointer ast) {
+
+  switch (ast->kind) {
+  case ASTKind::Variable:
+    return true;
+
+  case ASTKind::IndexRef:
+  case ASTKind::MemberAccess:
+    return this->IsWritable(ASTCast<AST::Expr>(ast)->lhs);
+  }
+
+  return false;
+}
+
+TypeInfo Sema::ExpectType(TypeInfo const& type, ASTPointer ast) {
+  this->_expected.emplace_back(type);
+
+  if (auto t = this->EvalType(ast); !t.equals(type)) {
+    throw Error(ast, "expected '" + type.to_string() +
+                         "' type expression, but found '" + t.to_string() +
+                         "'");
+  }
+
+  return type;
+}
+
+TypeInfo* Sema::GetExpectedType() {
+  if (this->_expected.empty())
+    return nullptr;
+
+  return &*this->_expected.rbegin();
+}
+
+bool Sema::IsExpected(TypeKind kind) {
+  return !this->_expected.empty() && this->GetExpectedType()->kind == kind;
 }
 
 } // namespace fire::semantics_checker

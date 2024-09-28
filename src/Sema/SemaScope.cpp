@@ -53,7 +53,8 @@ bool ScopeContext::Contains(ScopeContext* scope, bool recursive) const {
   case SC_Func: {
     auto func = (FunctionScope*)scope;
 
-    return func->block == scope || (recursive && func->block->Contains(scope, recursive));
+    return func->block == scope ||
+           (recursive && func->block->Contains(scope, recursive));
   }
 
   default:
@@ -93,19 +94,24 @@ BlockScope::BlockScope(ASTPtr<AST::Block> ast)
   // Sema::GetInstance()->_scope_context = this;
 
   for (auto&& e : ast->list) {
-    switch (e->kind) {
-    case ASTKind::Block:
-      this->AddScope(new BlockScope(ASTCast<AST::Block>(e)));
-      break;
+    AST::walk_ast(e, [this](ASTWalkerLocation loc, ASTPointer x) {
+      if (loc != AW_Begin)
+        return;
 
-    case ASTKind::Function:
-      this->AddScope(new FunctionScope(ASTCast<AST::Function>(e)));
-      break;
+      switch (x->kind) {
+      case ASTKind::Block:
+        this->AddScope(new BlockScope(ASTCast<AST::Block>(x)));
+        break;
 
-    case ASTKind::Vardef:
-      this->add_var(ASTCast<AST::VarDef>(e));
-      break;
-    }
+      case ASTKind::Function:
+        this->AddScope(new FunctionScope(ASTCast<AST::Function>(x)));
+        break;
+
+      case ASTKind::Vardef:
+        this->add_var(ASTCast<AST::VarDef>(x));
+        break;
+      }
+    });
   }
 }
 

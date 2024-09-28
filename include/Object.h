@@ -21,7 +21,8 @@ struct Object {
   }
 
   bool is_numeric(bool contain_char = false) const {
-    return this->type.is_numeric() || (contain_char && this->type.kind == TypeKind::Char);
+    return this->type.is_numeric() ||
+           (contain_char && this->type.kind == TypeKind::Char);
   }
 
   bool is_float() const {
@@ -36,37 +37,54 @@ struct Object {
     return this->type.kind == TypeKind::Bool;
   }
 
+  bool is_char() const {
+    return this->type.kind == TypeKind::Char;
+  }
+
   bool is_instance() const {
     return this->type.kind == TypeKind::Instance;
   }
 
   bool is_string() const {
-    return this->type.equals(TypeKind::String);
+    return this->type.kind == TypeKind::String;
   }
 
   bool is_vector() const {
-    return this->type.equals(TypeKind::Vector);
+    return this->type.kind == TypeKind::Vector;
   }
 
-  virtual ~Object() = default;
-
-  virtual ObjPointer Clone() const = 0;
-  virtual std::string ToString() const = 0;
+  i64 get_vi() const;
+  double get_vf() const;
+  char16_t get_vc() const;
+  bool get_vb() const;
 
   [[maybe_unused]] virtual bool Equals(ObjPointer obj) const {
     (void)obj;
     return false;
   }
 
-  template <std::derived_from<Object> T>
+  template <typename T>
   T* As() {
     return static_cast<T*>(this);
   }
 
-  template <std::derived_from<Object> T>
+  template <typename T>
   T const* As() const {
-    return static_cast<T*>(this);
+    return static_cast<T const*>(this);
   }
+
+  ObjPrimitive* as_primitive() {
+    return this->As<ObjPrimitive>();
+  }
+
+  ObjPrimitive const* as_primitive() const {
+    return this->As<ObjPrimitive>();
+  }
+
+  virtual ~Object() = default;
+
+  virtual ObjPointer Clone() const = 0;
+  virtual std::string ToString() const = 0;
 
 protected:
   Object(TypeInfo type);
@@ -106,7 +124,8 @@ struct ObjPrimitive : Object {
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
-    return this->type.equals(obj->type) && this->_data == obj->As<ObjPrimitive>()->_data;
+    return this->type.equals(obj->type) &&
+           this->_data == obj->As<ObjPrimitive>()->_data;
   }
 
   ObjPrimitive(i64 vi = 0)
@@ -281,7 +300,8 @@ struct ObjModule : Object {
 
   std::string ToString() const override;
 
-  ObjModule(std::shared_ptr<SourceStorage> src, ASTPtr<AST::Block> ast = nullptr)
+  ObjModule(std::shared_ptr<SourceStorage> src,
+            ASTPtr<AST::Block> ast = nullptr)
       : Object(TypeKind::Module),
         source(src),
         ast(ast) {

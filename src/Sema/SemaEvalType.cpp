@@ -51,7 +51,8 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
         if (int c = type.needed_param_count();
             c == 0 && (int)x->type_params.size() >= 1) {
-          throw Error(x->token, "type '" + string(val) + "' cannot have parameters");
+          throw Error(x->token,
+                      "type '" + string(val) + "' cannot have parameters");
         }
         else if (c >= 1) {
           if ((int)x->type_params.size() < c)
@@ -101,7 +102,8 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
                    "\"array<T>([]...])\")");
     }
 
-    auto const& elemType = type.params.emplace_back(this->EvalType(x->elements[0]));
+    auto const& elemType =
+        type.params.emplace_back(this->EvalType(x->elements[0]));
 
     x->elem_type = elemType;
 
@@ -132,8 +134,6 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       if (!res.lvar->is_type_deducted)
         throw Error(ast->token, "cannot use variable before assignment");
 
-      alertexpr(this->GetCurScope()->depth - res.lvar->depth);
-
       // distance
       id->depth = this->GetCurScope()->depth - res.lvar->depth;
 
@@ -145,7 +145,8 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       id->kind = ASTKind::FuncName;
 
       if (res.functions.size() >= 2) {
-        throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
+        throw Error(id->token,
+                    "function name '" + id->GetName() + "' is ambigous.");
       }
 
       auto func = res.functions[0];
@@ -265,10 +266,12 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
           // 引数の数が一致、かつインスタンス化に成功
           //  => 候補に追加
-          if ((func->is_var_arg && call->args.size() + 1 >= func->arguments.size()) ||
+          if ((func->is_var_arg &&
+               call->args.size() + 1 >= func->arguments.size()) ||
               (call->args.size() == func->arguments.size())) {
 
-            auto inst = this->Instantiate(func, call, idinfo, callee_as_id, arg_types);
+            auto inst =
+                this->Instantiate(func, call, idinfo, callee_as_id, arg_types);
 
             if (inst) {
               candidates.emplace_back(inst);
@@ -301,8 +304,8 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
             arg_types_str += ", ";
         }
 
-        throw Error(callee, "function '" + idinfo.to_string() + "(" + arg_types_str +
-                                ")" + "' is not defined");
+        throw Error(callee, "function '" + idinfo.to_string() + "(" +
+                                arg_types_str + ")" + "' is not defined");
 
         // TODO:
         // もし (hits.size() >= 1)
@@ -310,7 +313,8 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
 
       if (candidates.size() >= 2) {
-        throw Error(callee, "call function '" + idinfo.to_string() + "' is ambigious");
+        throw Error(callee,
+                    "call function '" + idinfo.to_string() + "' is ambigious");
       }
 
       call->callee_ast = candidates[0];
@@ -326,6 +330,43 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
   case Kind::SpecifyArgumentName:
     return this->EvalType(ast->as_expr()->rhs);
+
+  case Kind::IndexRef: {
+    auto x = ASTCast<AST::Expr>(ast);
+
+    auto arr = this->EvalType(x->lhs);
+
+    switch (arr.kind) {
+    case TypeKind::Vector:
+      return arr.params[0];
+    }
+
+    throw Error(x->op, "'" + arr.to_string() + "' type is not subscriptable");
+  }
+
+  case Kind::Not: {
+    auto x = ASTCast<AST::Expr>(ast);
+
+    auto type = this->EvalType(x->lhs);
+
+    if (type.kind != TypeKind::Bool)
+      throw Error(x->lhs, "expected boolean expression");
+
+    return type;
+  }
+
+  case Kind::Assign: {
+    auto x = ASTCast<AST::Expr>(ast);
+
+    auto dest = this->EvalType(x->lhs);
+    auto src = this->ExpectType(dest, x->rhs);
+
+    if (!this->IsWritable(x->lhs)) {
+      throw Error(x->lhs, "expected writable expression");
+    }
+
+    return dest;
+  }
   }
 
   if (ast->is_expr) {
@@ -338,9 +379,6 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     // 基本的な数値演算を除外
     switch (ast->kind) {
     case Kind::Add:
-      if (is_same && lhs.equals(TypeKind::String))
-        return lhs;
-
     case Kind::Sub:
     case Kind::Mul:
     case Kind::Div:
@@ -360,14 +398,18 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     case Kind::Bigger:
     case Kind::BiggerOrEqual:
-      if (lhs.is_numeric_or_char() && rhs.is_numeric_or_char()) {
-      case Kind::Equal:
-      case Kind::LogAND:
-      case Kind::LogOR:
+      if (is_same && lhs.is_numeric_or_char() && rhs.is_numeric_or_char())
         return TK::Bool;
-      }
 
       break;
+
+    case Kind::LogAND:
+    case Kind::LogOR:
+      if (lhs.kind != TypeKind::Bool || rhs.kind != TypeKind::Bool)
+        break;
+
+    case Kind::Equal:
+      return TK::Bool;
 
     case Kind::BitAND:
     case Kind::BitXOR:
@@ -383,6 +425,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       //
       // vector + T
       // T + vector
+      //  --> append element to vector
       if (lhs.kind == TK::Vector || rhs.kind == TK::Vector)
         return TK::Vector;
 
@@ -391,7 +434,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       // char + str
       // str  + char
       // str  + str
-      if (!is_same && lhs.is_char_or_str() && rhs.is_char_or_str())
+      if (lhs.is_char_or_str() && rhs.is_char_or_str())
         return TK::String;
 
       break;
@@ -401,47 +444,26 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       // int * str
       // str * int
       //  => str
-      if (!is_same && lhs.is_hit({TK::Int, TK::String}) &&
-          rhs.is_hit({TK::Int, TK::String}))
+      if (!is_same && lhs.is_hit_kind({TK::Int, TK::String}) &&
+          rhs.is_hit_kind({TK::Int, TK::String}))
         return TK::String;
 
       // vector * int
       // int * vector
       //  => vector
-      if (lhs.is_hit({TK::Int, TK::Vector}) && rhs.is_hit({TK::Int, TK::Vector}))
+      if (!is_same && lhs.is_hit_kind({TK::Int, TK::Vector}) &&
+          rhs.is_hit_kind({TK::Int, TK::Vector}))
         return TK::Vector;
 
       break;
     }
 
-    throw Error(x->op, "invalid operator for '" + lhs.to_string() + "' and '" +
-                           rhs.to_string() + "'");
+    throw Error(x->op, "invalid operator '" + x->op.str + "' for '" +
+                           lhs.to_string() + "' and '" + rhs.to_string() + "'");
   }
 
   alertmsg(static_cast<int>(ast->kind));
   todo_impl;
-}
-
-TypeInfo Sema::ExpectType(TypeInfo const& type, ASTPointer ast) {
-  this->_expected.emplace_back(type);
-
-  if (auto t = this->EvalType(ast); !t.equals(type)) {
-    throw Error(ast, "expected '" + type.to_string() + "' type expression, but found '" +
-                         t.to_string() + "'");
-  }
-
-  return type;
-}
-
-TypeInfo* Sema::GetExpectedType() {
-  if (this->_expected.empty())
-    return nullptr;
-
-  return &*this->_expected.rbegin();
-}
-
-bool Sema::IsExpected(TypeKind kind) {
-  return !this->_expected.empty() && this->GetExpectedType()->kind == kind;
 }
 
 } // namespace fire::semantics_checker

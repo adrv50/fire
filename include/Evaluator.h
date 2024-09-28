@@ -16,10 +16,15 @@ public:
   ObjPointer evaluate(ASTPointer ast);
   ObjPointer eval_expr(ASTPtr<AST::Expr> ast);
 
+  ObjPointer& eval_as_left(ASTPointer ast);
+
+  ObjPointer& eval_index_ref(ObjPointer array, ObjPointer index);
+
 private:
   struct VarStack {
     vector<ObjPointer> var_list;
 
+    bool returned = false;
     ObjPointer func_result = nullptr;
   };
 

@@ -3,7 +3,8 @@
 namespace fire::semantics_checker {
 
 Sema::InstantiateRequest* Sema::find_request_of_func(ASTPtr<AST::Function> func,
-                                                     TypeInfo ret_type, TypeVec args) {
+                                                     TypeInfo ret_type,
+                                                     TypeVec args) {
 
   for (auto&& r : this->ins_requests) {
     if (r.original == func && r.result_type.equals(ret_type)) {
@@ -22,7 +23,8 @@ Sema::InstantiateRequest* Sema::find_request_of_func(ASTPtr<AST::Function> func,
 }
 
 ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
-                                        ASTPtr<AST::CallFunc> call, IdentifierInfo idinfo,
+                                        ASTPtr<AST::CallFunc> call,
+                                        IdentifierInfo idinfo,
                                         ASTPtr<AST::Identifier> id,
                                         TypeVec const& arg_types) {
 
@@ -50,15 +52,16 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
 
     ASTPtr<AST::TypeName> actual_parameter_type = id->id_params[i];
 
-    param_types[formal_param_name] =
-        InstantiateRequest::Argument{.type = this->EvalType(actual_parameter_type),
-                                     .ast = actual_parameter_type,
-                                     .is_deducted = true};
+    param_types[formal_param_name] = InstantiateRequest::Argument{
+        .type = this->EvalType(actual_parameter_type),
+        .ast = actual_parameter_type,
+        .is_deducted = true};
   }
 
   //
   // 引数の型から推論する
-  for (auto formal_arg_begin = func->arguments.begin(); auto&& arg_type : arg_types) {
+  for (auto formal_arg_begin = func->arguments.begin();
+       auto&& arg_type : arg_types) {
 
     // formal_arg_begin   = 引数を定義してる構文へのポインタ
     // arg_type           = 渡された引数の型
@@ -81,8 +84,8 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
   // 推論できていないパラメータがある場合、エラー
   for (auto&& [_name, _data] : param_types) {
     if (!_data.is_deducted) {
-      throw Error(call,
-                  "the type of template parameter '" + _name + "' is not deducted yet");
+      throw Error(call, "the type of template parameter '" + _name +
+                            "' is not deducted yet");
     }
   }
 
@@ -121,7 +124,8 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
       string name = _ast_type->GetName();
 
       if (param_types.contains(name)) {
-        _ast_type->name.str = param_types[name].type.without_params().to_string();
+        _ast_type->name.str =
+            param_types[name].type.without_params().to_string();
       }
     }
   });
@@ -145,20 +149,21 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
     formal_arg_types.emplace_back(this->EvalType(arg->type));
   }
 
-  auto res = this->check_function_call_parameters(call, req.cloned->is_var_arg,
-                                                  formal_arg_types, arg_types, false);
+  auto res = this->check_function_call_parameters(
+      call, req.cloned->is_var_arg, formal_arg_types, arg_types, false);
 
   switch (res.result) {
   case ArgumentCheckResult::TypeMismatch:
-    throw Error(call->args[res.index], "expected '" +
-                                           formal_arg_types[res.index].to_string() +
-                                           "' type expression, but found '" +
-                                           arg_types[res.index].to_string() + "'");
+    throw Error(call->args[res.index],
+                "expected '" + formal_arg_types[res.index].to_string() +
+                    "' type expression, but found '" +
+                    arg_types[res.index].to_string() + "'");
 
   case ArgumentCheckResult::Ok: {
     req.result_type = this->EvalType(req.cloned->return_type);
 
-    if (auto found = this->find_request_of_func(func, req.result_type, arg_types);
+    if (auto found =
+            this->find_request_of_func(func, req.result_type, arg_types);
         !found) {
       alert;
       this->ins_requests.emplace_back(req);

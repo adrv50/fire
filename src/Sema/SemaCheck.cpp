@@ -53,9 +53,8 @@ void Sema::check_full() {
 
 void Sema::check(ASTPointer ast) {
 
-  if (!ast) {
+  if (!ast)
     return;
-  }
 
   switch (ast->kind) {
 
@@ -83,13 +82,15 @@ void Sema::check(ASTPointer ast) {
 
     func->result_type = this->EvalType(x->return_type);
 
-    AST::walk_ast(func->block->ast, [&func](AST::ASTWalkerLocation loc, ASTPointer _ast) {
-      if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
-        func->return_stmt_list.emplace_back(ASTCast<AST::Statement>(_ast));
-      }
-    });
+    AST::walk_ast(
+        func->block->ast, [&func](AST::ASTWalkerLocation loc, ASTPointer _ast) {
+          if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
+            func->return_stmt_list.emplace_back(ASTCast<AST::Statement>(_ast));
+          }
+        });
 
-    auto ret_type_note = Error(Error::ER_Note, func->ast->return_type, "specified here");
+    auto ret_type_note =
+        Error(Error::ER_Note, func->ast->return_type, "specified here");
 
     for (auto&& ret : func->return_stmt_list) {
       auto expr = ret->As<AST::Statement>()->get_expr();
@@ -110,7 +111,8 @@ void Sema::check(ASTPointer ast) {
         }
         else {
           throw Error(expr, "expected '" + func->result_type.to_string() +
-                                "' type expression, but found '" + type.to_string() + "'")
+                                "' type expression, but found '" +
+                                type.to_string() + "'")
               .AddChain(ret_type_note);
         }
 
@@ -131,7 +133,8 @@ void Sema::check(ASTPointer ast) {
       }
       else if (auto block = func->block;
                (*block->ast->list.rbegin())->kind != ASTKind::Return) {
-        throw Error(block->ast->endtok, "expected return-statement before this token");
+        throw Error(block->ast->endtok,
+                    "expected return-statement before this token");
       }
     }
 
@@ -155,6 +158,19 @@ void Sema::check(ASTPointer ast) {
     break;
   }
 
+  case ASTKind::If: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::If>();
+
+    if (!this->EvalType(d.cond).equals(TypeKind::Bool)) {
+      throw Error(d.cond, "expected boolean expression");
+    }
+
+    this->check(d.if_true);
+    this->check(d.if_false);
+
+    break;
+  }
+
   case ASTKind::Vardef: {
 
     auto x = ASTCast<AST::VarDef>(ast);
@@ -172,8 +188,8 @@ void Sema::check(ASTPointer ast) {
 
       if (var.is_type_deducted && !var.deducted_type.equals(type)) {
         throw Error(x->init, "expected '" + var.deducted_type.to_string() +
-                                 "' type expression, but found '" + type.to_string() +
-                                 "'");
+                                 "' type expression, but found '" +
+                                 type.to_string() + "'");
       }
 
       var.deducted_type = type;
@@ -196,8 +212,8 @@ void Sema::check(ASTPointer ast) {
 
     this->check(x->get_expr());
 
-    for (auto s = this->_location.History.rbegin(); s != this->_location.History.rend();
-         s++) {
+    for (auto s = this->_location.History.rbegin();
+         s != this->_location.History.rend(); s++) {
       if ((*s)->type == ScopeContext::SC_Func) {
         break;
       }

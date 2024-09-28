@@ -7,13 +7,14 @@
 
 #include "AST.h"
 #include "Builtin.h"
+#include "Object.h"
 
 #include "Error.h"
 
 #include "alert.h"
 
-#define define_builtin_func(_Name_)                                                      \
-  ObjPointer _Name_([[maybe_unused]] ASTPtr<AST::CallFunc> ast,                          \
+#define define_builtin_func(_Name_)                                            \
+  ObjPointer _Name_([[maybe_unused]] ASTPtr<AST::CallFunc> ast,                \
                     [[maybe_unused]] ObjVector args)
 
 #define expect_type(_Idx, _Type) _expect_type(ast, args, _Idx, _Type)
@@ -43,8 +44,8 @@ define_builtin_func(Print) {
 }
 
 define_builtin_func(Println) {
-  auto ret =
-      ObjNew<ObjPrimitive>(Print(ast, std::move(args))->As<ObjPrimitive>()->vi + 1);
+  auto ret = ObjNew<ObjPrimitive>(
+      Print(ast, std::move(args))->As<ObjPrimitive>()->vi + 1);
 
   std::cout << std::endl;
 

@@ -14,6 +14,22 @@ Object::Object(TypeInfo type)
       is_marked(false) {
 }
 
+i64 Object::get_vi() const {
+  return this->is_int() ? this->as_primitive()->vi : 0;
+}
+
+double Object::get_vf() const {
+  return this->is_float() ? this->as_primitive()->vf : 0;
+}
+
+char16_t Object::get_vc() const {
+  return this->is_char() ? this->as_primitive()->vc : 0;
+}
+
+bool Object::get_vb() const {
+  return this->is_boolean() ? this->as_primitive()->vb : 0;
+}
+
 ObjPrimitive* ObjPrimitive::to_float() {
   switch (this->type.kind) {
   case TypeKind::Int:
@@ -50,8 +66,6 @@ std::string ObjPrimitive::ToString() const {
 }
 
 ObjPointer ObjIterable::Clone() const {
-  alert;
-
   auto obj = ObjNew<ObjIterable>(this->type);
 
   for (auto&& x : this->list)
@@ -78,7 +92,8 @@ std::string ObjIterable::ToString() const {
 ObjPointer ObjString::SubString(size_t pos, size_t length) {
   auto obj = ObjNew<ObjString>();
 
-  for (size_t i = pos, end = pos + (length == 0 ? this->list.size() - pos : length);
+  for (size_t i = pos,
+              end = pos + (length == 0 ? this->list.size() - pos : length);
        i < end; i++) {
     obj->Append(this->list[i]->Clone());
   }
@@ -133,7 +148,8 @@ ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)
 // ----------------------------
 //  ObjInstance
 
-ObjPointer& ObjInstance::set_member_var(std::string const& name, ObjPointer obj) {
+ObjPointer& ObjInstance::set_member_var(std::string const& name,
+                                        ObjPointer obj) {
   return this->member[name] = obj;
 }
 
@@ -216,7 +232,8 @@ std::string ObjModule::ToString() const {
 //  ObjType
 
 std::string ObjType::GetName() const {
-  return this->ast_class ? this->ast_class->GetName() : this->ast_enum->GetName();
+  return this->ast_class ? this->ast_class->GetName()
+                         : this->ast_enum->GetName();
 }
 
 std::string ObjType::ToString() const {
