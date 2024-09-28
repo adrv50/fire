@@ -34,9 +34,12 @@ Sema::ArgumentCheckResult Sema::check_function_call_parameters(ASTPtr<CallFunc> 
 
   if (!ignore_mismatch) {
     for (auto f = formal.begin(), a = actual.begin(); f != formal.end(); f++, a++) {
-      if (!f->equals(*a)) {
-        return {ArgumentCheckResult::TypeMismatch, static_cast<int>(f - formal.begin())};
-      }
+      this->ExpectType(*f, call->args[f - formal.begin()]);
+
+      // if (!f->equals(*a)) {
+      //   return {ArgumentCheckResult::TypeMismatch, static_cast<int>(f -
+      //   formal.begin())};
+      // }
     }
   }
 

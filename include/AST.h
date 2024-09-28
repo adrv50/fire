@@ -270,6 +270,8 @@ struct ScopeResol : Named {
 struct Array : Base {
   ASTVector elements;
 
+  TypeInfo elem_type; // set in Sema
+
   static ASTPtr<Array> New(Token tok);
 
   ASTPointer Clone() const override {
@@ -375,6 +377,8 @@ struct TypeName : Named {
 struct VarDef : Named {
   ASTPtr<TypeName> type;
   ASTPointer init;
+
+  int index = 0;
 
   static ASTPtr<VarDef> New(Token tok, Token name, ASTPtr<TypeName> type,
                             ASTPointer init);

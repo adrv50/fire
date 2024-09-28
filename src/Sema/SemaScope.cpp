@@ -9,15 +9,15 @@ ScopeContext::LocalVar::LocalVar(ASTPtr<AST::VarDef> vardef) {
   this->name = vardef->GetName();
   this->decl = vardef;
 
-  if (vardef->type) {
-    this->deducted_type = Sema::GetInstance()->evaltype(vardef->type);
-    this->is_type_deducted = true;
-  }
+  // if (vardef->type) {
+  //   this->deducted_type = Sema::GetInstance()->EvalType(vardef->type);
+  //   this->is_type_deducted = true;
+  // }
 
-  if (vardef->init) {
-    this->deducted_type = Sema::GetInstance()->evaltype(vardef->init);
-    this->is_type_deducted = true;
-  }
+  // if (vardef->init) {
+  //   this->deducted_type = Sema::GetInstance()->EvalType(vardef->init);
+  //   this->is_type_deducted = true;
+  // }
 }
 
 ScopeContext::LocalVar::LocalVar(ASTPtr<AST::Argument> arg) {
@@ -26,8 +26,8 @@ ScopeContext::LocalVar::LocalVar(ASTPtr<AST::Argument> arg) {
   this->name = arg->GetName();
   this->arg = arg;
 
-  this->deducted_type = Sema::GetInstance()->evaltype(arg->type);
-  this->is_type_deducted = true;
+  // this->deducted_type = Sema::GetInstance()->EvalType(arg->type);
+  // this->is_type_deducted = true;
 }
 
 // ------------------------------------
@@ -89,6 +89,9 @@ vector<ScopeContext*> ScopeContext::find_name(string const&) {
 BlockScope::BlockScope(ASTPtr<AST::Block> ast)
     : ScopeContext(SC_Block),
       ast(ast) {
+
+  // Sema::GetInstance()->_scope_context = this;
+
   for (auto&& e : ast->list) {
     switch (e->kind) {
     case ASTKind::Block:
@@ -115,7 +118,7 @@ ScopeContext::LocalVar& BlockScope::add_var(ASTPtr<AST::VarDef> def) {
   auto& var = this->variables.emplace_back(def);
 
   var.depth = this->depth;
-  var.index = this->variables.size() - 1;
+  var.index = def->index = this->variables.size() - 1;
 
   this->ast->stack_size++;
 
@@ -216,7 +219,7 @@ ScopeContext::LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
   arg.index = this->arguments.size() - 1;
 
   if (!this->is_templated()) {
-    arg.deducted_type = Sema::GetInstance()->evaltype(def->type);
+    arg.deducted_type = Sema::GetInstance()->EvalType(def->type);
     arg.is_type_deducted = true;
   }
 
@@ -241,8 +244,8 @@ ScopeContext* FunctionScope::find_child_scope(ASTPointer ast) {
     return this;
 
   for (auto&& I : this->instantiated) {
-    if (I->GetAST() == ast)
-      return I;
+    if (auto x = I->find_child_scope(ast); x)
+      return x;
   }
 
   return this->block->find_child_scope(ast);
@@ -253,8 +256,8 @@ ScopeContext* FunctionScope::find_child_scope(ScopeContext* ctx) {
     return this;
 
   for (auto&& I : this->instantiated) {
-    if (I == ctx)
-      return I;
+    if (auto x = I->find_child_scope(ctx); x)
+      return x;
   }
 
   return this->block->find_child_scope(ctx);

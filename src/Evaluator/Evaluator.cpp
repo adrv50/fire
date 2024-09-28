@@ -64,6 +64,17 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     return this->get_stack(x->depth /*distance*/).var_list[x->index];
   }
 
+  case Kind::Array: {
+    CAST(Array);
+
+    auto obj = ObjNew<ObjIterable>(TypeInfo(TypeKind::Vector, {x->elem_type}));
+
+    for (auto&& e : x->elements)
+      obj->Append(this->evaluate(e));
+
+    return obj;
+  }
+
   case Kind::CallFunc: {
     CAST(CallFunc);
 
@@ -115,13 +126,20 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     break;
   }
 
+  case Kind::Vardef: {
+    CAST(VarDef);
+
+    if (x->init)
+      this->get_cur_stack().var_list[x->index] = this->evaluate(x->init);
+
+    break;
+  }
+
   default:
     if (ast->is_expr)
       return this->eval_expr(ASTCast<AST::Expr>(ast));
 
     alertexpr(static_cast<int>(ast->kind));
-    Error(ast->token, "@@@").emit();
-
     todo_impl;
   }
 
@@ -161,7 +179,8 @@ ObjPointer Evaluator::eval_expr(ASTPtr<AST::Expr> ast) {
   }
 
   default:
-    todo_impl;
+    alertmsg("not implemented operator: " << lhs->type.to_string() << " " << ast->op.str
+                                          << " " << rhs->type.to_string());
   }
 
   return lhs;

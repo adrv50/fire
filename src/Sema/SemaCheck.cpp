@@ -96,7 +96,7 @@ void Sema::check(ASTPointer ast) {
 
     this->EnterScope(x);
 
-    func->result_type = this->evaltype(x->return_type);
+    func->result_type = this->EvalType(x->return_type);
 
     AST::walk_ast(func->block->ast, [&func](AST::ASTWalkerLocation loc, ASTPointer _ast) {
       if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
@@ -107,7 +107,7 @@ void Sema::check(ASTPointer ast) {
     for (auto&& ret : func->return_stmt_list) {
       auto expr = ret->As<AST::Statement>()->get_expr();
 
-      if (auto type = this->evaltype(expr); !type.equals(func->result_type)) {
+      if (auto type = this->EvalType(expr); !type.equals(func->result_type)) {
         if (func->result_type.equals(TypeKind::None)) {
 
           //
@@ -171,9 +171,27 @@ void Sema::check(ASTPointer ast) {
   case ASTKind::Vardef: {
 
     auto x = ASTCast<AST::VarDef>(ast);
+    auto& curScope = this->GetCurScope();
 
-    this->check(x->type);
-    this->check(x->init);
+    ScopeContext::LocalVar& var = ((BlockScope*)curScope)->variables[x->index];
+
+    if (x->type) {
+      var.deducted_type = this->EvalType(x->type);
+      var.is_type_deducted = true;
+    }
+
+    if (x->init) {
+      auto type = this->EvalType(x->init);
+
+      if (var.is_type_deducted && !var.deducted_type.equals(type)) {
+        throw Error(x->init, "expected '" + var.deducted_type.to_string() +
+                                 "' type expression, but found '" + type.to_string() +
+                                 "'");
+      }
+
+      var.deducted_type = type;
+      var.is_type_deducted = true;
+    }
 
     break;
   }
@@ -204,7 +222,7 @@ void Sema::check(ASTPointer ast) {
   }
 
   default:
-    this->evaltype(ast);
+    this->EvalType(ast);
   }
 }
 } // namespace fire::semantics_checker

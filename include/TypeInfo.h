@@ -91,6 +91,8 @@ struct TypeInfo {
   bool equals(TypeInfo const& type) const;
   std::string to_string() const;
 
+  TypeInfo without_params() const;
+
   TypeInfo(TypeKind kind = TypeKind::None)
       : TypeInfo(kind, {}) {
   }

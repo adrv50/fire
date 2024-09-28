@@ -2,6 +2,7 @@
 #include <cassert>
 
 #include "alert.h"
+#include "Utils.h"
 #include "TypeInfo.h"
 #include "AST.h"
 
@@ -97,13 +98,26 @@ string TypeInfo::to_string() const {
   }
 
   if (!this->params.empty()) {
-    todo_impl;
+    ret += "<" +
+           utils::join<TypeInfo>(", ", this->params,
+                                 [](TypeInfo t) -> string {
+                                   return t.to_string();
+                                 }) +
+           ">";
   }
 
   if (this->is_const)
     ret += " const";
 
   return ret;
+}
+
+TypeInfo TypeInfo::without_params() const {
+  auto copy = *this;
+
+  copy.params.clear();
+
+  return copy;
 }
 
 int TypeInfo::needed_param_count() const {

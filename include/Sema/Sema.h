@@ -127,7 +127,7 @@ public:
 
   void check(ASTPointer ast);
 
-  TypeInfo evaltype(ASTPointer ast);
+  TypeInfo EvalType(ASTPointer ast);
 
   static Sema* GetInstance();
 
@@ -197,6 +197,13 @@ private:
   void BackToDepth(int depth);
 
   int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth);
+
+  TypeInfo ExpectType(TypeInfo const& type, ASTPointer ast);
+  TypeInfo* GetExpectedType();
+
+  bool IsExpected(TypeKind kind);
+
+  vector<TypeInfo> _expected;
 
   vector<std::pair<ASTPtr<AST::Function>, FunctionScope*>> function_scope_map;
 

@@ -206,7 +206,7 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast) {
   id_info.result = this->find_name(ast->GetName());
 
   for (auto&& x : ast->id_params)
-    id_info.id_params.emplace_back(this->evaltype(x));
+    id_info.id_params.emplace_back(this->EvalType(x));
 
   return id_info;
 }

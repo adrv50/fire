@@ -51,7 +51,7 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
     ASTPtr<AST::TypeName> actual_parameter_type = id->id_params[i];
 
     param_types[formal_param_name] =
-        InstantiateRequest::Argument{.type = this->evaltype(actual_parameter_type),
+        InstantiateRequest::Argument{.type = this->EvalType(actual_parameter_type),
                                      .ast = actual_parameter_type,
                                      .is_deducted = true};
   }
@@ -121,7 +121,7 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
       string name = _ast_type->GetName();
 
       if (param_types.contains(name)) {
-        _ast_type->name.str = param_types[name].type.to_string();
+        _ast_type->name.str = param_types[name].type.without_params().to_string();
       }
     }
   });
@@ -142,7 +142,7 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
   TypeVec formal_arg_types;
 
   for (auto&& arg : req.cloned->arguments) {
-    formal_arg_types.emplace_back(this->evaltype(arg->type));
+    formal_arg_types.emplace_back(this->EvalType(arg->type));
   }
 
   auto res = this->check_function_call_parameters(call, req.cloned->is_var_arg,
@@ -156,7 +156,7 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
                                            arg_types[res.index].to_string() + "'");
 
   case ArgumentCheckResult::Ok: {
-    req.result_type = this->evaltype(req.cloned->return_type);
+    req.result_type = this->EvalType(req.cloned->return_type);
 
     if (auto found = this->find_request_of_func(func, req.result_type, arg_types);
         !found) {

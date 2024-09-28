@@ -9,7 +9,7 @@
 
 namespace fire::semantics_checker {
 
-TypeInfo Sema::evaltype(ASTPointer ast) {
+TypeInfo Sema::EvalType(ASTPointer ast) {
   using Kind = ASTKind;
   using TK = TypeKind;
 
@@ -60,6 +60,10 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
             throw Error(x->token, "too many parameters");
         }
 
+        for (auto&& param : x->type_params) {
+          type.params.emplace_back(this->EvalType(param));
+        }
+
         return type;
       }
     }
@@ -80,6 +84,34 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
     assert(pvar->is_type_deducted);
 
     return pvar->deducted_type;
+  }
+
+  case Kind::Array: {
+    auto x = ast->As<AST::Array>();
+    TypeInfo type = TypeKind::Vector;
+
+    if (x->elements.empty()) {
+      if (this->IsExpected(TypeKind::Vector)) {
+        return x->elem_type = *this->GetExpectedType();
+      }
+
+      throw Error(x->token, "cannot deduction element type")
+          .AddNote("you can use 'array' keyword for specify type. (like "
+                   "\"array<T>([]...])\")");
+    }
+
+    auto const& elemType = type.params.emplace_back(this->EvalType(x->elements[0]));
+
+    x->elem_type = elemType;
+
+    for (auto it = x->elements.begin() + 1; it != x->elements.end(); it++) {
+      if (!elemType.equals(this->EvalType(*it))) {
+        throw Error(*it, "expected '" + elemType.to_string() +
+                             "' type expression as element in array");
+      }
+    }
+
+    return type;
   }
 
   case Kind::Identifier: {
@@ -119,10 +151,10 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
       TypeInfo type = TypeKind::Function;
 
-      type.params.emplace_back(this->evaltype(func->return_type));
+      type.params.emplace_back(this->EvalType(func->return_type));
 
       for (auto&& arg : func->arguments) {
-        type.params.emplace_back(this->evaltype(arg->type));
+        type.params.emplace_back(this->EvalType(arg->type));
       }
 
       return type;
@@ -177,7 +209,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
     TypeVec arg_types;
 
     for (ASTPointer arg : call->args) {
-      arg_types.emplace_back(this->evaltype(arg));
+      arg_types.emplace_back(this->EvalType(arg));
     }
 
     if (callee->kind == Kind::Identifier || callee->kind == Kind::ScopeResol) {
@@ -251,7 +283,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
         TypeVec formal_arg_types;
 
         for (auto&& arg : func->arguments) {
-          formal_arg_types.emplace_back(this->evaltype(arg->type));
+          formal_arg_types.emplace_back(this->EvalType(arg->type));
         }
 
         auto res = this->check_function_call_parameters(
@@ -285,7 +317,7 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
       call->callee_ast = candidates[0];
 
-      return this->evaltype(candidates[0]->return_type);
+      return this->EvalType(candidates[0]->return_type);
 
     } // if Identifier or ScopeResol
 
@@ -295,13 +327,13 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
   }
 
   case Kind::SpecifyArgumentName:
-    return this->evaltype(ast->as_expr()->rhs);
+    return this->EvalType(ast->as_expr()->rhs);
   }
 
   if (ast->is_expr) {
     auto x = ast->as_expr();
-    auto lhs = this->evaltype(x->lhs);
-    auto rhs = this->evaltype(x->rhs);
+    auto lhs = this->EvalType(x->lhs);
+    auto rhs = this->EvalType(x->rhs);
 
     bool is_same = lhs.equals(rhs);
 
@@ -390,6 +422,28 @@ TypeInfo Sema::evaltype(ASTPointer ast) {
 
   alertmsg(static_cast<int>(ast->kind));
   todo_impl;
+}
+
+TypeInfo Sema::ExpectType(TypeInfo const& type, ASTPointer ast) {
+  this->_expected.emplace_back(type);
+
+  if (auto t = this->EvalType(ast); !t.equals(type)) {
+    throw Error(ast, "expected '" + type.to_string() + "' type expression, but found '" +
+                         t.to_string() + "'");
+  }
+
+  return type;
+}
+
+TypeInfo* Sema::GetExpectedType() {
+  if (this->_expected.empty())
+    return nullptr;
+
+  return &*this->_expected.rbegin();
+}
+
+bool Sema::IsExpected(TypeKind kind) {
+  return !this->_expected.empty() && this->GetExpectedType()->kind == kind;
 }
 
 } // namespace fire::semantics_checker
