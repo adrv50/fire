@@ -55,7 +55,8 @@ void Sema::check_full() {
                                          }) +
                    ")";
 
-      throw err.InLocation("in instantiation of '" + func_name + "'");
+      throw err.AddChain(Error(Error::ER_Note, req.requested, "requested here"))
+          .InLocation("in instantiation of '" + func_name + "'");
     }
     alert;
   }
@@ -104,6 +105,8 @@ void Sema::check(ASTPointer ast) {
       }
     });
 
+    auto ret_type_note = Error(Error::ER_Note, func->ast->return_type, "specified here");
+
     for (auto&& ret : func->return_stmt_list) {
       auto expr = ret->As<AST::Statement>()->get_expr();
 
@@ -122,9 +125,9 @@ void Sema::check(ASTPointer ast) {
               .emit();
         }
         else {
-          Error(expr, "expected '" + func->result_type.to_string() +
-                          "' type expression, but found '" + type.to_string() + "'")
-              .emit();
+          throw Error(expr, "expected '" + func->result_type.to_string() +
+                                "' type expression, but found '" + type.to_string() + "'")
+              .AddChain(ret_type_note);
         }
 
         goto _return_type_note;
@@ -140,7 +143,7 @@ void Sema::check(ASTPointer ast) {
             .emit();
 
       _return_type_note:
-        throw Error(func->ast->return_type, "specified here");
+        throw Error(Error::ER_Note, func->ast->return_type, "specified here");
       }
       else if (auto block = func->block;
                (*block->ast->list.rbegin())->kind != ASTKind::Return) {

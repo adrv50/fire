@@ -37,6 +37,11 @@ public:
     return *this;
   }
 
+  Error& AddChain(Error e) {
+    this->chained.emplace_back(std::move(e));
+    return *this;
+  }
+
   static int GetEmittedCount();
 
   [[noreturn]] void operator()();
@@ -55,6 +60,8 @@ private:
 
   StringVector location;
   StringVector notes;
+
+  vector<Error> chained;
 };
 
 } // namespace fire

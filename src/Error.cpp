@@ -158,6 +158,9 @@ Error const& Error::emit() const {
 
   _err_emitted_count++;
 
+  for (auto&& e : this->chained)
+    e.emit();
+
   return *this;
 }
 
