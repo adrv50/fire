@@ -126,7 +126,7 @@ ASTPointer Parser::Factor() {
       this->cur += 2;
 
       do {
-        x->id_params.emplace_back(this->expectTypeName());
+        x->id_params.emplace_back(this->ScopeResol());
       } while (this->eat(","));
 
       if (_prs_depth >= 2 && this->match(">>")) {

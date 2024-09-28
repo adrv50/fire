@@ -249,7 +249,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     ASTPointer functor = call->callee;
 
-    ASTPtr<AST::Identifier> id = nullptr;
+    ASTPtr<AST::Identifier> id = nullptr; // -> functor (if id or scoperesol)
 
     if (functor->is_ident_or_scoperesol()) {
       id = Sema::GetID(functor);
