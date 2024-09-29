@@ -14,15 +14,17 @@ static ObjPtr<ObjPrimitive> make_value_from_token(Token const& tok) {
   auto obj = ObjNew<ObjPrimitive>();
 
   switch (k) {
-  case TokenKind::Int:
+  case TokenKind::Int: {
     obj->type = TypeKind::Int;
     obj->vi = std::stoll(s);
     break;
+  }
 
-  case TokenKind::Float:
+  case TokenKind::Float: {
     obj->type = TypeKind::Float;
     obj->vf = std::stod(s);
     break;
+  }
 
   case TokenKind::Char: {
     auto s16 = utils::to_u16string(s.substr(1, s.length() - 2));
@@ -36,10 +38,12 @@ static ObjPtr<ObjPrimitive> make_value_from_token(Token const& tok) {
     break;
   }
 
-  case TokenKind::Boolean:
+  case TokenKind::Boolean: {
+
     obj->type = TypeKind::Bool;
     obj->vb = s == "true";
     break;
+  }
 
   default:
     todo_impl;
@@ -115,41 +119,23 @@ ASTPointer Parser::Factor() {
   }
 
   case TokenKind::Identifier: {
-    static int _prs_depth = 0;
-
     auto x = AST::Identifier::New(tok);
 
-    if (this->match("@", "<")) {
-      _prs_depth++;
+    if (this->eat("@")) {
 
-      x->paramtok = this->cur[1];
-      this->cur += 2;
+      x->paramtok = *this->cur;
+
+      this->expect("<");
 
       do {
         x->id_params.emplace_back(this->ScopeResol());
       } while (this->eat(","));
 
-      if (_prs_depth >= 2 && this->match(">>")) {
-        this->insert_token(">");
-        this->cur++;
-      }
-      else {
-        this->expect(">");
-      }
-
-      _prs_depth--;
+      this->expect_typeparam_bracket_close();
     }
 
     return x;
   }
-    /*
-    define:
-      fn func <T, U> (...) {
-      }
-
-    use:
-      func::<int, string>(...)
-    */
   }
 
   throw Error(tok, "invalid syntax");
@@ -194,10 +180,8 @@ ASTPointer Parser::IndexRef() {
     else if (this->eat(".")) {
       auto rhs = this->ScopeResol();
 
-      if (rhs->kind != ASTKind::Identifier &&
-          rhs->kind != ASTKind::ScopeResol) {
+      if (rhs->kind != ASTKind::Identifier)
         throw Error(op, "syntax error");
-      }
 
       x = new_expr(ASTKind::MemberAccess, op, x, rhs);
     }

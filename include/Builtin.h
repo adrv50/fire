@@ -31,6 +31,8 @@ struct Function {
 
 Function const* find_builtin_func(std::string const& name);
 
-std::vector<builtins::Function> const& get_builtin_functions();
+vector<Function> const& get_builtin_functions();
+
+vector<std::pair<TypeInfo, Function>> const& get_builtin_member_functions();
 
 } // namespace fire::builtins

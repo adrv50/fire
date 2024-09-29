@@ -33,7 +33,16 @@ enum class ASTKind {
   Array,
 
   IndexRef,
+
   MemberAccess,
+
+  // /-----------------
+  MemberVariable,
+  MemberFunction,
+  BuiltinMemberVariable,
+  BuiltinMemberFunction,
+  //   ------------------/
+
   CallFunc,
 
   //
@@ -222,7 +231,8 @@ struct Variable : Named {
 
 struct Identifier : Named {
   Token paramtok; // "<"
-  ASTVec<TypeName> id_params;
+
+  ASTVector id_params; // T = Identifier or ScopeResol
 
   //
   // for Kind::FuncName or BuiltinFuncName
@@ -234,6 +244,8 @@ struct Identifier : Named {
   // for Kind::Variable
   int depth = 0;
   int index = 0;
+
+  TypeInfo self_type; // if member
 
   static ASTPtr<Identifier> New(Token tok);
 
@@ -257,7 +269,7 @@ struct ScopeResol : Named {
   ASTPointer Clone() const override {
     auto x = New(ASTCast<AST::Identifier>(this->first->Clone()));
 
-    for (auto&& id : this->idlist)
+    for (ASTPtr<Identifier> const& id : this->idlist)
       x->idlist.emplace_back(ASTCast<Identifier>(id->Clone()));
 
     return x;
@@ -287,7 +299,7 @@ struct Array : Base {
   ASTPointer Clone() const override {
     auto x = New(this->token);
 
-    for (auto&& e : this->elements)
+    for (ASTPointer const& e : this->elements)
       x->elements.emplace_back(e->Clone());
 
     return x;
@@ -310,7 +322,7 @@ struct CallFunc : Base {
   ASTPointer Clone() const override {
     auto x = New(this->callee);
 
-    for (auto&& a : this->args)
+    for (ASTPointer const& a : this->args)
       x->args.emplace_back(a->Clone());
 
     x->callee_ast = this->callee_ast;
@@ -331,8 +343,7 @@ struct Expr : Base {
   ASTPointer lhs;
   ASTPointer rhs;
 
-  static ASTPtr<Expr> New(ASTKind kind, Token optok, ASTPointer lhs,
-                          ASTPointer rhs);
+  static ASTPtr<Expr> New(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs);
 
   ASTPointer Clone() const override {
     return New(this->kind, this->op, this->lhs->Clone(), this->rhs->Clone());
@@ -356,7 +367,7 @@ struct Block : Base {
   ASTPointer Clone() const override {
     auto x = New(this->token);
 
-    for (auto&& a : this->list)
+    for (ASTPointer const& a : this->list)
       x->list.emplace_back(a->Clone());
 
     return x;
@@ -457,8 +468,8 @@ struct Statement : Base {
   static ASTPtr<Statement> NewFor(Token tok, ASTVector init, ASTPointer cond,
                                   ASTPtr<Block> block);
 
-  static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock,
-                                       Token vname, ASTPtr<Block> catched);
+  static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock, Token vname,
+                                       ASTPtr<Block> catched);
 
   static ASTPtr<Statement> New(ASTKind kind, Token tok,
                                std::any data = (ASTPointer) nullptr);
@@ -504,8 +515,8 @@ struct Argument : Named {
   static ASTPtr<Argument> New(Token nametok, ASTPtr<TypeName> type);
 
   ASTPointer Clone() const {
-    return New(this->name, ASTCast<AST::TypeName>(
-                               this->type ? this->type->Clone() : nullptr));
+    return New(this->name,
+               ASTCast<AST::TypeName>(this->type ? this->type->Clone() : nullptr));
   }
 
   Argument(Token nametok, ASTPtr<TypeName> type)
@@ -520,6 +531,8 @@ struct Function : Templatable {
   ASTPtr<Block> block;
 
   bool is_var_arg;
+
+  ASTPtr<Class> member_of = nullptr;
 
   ASTPtr<Argument>& add_arg(Token const& tok, ASTPtr<TypeName> type = nullptr) {
     return this->arguments.emplace_back(Argument::New(tok, type));
@@ -634,8 +647,7 @@ struct Class : Templatable {
     x->_Copy(this);
 
     for (auto&& y : x->block->list)
-      if (y->kind == ASTKind::Function &&
-          y->As<Named>()->GetName() == x->GetName()) {
+      if (y->kind == ASTKind::Function && y->As<Named>()->GetName() == x->GetName()) {
         x->constructor = ASTCast<Function>(y);
         break;
       }
@@ -654,8 +666,7 @@ enum ASTWalkerLocation {
   AW_End,
 };
 
-void walk_ast(ASTPointer ast,
-              std::function<void(ASTWalkerLocation, ASTPointer)> fn);
+void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)> fn);
 
 string ToString(ASTPointer ast);
 

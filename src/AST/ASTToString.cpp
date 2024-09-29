@@ -22,12 +22,23 @@ string ToString(ASTPointer ast) {
   switch (ast->kind) {
   case ASTKind::Identifier:
     if (auto x = ast->As<Identifier>(); !x->id_params.empty()) {
-      return x->token.str + "@<" + utils::join(", ", x->id_params, ToString) + ">";
+      return x->token.str + "@<" + join(", ", x->id_params) + ">";
     }
 
   case ASTKind::Value:
   case ASTKind::Variable:
     return ast->token.str;
+
+  case ASTKind::ScopeResol: {
+    auto x = ast->As<ScopeResol>();
+
+    auto s = ToString(x->first);
+
+    for (auto&& id : x->idlist)
+      s += "::" + ToString(id);
+
+    return s;
+  }
 
   case ASTKind::CallFunc: {
     auto x = ast->As<AST::CallFunc>();
@@ -38,8 +49,7 @@ string ToString(ASTPointer ast) {
   case ASTKind::Block: {
     indent++;
 
-    auto s = "{\n" + get_indent() +
-             utils::join(get_indent() + ";\n", ast->As<Block>()->list, ToString);
+    auto s = "{\n" + get_indent() + join(get_indent() + ";\n", ast->As<Block>()->list);
 
     indent--;
     s += "\n" + get_indent() + "}";
@@ -48,7 +58,11 @@ string ToString(ASTPointer ast) {
   }
   }
 
-  todo_impl;
+  assert(ast->is_expr);
+
+  auto x = ast->as_expr();
+
+  return ToString(x->lhs) + x->op.str + ToString(x->rhs);
 }
 
 } // namespace fire::AST

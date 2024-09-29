@@ -145,7 +145,7 @@ private:
     struct Argument {
       TypeInfo type;
 
-      ASTPtr<AST::TypeName> given = nullptr; // 明示的に渡された場合
+      ASTPointer given = nullptr; // 明示的に渡された場合
 
       ASTPointer guess = nullptr;
 
@@ -155,8 +155,6 @@ private:
     ASTPointer requested = nullptr;
 
     ScopeLocation scope_loc;
-
-    IdentifierInfo idinfo;
 
     // パラメータとして渡された型
     std::map<string, Argument> param_types;
@@ -170,15 +168,12 @@ private:
 
   std::vector<InstantiateRequest> ins_requests;
 
-  InstantiateRequest* find_request_of_func(ASTPtr<AST::Function> func,
-                                           TypeInfo ret_type,
+  InstantiateRequest* find_request_of_func(ASTPtr<AST::Function> func, TypeInfo ret_type,
                                            TypeVec args); // args = actual
 
   ASTPtr<AST::Function> Instantiate(ASTPtr<AST::Function> func,
                                     ASTPtr<AST::CallFunc> call,
-                                    IdentifierInfo idinfo,
-                                    ASTPtr<AST::Identifier> id,
-                                    TypeVec const& arg_types);
+                                    ASTPtr<AST::Identifier> id, TypeVec const& arg_types);
 
   int _construct_scope_context(ScopeContext& S, ASTPointer ast);
 
@@ -209,8 +204,7 @@ private:
 
   void BackToDepth(int depth);
 
-  int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope,
-                       int depth);
+  int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth);
 
   TypeInfo ExpectType(TypeInfo const& type, ASTPointer ast);
   TypeInfo* GetExpectedType();
@@ -233,10 +227,15 @@ private:
   }
 
   static ASTPtr<AST::Identifier> GetID(ASTPointer ast) {
-    return ast->kind == ASTKind::Identifier
-               ? ASTCast<AST::Identifier>(ast)
-               : ASTCast<AST::ScopeResol>(ast)->GetLastID();
+    if (ast->kind == ASTKind::MemberAccess)
+      return GetID(ast->as_expr()->rhs);
+
+    return ast->kind == ASTKind::Identifier ? ASTCast<AST::Identifier>(ast)
+                                            : ASTCast<AST::ScopeResol>(ast)->GetLastID();
   }
+
+  TypeInfo make_functor_type(ASTPtr<AST::Function> ast);
+  TypeInfo make_functor_type(builtins::Function const* builtin);
 };
 
 } // namespace fire::semantics_checker

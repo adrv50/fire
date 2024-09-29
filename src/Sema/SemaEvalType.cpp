@@ -52,8 +52,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
         if (int c = type.needed_param_count();
             c == 0 && (int)x->type_params.size() >= 1) {
-          throw Error(x->token,
-                      "type '" + string(val) + "' cannot have parameters");
+          throw Error(x->token, "type '" + string(val) + "' cannot have parameters");
         }
         else if (c >= 1) {
           if ((int)x->type_params.size() < c)
@@ -103,8 +102,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
                    "\"array<T>([]...])\")");
     }
 
-    auto const& elemType =
-        type.params.emplace_back(this->EvalType(x->elements[0]));
+    auto const& elemType = type.params.emplace_back(this->EvalType(x->elements[0]));
 
     x->elem_type = elemType;
 
@@ -157,8 +155,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       if (id->candidates.size() >= 2) {
         if (!id->sema_allow_ambigious)
-          throw Error(id->token,
-                      "function name '" + id->GetName() + "' is ambigous.");
+          throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
 
         return TypeKind::Function; // ambigious -> called by case CallFunc
       }
@@ -187,8 +184,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       if (id->candidates_builtin.size() >= 2) {
         if (!id->sema_allow_ambigious)
-          throw Error(id->token,
-                      "function name '" + id->GetName() + "' is ambigous.");
+          throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
 
         return TypeKind::Function; // ambigious -> called by case CallFunc
       }
@@ -251,8 +247,11 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     ASTPtr<AST::Identifier> id = nullptr; // -> functor (if id or scoperesol)
 
-    if (functor->is_ident_or_scoperesol()) {
+    if (functor->is_ident_or_scoperesol() || functor->kind == ASTKind::MemberAccess) {
       id = Sema::GetID(functor);
+
+      alertexpr(AST::ToString(functor));
+      alertexpr(AST::ToString(id));
 
       id->sema_allow_ambigious = true;
     }
@@ -271,21 +270,19 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       //
     case ASTKind::FuncName: {
 
-      IdentifierInfo info = this->get_identifier_info(id);
-
       ASTVec<AST::Function> final_candidates;
 
       for (ASTPtr<AST::Function> candidate : id->candidates) {
         if (candidate->is_templated) {
-          if (info.id_params.size() > candidate->template_param_names.size())
+          if (id->id_params.size() > candidate->template_param_names.size())
             continue;
 
           if (candidate->arguments.size() == call->args.size() ||
               (candidate->is_var_arg &&
                candidate->arguments.size() <= call->args.size() + 1)) {
 
-            auto instantiated =
-                this->Instantiate(candidate, call, info, id, arg_types);
+            ASTPtr<AST::Function> instantiated =
+                this->Instantiate(candidate, call, id, arg_types);
 
             if (instantiated != nullptr)
               final_candidates.emplace_back(instantiated);
@@ -307,7 +304,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
 
       if (final_candidates.empty()) {
-        throw Error(functor, "a function '" + info.to_string() + "(" +
+        throw Error(functor, "a function '" + AST::ToString(id) + "(" +
                                  utils::join<TypeInfo>(", ", arg_types,
                                                        [](TypeInfo t) {
                                                          return t.to_string();
@@ -316,8 +313,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
 
       else if (final_candidates.size() >= 2) {
-        throw Error(functor,
-                    "function name '" + info.to_string() + "' is ambigious");
+        throw Error(functor, "function name '" + AST::ToString(id) + "' is ambigious");
       }
 
       call->callee_ast = final_candidates[0];
@@ -325,11 +321,16 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       return this->EvalType(final_candidates[0]->return_type);
     }
 
+    case ASTKind::BuiltinMemberFunction:
+      arg_types.insert(arg_types.begin(), id->self_type);
+      call->args.insert(call->args.begin(), functor->as_expr()->lhs);
+      call->callee = functor->as_expr()->rhs;
+
     case ASTKind::BuiltinFuncName: {
 
       for (builtins::Function const* fn : id->candidates_builtin) {
-        auto res = this->check_function_call_parameters(
-            call, fn->is_variable_args, fn->arg_types, arg_types, false);
+        auto res = this->check_function_call_parameters(call, fn->is_variable_args,
+                                                        fn->arg_types, arg_types, false);
 
         if (res.result == ArgumentCheckResult::Ok) {
           call->callee_builtin = fn;
@@ -362,7 +363,64 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   }
 
   case Kind::MemberAccess: {
-    todo_impl;
+
+    ASTPtr<AST::Expr> expr = ASTCast<AST::Expr>(ast);
+
+    TypeInfo left_type = this->EvalType(expr->lhs);
+
+    ASTPtr<AST::Identifier> rhs_id = Sema::GetID(expr);
+
+    string name = rhs_id->GetName();
+
+    alertexpr(rhs_id->sema_allow_ambigious);
+
+    for (auto const& [self_type, func] : builtins::get_builtin_member_functions()) {
+
+      if (left_type.equals(self_type) && func.name == rhs_id->GetName()) {
+        alert;
+        rhs_id->candidates_builtin.emplace_back(&func);
+      }
+    }
+
+    if (!rhs_id->sema_allow_ambigious && rhs_id->candidates_builtin.size() >= 2) {
+      alert;
+      goto _ambiguous_err;
+    }
+
+    if (rhs_id->candidates_builtin.size() >= 1) {
+      expr->kind = ASTKind::BuiltinMemberFunction;
+      rhs_id->self_type = left_type;
+
+      return rhs_id->candidates_builtin.size() == 1
+                 ? this->make_functor_type(rhs_id->candidates_builtin[0])
+                 : TypeKind::Function;
+    }
+
+    if (left_type.kind == TypeKind::TypeName) {
+      switch (left_type.type_ast->kind) {
+      case ASTKind::Enum:
+        todo_impl; // find enumerator
+
+      case ASTKind::Class:
+        todo_impl; // find member func or var
+      }
+    }
+
+    if (!rhs_id->sema_allow_ambigious && rhs_id->candidates.size() >= 2) {
+    _ambiguous_err:
+      throw Error(rhs_id, "member function '" + left_type.to_string() + "::" + name +
+                              "' is ambiguous");
+    }
+
+    if (rhs_id->candidates.size() == 1) {
+      rhs_id->kind = ASTKind::MemberFunction;
+      rhs_id->self_type = left_type;
+
+      return this->make_functor_type(rhs_id->candidates[0]);
+    }
+
+    throw Error(rhs_id, "type '" + left_type.to_string() + "' don't have a member '" +
+                            name + "'");
   }
 
   case Kind::Not: {
@@ -381,8 +439,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     auto src = this->EvalType(x->rhs);
 
-    if (x->lhs->kind == ASTKind::Identifier ||
-        x->lhs->kind == ASTKind::ScopeResol) {
+    if (x->lhs->kind == ASTKind::Identifier || x->lhs->kind == ASTKind::ScopeResol) {
       auto idinfo = this->get_identifier_info(x->lhs);
 
       if (auto lvar = idinfo.result.lvar; idinfo.result.type == NameType::Var) {
@@ -395,8 +452,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     auto dest = this->EvalType(x->lhs);
 
     if (!dest.equals(src)) {
-      throw Error(x->rhs,
-                  "expected '" + dest.to_string() + "' type expression");
+      throw Error(x->rhs, "expected '" + dest.to_string() + "' type expression");
     }
 
     if (!this->IsWritable(x->lhs)) {
@@ -496,8 +552,8 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       break;
     }
 
-    throw Error(x->op, "invalid operator '" + x->op.str + "' for '" +
-                           lhs.to_string() + "' and '" + rhs.to_string() + "'");
+    throw Error(x->op, "invalid operator '" + x->op.str + "' for '" + lhs.to_string() +
+                           "' and '" + rhs.to_string() + "'");
   }
 
   alertmsg(static_cast<int>(ast->kind));

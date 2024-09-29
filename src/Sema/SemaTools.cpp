@@ -70,8 +70,7 @@ void Sema::BackToDepth(int depth) {
     this->LeaveScope();
 }
 
-int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope,
-                     int depth) {
+int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth) {
   if (scope->depth == depth) {
     out.emplace_back(scope);
   }
@@ -101,8 +100,8 @@ int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope,
 
 ScopeContext::LocalVar* Sema::_find_variable(string const& name) {
 
-  for (auto it = this->_location.History.rbegin();
-       it != this->_location.History.rend(); it++) {
+  for (auto it = this->_location.History.rbegin(); it != this->_location.History.rend();
+       it++) {
     auto lvar = (*it)->find_var(name);
 
     if (lvar)
@@ -240,9 +239,8 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
         _idx++;
       }
 
-      throw Error(id->token, "enumerator '" + id->GetName() +
-                                 "' is not found in enum '" + _enum->GetName() +
-                                 "'");
+      throw Error(id->token, "enumerator '" + id->GetName() + "' is not found in enum '" +
+                                 _enum->GetName() + "'");
     }
 
     case NameType::Class: {
@@ -280,9 +278,8 @@ TypeInfo Sema::ExpectType(TypeInfo const& type, ASTPointer ast) {
   this->_expected.emplace_back(type);
 
   if (auto t = this->EvalType(ast); !t.equals(type)) {
-    throw Error(ast, "expected '" + type.to_string() +
-                         "' type expression, but found '" + t.to_string() +
-                         "'");
+    throw Error(ast, "expected '" + type.to_string() + "' type expression, but found '" +
+                         t.to_string() + "'");
   }
 
   return type;
@@ -297,6 +294,26 @@ TypeInfo* Sema::GetExpectedType() {
 
 bool Sema::IsExpected(TypeKind kind) {
   return !this->_expected.empty() && this->GetExpectedType()->kind == kind;
+}
+
+TypeInfo Sema::make_functor_type(ASTPtr<AST::Function> ast) {
+  TypeInfo ret = TypeKind::Function;
+
+  ret.params.emplace_back(this->EvalType(ast->return_type));
+
+  for (ASTPtr<AST::Argument> const& arg : ast->arguments)
+    ret.params.emplace_back(this->EvalType(arg->type));
+
+  return ret;
+}
+
+TypeInfo Sema::make_functor_type(builtins::Function const* builtin) {
+  TypeInfo ret = TypeKind::Function;
+
+  ret.params = builtin->arg_types;
+  ret.params.insert(ret.params.begin(), builtin->result_type);
+
+  return ret;
 }
 
 } // namespace fire::semantics_checker
