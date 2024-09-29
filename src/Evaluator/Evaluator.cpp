@@ -47,8 +47,7 @@ ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
   case ASTKind::IndexRef: {
     auto ex = ast->as_expr();
 
-    return this->eval_index_ref(this->eval_as_left(ex->lhs),
-                                this->evaluate(ex->rhs));
+    return this->eval_index_ref(this->eval_as_left(ex->lhs), this->evaluate(ex->rhs));
   }
   }
 
@@ -114,6 +113,45 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       obj->Append(this->evaluate(e));
 
     return obj;
+  }
+
+  case Kind::IndexRef: {
+
+    todo_impl;
+    break;
+  }
+
+  case Kind::MemberAccess: {
+
+    todo_impl;
+    break;
+  }
+
+  case Kind::MemberFunction: {
+    auto id = ast->GetID();
+
+    auto callable = ObjNew<ObjCallable>(id->candidates[0]);
+
+    throw Error(id->candidates[0], "aiueo");
+  }
+
+  case Kind::BuiltinMemberVariable: {
+    auto self = ast->as_expr()->lhs;
+    auto id = ast->GetID();
+
+    return id->blt_member_var->impl(self, this->evaluate(self));
+  }
+
+  case Kind::BuiltinMemberFunction: {
+    auto expr = ast->as_expr();
+    auto id = expr->GetID();
+
+    auto callable = ObjNew<ObjCallable>(id->candidates_builtin[0]);
+
+    callable->selfobj = this->evaluate(expr->lhs);
+    callable->is_member_call = true;
+
+    return callable;
   }
 
   case Kind::CallFunc: {
@@ -234,8 +272,7 @@ static inline ObjPtr<ObjIterable> multiply_array(ObjPtr<ObjIterable> s, i64 n) {
   return ret;
 }
 
-static inline ObjPtr<ObjIterable> add_vec_wrap(ObjPtr<ObjIterable> v,
-                                               ObjPointer e) {
+static inline ObjPtr<ObjIterable> add_vec_wrap(ObjPtr<ObjIterable> v, ObjPointer e) {
   v = PtrCast<ObjIterable>(v->Clone());
 
   v->Append(e);

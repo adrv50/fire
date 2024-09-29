@@ -129,7 +129,7 @@ define_builtin_func(Length) {
     return ObjNew<ObjPrimitive>((i64)content->As<ObjString>()->list.size());
   }
 
-  Error(ast->args[0], "argument is not a string or vector.")();
+  todo_impl;
 }
 
 // clang-format off
@@ -144,15 +144,12 @@ static const std::vector<Function> g_builtin_functions = {
 
 };
 
-static const
-vector<std::pair<TypeInfo, Function>>
+static const vector<std::pair<TypeInfo, Function>>
 g_builtin_member_functions = {
-
-
   { // substr(index)
     TypeKind::String, {
       "substr", Substr, TypeKind::String, {
-        TypeKind::String, TypeKind::Int
+        TypeKind::Int
       }
     }
   },
@@ -160,14 +157,37 @@ g_builtin_member_functions = {
   { // substr(index, len)
     TypeKind::String, {
       "substr", Substr2, TypeKind::String, {
-        TypeKind::String, TypeKind::Int, TypeKind::Int
+        TypeKind::Int, TypeKind::Int
       }
     }
   },
 
-  // { "length",   Length,    TypeKind::Int, { TypeKind::String }, },
+  {
+    TypeKind::String, {
+      "length", Length, TypeKind::Int, { },
+    }
+  },
+  
   // { "length",   Length,    TypeKind::Int, { {TypeKind::Vector, {TypeKind::Unknown}} }, },
 
+};
+
+
+static const vector<MemberVariable>
+g_builtin_member_variables = {
+  {
+    "abs",
+    TypeKind::Int,
+    TypeKind::Int,
+    [] (ASTPointer self_ast, ObjPointer self) -> ObjPointer {
+      i64 val = self->get_vi();
+
+      if (val < 0)
+        val = -val;
+
+      return ObjNew<ObjPrimitive>(val);
+    }
+  },
 };
 // clang-format on
 
@@ -192,6 +212,10 @@ vector<builtins::Function> const& get_builtin_functions() {
 
 vector<std::pair<TypeInfo, Function>> const& get_builtin_member_functions() {
   return g_builtin_member_functions;
+}
+
+vector<MemberVariable> const& get_builtin_member_variables() {
+  return g_builtin_member_variables;
 }
 
 } // namespace fire::builtins

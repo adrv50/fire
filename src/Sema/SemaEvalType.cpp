@@ -322,10 +322,6 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     }
 
     case ASTKind::BuiltinMemberFunction:
-      arg_types.insert(arg_types.begin(), id->self_type);
-      call->args.insert(call->args.begin(), functor->as_expr()->lhs);
-      call->callee = functor->as_expr()->rhs;
-
     case ASTKind::BuiltinFuncName: {
 
       for (builtins::Function const* fn : id->candidates_builtin) {
@@ -334,6 +330,9 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
         if (res.result == ArgumentCheckResult::Ok) {
           call->callee_builtin = fn;
+
+          if (functor->kind == ASTKind::BuiltinMemberFunction)
+            call->args.insert(call->args.begin(), functor->as_expr()->lhs);
 
           return fn->result_type;
         }
@@ -374,28 +373,6 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     alertexpr(rhs_id->sema_allow_ambigious);
 
-    for (auto const& [self_type, func] : builtins::get_builtin_member_functions()) {
-
-      if (left_type.equals(self_type) && func.name == rhs_id->GetName()) {
-        alert;
-        rhs_id->candidates_builtin.emplace_back(&func);
-      }
-    }
-
-    if (!rhs_id->sema_allow_ambigious && rhs_id->candidates_builtin.size() >= 2) {
-      alert;
-      goto _ambiguous_err;
-    }
-
-    if (rhs_id->candidates_builtin.size() >= 1) {
-      expr->kind = ASTKind::BuiltinMemberFunction;
-      rhs_id->self_type = left_type;
-
-      return rhs_id->candidates_builtin.size() == 1
-                 ? this->make_functor_type(rhs_id->candidates_builtin[0])
-                 : TypeKind::Function;
-    }
-
     if (left_type.kind == TypeKind::TypeName) {
       switch (left_type.type_ast->kind) {
       case ASTKind::Enum:
@@ -407,16 +384,44 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     }
 
     if (!rhs_id->sema_allow_ambigious && rhs_id->candidates.size() >= 2) {
+      goto _ambiguous_err;
+    }
+
+    if (rhs_id->candidates.size() == 1) {
+      expr->kind = ASTKind::MemberFunction;
+      rhs_id->self_type = left_type;
+
+      return this->make_functor_type(rhs_id->candidates[0]);
+    }
+
+    for (auto const& [self_type, func] : builtins::get_builtin_member_functions()) {
+      if (left_type.equals(self_type) && func.name == rhs_id->GetName()) {
+        rhs_id->candidates_builtin.emplace_back(&func);
+      }
+    }
+
+    if (!rhs_id->sema_allow_ambigious && rhs_id->candidates_builtin.size() >= 2) {
     _ambiguous_err:
       throw Error(rhs_id, "member function '" + left_type.to_string() + "::" + name +
                               "' is ambiguous");
     }
 
-    if (rhs_id->candidates.size() == 1) {
-      rhs_id->kind = ASTKind::MemberFunction;
+    for (builtins::MemberVariable const& mvar :
+         builtins::get_builtin_member_variables()) {
+      if (left_type.equals(mvar.self_type) && mvar.name == name) {
+        expr->kind = ASTKind::BuiltinMemberVariable;
+        rhs_id->blt_member_var = &mvar;
+        return mvar.result_type;
+      }
+    }
+
+    if (rhs_id->candidates_builtin.size() >= 1) {
+      expr->kind = ASTKind::BuiltinMemberFunction;
       rhs_id->self_type = left_type;
 
-      return this->make_functor_type(rhs_id->candidates[0]);
+      return rhs_id->candidates_builtin.size() == 1
+                 ? this->make_functor_type(rhs_id->candidates_builtin[0])
+                 : TypeKind::Function;
     }
 
     throw Error(rhs_id, "type '" + left_type.to_string() + "' don't have a member '" +

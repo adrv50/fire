@@ -82,6 +82,11 @@ struct Class;
 
 } // namespace AST
 
+namespace builtins {
+struct Function;
+struct MemberVariable;
+} // namespace builtins
+
 #if _DBG_DONT_USE_SMART_PTR_
 template <class T, class U>
 T* PtrCast(U* p) {

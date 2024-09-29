@@ -241,9 +241,13 @@ struct Identifier : Named {
   bool sema_allow_ambigious = false;
 
   //
+  // for BuiltinMemberVariable
+  builtins::MemberVariable const* blt_member_var = nullptr;
+
+  //
   // for Kind::Variable
   int depth = 0;
-  int index = 0;
+  int index = 0; // (=> also member variable)
 
   TypeInfo self_type; // if member
 
@@ -347,6 +351,10 @@ struct Expr : Base {
 
   ASTPointer Clone() const override {
     return New(this->kind, this->op, this->lhs->Clone(), this->rhs->Clone());
+  }
+
+  Identifier* GetID() override {
+    return this->rhs->GetID();
   }
 
   Expr(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs)
