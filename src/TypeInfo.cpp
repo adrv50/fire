@@ -90,7 +90,7 @@ string TypeInfo::to_string() const {
   case TypeKind::Enumerator:
   case TypeKind::TypeName:
   case TypeKind::Unknown:
-    ret = name;
+    ret = this->name;
     break;
 
   default:
@@ -147,6 +147,7 @@ TypeInfo TypeInfo::from_enum(ASTPtr<AST::Enum> ast) {
   TypeInfo t = TypeKind::TypeName;
 
   t.type_ast = ast;
+  t.name = ast->GetName();
 
   return t;
 }
@@ -155,6 +156,7 @@ TypeInfo TypeInfo::from_class(ASTPtr<AST::Class> ast) {
   TypeInfo t = TypeKind::TypeName;
 
   t.type_ast = ast;
+  t.name = ast->GetName();
 
   return t;
 }

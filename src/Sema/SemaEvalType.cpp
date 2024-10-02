@@ -312,6 +312,11 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     TypeVec arg_types;
 
+    if (functor->kind == ASTKind::MemberFunction) {
+      call->args.insert(call->args.begin(), functor->as_expr()->lhs);
+      functor->kind = ASTKind::FuncName;
+    }
+
     for (ASTPointer arg : call->args) {
       arg_types.emplace_back(this->EvalType(arg));
     }
@@ -454,6 +459,30 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     case TypeKind::TypeName: {
       switch (left_type.type_ast->kind) {
       case ASTKind::Class: {
+        auto x = ASTCast<AST::Class>(left_type.type_ast);
+
+        auto const xmv = x->get_member_variables();
+        auto const xmf = x->get_member_functions();
+
+        for (i64 index = 0; auto&& mv : xmv) {
+          if (name == mv->GetName()) {
+            expr->kind = ASTKind::MemberVariable;
+            rhs_id->index = index;
+            rhs_id->ast_class = x;
+
+            return this->EvalType(mv->type);
+          }
+
+          index++;
+        }
+
+        for (auto&& mf : xmf) {
+          if (mf->member_of && mf->GetName() == name) {
+            rhs_id->candidates.emplace_back(mf);
+          }
+        }
+
+        break;
       }
       }
       break;
@@ -469,7 +498,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       // }
       //
       //   ^ 左辺の値が Kind::A のとき、右辺が a であればその値を返す
-      // (Evaluator での実装も)
+      // (Evaluator での実装も必要)
       //
       todo_impl;
     }
@@ -479,11 +508,11 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       goto _ambiguous_err;
     }
 
-    if (rhs_id->candidates.size() == 1) {
+    if (!rhs_id->candidates.empty()) {
       expr->kind = ASTKind::MemberFunction;
       rhs_id->self_type = left_type;
 
-      return this->make_functor_type(rhs_id->candidates[0]);
+      return this->EvalType(rhs_id->candidates[0]->return_type);
     }
 
     for (auto const& [self_type, func] : builtins::get_builtin_member_functions()) {
@@ -519,6 +548,21 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     throw Error(rhs_id, "type '" + left_type.to_string() + "' don't have a member '" +
                             name + "'");
   }
+
+  case Kind::MemberVariable: {
+    return this->EvalType(
+        ast->GetID()->ast_class->get_member_variables()[ast->GetID()->index]->type);
+  }
+
+  case Kind::MemberFunction: {
+    todo_impl;
+  }
+
+  case Kind::BuiltinMemberVariable:
+    todo_impl;
+
+  case Kind::BuiltinMemberFunction:
+    todo_impl;
 
   case Kind::Not: {
     auto x = ASTCast<AST::Expr>(ast);

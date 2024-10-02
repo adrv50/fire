@@ -85,6 +85,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
   case Kind::Identifier:
   case Kind::ScopeResol:
+  case Kind::MemberAccess:
     // この２つの Kind は、意味解析で変更されているはず。
     // ここまで来ている場合、バグです。
     panic;
@@ -121,18 +122,18 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     break;
   }
 
-  case Kind::MemberAccess: {
+  case Kind::MemberVariable: {
+    auto ex = ast->as_expr();
 
-    todo_impl;
-    break;
+    auto inst = PtrCast<ObjInstance>(this->evaluate(ex->lhs));
+
+    auto id = ASTCast<AST::Identifier>(ex->rhs);
+
+    return inst->get_mvar(id->index);
   }
 
   case Kind::MemberFunction: {
-    auto id = ast->GetID();
-
-    auto callable = ObjNew<ObjCallable>(id->candidates[0]);
-
-    throw Error(id->candidates[0], "aiueo");
+    return ObjNew<ObjCallable>(ast->GetID()->candidates[0]);
   }
 
   case Kind::BuiltinMemberVariable: {

@@ -261,10 +261,10 @@ ScopeContext::LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
   arg.depth = this->depth;
   arg.index = this->arguments.size() - 1;
 
-  if (!this->is_templated()) {
-    arg.deducted_type = Sema::GetInstance()->EvalType(def->type);
-    arg.is_type_deducted = true;
-  }
+  // if (!this->is_templated()) {
+  //   arg.deducted_type = Sema::GetInstance()->EvalType(def->type);
+  //   arg.is_type_deducted = true;
+  // }
 
   return arg;
 }

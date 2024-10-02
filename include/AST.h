@@ -39,7 +39,7 @@ enum class ASTKind {
   MemberAccess,
 
   // /-----------------
-  MemberVariable,
+  MemberVariable, // => use ast->GetID() (to index in instance)
   MemberFunction,
   BuiltinMemberVariable,
   BuiltinMemberFunction,

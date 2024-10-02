@@ -100,6 +100,12 @@ void Sema::check(ASTPointer ast) {
     if (func->is_templated()) {
       break;
     }
+    else {
+      for (auto&& arg : func->arguments) {
+        arg.deducted_type = this->EvalType(arg.arg->type);
+        arg.is_type_deducted = true;
+      }
+    }
 
     this->EnterScope(x);
 
