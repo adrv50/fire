@@ -92,8 +92,7 @@ std::string ObjIterable::ToString() const {
 ObjPointer ObjString::SubString(size_t pos, size_t length) {
   auto obj = ObjNew<ObjString>();
 
-  for (size_t i = pos,
-              end = pos + (length == 0 ? this->list.size() - pos : length);
+  for (size_t i = pos, end = pos + (length == 0 ? this->list.size() - pos : length);
        i < end; i++) {
     obj->Append(this->list[i]->Clone());
   }
@@ -148,32 +147,11 @@ ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)
 // ----------------------------
 //  ObjInstance
 
-ObjPointer& ObjInstance::set_member_var(std::string const& name,
-                                        ObjPointer obj) {
-  return this->member[name] = obj;
-}
-
-ObjPtr<ObjCallable>& ObjInstance::add_member_func(ObjPtr<ObjCallable> obj) {
-  return this->member_funcs.emplace_back(obj);
-}
-
-bool ObjInstance::have_constructor() const {
-  return (bool)this->ast->constructor.lock();
-}
-
-ASTPtr<AST::Function> ObjInstance::get_constructor() const {
-  return this->ast->constructor.lock();
-}
-
 ObjPointer ObjInstance::Clone() const {
   auto obj = ObjNew<ObjInstance>(this->ast);
 
-  for (auto&& [key, val] : this->member) {
-    obj->member[key] = val->Clone();
-  }
-
-  for (auto&& mf : this->member_funcs) {
-    obj->member_funcs.emplace_back(PtrCast<ObjCallable>(mf->Clone()));
+  for (auto&& m : this->member_variables) {
+    obj->add_member_var(m->Clone());
   }
 
   return obj;
@@ -232,8 +210,7 @@ std::string ObjModule::ToString() const {
 //  ObjType
 
 std::string ObjType::GetName() const {
-  return this->ast_class ? this->ast_class->GetName()
-                         : this->ast_enum->GetName();
+  return this->ast_class ? this->ast_class->GetName() : this->ast_enum->GetName();
 }
 
 std::string ObjType::ToString() const {

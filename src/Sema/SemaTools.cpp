@@ -239,14 +239,35 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
         _idx++;
       }
 
-      throw Error(id->token, "enumerator '" + id->GetName() + "' is not found in enum '" +
+      throw Error(id->token, "enumerator '" + name + "' is not found in enum '" +
                                  _enum->GetName() + "'");
     }
 
+    //
+    // class
+    //  => find static member function
     case NameType::Class: {
-      // auto _class = info.result.ast_class;
+      auto _class = info.result.ast_class;
 
-      todo_impl;
+      for (auto&& mf : _class->get_member_functions()) {
+        if (mf->GetName() == name) {
+          info.result.functions.emplace_back(mf);
+        }
+      }
+
+      if (!id->sema_allow_ambigious && info.result.functions.size() >= 2) {
+        throw Error(id->token, idname + "::" + name + " is ambiguous");
+      }
+
+      if (info.result.functions.empty()) {
+        throw Error(id->token, "member function '" + name + "' is not found in class '" +
+                                   _class->GetName() + "'");
+      }
+
+      info.ast = id;
+      info.result.type = NameType::MemberFunc;
+
+      break;
     }
 
     default:

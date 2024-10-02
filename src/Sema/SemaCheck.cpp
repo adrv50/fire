@@ -58,6 +58,29 @@ void Sema::check(ASTPointer ast) {
 
   switch (ast->kind) {
 
+  case ASTKind::Class: {
+
+    std::map<string, bool> bb;
+
+    auto x = ASTCast<AST::Class>(ast);
+
+    auto xmv = x->get_member_variables();
+    auto xmf = x->get_member_functions();
+
+    for (auto&& mv : xmv) {
+      if (bb[mv->GetName()])
+        throw Error(mv->name, "duplicate member variable name");
+
+      bb[mv->GetName()] = true;
+    }
+
+    for (auto&& mf : xmf) {
+      this->check(mf);
+    }
+
+    break;
+  }
+
   case ASTKind::Function: {
     auto x = ASTCast<AST::Function>(ast);
 

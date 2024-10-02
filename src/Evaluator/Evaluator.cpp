@@ -180,6 +180,18 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     return result ? result : _None;
   }
 
+  case Kind::CallFunc_Ctor: {
+    CAST(CallFunc);
+
+    auto inst = ObjNew<ObjInstance>(x->get_class_ptr());
+
+    for (auto&& arg : x->args) {
+      inst->add_member_var(this->evaluate(arg));
+    }
+
+    return inst;
+  }
+
   case Kind::Return: {
     auto stmt = ast->as_stmt();
 

@@ -21,8 +21,7 @@ struct Object {
   }
 
   bool is_numeric(bool contain_char = false) const {
-    return this->type.is_numeric() ||
-           (contain_char && this->type.kind == TypeKind::Char);
+    return this->type.is_numeric() || (contain_char && this->type.kind == TypeKind::Char);
   }
 
   bool is_float() const {
@@ -124,8 +123,7 @@ struct ObjPrimitive : Object {
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
-    return this->type.equals(obj->type) &&
-           this->_data == obj->As<ObjPrimitive>()->_data;
+    return this->type.equals(obj->type) && this->_data == obj->As<ObjPrimitive>()->_data;
   }
 
   ObjPrimitive(i64 vi = 0)
@@ -224,17 +222,14 @@ struct ObjEnumerator : Object {
 struct ObjInstance : Object {
   ASTPtr<AST::Class> ast;
 
-  std::map<std::string, ObjPointer> member;
-  std::vector<ObjPtr<ObjCallable>> member_funcs;
+  ObjVector member_variables;
 
-  ObjPointer& set_member_var(std::string const& name, ObjPointer obj);
-  ObjPtr<ObjCallable>& add_member_func(ObjPtr<ObjCallable> obj);
+  ObjPointer& add_member_var(ObjPointer obj) {
+    return this->member_variables.emplace_back(obj);
+  }
 
-  ObjPointer get_member_variable(std::string const& name) {
-    if (this->member.contains(name))
-      return this->member[name];
-
-    return nullptr;
+  ObjPointer& get_mvar(i64 index) {
+    return this->member_variables[index];
   }
 
   bool have_constructor() const;
@@ -300,8 +295,7 @@ struct ObjModule : Object {
 
   std::string ToString() const override;
 
-  ObjModule(std::shared_ptr<SourceStorage> src,
-            ASTPtr<AST::Block> ast = nullptr)
+  ObjModule(std::shared_ptr<SourceStorage> src, ASTPtr<AST::Block> ast = nullptr)
       : Object(TypeKind::Module),
         source(src),
         ast(ast) {

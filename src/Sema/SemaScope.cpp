@@ -55,8 +55,7 @@ bool ScopeContext::Contains(ScopeContext* scope, bool recursive) const {
   case SC_Func: {
     auto func = (FunctionScope*)scope;
 
-    return func->block == scope ||
-           (recursive && func->block->Contains(scope, recursive));
+    return func->block == scope || (recursive && func->block->Contains(scope, recursive));
   }
 
   default:
@@ -113,12 +112,11 @@ BlockScope::BlockScope(ASTPtr<AST::Block> ast)
     case ASTKind::If: {
       auto d = e->As<AST::Statement>()->get_data<AST::Statement::If>();
 
-      this->AddScope(
-          new BlockScope(ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_true))));
+      this->AddScope(new BlockScope(ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_true))));
 
       if (d.if_false) {
-        this->AddScope(new BlockScope(
-            ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_false))));
+        this->AddScope(
+            new BlockScope(ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_false))));
       }
 
       break;
@@ -127,6 +125,22 @@ BlockScope::BlockScope(ASTPtr<AST::Block> ast)
     case ASTKind::For:
     case ASTKind::Switch:
       todo_impl;
+
+    case ASTKind::Class: {
+      auto x = ASTCast<AST::Class>(e);
+
+      Sema::GetInstance()->add_class(x);
+
+      for (auto&& mf : x->get_member_functions())
+        this->AddScope(new FunctionScope(mf));
+
+      break;
+    }
+
+    case ASTKind::Enum: {
+      Sema::GetInstance()->add_enum(ASTCast<AST::Enum>(e));
+      break;
+    }
     }
   }
 }

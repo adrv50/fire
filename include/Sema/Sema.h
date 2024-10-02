@@ -32,6 +32,8 @@ class Sema {
     Func,
     BuiltinFunc,
 
+    MemberFunc,
+
     Enum,
     Enumerator,
 
@@ -230,8 +232,9 @@ private:
     if (ast->kind == ASTKind::MemberAccess)
       return GetID(ast->as_expr()->rhs);
 
-    return ast->kind == ASTKind::Identifier ? ASTCast<AST::Identifier>(ast)
-                                            : ASTCast<AST::ScopeResol>(ast)->GetLastID();
+    return ast->_constructed_as == ASTKind::Identifier
+               ? ASTCast<AST::Identifier>(ast)
+               : ASTCast<AST::ScopeResol>(ast)->GetLastID();
   }
 
   TypeInfo make_functor_type(ASTPtr<AST::Function> ast);

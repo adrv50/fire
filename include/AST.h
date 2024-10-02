@@ -28,6 +28,8 @@ enum class ASTKind {
   FuncName,
   BuiltinFuncName,
   Enumerator,
+  EnumName,
+  ClassName,
   // ------------------/
 
   Array,
@@ -44,6 +46,8 @@ enum class ASTKind {
   //   ------------------/
 
   CallFunc,
+
+  CallFunc_Ctor,
 
   //
   // in call-func expr.
@@ -97,6 +101,7 @@ enum class ASTKind {
   Function,
 
   Enum,
+
   Class,
 
   TypeName,
@@ -249,6 +254,9 @@ struct Identifier : Named {
   int depth = 0;
   int index = 0; // (=> also member variable)
 
+  ASTPtr<Class> ast_class = nullptr;
+  ASTPtr<Enum> ast_enum = nullptr;
+
   TypeInfo self_type; // if member
 
   static ASTPtr<Identifier> New(Token tok);
@@ -333,6 +341,10 @@ struct CallFunc : Base {
     x->callee_builtin = this->callee_builtin;
 
     return x;
+  }
+
+  ASTPtr<Class> get_class_ptr() const {
+    return this->callee->GetID()->ast_class;
   }
 
   CallFunc(ASTPointer callee, ASTVector args = {})

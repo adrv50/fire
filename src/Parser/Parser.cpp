@@ -30,7 +30,7 @@ ASTPointer Parser::Stmt() {
       }
     }
 
-    Error(tok, "not terminated block")();
+    throw Error(tok, "not terminated block");
   }
 
   if (this->eat("if")) {
@@ -166,6 +166,12 @@ ASTPointer Parser::Top() {
 
     bool closed = false;
 
+    auto s1 = this->_in_class;
+    auto s2 = this->_classptr;
+
+    this->_in_class = true;
+    this->_classptr = ast;
+
     // member variables
     while (this->cur->str == "let") {
       ast->append(ASTCast<AST::VarDef>(this->Stmt()));
@@ -196,13 +202,16 @@ ASTPointer Parser::Top() {
     // member functions
     while (this->check() && !(closed = this->eat("}"))) {
       if (!this->match("fn", TokenKind::Identifier))
-        Error(*this->cur, "expected definition of member function")();
+        throw Error(*this->cur, "expected definition of member function");
 
       ast->append(ASTCast<AST::Function>(this->Top()));
     }
 
     if (!closed)
-      Error(iter[2], "not terminated block")();
+      throw Error(iter[2], "not terminated block");
+
+    this->_in_class = s1;
+    this->_classptr = s2;
 
     return ast;
   }
@@ -221,6 +230,15 @@ ASTPointer Parser::Top() {
     }
 
     this->expect("(");
+
+    if (auto tokkk = this->cur; this->_in_class && this->eat("self")) {
+      func->member_of = this->_classptr;
+
+      if (!this->eat(","))
+        this->expect(")", true);
+
+      func->add_arg(*tokkk, AST::TypeName::New(this->_classptr->name));
+    }
 
     if (!this->eat(")")) {
       do {
@@ -250,8 +268,7 @@ ASTPointer Parser::Top() {
   // replace to variable declaration,
   //  and assignment result of call "import" func.
   //
-  if (this->match("import", TokenKind::Identifier) ||
-      this->match("import", ".")) {
+  if (this->match("import", TokenKind::Identifier) || this->match("import", ".")) {
 
     // import a;
     // import ./b;
@@ -290,8 +307,7 @@ ASTPointer Parser::Top() {
     mod_name_token.str = name;
     mod_name_token.sourceloc.length = name.length();
 
-    call->args.emplace_back(
-        AST::Value::New(mod_name_token, ObjNew<ObjString>(name)));
+    call->args.emplace_back(AST::Value::New(mod_name_token, ObjNew<ObjString>(name)));
 
     ast->init = call;
 

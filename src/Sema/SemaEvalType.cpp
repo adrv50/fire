@@ -69,6 +69,16 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
     }
 
+    auto rs = this->find_name(x->GetName());
+
+    switch (rs.type) {
+    case NameType::Enum:
+      return TypeInfo::from_enum(rs.ast_enum);
+
+    case NameType::Class:
+      return TypeInfo::from_class(rs.ast_class);
+    }
+
     // type.name = x->GetName();
     // type.kind = TypeKind::Unknown;
     // return type;
@@ -201,6 +211,13 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       return type;
     }
 
+    case NameType::Class: {
+      id->kind = ASTKind::ClassName;
+      id->ast_class = idinfo.result.ast_class;
+
+      return TypeInfo::from_class(id->ast_class);
+    }
+
     case NameType::Unknown:
       throw Error(ast->token, "cannot find name '" + id->GetName() + "'");
 
@@ -230,6 +247,35 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       return type;
     }
 
+    case NameType::MemberFunc: {
+      auto id = ast->GetID();
+
+      ast->kind = ASTKind::FuncName;
+
+      id->candidates = idinfo.result.functions;
+
+      if (!id->sema_allow_ambigious) {
+        if (id->candidates.size() >= 2) {
+          throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
+        }
+
+        TypeInfo type{TypeKind::Function};
+
+        alert;
+        type.params = {this->EvalType(id->candidates[0]->return_type)};
+
+        for (auto&& arg : id->candidates[0]->arguments) {
+          alert;
+          type.params.emplace_back(this->EvalType(arg->type));
+        }
+
+        alert;
+        return type;
+      }
+
+      return TypeKind::Function;
+    }
+
     case NameType::Unknown:
       todo_impl;
       break;
@@ -238,6 +284,16 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     todo_impl;
 
     break;
+  }
+
+  case Kind::Enumerator:
+    todo_impl;
+
+  case Kind::EnumName:
+    todo_impl;
+
+  case Kind::ClassName: {
+    return TypeInfo::from_class(ast->GetID()->ast_class);
   }
 
   case Kind::CallFunc: {
@@ -249,10 +305,6 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     if (functor->is_ident_or_scoperesol() || functor->kind == ASTKind::MemberAccess) {
       id = Sema::GetID(functor);
-
-      alertexpr(AST::ToString(functor));
-      alertexpr(AST::ToString(id));
-
       id->sema_allow_ambigious = true;
     }
 
@@ -291,8 +343,8 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
         else {
           TypeVec formal_arg_types;
 
-          for (ASTPointer arg : candidate->arguments)
-            formal_arg_types.emplace_back(this->EvalType(arg));
+          for (ASTPtr<AST::Argument> arg : candidate->arguments)
+            formal_arg_types.emplace_back(this->EvalType(arg->type));
 
           auto res = this->check_function_call_parameters(
               call, candidate->is_var_arg, formal_arg_types, arg_types, false);
@@ -340,9 +392,34 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       break;
     }
+
+    case ASTKind::ClassName: {
+      auto xmv = id->ast_class->get_member_variables();
+
+      if (arg_types.size() != xmv.size()) {
+        throw Error(functor, "no match count of initializers");
+      }
+
+      for (i64 i = 0; i < (i64)xmv.size(); i++) {
+        if (auto ttt = this->EvalType(xmv[i]->type); !arg_types[i].equals(ttt)) {
+          throw Error(call->args[i], "expected '" + ttt.to_string() +
+                                         "' type expression, but found '" +
+                                         arg_types[i].to_string() + "'");
+        }
+      }
+
+      ast->kind = ASTKind::CallFunc_Ctor;
+
+      return TypeInfo::from_class(id->ast_class);
+    }
     }
 
-    throw Error(functor, "expected function name or callable expression");
+    throw Error(functor,
+                "expected calllable expression or name of function or class or enum");
+  }
+
+  case Kind::CallFunc_Ctor: {
+    return TypeInfo::from_class(ast->As<CallFunc>()->get_class_ptr());
   }
 
   case Kind::SpecifyArgumentName:
@@ -373,14 +450,29 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     alertexpr(rhs_id->sema_allow_ambigious);
 
-    if (left_type.kind == TypeKind::TypeName) {
+    switch (left_type.kind) {
+    case TypeKind::TypeName: {
       switch (left_type.type_ast->kind) {
-      case ASTKind::Enum:
-        todo_impl; // find enumerator
-
-      case ASTKind::Class:
-        todo_impl; // find member func or var
+      case ASTKind::Class: {
       }
+      }
+      break;
+    }
+
+    case TypeKind::Enumerator: {
+      //
+      // TODO:
+      //   列挙型で、構造体のメンバ定義されてる場合、そのメンバを探す
+      //
+      // enum Kind {
+      //   A(a: int, b: string)
+      // }
+      //
+      //   ^ 左辺の値が Kind::A のとき、右辺が a であればその値を返す
+      // (Evaluator での実装も)
+      //
+      todo_impl;
+    }
     }
 
     if (!rhs_id->sema_allow_ambigious && rhs_id->candidates.size() >= 2) {
