@@ -8,7 +8,8 @@ SOURCE		:= 	src	\
 				src/AST \
 				src/Evaluator \
 				src/Parser \
-				src/Sema
+				src/Sema \
+				src/VM
 
 CC			:=	clang
 CXX			:=	clang++

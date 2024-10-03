@@ -125,12 +125,10 @@ ASTPtr<Class> Class::New(Token tok, Token name) {
   return ASTNew<Class>(tok, name);
 }
 
-ASTPtr<Class> Class::New(Token tok, Token name, ASTPtr<Block> definitions) {
-  auto ast = ASTNew<Class>(tok, name);
-
-  ast->block = definitions;
-
-  return ast;
+ASTPtr<Class> Class::New(Token tok, Token name, ASTVec<VarDef> member_variables,
+                         ASTVec<Function> member_functions) {
+  return ASTNew<Class>(tok, name, std::move(member_variables),
+                       std::move(member_functions));
 }
 
 ASTPointer Identifier::Clone() const {

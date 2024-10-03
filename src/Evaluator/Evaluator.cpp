@@ -15,13 +15,11 @@ Evaluator::Evaluator() {
 Evaluator::~Evaluator() {
 }
 
-Evaluator::VarStack& Evaluator::push_stack(size_t var_count) {
-  return *this->var_stack.emplace_front(new VarStack(var_count));
+Evaluator::VarStackPtr Evaluator::push_stack(size_t var_count) {
+  return this->var_stack.emplace_front(std::make_shared<VarStack>(var_count));
 }
 
 void Evaluator::pop_stack() {
-  delete *this->var_stack.begin();
-
   this->var_stack.pop_front();
 }
 
@@ -198,15 +196,15 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       return _builtin->Call(x, std::move(args));
     }
 
-    auto& stack = this->push_stack(x->args.size());
+    auto stack = this->push_stack(x->args.size());
 
-    this->call_stack.push_front(&stack);
+    this->call_stack.push_front(stack);
 
-    stack.var_list = std::move(args);
+    stack->var_list = std::move(args);
 
     this->evaluate(_func->block);
 
-    auto result = stack.func_result;
+    auto result = stack->func_result;
 
     this->pop_stack();
     this->call_stack.pop_front();
@@ -257,12 +255,12 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   case Kind::Block: {
     CAST(Block);
 
-    auto& stack = this->push_stack(x->stack_size);
+    auto stack = this->push_stack(x->stack_size);
 
     for (auto&& y : x->list) {
       this->evaluate(y);
 
-      if (stack.returned)
+      if (stack->returned)
         break;
     }
 
@@ -311,14 +309,14 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
       for (auto&& c : d.catchers) {
         if (c._type.equals(obj->type)) {
-          auto& s = this->push_stack(1);
+          auto s = this->push_stack(1);
 
-          s.var_list = {obj};
+          s->var_list = {obj};
 
           for (auto&& x : c.catched->list) {
             this->evaluate(x);
 
-            if (s.returned || s.breaked || s.continued)
+            if (s->returned || s->breaked || s->continued)
               break;
           }
 

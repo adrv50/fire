@@ -174,6 +174,16 @@ protected:
   }
 };
 
+template <typename T, typename U>
+ASTVec<T> CloneASTVec(ASTVec<U> const& vec) {
+  ASTVec<T> v;
+
+  for (U&& elem : vec)
+    v.emplace_back(ASTCast<T>(elem->Clone()));
+
+  return v;
+}
+
 struct Value : Base {
   ObjPointer value;
 
@@ -650,54 +660,36 @@ struct Enum : Templatable {
 };
 
 struct Class : Templatable {
-  ASTPtr<Block> block;
-  std::weak_ptr<Function> constructor;
+  ASTVec<VarDef> member_variables;
+  ASTVec<Function> member_functions;
 
-  ASTPointer& append(ASTPointer ast) {
-    return this->block->list.emplace_back(ast);
+  ASTPtr<VarDef>& append_var(ASTPtr<VarDef> ast) {
+    return this->member_variables.emplace_back(ast);
   }
 
-  ASTVec<VarDef> get_member_variables() {
-    ASTVec<VarDef> v;
-
-    for (auto&& x : this->block->list)
-      if (x->kind == ASTKind::Vardef)
-        v.emplace_back(ASTCast<VarDef>(x));
-
-    return v;
-  }
-
-  ASTVec<Function> get_member_functions() {
-    ASTVec<Function> v;
-
-    for (auto&& x : this->block->list)
-      if (x->kind == ASTKind::Function)
-        v.emplace_back(ASTCast<Function>(x));
-
-    return v;
+  ASTPtr<Function>& append_func(ASTPtr<Function> ast) {
+    return this->member_functions.emplace_back(ast);
   }
 
   static ASTPtr<Class> New(Token tok, Token name);
 
-  static ASTPtr<Class> New(Token tok, Token name, ASTPtr<Block> definitions);
+  static ASTPtr<Class> New(Token tok, Token name, ASTVec<VarDef> member_variables,
+                           ASTVec<Function> member_functions);
 
   ASTPointer Clone() const override {
-    auto x = New(this->token, this->name, ASTCast<Block>(this->block->Clone()));
+    auto x = New(this->token, this->name, CloneASTVec<VarDef>(this->member_variables),
+                 CloneASTVec<Function>(this->member_functions));
 
     x->_Copy(this);
-
-    for (auto&& y : x->block->list)
-      if (y->kind == ASTKind::Function && y->As<Named>()->GetName() == x->GetName()) {
-        x->constructor = ASTCast<Function>(y);
-        break;
-      }
 
     return x;
   }
 
-  Class(Token tok, Token name)
+  Class(Token tok, Token name, ASTVec<VarDef> member_variables = {},
+        ASTVec<Function> member_functions = {})
       : Templatable(ASTKind::Class, tok, name),
-        block(Block::New("")) {
+        member_variables(std::move(member_variables)),
+        member_functions(std::move(member_functions)) {
   }
 };
 

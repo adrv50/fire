@@ -67,17 +67,16 @@ void Sema::check(ASTPointer ast) {
 
     auto x = ASTCast<AST::Class>(ast);
 
-    auto xmv = x->get_member_variables();
-    auto xmf = x->get_member_functions();
-
-    for (auto&& mv : xmv) {
+    for (auto&& mv : x->member_variables) {
       if (bb[mv->GetName()])
         throw Error(mv->name, "duplicate member variable name");
 
       bb[mv->GetName()] = true;
+
+      this->check(mv);
     }
 
-    for (auto&& mf : xmf) {
+    for (auto&& mf : x->member_functions) {
       this->check(mf);
     }
 

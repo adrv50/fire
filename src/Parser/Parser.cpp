@@ -208,29 +208,7 @@ ASTPointer Parser::Top() {
 
     // member variables
     while (this->cur->str == "let") {
-      ast->append(ASTCast<AST::VarDef>(this->Stmt()));
-    }
-
-    // constructor
-    if (this->eat(ast->GetName())) {
-
-      auto ctor = AST::Function::New(ast->name, ast->name);
-
-      this->expect("(");
-
-      this->expect("self");
-      ctor->add_arg(*this->ate);
-
-      while (this->eat(",")) {
-        ctor->add_arg(*this->expectIdentifier());
-      }
-
-      this->expect(")");
-
-      this->expect("{", true);
-      ctor->block = ASTCast<AST::Block>(this->Stmt());
-
-      ast->constructor = ASTCast<AST::Function>(ast->append(ctor));
+      ast->append_var(ASTCast<AST::VarDef>(this->Stmt()));
     }
 
     // member functions
@@ -238,7 +216,7 @@ ASTPointer Parser::Top() {
       if (!this->match("fn", TokenKind::Identifier))
         throw Error(*this->cur, "expected definition of member function");
 
-      ast->append(ASTCast<AST::Function>(this->Top()));
+      ast->append_func(ASTCast<AST::Function>(this->Top()));
     }
 
     if (!closed)
