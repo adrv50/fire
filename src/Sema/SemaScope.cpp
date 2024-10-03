@@ -157,7 +157,7 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast)
 
       Sema::GetInstance()->add_class(x);
 
-      for (auto&& mf : x->get_member_functions())
+      for (auto&& mf : x->member_functions)
         this->AddScope(new FunctionScope(this->depth + 1, mf));
 
       break;

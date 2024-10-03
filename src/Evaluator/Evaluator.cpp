@@ -138,6 +138,10 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     return obj;
   }
 
+  case Kind::ClassName: {
+    return ObjNew<ObjType>(ast->GetID()->ast_class);
+  }
+
   case Kind::MemberVariable: {
     auto ex = ast->as_expr();
 
@@ -215,10 +219,20 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   case Kind::CallFunc_Ctor: {
     CAST(CallFunc);
 
-    auto inst = ObjNew<ObjInstance>(x->get_class_ptr());
+    auto ast_class = x->get_class_ptr();
 
-    for (auto&& arg : x->args) {
-      inst->add_member_var(this->evaluate(arg));
+    auto inst = ObjNew<ObjInstance>(ast_class);
+
+    size_t const argc = x->args.size();
+
+    inst->member_variables.reserve(argc);
+
+    for (size_t i = 0; i < argc; i++) {
+      if (auto init = ast_class->member_variables[i]->init; init) {
+        inst->member_variables[i] = this->evaluate(init);
+      }
+
+      inst->member_variables[i] = this->evaluate(x->args[i]);
     }
 
     return inst;

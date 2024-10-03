@@ -178,7 +178,7 @@ template <typename T, typename U>
 ASTVec<T> CloneASTVec(ASTVec<U> const& vec) {
   ASTVec<T> v;
 
-  for (U&& elem : vec)
+  for (auto&& elem : vec)
     v.emplace_back(ASTCast<T>(elem->Clone()));
 
   return v;

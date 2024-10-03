@@ -155,6 +155,8 @@ public:
 
   TypeInfo EvalType(ASTPointer ast);
 
+  TypeInfo EvalExpr(ASTPtr<AST::Expr> ast);
+
   bool IsWritable(ASTPointer ast);
 
   static Sema* GetInstance();

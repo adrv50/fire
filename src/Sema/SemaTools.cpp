@@ -306,7 +306,7 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
     case NameType::Class: {
       auto _class = info.result.ast_class;
 
-      for (auto&& mf : _class->get_member_functions()) {
+      for (auto&& mf : _class->member_functions) {
         if (mf->GetName() == name) {
           info.result.functions.emplace_back(mf);
         }

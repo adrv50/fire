@@ -160,7 +160,7 @@ ObjPointer ObjInstance::Clone() const {
 string ObjInstance::ToString() const {
   i64 _index = 0;
 
-  auto mvarlist = this->ast->get_member_variables();
+  auto const& mvarlist = this->ast->member_variables;
 
   return this->ast->GetName() + "{" +
          utils::join<ObjPointer>(", ", this->member_variables,
@@ -235,7 +235,10 @@ std::string ObjType::GetName() const {
 }
 
 std::string ObjType::ToString() const {
-  return "(ObjType)";
+  if (this->ast_class)
+    return "<class '" + this->ast_class->GetName() + "'>";
+
+  return "<enum '" + this->ast_enum->GetName() + "'>";
 }
 
 ObjType::ObjType(ASTPtr<AST::Enum> x)

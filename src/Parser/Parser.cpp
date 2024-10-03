@@ -208,7 +208,11 @@ ASTPointer Parser::Top() {
 
     // member variables
     while (this->cur->str == "let") {
-      ast->append_var(ASTCast<AST::VarDef>(this->Stmt()));
+      auto& var = ast->append_var(ASTCast<AST::VarDef>(this->Stmt()));
+
+      if (!var->type && !var->init) {
+        throw Error(var->token, "cannot use delay-assignment here");
+      }
     }
 
     // member functions
