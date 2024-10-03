@@ -239,6 +239,28 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
           inst.add_name(param.str, *it);
         }
+
+        this->SaveScopeLocation();
+
+        auto scope = (FunctionScope*)this->GetScopeOf(func);
+
+        this->BackToDepth(scope->depth - 1);
+
+        this->EnterScope(scope);
+
+        for (size_t i = 0; auto&& t : idinfo.id_params) {
+          auto& arg = scope->arguments[i];
+
+          arg.deducted_type = t;
+          arg.is_argument = true;
+          arg.is_type_deducted = true;
+
+          i++;
+        }
+
+        this->check(func->block);
+
+        this->RestoreScopeLocation();
       }
 
       // if (!func->is_templated) {

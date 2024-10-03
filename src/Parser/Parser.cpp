@@ -321,7 +321,6 @@ ASTPtr<AST::Block> Parser::Parse() {
   auto ret = AST::Block::New("");
 
   while (this->check()) {
-    alert;
     ret->list.emplace_back(this->Top());
   }
 

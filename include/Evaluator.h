@@ -34,7 +34,9 @@ private:
   VarStack& get_cur_stack();
   VarStack& get_stack(int distance);
 
-  std::list<std::shared_ptr<VarStack>> var_stack;
+  std::list<VarStack> var_stack;
+
+  std::list<VarStack*> call_stack;
 };
 
 } // namespace fire::eval

@@ -17,28 +17,28 @@ Evaluator::~Evaluator() {
 
 Evaluator::VarStack& Evaluator::push_stack(int var_size) {
 
-  auto stack = this->var_stack.emplace_back(std::make_shared<VarStack>());
+  auto& stack = this->var_stack.emplace_front();
 
-  stack->var_list.reserve((size_t)var_size);
+  stack.var_list.reserve((size_t)var_size);
 
-  return *stack;
+  return stack;
 }
 
 void Evaluator::pop_stack() {
-  this->var_stack.pop_back();
+  this->var_stack.pop_front();
 }
 
 Evaluator::VarStack& Evaluator::get_cur_stack() {
-  return **this->var_stack.rbegin();
+  return *this->var_stack.begin();
 }
 
 Evaluator::VarStack& Evaluator::get_stack(int distance) {
-  auto it = this->var_stack.rbegin();
+  auto it = this->var_stack.begin();
 
   for (int i = 0; i < distance; i++)
     it++;
 
-  return **it;
+  return *it;
 }
 
 ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
@@ -88,6 +88,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   case Kind::MemberAccess:
     // この２つの Kind は、意味解析で変更されているはず。
     // ここまで来ている場合、バグです。
+    debug(Error(ast, "??").emit());
     panic;
 
   case Kind::Function:
@@ -103,6 +104,23 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     auto x = ast->GetID();
 
     return this->get_stack(x->depth /*distance*/).var_list[x->index];
+  }
+
+  case Kind::Array: {
+    CAST(Array);
+
+    auto obj = ObjNew<ObjIterable>(TypeInfo(TypeKind::Vector, {x->elem_type}));
+
+    for (auto&& e : x->elements)
+      obj->Append(this->evaluate(e));
+
+    return obj;
+  }
+
+  case Kind::IndexRef: {
+
+    todo_impl;
+    break;
   }
 
   case Kind::FuncName: {
@@ -123,23 +141,6 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     obj->type.params.insert(obj->type.params.begin(), id->ft_ret);
 
     return obj;
-  }
-
-  case Kind::Array: {
-    CAST(Array);
-
-    auto obj = ObjNew<ObjIterable>(TypeInfo(TypeKind::Vector, {x->elem_type}));
-
-    for (auto&& e : x->elements)
-      obj->Append(this->evaluate(e));
-
-    return obj;
-  }
-
-  case Kind::IndexRef: {
-
-    todo_impl;
-    break;
   }
 
   case Kind::MemberVariable: {
@@ -202,6 +203,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     auto& stack = this->push_stack(x->args.size());
 
+    this->call_stack.push_front(&stack);
+
     stack.var_list = std::move(args);
 
     this->evaluate(_func->block);
@@ -209,6 +212,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     auto result = stack.func_result;
 
     this->pop_stack();
+    this->call_stack.pop_front();
 
     return result ? result : _None;
   }
@@ -228,12 +232,15 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   case Kind::Return: {
     auto stmt = ast->as_stmt();
 
-    auto& stack = this->get_stack(stmt->ret_func_scope_distance);
+    auto& stack = *this->call_stack.begin();
 
-    stack.func_result = this->evaluate(stmt->get_expr());
+    stack->func_result = this->evaluate(stmt->get_expr());
 
-    for (int i = 1; i < stmt->ret_func_scope_distance; i++) {
-      this->get_stack(i).returned = true;
+    for (auto&& s : this->var_stack) {
+      s.returned = true;
+
+      if (&s == stack)
+        break;
     }
 
     break;
