@@ -15,13 +15,13 @@ namespace fire::semantics_checker {
 //   }
 // }
 
-Sema::ArgumentCheckResult Sema::check_function_call_parameters(ASTPtr<CallFunc> call,
+Sema::ArgumentCheckResult Sema::check_function_call_parameters(ASTVector args,
                                                                bool isVariableArg,
                                                                TypeVec const& formal,
                                                                TypeVec const& actual,
                                                                bool ignore_mismatch) {
 
-  (void)call;
+  (void)args;
 
   if (actual.size() < formal.size()) // 少なすぎる
     return ArgumentCheckResult::TooFewArguments;
@@ -33,13 +33,12 @@ Sema::ArgumentCheckResult Sema::check_function_call_parameters(ASTPtr<CallFunc> 
   }
 
   if (!ignore_mismatch) {
-    for (auto f = formal.begin(), a = actual.begin(); f != formal.end(); f++, a++) {
-      this->ExpectType(*f, call->args[f - formal.begin()]);
+    int _i = 0;
 
-      // if (!f->equals(*a)) {
-      //   return {ArgumentCheckResult::TypeMismatch, static_cast<int>(f -
-      //   formal.begin())};
-      // }
+    for (auto f = formal.begin(), a = actual.begin(); f != formal.end(); f++, a++, _i++) {
+      if (!f->equals(*a)) {
+        return {ArgumentCheckResult::TypeMismatch, _i};
+      }
     }
   }
 

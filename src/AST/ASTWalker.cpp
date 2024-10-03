@@ -93,8 +93,16 @@ void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)>
   }
 
   case Kind::Switch:
-  case Kind::For:
     todo_impl;
+
+  case Kind::While: {
+    auto d = ast->As<AST::Statement>()->get_data<AST::Statement::While>();
+
+    walk_ast(d.cond, fn);
+    walk_ast(d.block, fn);
+
+    break;
+  }
 
   case Kind::Break:
   case Kind::Continue:
@@ -106,10 +114,14 @@ void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)>
     break;
 
   case Kind::TryCatch: {
-    auto x = ast->As<AST::Statement>()->get_data<AST::Statement::TryCatch>();
+    auto d = ast->As<AST::Statement>()->get_data<AST::Statement::TryCatch>();
 
-    walk_ast(x.tryblock, fn);
-    walk_ast(x.catched, fn);
+    walk_ast(d.tryblock, fn);
+
+    for (auto&& c : d.catchers) {
+      walk_ast(c.type, fn);
+      walk_ast(c.catched, fn);
+    }
 
     break;
   }

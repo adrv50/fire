@@ -7,6 +7,7 @@
 
 #include "AST.h"
 #include "Builtin.h"
+#include "Object.h"
 
 #include "Error.h"
 
@@ -98,30 +99,27 @@ define_builtin_func(Import) {
 }
 
 define_builtin_func(Substr) {
-  expect_type(0, TypeKind::String);
-  expect_type(1, TypeKind::Int);
-
-  if (args.size() > 3)
-    Error(ast, "too many arguments")();
-
   auto str = args[0]->As<ObjString>();
   auto pos = args[1]->As<ObjPrimitive>()->vi;
-
-  if (args.size() == 3) {
-    expect_type(2, TypeKind::Int);
-
-    auto len = args[2]->As<ObjPrimitive>()->vi;
-
-    if (pos + len >= (i64)str->Length())
-      Error(ast->args[2], "out of range")();
-
-    return str->SubString(pos, len);
-  }
 
   if (pos < 0 || pos >= (i64)str->Length())
     Error(ast->args[1], "out of range")();
 
   return str->SubString(pos);
+}
+
+define_builtin_func(Substr2) {
+  auto str = args[0]->As<ObjString>();
+  auto pos = args[1]->As<ObjPrimitive>()->vi;
+  auto len = args[2]->As<ObjPrimitive>()->vi;
+
+  if (pos < 0 || pos >= (i64)str->Length())
+    Error(ast->args[1], "out of range")();
+
+  if (pos + len >= (i64)str->Length())
+    Error(ast->args[2], "out of range")();
+
+  return str->SubString(pos, len);
 }
 
 define_builtin_func(Length) {
@@ -131,7 +129,7 @@ define_builtin_func(Length) {
     return ObjNew<ObjPrimitive>((i64)content->As<ObjString>()->list.size());
   }
 
-  Error(ast->args[0], "argument is not a string or vector.")();
+  todo_impl;
 }
 
 // clang-format off
@@ -142,16 +140,56 @@ static const std::vector<Function> g_builtin_functions = {
 
   { "open",     Open,      TypeKind::String, { TypeKind::String }, },
 
-  { "substr",   Substr,    TypeKind::String, { TypeKind::String, TypeKind::Int }, true },
-  { "substr",   Substr,    TypeKind::String, { TypeKind::String, TypeKind::Int, TypeKind::Int }, true },
-
-  { "length",   Length,    TypeKind::Int, { TypeKind::String }, },
-  { "length",   Length,    TypeKind::Int, { {TypeKind::Vector, {TypeKind::Unknown}} }, },
-
   { "@import",  Import,    TypeKind::Module, { TypeKind::String }, },
 
 };
+
+static const vector<std::pair<TypeInfo, Function>>
+g_builtin_member_functions = {
+  { // substr(index)
+    TypeKind::String, {
+      "substr", Substr, TypeKind::String, {
+        TypeKind::Int
+      }
+    }
+  },
+
+  { // substr(index, len)
+    TypeKind::String, {
+      "substr", Substr2, TypeKind::String, {
+        TypeKind::Int, TypeKind::Int
+      }
+    }
+  },
+
+  {
+    TypeKind::String, {
+      "length", Length, TypeKind::Int, { },
+    }
+  },
+  
+  // { "length",   Length,    TypeKind::Int, { {TypeKind::Vector, {TypeKind::Unknown}} }, },
+
+};
+
 // clang-format on
+
+#define make_builtin_member                                                              \
+  []([[maybe_unused]] ASTPointer self_ast, [[maybe_unused]] ObjPointer self) -> ObjPointer
+
+static const vector<MemberVariable> g_builtin_member_variables = {
+    {"abs", TypeKind::Int, TypeKind::Int, make_builtin_member{i64 val = self->get_vi();
+
+if (val < 0)
+  val = -val;
+
+return ObjNew<ObjPrimitive>(val);
+
+} // namespace fire::builtins
+}
+,
+}
+;
 
 ObjPointer Function::Call(ASTPtr<AST::CallFunc> ast, ObjVector args) const {
   return this->func(ast, std::move(args));
@@ -168,8 +206,16 @@ Function const* find_builtin_func(std::string const& name) {
   return nullptr;
 }
 
-std::vector<builtins::Function> const& get_builtin_functions() {
+vector<builtins::Function> const& get_builtin_functions() {
   return g_builtin_functions;
+}
+
+vector<std::pair<TypeInfo, Function>> const& get_builtin_member_functions() {
+  return g_builtin_member_functions;
+}
+
+vector<MemberVariable> const& get_builtin_member_variables() {
+  return g_builtin_member_variables;
 }
 
 } // namespace fire::builtins

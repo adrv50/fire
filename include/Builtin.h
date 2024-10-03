@@ -29,8 +29,23 @@ struct Function {
   }
 };
 
+struct MemberVariable {
+  using Impl = ObjPointer (*)(ASTPointer, ObjPointer);
+
+  string name;
+
+  TypeInfo self_type;
+  TypeInfo result_type;
+
+  Impl impl;
+};
+
 Function const* find_builtin_func(std::string const& name);
 
-std::vector<builtins::Function> const& get_builtin_functions();
+vector<Function> const& get_builtin_functions();
+
+vector<std::pair<TypeInfo, Function>> const& get_builtin_member_functions();
+
+vector<MemberVariable> const& get_builtin_member_variables();
 
 } // namespace fire::builtins

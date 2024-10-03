@@ -72,16 +72,20 @@ void execute_file(std::string const& path) {
       return;
 
     parser::Parser parser{tokens};
+
+    alert;
     ASTPtr<AST::Block> prg = parser.Parse();
 
-    prg = ASTCast<AST::Block>(prg->Clone());
-
+    alert;
     semantics_checker::Sema sema{prg};
 
+    alert;
     sema.check_full();
 
+    alert;
     eval::Evaluator ev;
 
+    alert;
     ev.evaluate(prg);
   }
 
@@ -89,16 +93,19 @@ void execute_file(std::string const& path) {
     err.emit();
   }
 
-  // try {
-  //   eval::Evaluator eval{prg};
-  //   eval.do_eval();
-  // }
-  // catch (ObjPointer obj) {
-  //   Error::fatal_error("unhandled exception: " + obj->ToString());
-  // }
+  catch (ObjPointer obj) {
+    Error::fatal_error("throwed unhandled exception object of '" + obj->type.to_string() +
+                       "'");
+  }
 }
 
+int test(int argc, char** argv);
+
 int main(int argc, char** argv) {
+
+  // if (test(argc, argv) != 0)
+  //   return 1;
+
   CmdLineArguments args;
 
   parse_command_line(args, argc - 1, argv + 1);

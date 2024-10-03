@@ -36,37 +36,54 @@ struct Object {
     return this->type.kind == TypeKind::Bool;
   }
 
+  bool is_char() const {
+    return this->type.kind == TypeKind::Char;
+  }
+
   bool is_instance() const {
     return this->type.kind == TypeKind::Instance;
   }
 
   bool is_string() const {
-    return this->type.equals(TypeKind::String);
+    return this->type.kind == TypeKind::String;
   }
 
   bool is_vector() const {
-    return this->type.equals(TypeKind::Vector);
+    return this->type.kind == TypeKind::Vector;
+  }
+
+  i64 get_vi() const;
+  double get_vf() const;
+  char16_t get_vc() const;
+  bool get_vb() const;
+
+  virtual bool Equals(ObjPointer obj) const {
+    (void)obj;
+    return false;
+  }
+
+  template <typename T>
+  T* As() {
+    return static_cast<T*>(this);
+  }
+
+  template <typename T>
+  T const* As() const {
+    return static_cast<T const*>(this);
+  }
+
+  ObjPrimitive* as_primitive() {
+    return this->As<ObjPrimitive>();
+  }
+
+  ObjPrimitive const* as_primitive() const {
+    return this->As<ObjPrimitive>();
   }
 
   virtual ~Object() = default;
 
   virtual ObjPointer Clone() const = 0;
   virtual std::string ToString() const = 0;
-
-  [[maybe_unused]] virtual bool Equals(ObjPointer obj) const {
-    (void)obj;
-    return false;
-  }
-
-  template <std::derived_from<Object> T>
-  T* As() {
-    return static_cast<T*>(this);
-  }
-
-  template <std::derived_from<Object> T>
-  T const* As() const {
-    return static_cast<T*>(this);
-  }
 
 protected:
   Object(TypeInfo type);
@@ -106,7 +123,21 @@ struct ObjPrimitive : Object {
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
-    return this->type.equals(obj->type) && this->_data == obj->As<ObjPrimitive>()->_data;
+    if (!this->type.equals(obj->type))
+      return false;
+
+    switch (this->type.kind) {
+    case TypeKind::Float:
+      return this->vf == obj->get_vf();
+
+    case TypeKind::Bool:
+      return this->vb == obj->get_vb();
+
+    case TypeKind::Char:
+      return this->vc == obj->get_vc();
+    }
+
+    return this->vi == obj->get_vi();
   }
 
   ObjPrimitive(i64 vi = 0)
@@ -146,6 +177,9 @@ struct ObjIterable : Object {
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
+    if (!obj->type.is_iterable())
+      return false;
+
     if (this->list.size() != obj->As<ObjIterable>()->list.size())
       return false;
 
@@ -192,7 +226,7 @@ struct ObjEnumerator : Object {
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
-    return obj->type.equals(TypeKind::Enumerator) &&
+    return obj->type.kind == TypeKind::Enumerator &&
            this->ast == obj->As<ObjEnumerator>()->ast &&
            this->index == obj->As<ObjEnumerator>()->index;
   }
@@ -205,17 +239,14 @@ struct ObjEnumerator : Object {
 struct ObjInstance : Object {
   ASTPtr<AST::Class> ast;
 
-  std::map<std::string, ObjPointer> member;
-  std::vector<ObjPtr<ObjCallable>> member_funcs;
+  ObjVector member_variables;
 
-  ObjPointer& set_member_var(std::string const& name, ObjPointer obj);
-  ObjPtr<ObjCallable>& add_member_func(ObjPtr<ObjCallable> obj);
+  ObjPointer& add_member_var(ObjPointer obj) {
+    return this->member_variables.emplace_back(obj);
+  }
 
-  ObjPointer get_member_variable(std::string const& name) {
-    if (this->member.contains(name))
-      return this->member[name];
-
-    return nullptr;
+  ObjPointer& get_mvar(i64 index) {
+    return this->member_variables[index];
   }
 
   bool have_constructor() const;
@@ -304,6 +335,13 @@ struct ObjType : Object {
   std::string GetName() const;
 
   std::string ToString() const override;
+
+  bool Equals(ObjPointer obj) const override {
+    auto x = obj->As<ObjType>();
+
+    return this->typeinfo.equals(x->typeinfo) || this->ast_enum == x->ast_enum ||
+           this->ast_class == x->ast_class;
+  }
 
   ObjType(TypeInfo type)
       : Object(TypeKind::TypeName),

@@ -14,6 +14,22 @@ Object::Object(TypeInfo type)
       is_marked(false) {
 }
 
+i64 Object::get_vi() const {
+  return this->is_int() ? this->as_primitive()->vi : 0;
+}
+
+double Object::get_vf() const {
+  return this->is_float() ? this->as_primitive()->vf : 0;
+}
+
+char16_t Object::get_vc() const {
+  return this->is_char() ? this->as_primitive()->vc : 0;
+}
+
+bool Object::get_vb() const {
+  return this->is_boolean() ? this->as_primitive()->vb : 0;
+}
+
 ObjPrimitive* ObjPrimitive::to_float() {
   switch (this->type.kind) {
   case TypeKind::Int:
@@ -96,7 +112,7 @@ std::string ObjString::ToString() const {
 ObjPointer ObjString::Clone() const {
   auto obj = ObjNew<ObjString>();
 
-  for (auto&& c : obj->list) {
+  for (auto&& c : this->list) {
     obj->Append(c->Clone());
   }
 
@@ -105,9 +121,8 @@ ObjPointer ObjString::Clone() const {
 
 ObjString::ObjString(std::u16string const& str)
     : ObjIterable(TypeKind::String) {
-  if (!str.empty())
-    for (auto&& c : str)
-      this->Append(ObjNew<ObjPrimitive>(c));
+  for (auto&& c : str)
+    this->Append(ObjNew<ObjPrimitive>(c));
 }
 
 ObjString::ObjString(std::string const& str)
@@ -132,38 +147,28 @@ ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)
 // ----------------------------
 //  ObjInstance
 
-ObjPointer& ObjInstance::set_member_var(std::string const& name, ObjPointer obj) {
-  return this->member[name] = obj;
-}
-
-ObjPtr<ObjCallable>& ObjInstance::add_member_func(ObjPtr<ObjCallable> obj) {
-  return this->member_funcs.emplace_back(obj);
-}
-
-bool ObjInstance::have_constructor() const {
-  return (bool)this->ast->constructor.lock();
-}
-
-ASTPtr<AST::Function> ObjInstance::get_constructor() const {
-  return this->ast->constructor.lock();
-}
-
 ObjPointer ObjInstance::Clone() const {
   auto obj = ObjNew<ObjInstance>(this->ast);
 
-  for (auto&& [key, val] : this->member) {
-    obj->member[key] = val->Clone();
-  }
-
-  for (auto&& mf : this->member_funcs) {
-    obj->member_funcs.emplace_back(PtrCast<ObjCallable>(mf->Clone()));
+  for (auto&& m : this->member_variables) {
+    obj->add_member_var(m->Clone());
   }
 
   return obj;
 }
 
-std::string ObjInstance::ToString() const {
-  return "(ObjInstance of '"s + this->ast->GetName() + "')";
+string ObjInstance::ToString() const {
+  i64 _index = 0;
+
+  auto mvarlist = this->ast->get_member_variables();
+
+  return this->ast->GetName() + "{" +
+         utils::join<ObjPointer>(", ", this->member_variables,
+                                 [&mvarlist, &_index](ObjPointer obj) {
+                                   return mvarlist[_index++]->GetName() + ": " +
+                                          obj->ToString();
+                                 }) +
+         "}";
 }
 
 ObjInstance::ObjInstance(ASTPtr<AST::Class> ast)
@@ -187,8 +192,17 @@ ObjPointer ObjCallable::Clone() const {
   return ObjNew<ObjCallable>(*this);
 }
 
-std::string ObjCallable::ToString() const {
-  return "(ObjCallable)";
+string ObjCallable::ToString() const {
+  auto _args = this->type.params;
+
+  _args.erase(_args.begin());
+
+  return "<callable (" +
+         utils::join<TypeInfo>(", ", _args,
+                               [](TypeInfo const& t) {
+                                 return t.to_string();
+                               }) +
+         ") -> " + this->type.params[0].to_string() + ">";
 }
 
 ObjCallable::ObjCallable(ASTPtr<AST::Function> fp)
@@ -196,6 +210,7 @@ ObjCallable::ObjCallable(ASTPtr<AST::Function> fp)
       func(fp),
       builtin(nullptr),
       is_named(true) {
+  assert(fp);
 }
 
 ObjCallable::ObjCallable(builtins::Function const* fp)
@@ -203,6 +218,7 @@ ObjCallable::ObjCallable(builtins::Function const* fp)
       func(nullptr),
       builtin(fp),
       is_named(true) {
+  assert(fp);
 }
 
 // ----------------------------

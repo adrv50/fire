@@ -93,6 +93,11 @@ private:
   TokenVector tokens;
   TokenIterator cur, end, ate;
 
+  bool _in_class = false;
+  ASTPtr<AST::Class> _classptr = nullptr;
+
+  bool _in_loop = false;
+
   int _typeparam_bracket_depth = 0;
 };
 

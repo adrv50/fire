@@ -4,7 +4,8 @@
 namespace fire::AST {
 
 template <class T, class... Args>
-requires std::constructible_from<T, Args...> ASTPtr<T> ASTNew(Args&&... args) {
+requires std::constructible_from<T, Args...>
+ASTPtr<T> ASTNew(Args&&... args) {
 #if _DBG_DONT_USE_SMART_PTR_
   return new T(std::forward<Args>(args)...);
 #else
@@ -83,15 +84,15 @@ ASTPtr<Statement> Statement::NewSwitch(Token tok, ASTPointer cond,
   return ASTNew<Statement>(ASTKind::Switch, tok, Switch{cond, std::move(cases)});
 }
 
-ASTPtr<Statement> Statement::NewFor(Token tok, ASTVector init, ASTPointer cond,
-                                    ASTPtr<Block> block) {
+ASTPtr<Statement> Statement::NewWhile(Token tok, ASTPointer cond, ASTPtr<Block> block) {
 
-  return ASTNew<Statement>(ASTKind::For, tok, For{std::move(init), cond, block});
+  return ASTNew<Statement>(ASTKind::While, tok, While{cond, block});
 }
 
-ASTPtr<Statement> Statement::NewTryCatch(Token tok, ASTPtr<Block> tryblock, Token vname,
-                                         ASTPtr<Block> catched) {
-  return ASTNew<Statement>(ASTKind::TryCatch, tok, TryCatch{tryblock, vname, catched});
+ASTPtr<Statement> Statement::NewTryCatch(Token tok, ASTPtr<Block> tryblock,
+                                         vector<TryCatch::Catcher> catchers) {
+  return ASTNew<Statement>(ASTKind::TryCatch, tok,
+                           TryCatch{tryblock, std::move(catchers)});
 }
 
 ASTPtr<Statement> Statement::New(ASTKind kind, Token tok, std::any data) {
@@ -147,7 +148,7 @@ ASTPointer TypeName::Clone() const {
   auto x = New(this->name);
 
   for (auto&& p : this->type_params)
-    x->type_params.emplace_back(p->Clone());
+    x->type_params.emplace_back(ASTCast<TypeName>(p->Clone()));
 
   x->is_const = this->is_const;
 
@@ -182,8 +183,11 @@ ASTPointer Statement::Clone() const {
     return NewSwitch(this->token, d.cond->Clone(), std::move(_cases));
   }
 
-  case ASTKind::For:
-    todo_impl;
+  case ASTKind::While: {
+    auto d = this->get_data<While>();
+
+    return NewWhile(this->token, d.cond->Clone(), ASTCast<AST::Block>(d.block->Clone()));
+  }
 
   case ASTKind::Break:
   case ASTKind::Continue:

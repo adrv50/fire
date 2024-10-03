@@ -22,8 +22,8 @@ bool Parser::eat(std::string_view str) {
 
 void Parser::expect(std::string_view str, bool no_next) {
   if (!this->eat(str)) {
-    Error(*this->cur, "expected '" + std::string(str) + "' buf found '" +
-                          std::string(this->cur->str) + "'")();
+    throw Error(*this->cur, "expected '" + std::string(str) + "' buf found '" +
+                                std::string(this->cur->str) + "'");
   }
 
   if (no_next)
@@ -55,14 +55,13 @@ bool Parser::eat_typeparam_bracket_close() {
 
 void Parser::expect_typeparam_bracket_close() {
   if (!this->eat_typeparam_bracket_close()) {
-    Error(*this->cur, "expected '>'")();
+    throw Error(*this->cur, "expected '>'");
   }
 }
 
 TokenIterator Parser::expectIdentifier() {
   if (this->cur->kind != TokenKind::Identifier) {
-    Error(*this->cur,
-          "expected identifier but found '" + std::string(this->cur->str) + "'")();
+    throw Error(*(this->cur - 1), "expected identifier after this token");
   }
 
   return this->cur++;

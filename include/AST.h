@@ -26,14 +26,28 @@ enum class ASTKind {
   //  Semantics-Checker. Don't use this.
   Variable,
   FuncName,
+  BuiltinFuncName,
   Enumerator,
+  EnumName,
+  ClassName,
   // ------------------/
 
   Array,
 
   IndexRef,
+
   MemberAccess,
+
+  // /-----------------
+  MemberVariable, // => use ast->GetID() (to index in instance)
+  MemberFunction,
+  BuiltinMemberVariable,
+  BuiltinMemberFunction,
+  //   ------------------/
+
   CallFunc,
+
+  CallFunc_Ctor,
 
   //
   // in call-func expr.
@@ -72,21 +86,23 @@ enum class ASTKind {
   Vardef,
 
   If,
+
   Switch,
-  For,
+  While,
 
   Break,
   Continue,
+
   Return,
 
   Throw,
-
   TryCatch,
 
   Argument,
   Function,
 
   Enum,
+
   Class,
 
   TypeName,
@@ -105,6 +121,11 @@ struct Base {
   bool is_expr = false;
 
   ASTKind _constructed_as;
+
+  bool is_ident_or_scoperesol() const {
+    return this->_constructed_as == ASTKind::Identifier ||
+           this->_constructed_as == ASTKind::ScopeResol;
+  }
 
   template <class T>
   T* As() {
@@ -216,14 +237,40 @@ struct Variable : Named {
 
 struct Identifier : Named {
   Token paramtok; // "<"
-  ASTVec<TypeName> id_params;
 
-  // for FuncName
-  ASTVec<Function> func_candidates; // not used. what?
+  ASTVector id_params; // T = Identifier or ScopeResol
 
-  // if Variable
+  //
+  // for Kind::FuncName or BuiltinFuncName
+  ASTVec<Function> candidates;
+  vector<builtins::Function const*> candidates_builtin;
+
+  //
+  // オーバーロードの解決ができる情報がある文脈の場合は true
+  bool sema_allow_ambigious = false;
+
+  //
+  // テンプレート引数の型を推論できる文脈にある場合は true
+  bool sema_guess_parameter = false;
+
+  bool must_completed = true;
+
+  TypeInfo ft_ret;
+  vector<TypeInfo> ft_args;
+
+  //
+  // for BuiltinMemberVariable
+  builtins::MemberVariable const* blt_member_var = nullptr;
+
+  //
+  // for Kind::Variable
   int depth = 0;
-  int index = 0;
+  int index = 0; // (=> also member variable)
+
+  ASTPtr<Class> ast_class = nullptr;
+  ASTPtr<Enum> ast_enum = nullptr;
+
+  TypeInfo self_type; // if member
 
   static ASTPtr<Identifier> New(Token tok);
 
@@ -247,7 +294,7 @@ struct ScopeResol : Named {
   ASTPointer Clone() const override {
     auto x = New(ASTCast<AST::Identifier>(this->first->Clone()));
 
-    for (auto&& id : this->idlist)
+    for (ASTPtr<Identifier> const& id : this->idlist)
       x->idlist.emplace_back(ASTCast<Identifier>(id->Clone()));
 
     return x;
@@ -277,7 +324,7 @@ struct Array : Base {
   ASTPointer Clone() const override {
     auto x = New(this->token);
 
-    for (auto&& e : this->elements)
+    for (ASTPointer const& e : this->elements)
       x->elements.emplace_back(e->Clone());
 
     return x;
@@ -295,18 +342,24 @@ struct CallFunc : Base {
   ASTPtr<Function> callee_ast = nullptr;
   builtins::Function const* callee_builtin = nullptr;
 
+  bool call_functor = false;
+
   static ASTPtr<CallFunc> New(ASTPointer callee, ASTVector args = {});
 
   ASTPointer Clone() const override {
     auto x = New(this->callee);
 
-    for (auto&& a : this->args)
+    for (ASTPointer const& a : this->args)
       x->args.emplace_back(a->Clone());
 
     x->callee_ast = this->callee_ast;
     x->callee_builtin = this->callee_builtin;
 
     return x;
+  }
+
+  ASTPtr<Class> get_class_ptr() const {
+    return this->callee->GetID()->ast_class;
   }
 
   CallFunc(ASTPointer callee, ASTVector args = {})
@@ -327,6 +380,10 @@ struct Expr : Base {
     return New(this->kind, this->op, this->lhs->Clone(), this->rhs->Clone());
   }
 
+  Identifier* GetID() override {
+    return this->rhs->GetID();
+  }
+
   Expr(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs)
       : Base(kind, optok),
         op(this->token),
@@ -345,7 +402,7 @@ struct Block : Base {
   ASTPointer Clone() const override {
     auto x = New(this->token);
 
-    for (auto&& a : this->list)
+    for (ASTPointer const& a : this->list)
       x->list.emplace_back(a->Clone());
 
     return x;
@@ -358,7 +415,7 @@ struct Block : Base {
 };
 
 struct TypeName : Named {
-  ASTVector type_params;
+  ASTVec<TypeName> type_params;
   bool is_const;
 
   TypeInfo type;
@@ -411,17 +468,23 @@ struct Statement : Base {
     std::vector<Case> cases;
   };
 
-  struct For {
-    ASTVector init;
+  struct While {
     ASTPointer cond;
     ASTPtr<Block> block;
   };
 
   struct TryCatch {
-    ASTPtr<Block> tryblock;
+    struct Catcher {
+      Token varname; // name of variable to catch exception instance
+      ASTPtr<TypeName> type;
 
-    Token varname; // name of variable to catch exception instance
-    ASTPtr<Block> catched;
+      ASTPtr<Block> catched;
+
+      TypeInfo _type;
+    };
+
+    ASTPtr<Block> tryblock;
+    std::vector<Catcher> catchers;
   };
 
   template <class T>
@@ -443,11 +506,10 @@ struct Statement : Base {
   static ASTPtr<Statement> NewSwitch(Token tok, ASTPointer cond,
                                      std::vector<Switch::Case> cases = {});
 
-  static ASTPtr<Statement> NewFor(Token tok, ASTVector init, ASTPointer cond,
-                                  ASTPtr<Block> block);
+  static ASTPtr<Statement> NewWhile(Token tok, ASTPointer cond, ASTPtr<Block> block);
 
-  static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock, Token vname,
-                                       ASTPtr<Block> catched);
+  static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock,
+                                       vector<TryCatch::Catcher> catchers);
 
   static ASTPtr<Statement> New(ASTKind kind, Token tok,
                                std::any data = (ASTPointer) nullptr);
@@ -509,6 +571,8 @@ struct Function : Templatable {
   ASTPtr<Block> block;
 
   bool is_var_arg;
+
+  ASTPtr<Class> member_of = nullptr;
 
   ASTPtr<Argument>& add_arg(Token const& tok, ASTPtr<TypeName> type = nullptr) {
     return this->arguments.emplace_back(Argument::New(tok, type));
@@ -643,6 +707,8 @@ enum ASTWalkerLocation {
 };
 
 void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)> fn);
+
+string ToString(ASTPointer ast);
 
 } // namespace AST
 

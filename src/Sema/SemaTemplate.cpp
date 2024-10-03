@@ -21,19 +21,20 @@ Sema::InstantiateRequest* Sema::find_request_of_func(ASTPtr<AST::Function> func,
   return nullptr;
 }
 
-ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
-                                        ASTPtr<AST::CallFunc> call, IdentifierInfo idinfo,
-                                        ASTPtr<AST::Identifier> id,
-                                        TypeVec const& arg_types) {
+ASTPtr<AST::Function>
+Sema::instantiate_template_func(ASTPtr<AST::Function> func, ASTPointer reqeusted,
+                                ASTPtr<AST::Identifier> id, ASTVector args,
+                                TypeVec const& arg_types, bool ignore_args) {
+
+  if (func->is_var_arg ? args.size() < func->arguments.size()
+                       : func->arguments.size() != args.size())
+    return nullptr;
 
   InstantiateRequest req{
-      .requested = call,
-      .idinfo = idinfo,
+      .requested = reqeusted,
       .original = func,
       .arg_types = arg_types,
   };
-
-  req.idinfo = idinfo;
 
   auto& param_types = req.param_types;
 
@@ -48,45 +49,45 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
   for (i64 i = 0; i < (i64)id->id_params.size(); i++) {
     string formal_param_name = func->template_param_names[i].str;
 
-    ASTPtr<AST::TypeName> actual_parameter_type = id->id_params[i];
+    ASTPointer actual_parameter_type = id->id_params[i];
 
     param_types[formal_param_name] =
         InstantiateRequest::Argument{.type = this->EvalType(actual_parameter_type),
-                                     .ast = actual_parameter_type,
+                                     .given = actual_parameter_type,
                                      .is_deducted = true};
   }
 
   //
   // 引数の型から推論する
-  for (auto formal_arg_begin = func->arguments.begin(); auto&& arg_type : arg_types) {
+  for (size_t i = 0; i < func->arguments.size(); i++) {
+
+    ASTPtr<AST::Argument> formal_arg = func->arguments[i];
+    TypeInfo const& actual_type = arg_types[i];
 
     // formal_arg_begin   = 引数を定義してる構文へのポインタ
     // arg_type           = 渡された引数の型
 
-    string param_name = (*formal_arg_begin)->type->GetName();
+    string param_name = formal_arg->type->GetName();
 
     if (!param_types[param_name].is_deducted) {
 
       auto& _Param = param_types[param_name];
 
-      _Param.ast = (*formal_arg_begin)->type;
-      _Param.type = arg_type;
+      _Param.guess = args[i];
+      _Param.type = actual_type;
+
       _Param.is_deducted = true;
     }
-
-    formal_arg_begin++;
   }
 
   //
   // 推論できていないパラメータがある場合、エラー
   for (auto&& [_name, _data] : param_types) {
     if (!_data.is_deducted) {
-      throw Error(call,
+      throw Error(reqeusted,
                   "the type of template parameter '" + _name + "' is not deducted yet");
     }
   }
-
-  req.requested = call;
 
   req.cloned = ASTCast<AST::Function>(func->Clone()); // Instantiate.
 
@@ -139,21 +140,24 @@ ASTPtr<AST::Function> Sema::Instantiate(ASTPtr<AST::Function> func,
 
   this->RestoreScopeLocation();
 
+  if (ignore_args) {
+    todo_impl;
+  }
+
   TypeVec formal_arg_types;
 
   for (auto&& arg : req.cloned->arguments) {
     formal_arg_types.emplace_back(this->EvalType(arg->type));
   }
 
-  auto res = this->check_function_call_parameters(call, req.cloned->is_var_arg,
+  auto res = this->check_function_call_parameters(args, req.cloned->is_var_arg,
                                                   formal_arg_types, arg_types, false);
 
   switch (res.result) {
   case ArgumentCheckResult::TypeMismatch:
-    throw Error(call->args[res.index], "expected '" +
-                                           formal_arg_types[res.index].to_string() +
-                                           "' type expression, but found '" +
-                                           arg_types[res.index].to_string() + "'");
+    throw Error(args[res.index], "expected '" + formal_arg_types[res.index].to_string() +
+                                     "' type expression, but found '" +
+                                     arg_types[res.index].to_string() + "'");
 
   case ArgumentCheckResult::Ok: {
     req.result_type = this->EvalType(req.cloned->return_type);

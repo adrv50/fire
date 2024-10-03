@@ -149,17 +149,17 @@ Error const& Error::emit() const {
   // | (and next line if got)  and cursor
   ss << COL_DEFAULT << screen[2] << std::endl;
 
-  for (auto&& note : this->notes) {
-    ss << "     " << COL_DEFAULT COL_BOLD COL_NOTE << "note: " << COL_WHITE << note
-       << COL_DEFAULT << std::endl;
-  }
-
   std::cout << COL_DEFAULT << ss.str() << COL_DEFAULT << std::endl;
 
   _err_emitted_count++;
 
   for (auto&& e : this->chained)
     e.emit();
+
+  for (auto&& note : this->notes) {
+    std::cout << "     " << COL_DEFAULT COL_BOLD COL_NOTE << "note: " << COL_WHITE << note
+              << COL_DEFAULT << std::endl;
+  }
 
   return *this;
 }

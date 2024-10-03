@@ -13,6 +13,19 @@ namespace fire::semantics_checker {
 
 std::list<Sema::ScopeLocation> _bak_list;
 
+i64 Sema::resolution_overload(ASTVec<AST::Function>& out,
+                              ASTVec<AST::Function> const& candidates,
+                              FunctionSignature const& sig) {
+
+  (void)out;
+  (void)candidates;
+  (void)sig;
+
+  todo_impl;
+
+  return (i64)out.size();
+}
+
 ScopeContext* Sema::GetRootScope() {
   return this->_scope_context;
 }
@@ -171,9 +184,37 @@ Sema::NameFindResult Sema::find_name(string const& name) {
         result.builtin_funcs.emplace_back(&bfunc);
       }
     }
+  }
 
-    if (result.builtin_funcs.size() >= 1) {
-      result.type = NameType::BuiltinFunc;
+  if (result.builtin_funcs.size() >= 1) {
+    result.type = NameType::BuiltinFunc;
+  }
+  else {
+    // clang-format off
+    static std::pair<TypeKind, char const*> const kind_name_map[] {
+      { TypeKind::None,       "none" },
+      { TypeKind::Int,        "int" },
+      { TypeKind::Float,      "float" },
+      { TypeKind::Bool,       "bool" },
+      { TypeKind::Char,       "char" },
+      { TypeKind::String,     "string" },
+      { TypeKind::Vector,     "vector" },
+      { TypeKind::Tuple,      "tuple" },
+      { TypeKind::Dict,       "dict" },
+      { TypeKind::Instance,   "instance" },
+      { TypeKind::Module,     "module" },
+      { TypeKind::Function,   "function" },
+      { TypeKind::Module,     "module" },
+      { TypeKind::TypeName,   "type" },
+    };
+    // clang-format on
+
+    for (auto&& [k, s] : kind_name_map) {
+      if (s == name) {
+        result.type = NameType::TypeName;
+        result.kind = k;
+        break;
+      }
     }
   }
 
@@ -205,8 +246,24 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast) {
   id_info.ast = ast;
   id_info.result = this->find_name(ast->GetName());
 
-  for (auto&& x : ast->id_params)
-    id_info.id_params.emplace_back(this->EvalType(x));
+  for (auto&& x : ast->id_params) {
+    auto& y = id_info.id_params.emplace_back(this->EvalType(x));
+
+    if (y.kind == TypeKind::TypeName && y.params.size() == 1) {
+      y = y.params[0];
+    }
+
+    if (!id_info.template_args.emplace_back(this->get_identifier_info(x))
+             .result.is_type_name()) {
+      throw Error(x, "expected type-name expression");
+    }
+  }
+
+  switch (id_info.result.type) {
+  case NameType::Func:
+  case NameType::MemberFunc: {
+  }
+  }
 
   return id_info;
 }
@@ -239,14 +296,35 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
         _idx++;
       }
 
-      throw Error(id->token, "enumerator '" + id->GetName() + "' is not found in enum '" +
+      throw Error(id->token, "enumerator '" + name + "' is not found in enum '" +
                                  _enum->GetName() + "'");
     }
 
+    //
+    // class
+    //  => find static member function
     case NameType::Class: {
-      // auto _class = info.result.ast_class;
+      auto _class = info.result.ast_class;
 
-      todo_impl;
+      for (auto&& mf : _class->get_member_functions()) {
+        if (mf->GetName() == name) {
+          info.result.functions.emplace_back(mf);
+        }
+      }
+
+      if (!id->sema_allow_ambigious && info.result.functions.size() >= 2) {
+        throw Error(id->token, idname + "::" + name + " is ambiguous");
+      }
+
+      if (info.result.functions.empty()) {
+        throw Error(id->token, "member function '" + name + "' is not found in class '" +
+                                   _class->GetName() + "'");
+      }
+
+      info.ast = id;
+      info.result.type = NameType::MemberFunc;
+
+      break;
     }
 
     default:
@@ -258,6 +336,62 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
   }
 
   return info;
+}
+
+bool Sema::IsWritable(ASTPointer ast) {
+
+  switch (ast->kind) {
+  case ASTKind::Variable:
+    return true;
+
+  case ASTKind::IndexRef:
+  case ASTKind::MemberAccess:
+    return this->IsWritable(ASTCast<AST::Expr>(ast)->lhs);
+  }
+
+  return false;
+}
+
+TypeInfo Sema::ExpectType(TypeInfo const& type, ASTPointer ast) {
+  this->_expected.emplace_back(type);
+
+  if (auto t = this->EvalType(ast); !t.equals(type)) {
+    throw Error(ast, "expected '" + type.to_string() + "' type expression, but found '" +
+                         t.to_string() + "'");
+  }
+
+  return type;
+}
+
+TypeInfo* Sema::GetExpectedType() {
+  if (this->_expected.empty())
+    return nullptr;
+
+  return &*this->_expected.rbegin();
+}
+
+bool Sema::IsExpected(TypeKind kind) {
+  return !this->_expected.empty() && this->GetExpectedType()->kind == kind;
+}
+
+TypeInfo Sema::make_functor_type(ASTPtr<AST::Function> ast) {
+  TypeInfo ret = TypeKind::Function;
+
+  ret.params.emplace_back(this->EvalType(ast->return_type));
+
+  for (ASTPtr<AST::Argument> const& arg : ast->arguments)
+    ret.params.emplace_back(this->EvalType(arg->type));
+
+  return ret;
+}
+
+TypeInfo Sema::make_functor_type(builtins::Function const* builtin) {
+  TypeInfo ret = TypeKind::Function;
+
+  ret.params = builtin->arg_types;
+  ret.params.insert(ret.params.begin(), builtin->result_type);
+
+  return ret;
 }
 
 } // namespace fire::semantics_checker

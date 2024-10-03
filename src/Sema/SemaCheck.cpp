@@ -10,34 +10,24 @@
 namespace fire::semantics_checker {
 
 void Sema::check_full() {
-  alert;
   this->check(this->root);
 
-  alert;
+  /*
+
   this->SaveScopeLocation();
 
-  alertexpr(this->ins_requests.size());
-
-  alert;
   for (auto&& req : this->ins_requests) {
-    alert;
 
     this->_location = req.scope_loc;
 
-    alert;
     try {
 
-      alert;
-      alertexpr(req.cloned.get());
-
       assert(req.cloned != nullptr);
-      this->check(req.cloned);
 
-      alert;
+      this->check(req.cloned);
     }
     catch (Error err) {
-      alert;
-      string func_name = req.idinfo.to_string() + "@<";
+      string func_name = req.original->GetName() + "@<";
 
       for (int i = -1; auto&& [_name, _data] : req.param_types) {
         i++;
@@ -58,22 +48,41 @@ void Sema::check_full() {
       throw err.AddChain(Error(Error::ER_Note, req.requested, "requested here"))
           .InLocation("in instantiation of '" + func_name + "'");
     }
-    alert;
   }
 
-  alert;
   this->RestoreScopeLocation();
-
-  alert;
+  */
 }
 
 void Sema::check(ASTPointer ast) {
 
-  if (!ast) {
+  if (!ast)
     return;
-  }
 
   switch (ast->kind) {
+
+  case ASTKind::Class: {
+
+    std::map<string, bool> bb;
+
+    auto x = ASTCast<AST::Class>(ast);
+
+    auto xmv = x->get_member_variables();
+    auto xmf = x->get_member_functions();
+
+    for (auto&& mv : xmv) {
+      if (bb[mv->GetName()])
+        throw Error(mv->name, "duplicate member variable name");
+
+      bb[mv->GetName()] = true;
+    }
+
+    for (auto&& mf : xmf) {
+      this->check(mf);
+    }
+
+    break;
+  }
 
   case ASTKind::Function: {
     auto x = ASTCast<AST::Function>(ast);
@@ -93,6 +102,12 @@ void Sema::check(ASTPointer ast) {
 
     if (func->is_templated()) {
       break;
+    }
+    else {
+      for (auto&& arg : func->arguments) {
+        arg.deducted_type = this->EvalType(arg.arg->type);
+        arg.is_type_deducted = true;
+      }
     }
 
     this->EnterScope(x);
@@ -161,10 +176,12 @@ void Sema::check(ASTPointer ast) {
   case ASTKind::Block: {
     auto x = ASTCast<AST::Block>(ast);
 
-    this->EnterScope(x);
+    auto scope = (BlockScope*)this->EnterScope(x);
 
     for (auto&& e : x->list)
       this->check(e);
+
+    x->stack_size = scope->variables.size();
 
     this->LeaveScope();
 
@@ -186,7 +203,7 @@ void Sema::check(ASTPointer ast) {
     if (x->init) {
       auto type = this->EvalType(x->init);
 
-      if (var.is_type_deducted && !var.deducted_type.equals(type)) {
+      if (x->type && !var.deducted_type.equals(type)) {
         throw Error(x->init, "expected '" + var.deducted_type.to_string() +
                                  "' type expression, but found '" + type.to_string() +
                                  "'");
@@ -199,30 +216,70 @@ void Sema::check(ASTPointer ast) {
     break;
   }
 
-  case ASTKind::Throw: {
-    auto x = ASTCast<AST::Statement>(ast);
+  case ASTKind::If: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::If>();
 
-    this->check(x->get_expr());
-
-    break;
-  }
-
-  case ASTKind::Return: {
-    auto x = ASTCast<AST::Statement>(ast);
-
-    this->check(x->get_expr());
-
-    for (auto s = this->_location.History.rbegin(); s != this->_location.History.rend();
-         s++) {
-      if ((*s)->type == ScopeContext::SC_Func) {
-        break;
-      }
-
-      x->ret_func_scope_distance++;
+    if (!this->EvalType(d.cond).equals(TypeKind::Bool)) {
+      throw Error(d.cond, "expected boolean expression");
     }
 
+    this->check(d.if_true);
+    this->check(d.if_false);
+
+    ast->as_stmt()->set_data(d);
     break;
   }
+
+  case ASTKind::While: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::While>();
+
+    this->check(d.cond);
+    this->check(d.block);
+
+    ast->as_stmt()->set_data(d);
+    break;
+  }
+
+  case ASTKind::TryCatch: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::TryCatch>();
+
+    this->check(d.tryblock);
+
+    vector<std::pair<ASTPointer, TypeInfo>> temp;
+
+    for (auto&& c : d.catchers) {
+      auto type = this->EvalType(c.type);
+
+      for (auto&& c2 : d.catchers) {
+        if (type.equals(c2._type)) {
+          throw Error(c.type, "duplicated exception type")
+              .AddChain(Error(Error::ER_Note, c2.type, "first defined here"));
+        }
+      }
+
+      c._type = type;
+
+      auto& e = ((BlockScope*)this->GetScopeOf(c.catched))->variables[0];
+
+      e.name = c.varname.str;
+      e.deducted_type = this->EvalType(c.type);
+      e.is_type_deducted = true;
+
+      this->check(c.catched);
+    }
+
+    ast->as_stmt()->set_data(d);
+    break;
+  }
+
+  case ASTKind::Return:
+  case ASTKind::Throw:
+    this->check(ast->as_stmt()->get_expr());
+    break;
+
+  case ASTKind::Break:
+  case ASTKind::Continue:
+    break;
 
   default:
     this->EvalType(ast);

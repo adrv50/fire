@@ -30,7 +30,7 @@ ASTPointer Parser::Stmt() {
       }
     }
 
-    Error(tok, "not terminated block")();
+    throw Error(tok, "not terminated block");
   }
 
   if (this->eat("if")) {
@@ -53,17 +53,40 @@ ASTPointer Parser::Stmt() {
 
   if (this->eat("while")) {
     auto cond = this->Expr();
+  }
+
+  if (this->eat("for")) {
+    ASTPointer init = nullptr, cond = nullptr, step = nullptr;
+
+    if (this->match("let")) {
+      init = this->Stmt();
+    }
+    else if (!this->eat(";")) {
+      init = this->Expr();
+      this->expect(";");
+    }
+
+    if (!this->eat(";")) {
+      cond = this->Expr();
+      this->expect(";");
+    }
+    else {
+      cond = AST::Value::New(*this->ate, ObjNew<ObjPrimitive>(true));
+    }
+
+    if (!this->match("{")) {
+      step = this->Expr();
+    }
 
     this->expect("{", true);
     auto block = ASTCast<AST::Block>(this->Stmt());
 
-    return AST::Statement::NewFor(tok, {}, cond, block);
-  }
-
-  if (this->eat("for")) {
-    ASTVector init;
-
-    auto ast_1 = this->Expr();
+    return AST::Block::New(tok,
+                           {init, AST::Statement::NewWhile(tok, cond,
+                                                           AST::Block::New(tok, {
+                                                                                    block,
+                                                                                    step,
+                                                                                }))});
   }
 
   if (this->eat("return")) {
@@ -78,6 +101,9 @@ ASTPointer Parser::Stmt() {
   }
 
   if (this->eat("break")) {
+    if (!this->_in_loop)
+      throw Error(tok, "cannot use 'break' out of loop statement");
+
     auto ast = AST::Statement::New(ASTKind::Break, tok);
 
     this->expect(";");
@@ -85,6 +111,9 @@ ASTPointer Parser::Stmt() {
   }
 
   if (this->eat("continue")) {
+    if (!this->_in_loop)
+      throw Error(tok, "cannot use 'continue' out of loop statement");
+
     auto ast = AST::Statement::New(ASTKind::Continue, tok);
 
     this->expect(";");
@@ -115,16 +144,21 @@ ASTPointer Parser::Stmt() {
     this->expect("{", true);
     auto block = ASTCast<AST::Block>(this->Stmt());
 
-    this->expect("catch");
+    vector<AST::Statement::TryCatch::Catcher> catchers;
 
-    auto vname = *this->expectIdentifier();
-    todo_impl;
-    /* vname -> "e: Type" の構文を実装する (例外型) */
+    while (this->eat("catch")) {
+      auto name = *this->expectIdentifier();
 
-    this->expect("{", true);
-    auto catched = ASTCast<AST::Block>(this->Stmt());
+      this->expect(":");
+      auto type = this->expectTypeName();
 
-    return AST::Statement::NewTryCatch(tok, block, vname, catched);
+      this->expect("{", true);
+      auto block = ASTCast<AST::Block>(this->Stmt());
+
+      catchers.push_back({name, type, block, {}});
+    }
+
+    return AST::Statement::NewTryCatch(tok, block, std::move(catchers));
   }
 
   auto ast = this->Expr();
@@ -166,6 +200,12 @@ ASTPointer Parser::Top() {
 
     bool closed = false;
 
+    auto s1 = this->_in_class;
+    auto s2 = this->_classptr;
+
+    this->_in_class = true;
+    this->_classptr = ast;
+
     // member variables
     while (this->cur->str == "let") {
       ast->append(ASTCast<AST::VarDef>(this->Stmt()));
@@ -196,13 +236,16 @@ ASTPointer Parser::Top() {
     // member functions
     while (this->check() && !(closed = this->eat("}"))) {
       if (!this->match("fn", TokenKind::Identifier))
-        Error(*this->cur, "expected definition of member function")();
+        throw Error(*this->cur, "expected definition of member function");
 
       ast->append(ASTCast<AST::Function>(this->Top()));
     }
 
     if (!closed)
-      Error(iter[2], "not terminated block")();
+      throw Error(iter[2], "not terminated block");
+
+    this->_in_class = s1;
+    this->_classptr = s2;
 
     return ast;
   }
@@ -221,6 +264,15 @@ ASTPointer Parser::Top() {
     }
 
     this->expect("(");
+
+    if (auto tokkk = this->cur; this->_in_class && this->eat("self")) {
+      func->member_of = this->_classptr;
+
+      if (!this->eat(","))
+        this->expect(")", true);
+
+      func->add_arg(*tokkk, AST::TypeName::New(this->_classptr->name));
+    }
 
     if (!this->eat(")")) {
       do {
@@ -302,8 +354,9 @@ ASTPointer Parser::Top() {
 ASTPtr<AST::Block> Parser::Parse() {
   auto ret = AST::Block::New("");
 
-  while (this->check())
+  while (this->check()) {
     ret->list.emplace_back(this->Top());
+  }
 
   return ret;
 }

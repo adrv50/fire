@@ -14,21 +14,23 @@ static ObjPtr<ObjPrimitive> make_value_from_token(Token const& tok) {
   auto obj = ObjNew<ObjPrimitive>();
 
   switch (k) {
-  case TokenKind::Int:
+  case TokenKind::Int: {
     obj->type = TypeKind::Int;
     obj->vi = std::stoll(s);
     break;
+  }
 
-  case TokenKind::Float:
+  case TokenKind::Float: {
     obj->type = TypeKind::Float;
     obj->vf = std::stod(s);
     break;
+  }
 
   case TokenKind::Char: {
     auto s16 = utils::to_u16string(s.substr(1, s.length() - 2));
 
     if (s16.length() != 1)
-      Error(tok, "the length of character literal is must 1.")();
+      throw Error(tok, "the length of character literal is must 1.");
 
     obj->type = TypeKind::Char;
     obj->vc = s16[0];
@@ -36,10 +38,12 @@ static ObjPtr<ObjPrimitive> make_value_from_token(Token const& tok) {
     break;
   }
 
-  case TokenKind::Boolean:
+  case TokenKind::Boolean: {
+
     obj->type = TypeKind::Bool;
     obj->vb = s == "true";
     break;
+  }
 
   default:
     todo_impl;
@@ -91,7 +95,7 @@ ASTPointer Parser::Factor() {
           tok.sourceloc.position += (end - it);
           tok.sourceloc.length = 1;
 
-          Error(tok, "invalid escape sequence")();
+          throw Error(tok, "invalid escape sequence");
         }
       }
 
@@ -107,49 +111,38 @@ ASTPointer Parser::Factor() {
   case TokenKind::Boolean:
     return AST::Value::New(tok, make_value_from_token(tok));
 
-  case TokenKind::String:
-    return AST::Value::New(tok,
-                           ObjNew<ObjString>(tok.str.substr(1, tok.str.length() - 2)));
+  case TokenKind::String: {
+    auto xx =
+        AST::Value::New(tok, ObjNew<ObjString>(tok.str.substr(1, tok.str.length() - 2)));
+
+    return xx;
+  }
 
   case TokenKind::Identifier: {
-    static int _prs_depth = 0;
-
     auto x = AST::Identifier::New(tok);
 
-    if (this->match("@", "<")) {
-      _prs_depth++;
+    if (this->eat("@")) {
 
-      x->paramtok = this->cur[1];
-      this->cur += 2;
+      x->paramtok = *this->cur;
+
+      this->expect("<");
 
       do {
-        x->id_params.emplace_back(this->expectTypeName());
+        auto& templ_arg = x->id_params.emplace_back(this->ScopeResol());
+
+        if (!templ_arg->is_ident_or_scoperesol()) {
+          throw Error(templ_arg, "invalid syntax");
+        }
       } while (this->eat(","));
 
-      if (_prs_depth >= 2 && this->match(">>")) {
-        this->insert_token(">");
-        this->cur++;
-      }
-      else {
-        this->expect(">");
-      }
-
-      _prs_depth--;
+      this->expect_typeparam_bracket_close();
     }
 
     return x;
   }
-    /*
-    define:
-      fn func <T, U> (...) {
-      }
-
-    use:
-      func::<int, string>(...)
-    */
   }
 
-  Error(tok, "invalid syntax")();
+  throw Error(tok, "invalid syntax");
 }
 
 ASTPointer Parser::ScopeResol() {
@@ -157,7 +150,7 @@ ASTPointer Parser::ScopeResol() {
 
   if (this->match("::")) {
     if (x->kind != ASTKind::Identifier)
-      Error(*this->cur, "invalid syntax")();
+      throw Error(*this->cur, "invalid syntax");
 
     auto sr = AST::ScopeResol::New(ASTCast<AST::Identifier>(x));
 
@@ -166,7 +159,7 @@ ASTPointer Parser::ScopeResol() {
 
       if (sr->idlist.emplace_back(ASTCast<AST::Identifier>(this->Factor()))->kind !=
           ASTKind::Identifier)
-        Error(op, "invalid syntax")();
+        throw Error(op, "invalid syntax");
     }
 
     x = sr;
@@ -191,9 +184,8 @@ ASTPointer Parser::IndexRef() {
     else if (this->eat(".")) {
       auto rhs = this->ScopeResol();
 
-      if (rhs->kind != ASTKind::Variable) {
-        Error(op, "syntax error")();
-      }
+      if (rhs->kind != ASTKind::Identifier)
+        throw Error(op, "syntax error");
 
       x = new_expr(ASTKind::MemberAccess, op, x, rhs);
     }
@@ -237,7 +229,6 @@ ASTPointer Parser::Unary() {
   }
 
   this->eat("+");
-
   return this->IndexRef();
 }
 
@@ -301,13 +292,6 @@ ASTPointer Parser::Compare() {
   while (this->check()) {
     auto& op = *this->cur;
 
-    if (++count >= 2) {
-      if (_tok->str == "<" && (_tok - 1)->kind == TokenKind::Identifier) {
-        throw Error(op, "compare operator cannot be chained")
-            .AddNote("if you want to give template argument, write as '@<...>'");
-      }
-    }
-
     if (this->eat("=="))
       x = new_expr(ASTKind::Equal, op, x, this->Shift());
     else if (this->eat("!="))
@@ -323,6 +307,13 @@ ASTPointer Parser::Compare() {
       x = new_expr(ASTKind::BiggerOrEqual, op, this->Shift(), x);
     else
       break;
+
+    if (++count >= 2) {
+      if (_tok->str == "<" && (_tok - 1)->kind == TokenKind::Identifier) {
+        throw Error(op, "compare operator cannot be chained")
+            .AddNote("if you want to give template argument, write as '@<...>'");
+      }
+    }
   }
 
   return x;

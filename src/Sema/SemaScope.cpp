@@ -1,3 +1,5 @@
+#include <list>
+
 #include "alert.h"
 #include "Error.h"
 #include "Sema/Sema.h"
@@ -86,25 +88,85 @@ vector<ScopeContext*> ScopeContext::find_name(string const&) {
 // ------------------------------------
 //  BlockScope
 
-BlockScope::BlockScope(ASTPtr<AST::Block> ast)
+BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast)
     : ScopeContext(SC_Block),
       ast(ast) {
 
-  // Sema::GetInstance()->_scope_context = this;
+  this->depth = depth;
 
   for (auto&& e : ast->list) {
     switch (e->kind) {
-    case ASTKind::Block:
-      this->AddScope(new BlockScope(ASTCast<AST::Block>(e)));
+    case ASTKind::Block: {
+      this->AddScope(new BlockScope(this->depth + 1, ASTCast<AST::Block>(e)));
       break;
+    }
 
     case ASTKind::Function:
-      this->AddScope(new FunctionScope(ASTCast<AST::Function>(e)));
+      this->AddScope(new FunctionScope(this->depth + 1, ASTCast<AST::Function>(e)));
       break;
 
     case ASTKind::Vardef:
       this->add_var(ASTCast<AST::VarDef>(e));
       break;
+
+    case ASTKind::If: {
+      auto d = e->As<AST::Statement>()->get_data<AST::Statement::If>();
+
+      this->AddScope(new BlockScope(this->depth + 1,
+                                    ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_true))));
+
+      if (d.if_false) {
+        this->AddScope(new BlockScope(
+            this->depth + 1, ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_false))));
+      }
+
+      break;
+    }
+
+    case ASTKind::While: {
+      this->AddScope(new BlockScope(
+          this->depth + 1, e->as_stmt()->get_data<AST::Statement::While>().block));
+
+      break;
+    }
+
+    case ASTKind::Switch:
+      todo_impl;
+
+    case ASTKind::TryCatch: {
+      auto d = e->as_stmt()->get_data<AST::Statement::TryCatch>();
+
+      this->AddScope(new BlockScope(this->depth + 1, d.tryblock));
+
+      for (auto&& c : d.catchers) {
+        auto b = new BlockScope(this->depth + 1, c.catched);
+
+        auto& lvar = b->variables.emplace_back();
+
+        lvar.name = c.varname.str;
+        lvar.depth = b->depth;
+
+        this->AddScope(b);
+      }
+
+      break;
+    }
+
+    case ASTKind::Class: {
+      auto x = ASTCast<AST::Class>(e);
+
+      Sema::GetInstance()->add_class(x);
+
+      for (auto&& mf : x->get_member_functions())
+        this->AddScope(new FunctionScope(this->depth + 1, mf));
+
+      break;
+    }
+
+    case ASTKind::Enum: {
+      Sema::GetInstance()->add_enum(ASTCast<AST::Enum>(e));
+      break;
+    }
     }
   }
 }
@@ -117,11 +179,15 @@ BlockScope::~BlockScope() {
 ScopeContext::LocalVar& BlockScope::add_var(ASTPtr<AST::VarDef> def) {
   LocalVar* pvar = this->find_var(def->GetName());
 
-  if (!pvar)
+  if (!pvar) {
     pvar = &this->variables.emplace_back(def);
+    pvar->index = this->variables.size() - 1;
+  }
 
   pvar->depth = this->depth;
-  pvar->index = def->index = this->variables.size() - 1;
+  def->index = pvar->index;
+
+  // pvar->index = def->index = this->variables.size() - 1;
 
   this->ast->stack_size++;
 
@@ -180,9 +246,11 @@ vector<ScopeContext*> BlockScope::find_name(string const& name) {
 // ------------------------------------
 //  FunctionScope
 
-FunctionScope::FunctionScope(ASTPtr<AST::Function> ast)
+FunctionScope::FunctionScope(int depth, ASTPtr<AST::Function> ast)
     : ScopeContext(SC_Func),
       ast(ast) {
+
+  this->depth = depth;
 
   auto S = Sema::GetInstance();
 
@@ -201,8 +269,7 @@ FunctionScope::FunctionScope(ASTPtr<AST::Function> ast)
     this->add_arg(arg);
   }
 
-  this->block = new BlockScope(ast->block);
-  this->block->depth = this->depth + 1;
+  this->block = new BlockScope(this->depth + 1, ast->block);
 }
 
 FunctionScope::~FunctionScope() {
@@ -221,10 +288,10 @@ ScopeContext::LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
   arg.depth = this->depth;
   arg.index = this->arguments.size() - 1;
 
-  if (!this->is_templated()) {
-    arg.deducted_type = Sema::GetInstance()->EvalType(def->type);
-    arg.is_type_deducted = true;
-  }
+  // if (!this->is_templated()) {
+  //   arg.deducted_type = Sema::GetInstance()->EvalType(def->type);
+  //   arg.is_type_deducted = true;
+  // }
 
   return arg;
 }
