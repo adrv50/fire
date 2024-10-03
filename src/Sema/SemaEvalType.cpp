@@ -103,6 +103,17 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     return pvar->deducted_type;
   }
 
+  case Kind::FuncName: {
+    auto id = ast->GetID();
+
+    TypeInfo type = TypeKind::Function;
+
+    type.params = id->ft_args;
+    type.params.insert(type.params.begin(), id->ft_ret);
+
+    return type;
+  }
+
   case Kind::Array: {
     auto x = ast->As<AST::Array>();
     TypeInfo type = TypeKind::Vector;
@@ -773,14 +784,18 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     return dest;
   }
+
+  default:
+    if (ast->is_expr) {
+      return this->EvalExpr(ASTCast<AST::Expr>(ast));
+    }
+
+    Error(ast, "").emit();
+    alertmsg(static_cast<int>(ast->kind));
+    todo_impl;
   }
 
-  if (ast->is_expr) {
-    return this->EvalExpr(ASTCast<AST::Expr>(ast));
-  }
-
-  alertmsg(static_cast<int>(ast->kind));
-  todo_impl;
+  return TypeKind::None;
 }
 
 } // namespace fire::semantics_checker

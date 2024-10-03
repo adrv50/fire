@@ -256,8 +256,9 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     for (auto&& s : this->var_stack) {
       s->returned = true;
 
-      if (s == stack)
+      if (s == stack) {
         break;
+      }
     }
 
     break;

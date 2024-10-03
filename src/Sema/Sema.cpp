@@ -15,6 +15,9 @@ Sema::Sema(ASTPtr<AST::Block> prg)
   this->_scope_context = new BlockScope(0, prg);
 
   this->_location.Current = this->_scope_context;
+
+  // std::cout << this->_scope_context->to_string() << std::endl;
+  // todo_impl;
 }
 
 Sema::~Sema() {

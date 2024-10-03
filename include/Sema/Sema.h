@@ -219,6 +219,8 @@ private:
 
   ScopeLocation _location;
 
+  FunctionScope* cur_function = nullptr;
+
   ScopeContext* GetRootScope();
 
   ScopeContext*& GetCurScope();

@@ -69,6 +69,8 @@ struct ScopeContext {
 
   virtual ~ScopeContext() = default;
 
+  virtual std::string to_string() const = 0;
+
 protected:
   ScopeContext(Types type)
       : type(type) {
@@ -99,6 +101,8 @@ struct BlockScope : ScopeContext {
   ScopeContext* find_child_scope(ScopeContext* ctx) override;
 
   vector<ScopeContext*> find_name(string const& name) override;
+
+  std::string to_string() const override;
 
   BlockScope(int depth, ASTPtr<AST::Block> ast);
   ~BlockScope();
@@ -142,6 +146,8 @@ struct FunctionScope : ScopeContext {
   ScopeContext* find_child_scope(ASTPointer ast) override;
 
   vector<ScopeContext*> find_name(string const& name) override;
+
+  std::string to_string() const override;
 
   FunctionScope(int depth, ASTPtr<AST::Function> ast);
   ~FunctionScope();

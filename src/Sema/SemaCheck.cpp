@@ -102,51 +102,24 @@ void Sema::check(ASTPointer ast) {
     if (func->is_templated()) {
       break;
     }
-    else {
-      for (auto&& arg : func->arguments) {
-        arg.deducted_type = this->EvalType(arg.arg->type);
-        arg.is_type_deducted = true;
-      }
+
+    auto pfunc = this->cur_function;
+    this->cur_function = func;
+
+    for (auto&& arg : func->arguments) {
+      arg.deducted_type = this->EvalType(arg.arg->type);
+      arg.is_type_deducted = true;
     }
 
-    this->EnterScope(x);
-
     func->result_type = this->EvalType(x->return_type);
+
+    this->EnterScope(x);
 
     AST::walk_ast(func->block->ast, [&func](AST::ASTWalkerLocation loc, ASTPointer _ast) {
       if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
         func->return_stmt_list.emplace_back(ASTCast<AST::Statement>(_ast));
       }
     });
-
-    auto ret_type_note = Error(Error::ER_Note, func->ast->return_type, "specified here");
-
-    for (auto&& ret : func->return_stmt_list) {
-      auto expr = ret->As<AST::Statement>()->get_expr();
-
-      if (auto type = this->EvalType(expr); !type.equals(func->result_type)) {
-        if (func->result_type.equals(TypeKind::None)) {
-
-          //
-          // TODO: Suggest return type specification
-          //
-
-          throw Error(ret->token, "expected ';' after this token");
-        }
-        else if (!expr) {
-          Error(ret->token, "expected '" + func->result_type.to_string() +
-                                "' type expression after this token")
-              .emit();
-        }
-        else {
-          throw Error(expr, "expected '" + func->result_type.to_string() +
-                                "' type expression, but found '" + type.to_string() + "'")
-              .AddChain(ret_type_note);
-        }
-
-        goto _return_type_note;
-      }
-    }
 
     if (!func->result_type.equals(TypeKind::None)) {
       if (func->return_stmt_list.empty()) {
@@ -168,6 +141,8 @@ void Sema::check(ASTPointer ast) {
     this->check(x->block);
 
     this->LeaveScope();
+
+    this->cur_function = pfunc;
 
     break;
   }
@@ -271,10 +246,15 @@ void Sema::check(ASTPointer ast) {
     break;
   }
 
-  case ASTKind::Return:
-  case ASTKind::Throw:
+  case ASTKind::Return: {
+    this->ExpectType(this->cur_function->result_type, ast->as_stmt()->get_expr());
+    break;
+  }
+
+  case ASTKind::Throw: {
     this->check(ast->as_stmt()->get_expr());
     break;
+  }
 
   case ASTKind::Break:
   case ASTKind::Continue:

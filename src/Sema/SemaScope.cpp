@@ -243,6 +243,22 @@ vector<ScopeContext*> BlockScope::find_name(string const& name) {
   return vec;
 }
 
+std::string BlockScope::to_string() const {
+  static int indent = 0;
+
+  string s = "block depth=" + std::to_string(this->depth) + " {\n";
+
+  int _indent = indent;
+  indent++;
+
+  for (auto&& x : this->child_scopes) {
+    s += std::string(indent * 2, ' ') + x->to_string() + "\n";
+  }
+
+  indent = _indent;
+  return s + "\n" + std::string(indent * 2, ' ') + "}";
+}
+
 // ------------------------------------
 //  FunctionScope
 
@@ -335,6 +351,11 @@ ScopeContext* FunctionScope::find_child_scope(ScopeContext* ctx) {
 
 vector<ScopeContext*> FunctionScope::find_name(string const& name) {
   return this->block->find_name(name);
+}
+
+std::string FunctionScope::to_string() const {
+  return "function depth=" + std::to_string(this->depth) + " {\n" +
+         this->block->to_string() + "\n}";
 }
 
 // ------------------------------------
