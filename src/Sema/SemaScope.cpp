@@ -88,21 +88,21 @@ vector<ScopeContext*> ScopeContext::find_name(string const&) {
 // ------------------------------------
 //  BlockScope
 
-BlockScope::BlockScope(ASTPtr<AST::Block> ast)
+BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast)
     : ScopeContext(SC_Block),
       ast(ast) {
 
-  // Sema::GetInstance()->_scope_context = this;
+  this->depth = depth;
 
   for (auto&& e : ast->list) {
     switch (e->kind) {
     case ASTKind::Block: {
-      this->AddScope(new BlockScope(ASTCast<AST::Block>(e)));
+      this->AddScope(new BlockScope(this->depth + 1, ASTCast<AST::Block>(e)));
       break;
     }
 
     case ASTKind::Function:
-      this->AddScope(new FunctionScope(ASTCast<AST::Function>(e)));
+      this->AddScope(new FunctionScope(this->depth + 1, ASTCast<AST::Function>(e)));
       break;
 
     case ASTKind::Vardef:
@@ -112,23 +112,44 @@ BlockScope::BlockScope(ASTPtr<AST::Block> ast)
     case ASTKind::If: {
       auto d = e->As<AST::Statement>()->get_data<AST::Statement::If>();
 
-      this->AddScope(new BlockScope(ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_true))));
+      this->AddScope(new BlockScope(this->depth + 1,
+                                    ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_true))));
 
       if (d.if_false) {
-        this->AddScope(
-            new BlockScope(ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_false))));
+        this->AddScope(new BlockScope(
+            this->depth + 1, ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_false))));
       }
 
       break;
     }
 
-    case ASTKind::For: {
-      this->AddScope(new BlockScope(e->as_stmt()->get_data<AST::Statement::For>().block));
+    case ASTKind::While: {
+      this->AddScope(new BlockScope(
+          this->depth + 1, e->as_stmt()->get_data<AST::Statement::While>().block));
+
       break;
     }
 
     case ASTKind::Switch:
       todo_impl;
+
+    case ASTKind::TryCatch: {
+      auto d = e->as_stmt()->get_data<AST::Statement::TryCatch>();
+
+      this->AddScope(new BlockScope(this->depth + 1, d.tryblock));
+
+      for (auto&& c : d.catchers) {
+        auto b = new BlockScope(this->depth + 1, c.catched);
+
+        auto& lvar = b->variables.emplace_back();
+
+        lvar.name = c.varname.str;
+
+        this->AddScope(b);
+      }
+
+      break;
+    }
 
     case ASTKind::Class: {
       auto x = ASTCast<AST::Class>(e);
@@ -136,7 +157,7 @@ BlockScope::BlockScope(ASTPtr<AST::Block> ast)
       Sema::GetInstance()->add_class(x);
 
       for (auto&& mf : x->get_member_functions())
-        this->AddScope(new FunctionScope(mf));
+        this->AddScope(new FunctionScope(this->depth + 1, mf));
 
       break;
     }
@@ -224,9 +245,11 @@ vector<ScopeContext*> BlockScope::find_name(string const& name) {
 // ------------------------------------
 //  FunctionScope
 
-FunctionScope::FunctionScope(ASTPtr<AST::Function> ast)
+FunctionScope::FunctionScope(int depth, ASTPtr<AST::Function> ast)
     : ScopeContext(SC_Func),
       ast(ast) {
+
+  this->depth = depth;
 
   auto S = Sema::GetInstance();
 
@@ -245,8 +268,7 @@ FunctionScope::FunctionScope(ASTPtr<AST::Function> ast)
     this->add_arg(arg);
   }
 
-  this->block = new BlockScope(ast->block);
-  this->block->depth = this->depth + 1;
+  this->block = new BlockScope(this->depth + 1, ast->block);
 }
 
 FunctionScope::~FunctionScope() {

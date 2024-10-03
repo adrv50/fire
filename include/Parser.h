@@ -97,7 +97,6 @@ private:
   ASTPtr<AST::Class> _classptr = nullptr;
 
   bool _in_loop = false;
-  bool _in_trycatch = false;
 
   int _typeparam_bracket_depth = 0;
 };

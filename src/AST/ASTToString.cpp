@@ -63,12 +63,43 @@ string ToString(ASTPointer ast) {
   case ASTKind::Block: {
     indent++;
 
-    auto s = "{\n" + get_indent() + join(get_indent() + ";\n", ast->As<Block>()->list);
+    auto s = "{\n" + get_indent() + join(";\n" + get_indent(), ast->As<Block>()->list);
 
     indent--;
     s += "\n" + get_indent() + "}";
 
     return s;
+  }
+
+  case ASTKind::While: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::While>();
+
+    return "while " + ToString(d.cond) + " " + ToString(d.block);
+  }
+
+  case ASTKind::If: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::If>();
+
+    auto s = "if " + ToString(d.cond) + " " + ToString(d.if_true);
+
+    if (d.if_false)
+      s += "else " + ToString(d.if_false);
+
+    return s;
+  }
+
+  case ASTKind::Vardef: {
+    auto x = ASTCast<AST::VarDef>(ast);
+
+    auto s = "let " + x->GetName();
+
+    if (x->type)
+      s += " : " + ToString(x->type);
+
+    if (x->init)
+      s += " = " + ToString(x->init);
+
+    return s + ";";
   }
   }
 

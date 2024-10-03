@@ -12,7 +12,7 @@ Sema::Sema(ASTPtr<AST::Block> prg)
     : root(prg) {
   _sema_instances.emplace_back(this);
 
-  this->_scope_context = new BlockScope(prg);
+  this->_scope_context = new BlockScope(0, prg);
 
   this->_location.Current = this->_scope_context;
 }

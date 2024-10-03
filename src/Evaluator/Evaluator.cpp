@@ -15,21 +15,18 @@ Evaluator::Evaluator() {
 Evaluator::~Evaluator() {
 }
 
-Evaluator::VarStack& Evaluator::push_stack(int var_size) {
-
-  auto& stack = this->var_stack.emplace_front();
-
-  stack.var_list.reserve((size_t)var_size);
-
-  return stack;
+Evaluator::VarStack& Evaluator::push_stack(size_t var_count) {
+  return *this->var_stack.emplace_front(new VarStack(var_count));
 }
 
 void Evaluator::pop_stack() {
+  delete *this->var_stack.begin();
+
   this->var_stack.pop_front();
 }
 
 Evaluator::VarStack& Evaluator::get_cur_stack() {
-  return *this->var_stack.begin();
+  return **this->var_stack.begin();
 }
 
 Evaluator::VarStack& Evaluator::get_stack(int distance) {
@@ -38,7 +35,7 @@ Evaluator::VarStack& Evaluator::get_stack(int distance) {
   for (int i = 0; i < distance; i++)
     it++;
 
-  return *it;
+  return **it;
 }
 
 ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
@@ -237,14 +234,17 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     stack->func_result = this->evaluate(stmt->get_expr());
 
     for (auto&& s : this->var_stack) {
-      s.returned = true;
+      s->returned = true;
 
-      if (&s == stack)
+      if (s == stack)
         break;
     }
 
     break;
   }
+
+  case Kind::Throw:
+    throw this->evaluate(ast->as_stmt()->get_expr());
 
   case Kind::Break:
     (*this->loops.begin())->breaked = true;
@@ -284,34 +284,52 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     break;
   }
 
-  case Kind::For: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::For>();
+  case Kind::While: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::While>();
 
-    auto& stack = this->push_stack(d.block->stack_size);
+    while (this->evaluate(d.cond)->get_vb()) {
+      this->evaluate(d.block);
+    }
 
-    this->loops.push_front(&stack);
+    break;
+  }
 
-    this->evaluate(d.init);
+  case Kind::TryCatch: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::TryCatch>();
 
-    while (!d.cond || this->evaluate(d.cond)->get_vb()) {
-      for (auto&& x : d.block->list) {
-        this->evaluate(x);
+    auto s1 = this->var_stack;
+    auto s2 = this->call_stack;
+    auto s3 = this->loops;
 
-        if (stack.breaked)
-          goto __loop_break;
+    try {
+      this->evaluate(d.tryblock);
+    }
+    catch (ObjPointer obj) {
+      this->var_stack = s1;
+      this->call_stack = s2;
+      this->loops = s3;
 
-        if (stack.continued) {
-          stack.continued = false;
-          break;
+      for (auto&& c : d.catchers) {
+        if (c._type.equals(obj->type)) {
+          auto& s = this->push_stack(1);
+
+          s.var_list = {obj};
+
+          for (auto&& x : c.catched->list) {
+            this->evaluate(x);
+
+            if (s.returned)
+              break;
+          }
+
+          this->pop_stack();
+
+          return _None;
         }
       }
 
-      this->evaluate(d.step);
+      Error::fatal_error("unhandled exception type: '" + obj->type.to_string() + "'");
     }
-
-  __loop_break:
-    this->pop_stack();
-    this->loops.pop_front();
 
     break;
   }

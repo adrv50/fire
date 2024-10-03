@@ -86,8 +86,6 @@ struct BlockScope : ScopeContext {
   vector<ScopeContext*> child_scopes;
 
   ScopeContext*& AddScope(ScopeContext* s) {
-    s->depth = this->depth + 1;
-
     return this->child_scopes.emplace_back(s);
   }
 
@@ -102,7 +100,7 @@ struct BlockScope : ScopeContext {
 
   vector<ScopeContext*> find_name(string const& name) override;
 
-  BlockScope(ASTPtr<AST::Block> ast);
+  BlockScope(int depth, ASTPtr<AST::Block> ast);
   ~BlockScope();
 };
 
@@ -123,11 +121,7 @@ struct FunctionScope : ScopeContext {
   vector<FunctionScope*> instantiated;
 
   FunctionScope*& AppendInstantiated(ASTPtr<AST::Function> fn) {
-    auto& fs = this->instantiated.emplace_back(new FunctionScope(fn));
-
-    fs->depth = this->depth;
-
-    return fs;
+    return this->instantiated.emplace_back(new FunctionScope(this->depth, fn));
   }
 
   bool is_templated() const {
@@ -149,7 +143,7 @@ struct FunctionScope : ScopeContext {
 
   vector<ScopeContext*> find_name(string const& name) override;
 
-  FunctionScope(ASTPtr<AST::Function> ast);
+  FunctionScope(int depth, ASTPtr<AST::Function> ast);
   ~FunctionScope();
 };
 

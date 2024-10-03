@@ -86,15 +86,16 @@ enum class ASTKind {
   Vardef,
 
   If,
+
   Switch,
-  For,
+  While,
 
   Break,
   Continue,
+
   Return,
 
   Throw,
-
   TryCatch,
 
   Argument,
@@ -467,18 +468,23 @@ struct Statement : Base {
     std::vector<Case> cases;
   };
 
-  struct For {
-    ASTPointer init;
+  struct While {
     ASTPointer cond;
-    ASTPointer step;
     ASTPtr<Block> block;
   };
 
   struct TryCatch {
-    ASTPtr<Block> tryblock;
+    struct Catcher {
+      Token varname; // name of variable to catch exception instance
+      ASTPtr<TypeName> type;
 
-    Token varname; // name of variable to catch exception instance
-    ASTPtr<Block> catched;
+      ASTPtr<Block> catched;
+
+      TypeInfo _type;
+    };
+
+    ASTPtr<Block> tryblock;
+    std::vector<Catcher> catchers;
   };
 
   template <class T>
@@ -500,11 +506,10 @@ struct Statement : Base {
   static ASTPtr<Statement> NewSwitch(Token tok, ASTPointer cond,
                                      std::vector<Switch::Case> cases = {});
 
-  static ASTPtr<Statement> NewFor(Token tok, ASTPointer init, ASTPointer cond,
-                                  ASTPointer step, ASTPtr<Block> block);
+  static ASTPtr<Statement> NewWhile(Token tok, ASTPointer cond, ASTPtr<Block> block);
 
-  static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock, Token vname,
-                                       ASTPtr<Block> catched);
+  static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock,
+                                       vector<TryCatch::Catcher> catchers);
 
   static ASTPtr<Statement> New(ASTKind kind, Token tok,
                                std::any data = (ASTPointer) nullptr);

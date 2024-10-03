@@ -12,6 +12,8 @@ namespace fire::semantics_checker {
 void Sema::check_full() {
   this->check(this->root);
 
+  /*
+
   this->SaveScopeLocation();
 
   for (auto&& req : this->ins_requests) {
@@ -49,6 +51,7 @@ void Sema::check_full() {
   }
 
   this->RestoreScopeLocation();
+  */
 }
 
 void Sema::check(ASTPointer ast) {
@@ -184,6 +187,7 @@ void Sema::check(ASTPointer ast) {
 
     break;
   }
+
   case ASTKind::Vardef: {
 
     auto x = ASTCast<AST::VarDef>(ast);
@@ -225,43 +229,50 @@ void Sema::check(ASTPointer ast) {
     break;
   }
 
-  case ASTKind::For: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::For>();
+  case ASTKind::While: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::While>();
 
-    this->check(d.init);
     this->check(d.cond);
-    this->check(d.step);
     this->check(d.block);
 
     break;
   }
 
-  case ASTKind::Throw: {
-    auto x = ASTCast<AST::Statement>(ast);
+  case ASTKind::TryCatch: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::TryCatch>();
 
-    this->check(x->get_expr());
+    this->check(d.tryblock);
 
-    break;
-  }
+    vector<std::pair<ASTPointer, TypeInfo>> temp;
 
-  case ASTKind::Return: {
-    auto x = ASTCast<AST::Statement>(ast);
+    for (auto&& c : d.catchers) {
+      auto type = this->EvalType(c.type);
 
-    this->check(x->get_expr());
-
-    alertexpr(this->_location.History.size());
-
-    for (auto s = this->_location.History.rbegin(); s != this->_location.History.rend();
-         s++) {
-      if ((*s)->type == ScopeContext::SC_Func) {
-        break;
+      for (auto&& c2 : d.catchers) {
+        if (type.equals(c2._type)) {
+          throw Error(c.type, "duplicated exception type")
+              .AddChain(Error(Error::ER_Note, c2.type, "first defined here"));
+        }
       }
 
-      x->ret_func_scope_distance++;
+      c._type = type;
+
+      auto& e = ((BlockScope*)this->GetScopeOf(c.catched))->variables[0];
+
+      e.name = c.varname.str;
+      e.deducted_type = this->EvalType(c.type);
+      e.is_type_deducted = true;
+
+      this->check(c.catched);
     }
 
     break;
   }
+
+  case ASTKind::Return:
+  case ASTKind::Throw:
+    this->check(ast->as_stmt()->get_expr());
+    break;
 
   case ASTKind::Break:
   case ASTKind::Continue:

@@ -59,8 +59,23 @@ bool TypeInfo::equals(TypeInfo const& type) const {
   if (this->kind != type.kind)
     return false;
 
+  if (this->is_const != type.is_const)
+    return false;
+
   if (this->params.size() != type.params.size())
     return false;
+
+  switch (this->kind) {
+  case TypeKind::TypeName:
+    if (this->type_ast != type.type_ast)
+      return false;
+    break;
+
+  case TypeKind::Function:
+    if (this->is_free_args != type.is_free_args)
+      return false;
+    break;
+  }
 
   for (auto it = this->params.begin(); auto&& t : type.params)
     if (!it->equals(t))

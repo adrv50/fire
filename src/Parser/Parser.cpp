@@ -53,26 +53,10 @@ ASTPointer Parser::Stmt() {
 
   if (this->eat("while")) {
     auto cond = this->Expr();
-
-    this->expect("{", true);
-    auto block = ASTCast<AST::Block>(this->Stmt());
-
-    return AST::Statement::NewFor(tok, nullptr, cond, nullptr, block);
   }
 
-  /*
-    for-statement:
-
-    1.  for let a = val; cond; step
-    2.  for a; b; c
-  */
   if (this->eat("for")) {
-
     ASTPointer init = nullptr, cond = nullptr, step = nullptr;
-
-    bool b = this->_in_loop;
-
-    this->_in_loop = true;
 
     if (this->match("let")) {
       init = this->Stmt();
@@ -86,23 +70,23 @@ ASTPointer Parser::Stmt() {
       cond = this->Expr();
       this->expect(";");
     }
+    else {
+      cond = AST::Value::New(*this->ate, ObjNew<ObjPrimitive>(true));
+    }
 
     if (!this->match("{")) {
       step = this->Expr();
     }
 
     this->expect("{", true);
+    auto block = ASTCast<AST::Block>(this->Stmt());
 
-    auto ast = AST::Statement::NewFor(tok, init->kind == ASTKind::Vardef ? nullptr : init,
-                                      cond, step, ASTCast<AST::Block>(this->Stmt()));
-
-    this->_in_loop = b;
-
-    if (init->kind == ASTKind::Vardef) {
-      return AST::Block::New(tok, {init, ast});
-    }
-
-    return ast;
+    return AST::Block::New(tok,
+                           {init, AST::Statement::NewWhile(tok, cond,
+                                                           AST::Block::New(tok, {
+                                                                                    block,
+                                                                                    step,
+                                                                                }))});
   }
 
   if (this->eat("return")) {
@@ -137,9 +121,6 @@ ASTPointer Parser::Stmt() {
   }
 
   if (this->eat("throw")) {
-    if (!this->_in_trycatch)
-      throw Error(tok, "cannot use 'throw' out of try-catch statement");
-
     auto ast = AST::Statement::New(ASTKind::Throw, tok, this->Expr());
 
     this->expect(";");
@@ -160,25 +141,24 @@ ASTPointer Parser::Stmt() {
   }
 
   if (this->eat("try")) {
-    bool b = this->_in_trycatch;
-
-    this->_in_trycatch = true;
-
     this->expect("{", true);
     auto block = ASTCast<AST::Block>(this->Stmt());
 
-    this->expect("catch");
+    vector<AST::Statement::TryCatch::Catcher> catchers;
 
-    auto vname = *this->expectIdentifier();
-    todo_impl;
-    /* vname -> "e: Type" の構文を実装する (例外型) */
+    while (this->eat("catch")) {
+      auto name = *this->expectIdentifier();
 
-    this->expect("{", true);
-    auto catched = ASTCast<AST::Block>(this->Stmt());
+      this->expect(":");
+      auto type = this->expectTypeName();
 
-    this->_in_trycatch = b;
+      this->expect("{", true);
+      auto block = ASTCast<AST::Block>(this->Stmt());
 
-    return AST::Statement::NewTryCatch(tok, block, vname, catched);
+      catchers.push_back({name, type, block, {}});
+    }
+
+    return AST::Statement::NewTryCatch(tok, block, std::move(catchers));
   }
 
   auto ast = this->Expr();
