@@ -13,6 +13,15 @@ namespace fire::semantics_checker {
 
 std::list<Sema::ScopeLocation> _bak_list;
 
+i64 Sema::resolution_overload(ASTVec<AST::Function>& out,
+                              ASTVec<AST::Function> const& candidates,
+                              FunctionSignature const& sig) {
+
+  todo_impl;
+
+  return (i64)out.size();
+}
+
 ScopeContext* Sema::GetRootScope() {
   return this->_scope_context;
 }
@@ -171,9 +180,37 @@ Sema::NameFindResult Sema::find_name(string const& name) {
         result.builtin_funcs.emplace_back(&bfunc);
       }
     }
+  }
 
-    if (result.builtin_funcs.size() >= 1) {
-      result.type = NameType::BuiltinFunc;
+  if (result.builtin_funcs.size() >= 1) {
+    result.type = NameType::BuiltinFunc;
+  }
+  else {
+    // clang-format off
+    static std::pair<TypeKind, char const*> const kind_name_map[] {
+      { TypeKind::None,       "none" },
+      { TypeKind::Int,        "int" },
+      { TypeKind::Float,      "float" },
+      { TypeKind::Bool,       "bool" },
+      { TypeKind::Char,       "char" },
+      { TypeKind::String,     "string" },
+      { TypeKind::Vector,     "vector" },
+      { TypeKind::Tuple,      "tuple" },
+      { TypeKind::Dict,       "dict" },
+      { TypeKind::Instance,   "instance" },
+      { TypeKind::Module,     "module" },
+      { TypeKind::Function,   "function" },
+      { TypeKind::Module,     "module" },
+      { TypeKind::TypeName,   "type" },
+    };
+    // clang-format on
+
+    for (auto&& [k, s] : kind_name_map) {
+      if (s == name) {
+        result.type = NameType::TypeName;
+        result.kind = k;
+        break;
+      }
     }
   }
 
@@ -205,8 +242,24 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast) {
   id_info.ast = ast;
   id_info.result = this->find_name(ast->GetName());
 
-  for (auto&& x : ast->id_params)
-    id_info.id_params.emplace_back(this->EvalType(x));
+  for (auto&& x : ast->id_params) {
+    auto& y = id_info.id_params.emplace_back(this->EvalType(x));
+
+    if (y.kind == TypeKind::TypeName && y.params.size() == 1) {
+      y = y.params[0];
+    }
+
+    if (!id_info.template_args.emplace_back(this->get_identifier_info(x))
+             .result.is_type_name()) {
+      throw Error(x, "expected type-name expression");
+    }
+  }
+
+  switch (id_info.result.type) {
+  case NameType::Func:
+  case NameType::MemberFunc: {
+  }
+  }
 
   return id_info;
 }

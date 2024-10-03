@@ -45,6 +45,14 @@ bool TypeInfo::is_primitive_name(std::string_view name) {
 }
 
 bool TypeInfo::equals(TypeInfo const& type) const {
+  if (this->kind == TypeKind::Instance && type.kind == TypeKind::TypeName) {
+    return this->type_ast == type.type_ast;
+  }
+
+  if (this->kind == TypeKind::TypeName && type.kind == TypeKind::Instance) {
+    return this->type_ast == type.type_ast;
+  }
+
   if (this->kind == TypeKind::Unknown || type.kind == TypeKind::Unknown)
     return true;
 
@@ -86,9 +94,12 @@ string TypeInfo::to_string() const {
   string ret;
 
   switch (this->kind) {
+  case TypeKind::TypeName:
+    if (this->params.size() == 1)
+      return "<typeinfo " + this->params[0].to_string() + ">";
+
   case TypeKind::Instance:
   case TypeKind::Enumerator:
-  case TypeKind::TypeName:
   case TypeKind::Unknown:
     ret = this->name;
     break;
@@ -97,7 +108,21 @@ string TypeInfo::to_string() const {
     ret = kind_name_map[this->kind];
   }
 
-  if (!this->params.empty()) {
+  if (this->kind == TypeKind::Function) {
+    ret += "<(";
+
+    for (auto it = this->params.begin() + 1; it < this->params.end(); it++) {
+      ret += it->to_string();
+      if (it + 1 != this->params.end())
+        ret += ", ";
+    }
+
+    if (this->is_free_args)
+      ret += "...";
+
+    ret += ") -> " + this->params[0].to_string() + ">";
+  }
+  else if (!this->params.empty()) {
     ret += "<" +
            utils::join<TypeInfo>(", ", this->params,
                                  [](TypeInfo t) -> string {

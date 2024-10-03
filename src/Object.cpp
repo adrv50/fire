@@ -157,8 +157,18 @@ ObjPointer ObjInstance::Clone() const {
   return obj;
 }
 
-std::string ObjInstance::ToString() const {
-  return "(ObjInstance of '"s + this->ast->GetName() + "')";
+string ObjInstance::ToString() const {
+  i64 _index = 0;
+
+  auto mvarlist = this->ast->get_member_variables();
+
+  return this->ast->GetName() + "{" +
+         utils::join<ObjPointer>(", ", this->member_variables,
+                                 [&mvarlist, &_index](ObjPointer obj) {
+                                   return mvarlist[_index++]->GetName() + ": " +
+                                          obj->ToString();
+                                 }) +
+         "}";
 }
 
 ObjInstance::ObjInstance(ASTPtr<AST::Class> ast)
@@ -182,8 +192,17 @@ ObjPointer ObjCallable::Clone() const {
   return ObjNew<ObjCallable>(*this);
 }
 
-std::string ObjCallable::ToString() const {
-  return "(ObjCallable)";
+string ObjCallable::ToString() const {
+  auto _args = this->type.params;
+
+  _args.erase(_args.begin());
+
+  return "<callable (" +
+         utils::join<TypeInfo>(", ", _args,
+                               [](TypeInfo const& t) {
+                                 return t.to_string();
+                               }) +
+         ") -> " + this->type.params[0].to_string() + ">";
 }
 
 ObjCallable::ObjCallable(ASTPtr<AST::Function> fp)
@@ -191,6 +210,7 @@ ObjCallable::ObjCallable(ASTPtr<AST::Function> fp)
       func(fp),
       builtin(nullptr),
       is_named(true) {
+  assert(fp);
 }
 
 ObjCallable::ObjCallable(builtins::Function const* fp)
@@ -198,6 +218,7 @@ ObjCallable::ObjCallable(builtins::Function const* fp)
       func(nullptr),
       builtin(fp),
       is_named(true) {
+  assert(fp);
 }
 
 // ----------------------------

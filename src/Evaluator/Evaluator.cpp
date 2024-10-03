@@ -105,6 +105,26 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     return this->get_stack(x->depth /*distance*/).var_list[x->index];
   }
 
+  case Kind::FuncName: {
+    auto id = ast->GetID();
+    auto obj = ObjNew<ObjCallable>(id->candidates[0]);
+
+    obj->type.params = id->ft_args;
+    obj->type.params.insert(obj->type.params.begin(), id->ft_ret);
+
+    return obj;
+  }
+
+  case Kind::BuiltinFuncName: {
+    auto id = ast->GetID();
+    auto obj = ObjNew<ObjCallable>(id->candidates_builtin[0]);
+
+    obj->type.params = id->ft_args;
+    obj->type.params.insert(obj->type.params.begin(), id->ft_ret);
+
+    return obj;
+  }
+
   case Kind::Array: {
     CAST(Array);
 
@@ -164,15 +184,27 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       args.emplace_back(this->evaluate(arg));
     }
 
-    if (x->callee_builtin) {
-      return x->callee_builtin->Call(x, std::move(args));
+    auto _func = x->callee_ast;
+    auto _builtin = x->callee_builtin;
+
+    if (x->call_functor) {
+      auto functor = PtrCast<ObjCallable>(this->evaluate(x->callee));
+
+      if (functor->func)
+        _func = functor->func;
+      else
+        _builtin = functor->builtin;
+    }
+
+    if (_builtin) {
+      return _builtin->Call(x, std::move(args));
     }
 
     auto& stack = this->push_stack(x->args.size());
 
     stack.var_list = std::move(args);
 
-    this->evaluate(x->callee_ast->block);
+    this->evaluate(_func->block);
 
     auto result = stack.func_result;
 

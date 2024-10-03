@@ -69,6 +69,12 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
     }
 
+    for (auto&& inst : this->inst_scope) {
+      if (auto p = inst.find_name(x->GetName()); p) {
+        return *p;
+      }
+    }
+
     auto rs = this->find_name(x->GetName());
 
     switch (rs.type) {
@@ -76,7 +82,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       return TypeInfo::from_enum(rs.ast_enum);
 
     case NameType::Class:
-      return TypeInfo::from_class(rs.ast_class);
+      return TypeInfo::instance_of(rs.ast_class);
     }
 
     // type.name = x->GetName();
@@ -163,11 +169,49 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       id->candidates = std::move(idinfo.result.functions);
 
-      if (id->candidates.size() >= 2) {
-        if (!id->sema_allow_ambigious)
-          throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
+      ASTVec<AST::Function> temp;
 
-        return TypeKind::Function; // ambigious -> called by case CallFunc
+      bool is_all_template = true;
+
+      for (auto&& c : id->candidates) {
+        if (!c->is_templated)
+          is_all_template = false;
+
+        if (id->must_completed) {
+          if (c->template_param_names.size() != id->id_params.size()) {
+            continue;
+          }
+        }
+        else if (c->template_param_names.size() < id->id_params.size()) {
+          continue;
+        }
+
+        temp.emplace_back(c);
+      }
+
+      if (temp.empty() && is_all_template) {
+        throw Error(id->token, "cannot use function name '" + id->GetName() +
+                                   "' without template arguments");
+      }
+
+      id->candidates = std::move(temp);
+
+      if (id->candidates.size() >= 2) {
+        if (!id->must_completed)
+          return TypeKind::Function;
+
+        auto err =
+            Error(id->token, "function name '" + idinfo.to_string() + "' is ambigous.");
+
+        err.AddChain(Error(Error::ER_Note, id->candidates[0], "candidate 0:"))
+            .AddChain(Error(Error::ER_Note, id->candidates[1], "candidate 1:"));
+
+        if (id->candidates.size() >= 3) {
+          err.AddNote(
+              utils::Format("and found %zu candidates ...", id->candidates.size() - 2));
+        }
+
+        throw err;
       }
 
       assert(id->candidates.size() == 1);
@@ -176,12 +220,37 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       ASTPtr<AST::Function> func = id->candidates[0];
 
-      if (!func->is_templated) {
-        type.params.emplace_back(this->EvalType(func->return_type));
+      type.is_free_args = func->is_var_arg;
 
-        for (auto&& arg : func->arguments) {
-          type.params.emplace_back(this->EvalType(arg->type));
+      if (func->is_templated) {
+        auto& inst = this->enter_instantiation_scope();
+
+        for (auto it = idinfo.id_params.begin();
+             auto&& param : func->template_param_names) {
+
+          if (it == idinfo.id_params.end()) {
+            if (id->must_completed) {
+              throw Error(id, "type of template argument '" + param.str + "' is missing");
+            }
+
+            this->leave_instantiation_scope();
+            return TypeKind::Function;
+          }
+
+          inst.add_name(param.str, *it);
         }
+      }
+
+      // if (!func->is_templated) {
+      type.params.emplace_back(id->ft_ret = this->EvalType(func->return_type));
+
+      for (auto&& arg : func->arguments) {
+        id->ft_args.emplace_back(type.params.emplace_back(this->EvalType(arg->type)));
+      }
+      // }
+
+      if (func->is_templated) {
+        this->leave_instantiation_scope();
       }
 
       return type;
@@ -205,8 +274,10 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       builtins::Function const* func = id->candidates_builtin[0];
 
-      type.params = func->arg_types;
-      type.params.insert(type.params.begin(), func->result_type);
+      type.is_free_args = func->is_variable_args;
+
+      type.params = id->ft_args = func->arg_types;
+      type.params.insert(type.params.begin(), id->ft_ret = func->result_type);
 
       return type;
     }
@@ -215,7 +286,25 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       id->kind = ASTKind::ClassName;
       id->ast_class = idinfo.result.ast_class;
 
-      return TypeInfo::from_class(id->ast_class);
+      TypeInfo ret = TypeKind::Instance;
+
+      ret.type_ast = id->ast_class;
+      ret.name = id->ast_class->GetName();
+
+      return ret;
+    }
+
+    case NameType::TypeName: {
+      auto type = TypeInfo(idinfo.result.kind, idinfo.id_params);
+
+      if (auto c = type.needed_param_count(); c == 0 && type.params.size() >= 1) {
+        throw Error(id, "'" + id->GetName() + "' is not template type");
+      }
+      else if (c != type.params.size()) {
+        throw Error(id, "no match template argument count");
+      }
+
+      return TypeInfo(TypeKind::TypeName, {type});
     }
 
     case NameType::Unknown:
@@ -305,7 +394,11 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     if (functor->is_ident_or_scoperesol() || functor->kind == ASTKind::MemberAccess) {
       id = Sema::GetID(functor);
+
       id->sema_allow_ambigious = true;
+      id->sema_guess_parameter = true;
+
+      id->must_completed = false;
     }
 
     TypeInfo functor_type = this->EvalType(functor);
@@ -330,20 +423,14 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       ASTVec<AST::Function> final_candidates;
 
       for (ASTPtr<AST::Function> candidate : id->candidates) {
+        if (id->id_params.size() > candidate->template_param_names.size())
+          continue;
         if (candidate->is_templated) {
-          if (id->id_params.size() > candidate->template_param_names.size())
-            continue;
+          auto instantiated = this->instantiate_template_func(
+              candidate, call, id, call->args, arg_types, false);
 
-          if (candidate->arguments.size() == call->args.size() ||
-              (candidate->is_var_arg &&
-               candidate->arguments.size() <= call->args.size() + 1)) {
-
-            ASTPtr<AST::Function> instantiated =
-                this->Instantiate(candidate, call, id, arg_types);
-
-            if (instantiated != nullptr)
-              final_candidates.emplace_back(instantiated);
-          }
+          if (instantiated != nullptr)
+            final_candidates.emplace_back(instantiated);
         }
         else {
           TypeVec formal_arg_types;
@@ -352,7 +439,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
             formal_arg_types.emplace_back(this->EvalType(arg->type));
 
           auto res = this->check_function_call_parameters(
-              call, candidate->is_var_arg, formal_arg_types, arg_types, false);
+              call->args, candidate->is_var_arg, formal_arg_types, arg_types, false);
 
           if (res.result == ArgumentCheckResult::Ok) {
             final_candidates.emplace_back(candidate);
@@ -382,7 +469,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     case ASTKind::BuiltinFuncName: {
 
       for (builtins::Function const* fn : id->candidates_builtin) {
-        auto res = this->check_function_call_parameters(call, fn->is_variable_args,
+        auto res = this->check_function_call_parameters(call->args, fn->is_variable_args,
                                                         fn->arg_types, arg_types, false);
 
         if (res.result == ArgumentCheckResult::Ok) {
@@ -415,7 +502,39 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       ast->kind = ASTKind::CallFunc_Ctor;
 
-      return TypeInfo::from_class(id->ast_class);
+      return TypeInfo::instance_of(id->ast_class);
+    }
+
+    default: {
+      if (functor_type.kind != TypeKind::Function) {
+        break;
+      }
+
+      if (functor_type.params.empty()) {
+        panic;
+      }
+
+      TypeVec formal = functor_type.params;
+
+      TypeInfo ret = formal[0];
+
+      formal.erase(formal.begin());
+
+      if (functor_type.is_member_func) {
+        formal.erase(formal.begin());
+      }
+
+      auto res = this->check_function_call_parameters(
+          call->args, functor_type.is_free_args, formal, arg_types, false);
+
+      if (res.result != ArgumentCheckResult::Ok) {
+        throw Error(call->token, "arguments are not matching to signature '" +
+                                     functor_type.to_string() + "'");
+      }
+
+      call->call_functor = true;
+
+      return ret;
     }
     }
 
@@ -424,7 +543,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   }
 
   case Kind::CallFunc_Ctor: {
-    return TypeInfo::from_class(ast->As<CallFunc>()->get_class_ptr());
+    return TypeInfo::instance_of(ast->As<CallFunc>()->get_class_ptr());
   }
 
   case Kind::SpecifyArgumentName:
@@ -456,15 +575,14 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     alertexpr(rhs_id->sema_allow_ambigious);
 
     switch (left_type.kind) {
-    case TypeKind::TypeName: {
+    case TypeKind::Instance: {
       switch (left_type.type_ast->kind) {
       case ASTKind::Class: {
         auto x = ASTCast<AST::Class>(left_type.type_ast);
 
-        auto const xmv = x->get_member_variables();
-        auto const xmf = x->get_member_functions();
+        alertexpr(x);
 
-        for (i64 index = 0; auto&& mv : xmv) {
+        for (i64 index = 0; auto&& mv : x->get_member_variables()) {
           if (name == mv->GetName()) {
             expr->kind = ASTKind::MemberVariable;
             rhs_id->index = index;
@@ -476,7 +594,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
           index++;
         }
 
-        for (auto&& mf : xmf) {
+        for (auto&& mf : x->get_member_functions()) {
           if (mf->member_of && mf->GetName() == name) {
             rhs_id->candidates.emplace_back(mf);
           }

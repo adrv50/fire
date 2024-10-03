@@ -19,14 +19,28 @@ string ToString(ASTPointer ast) {
   if (!ast)
     return "(null)";
 
-  switch (ast->kind) {
+  switch (ast->_constructed_as) {
+  case ASTKind::TypeName: {
+    auto x = ast->As<TypeName>();
+
+    string s = x->GetName();
+
+    if (!x->type_params.empty()) {
+      s += "@<" + utils::join<ASTPtr<TypeName>>(", ", x->type_params, ToString) + ">";
+    }
+
+    if (x->is_const)
+      s += " const";
+
+    return s;
+  }
+
   case ASTKind::Identifier:
     if (auto x = ast->As<Identifier>(); !x->id_params.empty()) {
       return x->token.str + "@<" + join(", ", x->id_params) + ">";
     }
 
   case ASTKind::Value:
-  case ASTKind::Variable:
     return ast->token.str;
 
   case ASTKind::ScopeResol: {

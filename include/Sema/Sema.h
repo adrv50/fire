@@ -3,6 +3,7 @@
 #include <cassert>
 #include <optional>
 #include <tuple>
+#include <list>
 
 #include "Utils.h"
 #include "Error.h"
@@ -39,6 +40,8 @@ class Sema {
 
     Class,
     Namespace,
+
+    TypeName, // builtin type name
   };
 
   struct NameFindResult {
@@ -54,6 +57,19 @@ class Sema {
     int enumerator_index = 0;        // NameType::Enumerator
 
     ASTPtr<Class> ast_class;
+
+    TypeKind kind = TypeKind::Unknown;
+
+    bool is_type_name() const {
+      switch (this->type) {
+      case NameType::Enum:
+      case NameType::Class:
+      case NameType::TypeName:
+        return true;
+      }
+
+      return false;
+    }
   };
 
   struct ArgumentCheckResult {
@@ -78,6 +94,8 @@ class Sema {
 
     TypeVec id_params;
 
+    vector<IdentifierInfo> template_args;
+
     NameFindResult result;
 
     string to_string() const;
@@ -100,8 +118,7 @@ class Sema {
   //   SemaFunction(ASTPtr<Function> func);
   // };
 
-  ArgumentCheckResult check_function_call_parameters(ASTPtr<CallFunc> call,
-                                                     bool isVariableArg,
+  ArgumentCheckResult check_function_call_parameters(ASTVector args, bool isVariableArg,
                                                      TypeVec const& formal,
                                                      TypeVec const& actual,
                                                      bool ignore_mismatch);
@@ -117,9 +134,10 @@ class Sema {
   IdentifierInfo get_identifier_info(ASTPtr<AST::ScopeResol> ast);
 
   IdentifierInfo get_identifier_info(ASTPointer ast) {
-    return ast->kind == ASTKind::Identifier
-               ? this->get_identifier_info(ASTCast<AST::Identifier>(ast))
-               : this->get_identifier_info(ASTCast<AST::ScopeResol>(ast));
+    if (ast->kind == ASTKind::ScopeResol)
+      return this->get_identifier_info(ASTCast<AST::ScopeResol>(ast));
+
+    return this->get_identifier_info(Sema::GetID(ast));
   }
 
 public:
@@ -173,9 +191,20 @@ private:
   InstantiateRequest* find_request_of_func(ASTPtr<AST::Function> func, TypeInfo ret_type,
                                            TypeVec args); // args = actual
 
-  ASTPtr<AST::Function> Instantiate(ASTPtr<AST::Function> func,
-                                    ASTPtr<AST::CallFunc> call,
-                                    ASTPtr<AST::Identifier> id, TypeVec const& arg_types);
+  ASTPtr<AST::Function>
+  instantiate_template_func(ASTPtr<AST::Function> func, ASTPointer requested,
+                            ASTPtr<AST::Identifier> id, ASTVector args,
+                            TypeVec const& arg_types, bool ignore_args);
+
+  struct FunctionSignature {
+    ASTVector template_args;
+    ASTVector args;
+    TypeVec arg_types;
+  };
+
+  i64 resolution_overload(ASTVec<AST::Function>& out,
+                          ASTVec<AST::Function> const& candidates,
+                          FunctionSignature const& sig);
 
   int _construct_scope_context(ScopeContext& S, ASTPointer ast);
 
@@ -199,6 +228,34 @@ private:
   // void LeaveScope(ASTPointer ast);
   // void LeaveScope(ScopeContext* ctx);
   void LeaveScope();
+
+  struct InstantiationScope {
+    vector<std::pair<string, TypeInfo>> arg_types;
+
+    void add_name(string const& name, TypeInfo const& type) {
+      this->arg_types.emplace_back(name, type);
+    }
+
+    TypeInfo* find_name(string const& name) {
+      for (auto&& [n, t] : this->arg_types)
+        if (n == name)
+          return &t;
+
+      return nullptr;
+    }
+  };
+
+  std::list<InstantiationScope> inst_scope;
+
+  InstantiationScope& enter_instantiation_scope() {
+    auto& scope = this->inst_scope.emplace_front();
+
+    return scope;
+  }
+
+  void leave_instantiation_scope() {
+    this->inst_scope.pop_front();
+  }
 
   void SaveScopeLocation();
   void RestoreScopeLocation();
@@ -229,12 +286,14 @@ private:
   }
 
   static ASTPtr<AST::Identifier> GetID(ASTPointer ast) {
-    if (ast->kind == ASTKind::MemberAccess)
+    if (ast->_constructed_as == ASTKind::MemberAccess)
       return GetID(ast->as_expr()->rhs);
 
-    return ast->_constructed_as == ASTKind::Identifier
-               ? ASTCast<AST::Identifier>(ast)
-               : ASTCast<AST::ScopeResol>(ast)->GetLastID();
+    if (ast->_constructed_as == ASTKind::ScopeResol)
+      return ASTCast<AST::ScopeResol>(ast)->GetLastID();
+
+    assert(ast->_constructed_as == ASTKind::Identifier);
+    return ASTCast<AST::Identifier>(ast);
   }
 
   TypeInfo make_functor_type(ASTPtr<AST::Function> ast);

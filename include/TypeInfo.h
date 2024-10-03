@@ -50,6 +50,11 @@ struct TypeInfo {
   ASTPointer type_ast = nullptr;
 
   //
+  // TypeKind::Function
+  bool is_free_args = false;
+  bool is_member_func = false;
+
+  //
   //   0  = no need
   //  -1  = infinity
   // >=1  =
@@ -91,6 +96,14 @@ struct TypeInfo {
 
   static TypeInfo from_enum(ASTPtr<AST::Enum> ast);
   static TypeInfo from_class(ASTPtr<AST::Class> ast);
+
+  static TypeInfo instance_of(ASTPtr<AST::Class> ast) {
+    auto ret = from_class(ast);
+
+    ret.kind = TypeKind::Instance;
+
+    return ret;
+  }
 
   static std::vector<char const*> get_primitive_names();
 

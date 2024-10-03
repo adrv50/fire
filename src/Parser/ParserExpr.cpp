@@ -128,7 +128,11 @@ ASTPointer Parser::Factor() {
       this->expect("<");
 
       do {
-        x->id_params.emplace_back(this->ScopeResol());
+        auto& templ_arg = x->id_params.emplace_back(this->ScopeResol());
+
+        if (!templ_arg->is_ident_or_scoperesol()) {
+          throw Error(templ_arg, "invalid syntax");
+        }
       } while (this->eat(","));
 
       this->expect_typeparam_bracket_close();

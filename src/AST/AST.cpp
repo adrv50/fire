@@ -148,7 +148,7 @@ ASTPointer TypeName::Clone() const {
   auto x = New(this->name);
 
   for (auto&& p : this->type_params)
-    x->type_params.emplace_back(p->Clone());
+    x->type_params.emplace_back(ASTCast<TypeName>(p->Clone()));
 
   x->is_const = this->is_const;
 

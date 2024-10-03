@@ -243,7 +243,19 @@ struct Identifier : Named {
   // for Kind::FuncName or BuiltinFuncName
   ASTVec<Function> candidates;
   vector<builtins::Function const*> candidates_builtin;
+
+  //
+  // オーバーロードの解決ができる情報がある文脈の場合は true
   bool sema_allow_ambigious = false;
+
+  //
+  // テンプレート引数の型を推論できる文脈にある場合は true
+  bool sema_guess_parameter = false;
+
+  bool must_completed = true;
+
+  TypeInfo ft_ret;
+  vector<TypeInfo> ft_args;
 
   //
   // for BuiltinMemberVariable
@@ -329,6 +341,8 @@ struct CallFunc : Base {
   ASTPtr<Function> callee_ast = nullptr;
   builtins::Function const* callee_builtin = nullptr;
 
+  bool call_functor = false;
+
   static ASTPtr<CallFunc> New(ASTPointer callee, ASTVector args = {});
 
   ASTPointer Clone() const override {
@@ -400,7 +414,7 @@ struct Block : Base {
 };
 
 struct TypeName : Named {
-  ASTVector type_params;
+  ASTVec<TypeName> type_params;
   bool is_const;
 
   TypeInfo type;
