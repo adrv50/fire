@@ -263,6 +263,10 @@ void Sema::check(ASTPointer ast) {
     break;
   }
 
+  case ASTKind::Break:
+  case ASTKind::Continue:
+    break;
+
   default:
     this->EvalType(ast);
   }

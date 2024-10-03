@@ -60,6 +60,8 @@ struct TypeInfo {
   // >=1  =
   int needed_param_count() const;
 
+  bool is_iterable() const;
+
   bool is_numeric() const {
     switch (this->kind) {
     case TypeKind::Int:

@@ -21,6 +21,8 @@ Sema::ArgumentCheckResult Sema::check_function_call_parameters(ASTVector args,
                                                                TypeVec const& actual,
                                                                bool ignore_mismatch) {
 
+  (void)args;
+
   if (actual.size() < formal.size()) // 少なすぎる
     return ArgumentCheckResult::TooFewArguments;
 

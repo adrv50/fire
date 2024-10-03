@@ -319,7 +319,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     case NameType::TypeName: {
       auto type = TypeInfo(idinfo.result.kind, idinfo.id_params);
 
-      if (auto c = type.needed_param_count(); c == 0 && type.params.size() >= 1) {
+      if (size_t c = type.needed_param_count(); c == 0 && type.params.size() >= 1) {
         throw Error(id, "'" + id->GetName() + "' is not template type");
       }
       else if (c != type.params.size()) {
@@ -784,6 +784,10 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
         break;
 
     case Kind::Equal:
+      if (!is_same) {
+        break;
+      }
+
       return TK::Bool;
 
     case Kind::BitAND:

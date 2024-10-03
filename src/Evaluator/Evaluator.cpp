@@ -300,8 +300,10 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
         if (stack.breaked)
           goto __loop_break;
 
-        if (stack.continued)
+        if (stack.continued) {
+          stack.continued = false;
           break;
+        }
       }
 
       this->evaluate(d.step);
@@ -502,6 +504,10 @@ ObjPointer Evaluator::eval_expr(ASTPtr<AST::Expr> ast) {
     }
 
     break;
+  }
+
+  case Kind::Equal: {
+    return new_bool(lhs->Equals(rhs));
   }
 
   case Kind::LogAND:

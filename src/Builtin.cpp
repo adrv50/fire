@@ -172,24 +172,24 @@ g_builtin_member_functions = {
 
 };
 
-
-static const vector<MemberVariable>
-g_builtin_member_variables = {
-  {
-    "abs",
-    TypeKind::Int,
-    TypeKind::Int,
-    [] (ASTPointer self_ast, ObjPointer self) -> ObjPointer {
-      i64 val = self->get_vi();
-
-      if (val < 0)
-        val = -val;
-
-      return ObjNew<ObjPrimitive>(val);
-    }
-  },
-};
 // clang-format on
+
+#define make_builtin_member                                                              \
+  []([[maybe_unused]] ASTPointer self_ast, [[maybe_unused]] ObjPointer self) -> ObjPointer
+
+static const vector<MemberVariable> g_builtin_member_variables = {
+    {"abs", TypeKind::Int, TypeKind::Int, make_builtin_member{i64 val = self->get_vi();
+
+if (val < 0)
+  val = -val;
+
+return ObjNew<ObjPrimitive>(val);
+
+} // namespace fire::builtins
+}
+,
+}
+;
 
 ObjPointer Function::Call(ASTPtr<AST::CallFunc> ast, ObjVector args) const {
   return this->func(ast, std::move(args));

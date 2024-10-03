@@ -57,7 +57,7 @@ struct Object {
   char16_t get_vc() const;
   bool get_vb() const;
 
-  [[maybe_unused]] virtual bool Equals(ObjPointer obj) const {
+  virtual bool Equals(ObjPointer obj) const {
     (void)obj;
     return false;
   }
@@ -123,7 +123,21 @@ struct ObjPrimitive : Object {
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
-    return this->type.equals(obj->type) && this->_data == obj->As<ObjPrimitive>()->_data;
+    if (!this->type.equals(obj->type))
+      return false;
+
+    switch (this->type.kind) {
+    case TypeKind::Float:
+      return this->vf == obj->get_vf();
+
+    case TypeKind::Bool:
+      return this->vb == obj->get_vb();
+
+    case TypeKind::Char:
+      return this->vc == obj->get_vc();
+    }
+
+    return this->vi == obj->get_vi();
   }
 
   ObjPrimitive(i64 vi = 0)
@@ -163,6 +177,9 @@ struct ObjIterable : Object {
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
+    if (!obj->type.is_iterable())
+      return false;
+
     if (this->list.size() != obj->As<ObjIterable>()->list.size())
       return false;
 
@@ -209,7 +226,7 @@ struct ObjEnumerator : Object {
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
-    return obj->type.equals(TypeKind::Enumerator) &&
+    return obj->type.kind == TypeKind::Enumerator &&
            this->ast == obj->As<ObjEnumerator>()->ast &&
            this->index == obj->As<ObjEnumerator>()->index;
   }
@@ -318,6 +335,13 @@ struct ObjType : Object {
   std::string GetName() const;
 
   std::string ToString() const override;
+
+  bool Equals(ObjPointer obj) const override {
+    auto x = obj->As<ObjType>();
+
+    return this->typeinfo.equals(x->typeinfo) || this->ast_enum == x->ast_enum ||
+           this->ast_class == x->ast_class;
+  }
 
   ObjType(TypeInfo type)
       : Object(TypeKind::TypeName),

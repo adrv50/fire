@@ -96,7 +96,7 @@ ASTPointer Parser::Stmt() {
     auto ast = AST::Statement::NewFor(tok, init->kind == ASTKind::Vardef ? nullptr : init,
                                       cond, step, ASTCast<AST::Block>(this->Stmt()));
 
-    this->_in_loop = false;
+    this->_in_loop = b;
 
     if (init->kind == ASTKind::Vardef) {
       return AST::Block::New(tok, {init, ast});

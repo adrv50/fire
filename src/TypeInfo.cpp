@@ -168,6 +168,15 @@ int TypeInfo::needed_param_count() const {
   return 0;
 }
 
+bool TypeInfo::is_iterable() const {
+  switch (this->kind) {
+  case TypeKind::Vector:
+    return true;
+  }
+
+  return false;
+}
+
 TypeInfo TypeInfo::from_enum(ASTPtr<AST::Enum> ast) {
   TypeInfo t = TypeKind::TypeName;
 

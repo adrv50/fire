@@ -17,6 +17,10 @@ i64 Sema::resolution_overload(ASTVec<AST::Function>& out,
                               ASTVec<AST::Function> const& candidates,
                               FunctionSignature const& sig) {
 
+  (void)out;
+  (void)candidates;
+  (void)sig;
+
   todo_impl;
 
   return (i64)out.size();
