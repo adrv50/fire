@@ -184,20 +184,6 @@ void Sema::check(ASTPointer ast) {
 
     break;
   }
-
-  case ASTKind::If: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::If>();
-
-    if (!this->EvalType(d.cond).equals(TypeKind::Bool)) {
-      throw Error(d.cond, "expected boolean expression");
-    }
-
-    this->check(d.if_true);
-    this->check(d.if_false);
-
-    break;
-  }
-
   case ASTKind::Vardef: {
 
     auto x = ASTCast<AST::VarDef>(ast);
@@ -222,6 +208,30 @@ void Sema::check(ASTPointer ast) {
       var.deducted_type = type;
       var.is_type_deducted = true;
     }
+
+    break;
+  }
+
+  case ASTKind::If: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::If>();
+
+    if (!this->EvalType(d.cond).equals(TypeKind::Bool)) {
+      throw Error(d.cond, "expected boolean expression");
+    }
+
+    this->check(d.if_true);
+    this->check(d.if_false);
+
+    break;
+  }
+
+  case ASTKind::For: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::For>();
+
+    this->check(d.init);
+    this->check(d.cond);
+    this->check(d.step);
+    this->check(d.block);
 
     break;
   }

@@ -26,6 +26,9 @@ private:
 
     bool returned = false;
     ObjPointer func_result = nullptr;
+
+    bool breaked = false;
+    bool continued = false;
   };
 
   VarStack& push_stack(int var_size);
@@ -37,6 +40,7 @@ private:
   std::list<VarStack> var_stack;
 
   std::list<VarStack*> call_stack;
+  std::list<VarStack*> loops;
 };
 
 } // namespace fire::eval

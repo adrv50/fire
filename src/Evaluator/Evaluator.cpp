@@ -246,6 +246,14 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     break;
   }
 
+  case Kind::Break:
+    (*this->loops.begin())->breaked = true;
+    break;
+
+  case Kind::Continue:
+    (*this->loops.begin())->continued = true;
+    break;
+
   case Kind::Block: {
     CAST(Block);
 
@@ -272,6 +280,36 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       this->evaluate(d.if_true);
     else
       this->evaluate(d.if_false);
+
+    break;
+  }
+
+  case Kind::For: {
+    auto d = ast->as_stmt()->get_data<AST::Statement::For>();
+
+    auto& stack = this->push_stack(d.block->stack_size);
+
+    this->loops.push_front(&stack);
+
+    this->evaluate(d.init);
+
+    while (!d.cond || this->evaluate(d.cond)->get_vb()) {
+      for (auto&& x : d.block->list) {
+        this->evaluate(x);
+
+        if (stack.breaked)
+          goto __loop_break;
+
+        if (stack.continued)
+          break;
+      }
+
+      this->evaluate(d.step);
+    }
+
+  __loop_break:
+    this->pop_stack();
+    this->loops.pop_front();
 
     break;
   }

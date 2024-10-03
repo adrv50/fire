@@ -84,10 +84,10 @@ ASTPtr<Statement> Statement::NewSwitch(Token tok, ASTPointer cond,
   return ASTNew<Statement>(ASTKind::Switch, tok, Switch{cond, std::move(cases)});
 }
 
-ASTPtr<Statement> Statement::NewFor(Token tok, ASTVector init, ASTPointer cond,
-                                    ASTPtr<Block> block) {
+ASTPtr<Statement> Statement::NewFor(Token tok, ASTPointer init, ASTPointer cond,
+                                    ASTPointer step, ASTPtr<Block> block) {
 
-  return ASTNew<Statement>(ASTKind::For, tok, For{std::move(init), cond, block});
+  return ASTNew<Statement>(ASTKind::For, tok, For{init, cond, step, block});
 }
 
 ASTPtr<Statement> Statement::NewTryCatch(Token tok, ASTPtr<Block> tryblock, Token vname,

@@ -122,7 +122,11 @@ BlockScope::BlockScope(ASTPtr<AST::Block> ast)
       break;
     }
 
-    case ASTKind::For:
+    case ASTKind::For: {
+      this->AddScope(new BlockScope(e->as_stmt()->get_data<AST::Statement::For>().block));
+      break;
+    }
+
     case ASTKind::Switch:
       todo_impl;
 

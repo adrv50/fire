@@ -468,8 +468,9 @@ struct Statement : Base {
   };
 
   struct For {
-    ASTVector init;
+    ASTPointer init;
     ASTPointer cond;
+    ASTPointer step;
     ASTPtr<Block> block;
   };
 
@@ -499,8 +500,8 @@ struct Statement : Base {
   static ASTPtr<Statement> NewSwitch(Token tok, ASTPointer cond,
                                      std::vector<Switch::Case> cases = {});
 
-  static ASTPtr<Statement> NewFor(Token tok, ASTVector init, ASTPointer cond,
-                                  ASTPtr<Block> block);
+  static ASTPtr<Statement> NewFor(Token tok, ASTPointer init, ASTPointer cond,
+                                  ASTPointer step, ASTPtr<Block> block);
 
   static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock, Token vname,
                                        ASTPtr<Block> catched);
