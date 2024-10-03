@@ -210,6 +210,10 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     auto stack = this->push_stack(x->args.size());
 
+    if (this->var_stack.size() >= 1588) {
+      throw Error(ast->token, "stack overflow");
+    }
+
     this->call_stack.push_front(stack);
 
     stack->var_list = std::move(args);
