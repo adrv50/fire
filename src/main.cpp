@@ -76,8 +76,6 @@ void execute_file(std::string const& path) {
     alert;
     ASTPtr<AST::Block> prg = parser.Parse();
 
-    std::cout << AST::ToString(prg) << std::endl;
-
     alert;
     semantics_checker::Sema sema{prg};
 
@@ -95,13 +93,10 @@ void execute_file(std::string const& path) {
     err.emit();
   }
 
-  // try {
-  //   eval::Evaluator eval{prg};
-  //   eval.do_eval();
-  // }
-  // catch (ObjPointer obj) {
-  //   Error::fatal_error("unhandled exception: " + obj->ToString());
-  // }
+  catch (ObjPointer obj) {
+    Error::fatal_error("throwed unhandled exception object of '" + obj->type.to_string() +
+                       "'");
+  }
 }
 
 int test(int argc, char** argv);

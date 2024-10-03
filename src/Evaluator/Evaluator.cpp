@@ -318,7 +318,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
           for (auto&& x : c.catched->list) {
             this->evaluate(x);
 
-            if (s.returned)
+            if (s.returned || s.breaked || s.continued)
               break;
           }
 
@@ -328,7 +328,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
         }
       }
 
-      Error::fatal_error("unhandled exception type: '" + obj->type.to_string() + "'");
+      throw obj;
     }
 
     break;

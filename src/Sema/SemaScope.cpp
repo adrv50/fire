@@ -144,6 +144,7 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast)
         auto& lvar = b->variables.emplace_back();
 
         lvar.name = c.varname.str;
+        lvar.depth = b->depth;
 
         this->AddScope(b);
       }

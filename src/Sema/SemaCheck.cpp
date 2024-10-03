@@ -226,6 +226,7 @@ void Sema::check(ASTPointer ast) {
     this->check(d.if_true);
     this->check(d.if_false);
 
+    ast->as_stmt()->set_data(d);
     break;
   }
 
@@ -235,6 +236,7 @@ void Sema::check(ASTPointer ast) {
     this->check(d.cond);
     this->check(d.block);
 
+    ast->as_stmt()->set_data(d);
     break;
   }
 
@@ -266,6 +268,7 @@ void Sema::check(ASTPointer ast) {
       this->check(c.catched);
     }
 
+    ast->as_stmt()->set_data(d);
     break;
   }
 
