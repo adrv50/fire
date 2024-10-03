@@ -132,6 +132,10 @@ define_builtin_func(Length) {
   todo_impl;
 }
 
+define_builtin_func(ToString) {
+  return ObjNew<ObjString>(args[0]->ToString());
+}
+
 // clang-format off
 static const std::vector<Function> g_builtin_functions = {
 
@@ -168,6 +172,12 @@ g_builtin_member_functions = {
     }
   },
   
+  {
+    TypeKind::Unknown, {
+      "to_string", ToString, TypeKind::String, { },
+    }
+  },
+  
   // { "length",   Length,    TypeKind::Int, { {TypeKind::Vector, {TypeKind::Unknown}} }, },
 
 };
@@ -177,19 +187,23 @@ g_builtin_member_functions = {
 #define make_builtin_member                                                              \
   []([[maybe_unused]] ASTPointer self_ast, [[maybe_unused]] ObjPointer self) -> ObjPointer
 
-static const vector<MemberVariable> g_builtin_member_variables = {
-    {"abs", TypeKind::Int, TypeKind::Int, make_builtin_member{i64 val = self->get_vi();
+// clang-format off
+static const vector<MemberVariable>
+g_builtin_member_variables = {
 
-if (val < 0)
-  val = -val;
+{ "abs", TypeKind::Int, TypeKind::Int,
+  make_builtin_member{
+    i64 val = self->get_vi();
 
-return ObjNew<ObjPrimitive>(val);
+    if (val < 0)
+      val = -val;
 
-} // namespace fire::builtins
-}
-,
-}
-;
+    return ObjNew<ObjPrimitive>(val);
+  }
+},
+
+};
+// clang-format on
 
 ObjPointer Function::Call(ASTPtr<AST::CallFunc> ast, ObjVector args) const {
   return this->func(ast, std::move(args));

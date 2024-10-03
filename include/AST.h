@@ -311,7 +311,11 @@ struct ScopeResol : Named {
   }
 
   Identifier* GetID() override {
+#if _DBG_DONT_USE_SMART_PTR_
+    return *idlist.rbegin();
+#else
     return idlist.rbegin()->get();
+#endif
   }
 
   ASTPtr<Identifier> GetLastID() const {

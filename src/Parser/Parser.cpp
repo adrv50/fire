@@ -53,6 +53,11 @@ ASTPointer Parser::Stmt() {
 
   if (this->eat("while")) {
     auto cond = this->Expr();
+
+    this->expect("{", true);
+    auto block = ASTCast<AST::Block>(this->Stmt());
+
+    return AST::Statement::NewWhile(tok, cond, block);
   }
 
   if (this->eat("for")) {

@@ -14,7 +14,9 @@ public:
   ~Evaluator();
 
   ObjPointer evaluate(ASTPointer ast);
+
   ObjPointer eval_expr(ASTPtr<AST::Expr> ast);
+  void eval_stmt(ASTPointer ast);
 
   ObjPointer& eval_as_left(ASTPointer ast);
 
@@ -47,6 +49,8 @@ private:
 
   std::list<VarStackPtr> call_stack;
   std::list<VarStackPtr> loops;
+
+  static ObjPtr<ObjNone> _None;
 };
 
 } // namespace fire::eval

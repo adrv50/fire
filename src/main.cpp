@@ -94,13 +94,7 @@ void execute_file(std::string const& path) {
   }
 }
 
-int test(int argc, char** argv);
-
 int main(int argc, char** argv) {
-
-  // if (test(argc, argv) != 0)
-  //   return 1;
-
   CmdLineArguments args;
 
   parse_command_line(args, argc - 1, argv + 1);

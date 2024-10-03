@@ -44,6 +44,10 @@ struct Object {
     return this->type.kind == TypeKind::Instance;
   }
 
+  bool is_iterable() const {
+    return this->is_string() || this->is_vector();
+  }
+
   bool is_string() const {
     return this->type.kind == TypeKind::String;
   }

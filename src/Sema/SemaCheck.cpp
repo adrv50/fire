@@ -129,7 +129,6 @@ void Sema::check(ASTPointer ast) {
                                     "anything.")
             .emit();
 
-      _return_type_note:
         throw Error(Error::ER_Note, func->ast->return_type, "specified here");
       }
       else if (auto block = func->block;
