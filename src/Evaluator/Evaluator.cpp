@@ -138,6 +138,14 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     return obj;
   }
 
+  case Kind::Enumerator: {
+    return ObjNew<ObjEnumerator>(ast->GetID()->ast_enum, ast->GetID()->index);
+  }
+
+  case Kind::EnumName: {
+    return ObjNew<ObjType>(ast->GetID()->ast_enum);
+  }
+
   case Kind::ClassName: {
     return ObjNew<ObjType>(ast->GetID()->ast_class);
   }

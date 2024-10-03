@@ -275,7 +275,7 @@ struct Identifier : Named {
   //
   // for Kind::Variable
   int depth = 0;
-  int index = 0; // (=> also member variable)
+  int index = 0; // (=> or member variable, enumerator)
 
   ASTPtr<Class> ast_class = nullptr;
   ASTPtr<Enum> ast_enum = nullptr;

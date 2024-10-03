@@ -133,8 +133,8 @@ ObjString::ObjString(std::string const& str)
 //  ObjEnumerator
 
 std::string ObjEnumerator::ToString() const {
-  return this->ast->GetName() + "." +
-         this->ast->enumerators->list[this->index]->token.str;
+  return this->ast->GetName() +
+         "::" + this->ast->enumerators->list[this->index]->token.str;
 }
 
 ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)

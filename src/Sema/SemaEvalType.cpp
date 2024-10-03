@@ -307,10 +307,22 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       id->kind = ASTKind::ClassName;
       id->ast_class = idinfo.result.ast_class;
 
-      TypeInfo ret = TypeKind::Instance;
+      TypeInfo ret = TypeKind::TypeName;
 
       ret.type_ast = id->ast_class;
       ret.name = id->ast_class->GetName();
+
+      return ret;
+    }
+
+    case NameType::Enum: {
+      id->kind = ASTKind::EnumName;
+      id->ast_enum = idinfo.result.ast_enum;
+
+      TypeInfo ret = TypeKind::TypeName;
+
+      ret.type_ast = id->ast_enum;
+      ret.name = id->ast_enum->GetName();
 
       return ret;
     }
@@ -352,8 +364,16 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     case NameType::Enumerator: {
       ast->kind = Kind::Enumerator;
 
+      auto id = ast->GetID();
+
+      id->ast_enum = idinfo.result.ast_enum;
+      id->index = idinfo.result.enumerator_index;
+
       TypeInfo type = TypeKind::Enumerator;
-      type.name = scoperesol->first->GetName();
+
+      type.name = id->ast_enum->GetName();
+      type.enum_index = id->index;
+
       return type;
     }
 
@@ -396,15 +416,23 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     break;
   }
 
-  case Kind::Enumerator:
-    todo_impl;
+  case Kind::Enumerator: {
+    TypeInfo type = TypeKind::Enumerator;
+
+    auto id = ast->GetID();
+
+    type.type_ast = id->ast_enum;
+    type.name = id->ast_enum->GetName();
+    type.enum_index = id->index;
+
+    return type;
+  }
 
   case Kind::EnumName:
-    todo_impl;
+    return TypeInfo::from_enum(ast->GetID()->ast_enum);
 
-  case Kind::ClassName: {
+  case Kind::ClassName:
     return TypeInfo::from_class(ast->GetID()->ast_class);
-  }
 
   case Kind::CallFunc: {
     auto call = ASTCast<AST::CallFunc>(ast);

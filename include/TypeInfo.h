@@ -49,6 +49,9 @@ struct TypeInfo {
   // AST::Class
   ASTPointer type_ast = nullptr;
 
+  // when enumerator
+  size_t enum_index = 0;
+
   //
   // TypeKind::Function
   bool is_free_args = false;
