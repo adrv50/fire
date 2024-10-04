@@ -164,33 +164,11 @@ public:
   static Sema* GetInstance();
 
 private:
-  struct InstantiateRequest {
-
-    struct Argument {
-      TypeInfo type;
-
-      ASTPointer given = nullptr; // 明示的に渡された場合
-
-      ASTPointer guess = nullptr;
-
-      bool is_deducted = false;
-    };
-
-    ASTPointer requested = nullptr;
-
-    ScopeLocation scope_loc;
-
-    // パラメータとして渡された型
-    std::map<string, Argument> param_types;
-
-    ASTPtr<AST::Function> original = nullptr;
-    ASTPtr<AST::Function> cloned = nullptr;
-
-    TypeInfo result_type; //
-    TypeVec arg_types;    // function
+  struct InstantiateTask {
+    ASTPtr<AST::Function>
   };
 
-  std::vector<InstantiateRequest> ins_requests;
+  vector<InstantiateTask> ins_requests;
 
   InstantiateRequest* find_request_of_func(ASTPtr<AST::Function> func, TypeInfo ret_type,
                                            TypeVec args); // args = actual

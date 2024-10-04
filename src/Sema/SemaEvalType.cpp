@@ -260,7 +260,16 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
           goto _pass_candidate;
         }
 
-        final_cd.emplace_back(std::move(cd_sig));
+        //
+        // TODO:
+        //  instantiate.
+        //
+
+        auto& _f = final_cd.emplace_back(std::move(cd_sig));
+
+        _f.func = nullptr;
+
+        todo_impl;
       }
       else {
         for (size_t i = 0; i < sig_args.size(); i++) {
@@ -299,6 +308,8 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
     ret.params = final_cd[0].arg_types;
     ret.params.insert(ret.params.begin(), final_cd[0].ret);
+
+    id->candidates = {final_cd[0].func};
 
     return ret;
   }
@@ -759,9 +770,17 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       auto res = this->check_function_call_parameters(
           call->args, functor_type.is_free_args, formal, arg_types, false);
 
-      if (res.result != ArgumentCheckResult::Ok) {
-        throw Error(call->token, "arguments are not matching to signature '" +
-                                     functor_type.to_string() + "'");
+      switch (res.result) {
+      case ArgumentCheckResult::TooFewArguments:
+        throw Error(call->token, "too few arguments");
+
+      case ArgumentCheckResult::TooManyArguments:
+        throw Error(call->token, "too many arguments");
+
+      case ArgumentCheckResult::TypeMismatch:
+        throw Error(call->args[res.index], "expected '" + formal[res.index].to_string() +
+                                               "' type expression, but found '" +
+                                               arg_types[res.index].to_string() + "'");
       }
 
       call->call_functor = true;
