@@ -190,7 +190,12 @@ ASTPointer Parser::Top() {
     }
 
     do {
-      ast->append(*this->expectIdentifier());
+      auto& e = ast->append(*this->expectIdentifier(), nullptr);
+
+      if (this->eat("(")) {
+        e.type = this->expectTypeName();
+        this->expect(")");
+      }
     } while (this->eat(","));
 
     this->expect("}");
@@ -282,57 +287,8 @@ ASTPointer Parser::Top() {
     return func;
   }
 
-  //
-  // import <name>
-  //   --> convert to " let name = import("name"); "
-  //
-  // replace to variable declaration,
-  //  and assignment result of call "import" func.
-  //
-  if (this->match("import", TokenKind::Identifier) || this->match("import", ".")) {
-
-    // import a;
-    // import ./b;
-    // import ../c;
-
-    this->cur++;
-    std::string name;
-
-    if (this->eat(".")) {
-      name += ".";
-
-      if (this->eat("."))
-        name += ".";
-
-      this->expect("/");
-      name += "/";
-    }
-
-    name = this->expectIdentifier()->str;
-
-    while (this->eat("/")) {
-      name += "/" + this->expectIdentifier()->str;
-    }
-
-    name = name + ".fire";
-
-    this->expect(";");
-
-    auto ast = AST::VarDef::New(tok, utils::get_base_name(name));
-
-    auto call = AST::CallFunc::New(AST::Variable::New("@import"));
-
-    Token mod_name_token = iter[1]; // for argument of @import
-
-    mod_name_token.kind = TokenKind::String;
-    mod_name_token.str = name;
-    mod_name_token.sourceloc.length = name.length();
-
-    call->args.emplace_back(AST::Value::New(mod_name_token, ObjNew<ObjString>(name)));
-
-    ast->init = call;
-
-    return ast;
+  if (this->eat("include")) {
+    todo_impl;
   }
 
   return this->Stmt();

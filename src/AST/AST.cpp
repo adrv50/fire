@@ -29,6 +29,14 @@ Statement* Base::as_stmt() {
   return static_cast<Statement*>(this);
 }
 
+Value const* Base::as_value() const {
+  return (Value const*)this;
+}
+
+Identifier* Base::GetID() {
+  return nullptr;
+}
+
 i64 Base::GetChilds(ASTVector& out) const {
 
   (void)out;
@@ -37,12 +45,62 @@ i64 Base::GetChilds(ASTVector& out) const {
   return 0;
 }
 
+Base::Base(ASTKind kind, Token token)
+    : Base(kind, token, token) {
+}
+
+Base::Base(ASTKind kind, Token token, Token endtok)
+    : kind(kind),
+      token(token),
+      endtok(endtok),
+      _constructed_as(kind) {
+}
+
+// ----------------------------------- //
+
 ASTPtr<Value> Value::New(Token tok, ObjPointer val) {
   return ASTNew<Value>(tok, val);
 }
 
-ASTPtr<Variable> Variable::New(Token tok, int index, int backstep) {
-  return ASTNew<Variable>(tok, index, backstep);
+ASTPointer Value::Clone() const {
+  assert(this->value);
+
+  auto xx = New(this->token, this->value->Clone());
+
+  assert(xx->value);
+
+  return xx;
+}
+
+Value::Value(Token tok, ObjPointer value)
+    : Base(ASTKind::Value, tok),
+      value(value) {
+}
+
+// ----------------------------------- //
+
+string Named::GetName() const {
+  return this->name.str;
+}
+
+Named::Named(ASTKind kind, Token tok, Token name)
+    : Base(kind, tok),
+      name(name) {
+  this->is_named = true;
+}
+
+Named::Named(ASTKind kind, Token tok)
+    : Named(kind, tok, tok) {
+}
+
+// ----------------------------------- //
+
+Identifier* Identifier::GetID() {
+  return this;
+}
+
+Identifier::Identifier(Token tok)
+    : Named(ASTKind::Identifier, tok, tok) {
 }
 
 ASTPtr<Identifier> Identifier::New(Token tok) {
@@ -53,25 +111,131 @@ ASTPtr<ScopeResol> ScopeResol::New(ASTPtr<Identifier> first) {
   return ASTNew<ScopeResol>(first);
 }
 
+ASTPointer ScopeResol::Clone() const {
+  auto x = New(ASTCast<AST::Identifier>(this->first->Clone()));
+
+  for (ASTPtr<Identifier> const& id : this->idlist)
+    x->idlist.emplace_back(ASTCast<Identifier>(id->Clone()));
+
+  return x;
+}
+
+Identifier* ScopeResol::GetID() {
+#if _DBG_DONT_USE_SMART_PTR_
+  return *idlist.rbegin();
+#else
+  return idlist.rbegin()->get();
+#endif
+}
+
+ASTPtr<Identifier> ScopeResol::GetLastID() const {
+  return *idlist.rbegin();
+}
+
+ScopeResol::ScopeResol(ASTPtr<Identifier> first)
+    : Named(ASTKind::ScopeResol, first->token),
+      first(first) {
+}
+
 ASTPtr<Array> Array::New(Token tok) {
   return ASTNew<Array>(tok);
+}
+
+ASTPointer Array::Clone() const {
+  auto x = New(this->token);
+
+  for (ASTPointer const& e : this->elements)
+    x->elements.emplace_back(e->Clone());
+
+  return x;
+}
+
+Array::Array(Token tok)
+    : Base(ASTKind::Array, tok) {
 }
 
 ASTPtr<CallFunc> CallFunc::New(ASTPointer expr, ASTVector args) {
   return ASTNew<CallFunc>(expr, std::move(args));
 }
 
+ASTPointer CallFunc::Clone() const {
+  auto x = New(this->callee);
+
+  for (ASTPointer const& a : this->args)
+    x->args.emplace_back(a->Clone());
+
+  x->callee_ast = this->callee_ast;
+  x->callee_builtin = this->callee_builtin;
+
+  return x;
+}
+
+ASTPtr<Class> CallFunc::get_class_ptr() const {
+  return this->callee->GetID()->ast_class;
+}
+
+CallFunc::CallFunc(ASTPointer callee, ASTVector args)
+    : Base(ASTKind::CallFunc, callee->token, callee->token),
+      callee(callee),
+      args(std::move(args)) {
+}
+
 ASTPtr<Expr> Expr::New(ASTKind kind, Token op, ASTPointer lhs, ASTPointer rhs) {
   return ASTNew<Expr>(kind, op, lhs, rhs);
+}
+
+ASTPointer Expr::Clone() const {
+  return New(this->kind, this->op, this->lhs->Clone(), this->rhs->Clone());
+}
+
+Identifier* Expr::GetID() {
+  return this->rhs->GetID();
+}
+
+Expr::Expr(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs)
+    : Base(kind, optok),
+      op(this->token),
+      lhs(lhs),
+      rhs(rhs) {
+  this->is_expr = true;
 }
 
 ASTPtr<Block> Block::New(Token tok, ASTVector list) {
   return ASTNew<Block>(tok, std::move(list));
 }
 
+ASTPointer Block::Clone() const {
+  auto x = New(this->token);
+
+  for (ASTPointer const& a : this->list)
+    x->list.emplace_back(a->Clone());
+
+  return x;
+}
+
+Block::Block(Token tok, ASTVector list)
+    : Base(ASTKind::Block, tok),
+      list(std::move(list)) {
+}
+
+ASTPtr<TypeName> TypeName::New(Token nametok) {
+  return ASTNew<TypeName>(nametok);
+}
+
+TypeName::TypeName(Token name)
+    : Named(ASTKind::TypeName, name),
+      is_const(false) {
+}
+
 ASTPtr<VarDef> VarDef::New(Token tok, Token name, ASTPtr<TypeName> type,
                            ASTPointer init) {
   return ASTNew<VarDef>(tok, name, type, init);
+}
+
+VarDef::VarDef(Token tok, Token name, ASTPtr<TypeName> type, ASTPointer init)
+    : Named(ASTKind::Vardef, tok, name),
+      type(type),
+      init(init) {
 }
 
 ASTPtr<Statement> Statement::NewIf(Token tok, ASTPointer cond, ASTPointer if_true,
@@ -99,12 +263,32 @@ ASTPtr<Statement> Statement::New(ASTKind kind, Token tok, std::any data) {
   return ASTNew<Statement>(kind, tok, std::move(data));
 }
 
-ASTPtr<TypeName> TypeName::New(Token nametok) {
-  return ASTNew<TypeName>(nametok);
+Statement::Statement(ASTKind kind, Token tok, std::any data)
+    : Base(kind, tok),
+      _astdata(data) {
+}
+
+void Templatable::_Copy(Templatable const* _t) {
+  this->tok_template = _t->tok_template;
+  this->is_templated = _t->is_templated;
+
+  for (auto&& e : _t->template_param_names) {
+    this->template_param_names.emplace_back(e);
+  }
 }
 
 ASTPtr<Argument> Argument::New(Token nametok, ASTPtr<TypeName> type) {
   return ASTNew<Argument>(nametok, type);
+}
+
+ASTPointer Argument::Clone() const {
+  return New(this->name,
+             ASTCast<AST::TypeName>(this->type ? this->type->Clone() : nullptr));
+}
+
+Argument::Argument(Token nametok, ASTPtr<TypeName> type)
+    : Named(ASTKind::Argument, nametok),
+      type(type) {
 }
 
 ASTPtr<Function> Function::New(Token tok, Token name) {
@@ -117,8 +301,74 @@ ASTPtr<Function> Function::New(Token tok, Token name, ASTVec<Argument> args,
   return ASTNew<Function>(tok, name, std::move(args), is_var_arg, rettype, block);
 }
 
+ASTPtr<Argument>& Function::add_arg(Token const& tok, ASTPtr<TypeName> type) {
+  return this->arguments.emplace_back(Argument::New(tok, type));
+}
+
+ASTPtr<Argument> Function::find_arg(std::string const& name) {
+  for (auto&& arg : this->arguments)
+    if (arg->GetName() == name)
+      return arg;
+
+  return nullptr;
+}
+
+ASTPointer Function::Clone() const {
+  auto x = New(this->token, this->name);
+
+  x->_Copy(this);
+
+  for (auto&& arg : this->arguments) {
+    x->arguments.emplace_back(ASTCast<Argument>(arg->Clone()));
+  }
+
+  if (this->return_type)
+    x->return_type = ASTCast<TypeName>(this->return_type->Clone());
+
+  x->block = ASTCast<Block>(this->block->Clone());
+  x->is_var_arg = this->is_var_arg;
+
+  return x;
+}
+
+Function::Function(Token tok, Token name)
+    : Function(tok, name, {}, false, nullptr, nullptr) {
+}
+
+Function::Function(Token tok, Token name, ASTVec<Argument> args, bool is_var_arg,
+                   ASTPtr<TypeName> rettype, ASTPtr<Block> block)
+    : Templatable(ASTKind::Function, tok, name),
+      arguments(args),
+      return_type(rettype),
+      block(block),
+      is_var_arg(is_var_arg) {
+}
+
+Enum::Enumerator& Enum::append(Token name, ASTPtr<TypeName> type) {
+  return this->enumerators.emplace_back(Enumerator{name, type});
+}
+
+Enum::Enumerator& Enum::append(Enumerator const& e) {
+  return this->enumerators.emplace_back(e);
+}
+
 ASTPtr<Enum> Enum::New(Token tok, Token name) {
   return ASTNew<Enum>(tok, name);
+}
+
+ASTPointer Enum::Clone() const {
+  auto x = New(this->token, this->name);
+
+  x->_Copy(this);
+
+  for (auto&& e : this->enumerators)
+    x->append(e);
+
+  return x;
+}
+
+Enum::Enum(Token tok, Token name)
+    : Templatable(ASTKind::Enum, tok, name) {
 }
 
 ASTPtr<Class> Class::New(Token tok, Token name) {
@@ -129,6 +379,30 @@ ASTPtr<Class> Class::New(Token tok, Token name, ASTVec<VarDef> member_variables,
                          ASTVec<Function> member_functions) {
   return ASTNew<Class>(tok, name, std::move(member_variables),
                        std::move(member_functions));
+}
+
+ASTPtr<VarDef>& Class::append_var(ASTPtr<VarDef> ast) {
+  return this->member_variables.emplace_back(ast);
+}
+
+ASTPtr<Function>& Class::append_func(ASTPtr<Function> ast) {
+  return this->member_functions.emplace_back(ast);
+}
+
+ASTPointer Class::Clone() const {
+  auto x = New(this->token, this->name, CloneASTVec<VarDef>(this->member_variables),
+               CloneASTVec<Function>(this->member_functions));
+
+  x->_Copy(this);
+
+  return x;
+}
+
+Class::Class(Token tok, Token name, ASTVec<VarDef> member_variables,
+             ASTVec<Function> member_functions)
+    : Templatable(ASTKind::Class, tok, name),
+      member_variables(std::move(member_variables)),
+      member_functions(std::move(member_functions)) {
 }
 
 ASTPointer Identifier::Clone() const {

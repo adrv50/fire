@@ -149,12 +149,10 @@ void Sema::check(ASTPointer ast) {
   case ASTKind::Block: {
     auto x = ASTCast<AST::Block>(ast);
 
-    auto scope = (BlockScope*)this->EnterScope(x);
+    this->EnterScope(x);
 
     for (auto&& e : x->list)
       this->check(e);
-
-    x->stack_size = scope->variables.size();
 
     this->LeaveScope();
 

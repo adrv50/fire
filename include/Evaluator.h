@@ -33,7 +33,7 @@ private:
     bool continued = false;
 
     VarStack(size_t vcount) {
-      this->var_list.reserve(vcount);
+      this->var_list.resize(vcount);
     }
   };
 

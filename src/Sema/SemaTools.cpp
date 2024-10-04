@@ -281,8 +281,8 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
     case NameType::Enum: {
       auto _enum = info.result.ast_enum;
 
-      for (int _idx = 0; auto&& _e : _enum->enumerators->list) {
-        if (_e->token.str == name) {
+      for (int _idx = 0; auto&& _e : _enum->enumerators) {
+        if (_e.name.str == name) {
           info.ast = id;
 
           info.result.type = NameType::Enumerator;
