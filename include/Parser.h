@@ -14,6 +14,8 @@ public:
   ASTPointer Factor();
   ASTPointer ScopeResol();
 
+  ASTPointer Lambda();
+
   ASTPointer IndexRef();
   ASTPointer Unary();
 
@@ -69,16 +71,6 @@ private:
     return ret;
   }
 
-  static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op, ASTPointer lhs,
-                                    ASTPointer rhs) {
-    return AST::Expr::New(k, op, lhs, rhs);
-  }
-
-  static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op, ASTPointer lhs,
-                                      ASTPointer rhs) {
-    return new_expr(ASTKind::Assign, op, lhs, new_expr(kind, op, lhs, rhs));
-  }
-
   TokenIterator insert_token(Token tok) {
     this->cur = this->tokens.insert(this->cur, tok);
     this->end = this->tokens.end();
@@ -89,6 +81,18 @@ private:
   TokenIterator expectIdentifier();
 
   ASTPtr<AST::TypeName> expectTypeName();
+
+  ASTPtr<AST::Signature> parse_signature();
+
+  static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op, ASTPointer lhs,
+                                    ASTPointer rhs) {
+    return AST::Expr::New(k, op, lhs, rhs);
+  }
+
+  static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op, ASTPointer lhs,
+                                      ASTPointer rhs) {
+    return new_expr(ASTKind::Assign, op, lhs, new_expr(kind, op, lhs, rhs));
+  }
 
   TokenVector tokens;
   TokenIterator cur, end, ate;

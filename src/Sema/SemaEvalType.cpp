@@ -142,6 +142,180 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     return type;
   }
 
+  case Kind::OverloadResolutionGuide: {
+    auto x = ASTCast<AST::Expr>(ast);
+
+    x->lhs->GetID()->must_completed = false;
+
+    auto functor_ast = x->lhs;
+    auto functor = this->EvalType(functor_ast);
+
+    if (functor_ast->kind != Kind::FuncName) {
+      throw Error(functor_ast, "expected function name");
+    }
+
+    auto id = functor_ast->GetID();
+
+    if (id->candidates.size() == 1) {
+      throw Error(x->op, "use operator 'of' to non ambiguous function name is not valid");
+    }
+
+    alert;
+
+    auto sig_ast = ASTCast<AST::Signature>(x->rhs);
+    auto sig = this->EvalType(sig_ast);
+
+    auto const& sig_ret = sig.params[0];
+    auto const sig_args = TypeVec(sig.params.begin() + 1, sig.params.end());
+
+    struct _Temp {
+      ASTPtr<AST::Function> func;
+      TypeVec template_params;
+      TypeVec arg_types;
+      TypeInfo ret;
+    };
+
+    vector<_Temp> final_cd;
+
+    for (auto&& cd : id->candidates) {
+      alert;
+
+      if ((sig_ast->arg_type_list.size() < cd->arguments.size()) ||
+          (!cd->is_var_arg && cd->arguments.size() < sig_ast->arg_type_list.size()))
+        continue;
+
+      if (cd->template_param_names.size() < id->template_args.size())
+        continue;
+
+      if (cd->is_templated) {
+        struct _holder {
+          string name;
+          TypeInfo type;
+          bool set = false;
+        };
+
+        vector<_holder> params;
+
+        for (auto&& tp : cd->template_param_names) {
+          params.emplace_back(_holder{tp.str, {}, false});
+        }
+
+        for (size_t i = 0; i < id->template_args.size(); i++) {
+          params[i].type = id->template_args[i];
+          params[i].set = true;
+        }
+
+        // compare template-args and arg-types
+        for (size_t i = 0; i < cd->arguments.size(); i++) {
+          auto& act = sig.params[i + 1];
+
+          for (auto&& p : params) {
+            if (p.name == cd->arguments[i]->type->GetName()) {
+              if (p.set && !p.type.equals(act)) {
+                alert;
+                goto _pass_candidate;
+              }
+
+              p.type = act;
+              p.set = true;
+
+              break;
+            }
+          }
+        }
+
+        for (auto&& p : params) {
+          if (!p.set) {
+            alert;
+            goto _pass_candidate;
+          }
+        }
+
+        auto& inst = this->enter_instantiation_scope();
+
+        for (auto&& p : params)
+          inst.add_name(p.name, p.type);
+
+        auto cd_sig = _Temp{cd, {}, {}, this->EvalType(cd->return_type)};
+
+        for (auto&& arg : cd->arguments) {
+          cd_sig.arg_types.emplace_back(this->EvalType(arg->type));
+        }
+
+        this->leave_instantiation_scope();
+
+        for (auto&& arg : params) {
+          cd_sig.template_params.emplace_back(arg.type);
+        }
+
+        for (size_t i = 0; i < cd->arguments.size(); i++) {
+          if (!sig_args[i].equals(cd_sig.arg_types[i])) {
+            alert;
+            goto _pass_candidate;
+          }
+        }
+
+        if (!cd_sig.ret.equals(sig_ret)) {
+          alert;
+          goto _pass_candidate;
+        }
+
+        final_cd.emplace_back(std::move(cd_sig));
+      }
+      else {
+        for (size_t i = 0; i < sig_args.size(); i++) {
+          if (!sig_args[i].equals(this->EvalType(cd->arguments[i]->type))) {
+            alert;
+            goto _pass_candidate;
+          }
+        }
+
+        if (auto _ret = this->EvalType(cd->return_type); sig_ret.equals(_ret))
+          final_cd.emplace_back(_Temp{cd, {}, sig_args, _ret});
+      }
+    _pass_candidate:;
+    }
+
+    if (final_cd.empty()) {
+
+      throw Error(x->op, "cannot find function '" + id->GetName() +
+                             "' matching to signature '(" +
+                             utils::join<TypeInfo>(", ", sig_args,
+                                                   [](auto t) {
+                                                     return t.to_string();
+                                                   }) +
+                             ") -> " + sig_ret.to_string() + "'");
+    }
+    else if (final_cd.size() >= 2) {
+      Error e{x->op, "function name '" + id->GetName() + "' is still ambiguous"};
+
+      for (auto&& cd : final_cd)
+        e.AddChain(Error(Error::ER_Note, cd.func, "candidate:"));
+
+      throw e;
+    }
+
+    TypeInfo ret = TypeKind::Function;
+
+    ret.params = final_cd[0].arg_types;
+    ret.params.insert(ret.params.begin(), final_cd[0].ret);
+
+    return ret;
+  }
+
+  case Kind::Signature: {
+    TypeInfo ret = TypeKind::Function;
+
+    auto sig = ASTCast<AST::Signature>(ast);
+
+    ret.params.emplace_back(this->EvalType(sig->result_type));
+
+    for (auto&& t : sig->arg_type_list)
+      ret.params.emplace_back(this->EvalType(t));
+
+    return ret;
+  }
+
   case Kind::Identifier: {
 
     auto id = ASTCast<AST::Identifier>(ast);
@@ -235,10 +409,10 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       if (func->is_templated) {
         auto& inst = this->enter_instantiation_scope();
 
-        for (auto it = idinfo.id_params.begin();
+        for (auto it = id->template_args.begin();
              auto&& param : func->template_param_names) {
 
-          if (it == idinfo.id_params.end()) {
+          if (it == id->template_args.end()) {
             if (id->must_completed) {
               throw Error(id, "type of template argument '" + param.str + "' is missing");
             }

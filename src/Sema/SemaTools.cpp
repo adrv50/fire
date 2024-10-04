@@ -259,6 +259,8 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast) {
     }
   }
 
+  ast->template_args = id_info.id_params;
+
   switch (id_info.result.type) {
   case NameType::Func:
   case NameType::MemberFunc: {

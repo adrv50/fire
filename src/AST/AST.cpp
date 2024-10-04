@@ -476,4 +476,22 @@ ASTPointer Statement::Clone() const {
   return New(this->kind, this->token, this->get_expr()->Clone());
 }
 
+ASTPtr<Signature> Signature::New(Token tok, ASTVec<TypeName> arg_type_list,
+                                 ASTPtr<TypeName> result_type) {
+  return ASTNew<Signature>(tok, std::move(arg_type_list), result_type);
+}
+
+ASTPointer Signature::Clone() const {
+  return New(this->token, CloneASTVec<TypeName>(this->arg_type_list),
+             this->result_type ? ASTCast<AST::TypeName>(this->result_type->Clone())
+                               : nullptr);
+}
+
+Signature::Signature(Token tok, ASTVec<TypeName> arg_type_list,
+                     ASTPtr<TypeName> result_type)
+    : Base(ASTKind::Signature, tok),
+      arg_type_list(std::move(arg_type_list)),
+      result_type(result_type) {
+}
+
 } // namespace fire::AST

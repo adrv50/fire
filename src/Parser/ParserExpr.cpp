@@ -148,6 +148,9 @@ ASTPointer Parser::Factor() {
 ASTPointer Parser::ScopeResol() {
   auto x = this->Factor();
 
+  //
+  // scope-resolution
+  //
   if (this->match("::")) {
     if (x->kind != ASTKind::Identifier)
       throw Error(*this->cur, "invalid syntax");
@@ -165,11 +168,65 @@ ASTPointer Parser::ScopeResol() {
     x = sr;
   }
 
+  //
+  // overload-reslotion-guide
+  //
+  if (this->eat("of")) {
+    if (!x->is_ident_or_scoperesol())
+      throw Error(*this->ate, "invalid syntax");
+
+    auto op = *this->ate;
+
+    return new_expr(ASTKind::OverloadResolutionGuide, op, x, this->parse_signature());
+  }
+
   return x;
 }
 
+ASTPointer Parser::Lambda() {
+
+  if (this->eat("lambda")) {
+    auto tok = *this->ate;
+
+    this->expect("(");
+
+    ASTVec<AST::Argument> args;
+    bool is_var_arg = false;
+
+    if (!this->eat(")")) {
+      do {
+        auto name = *this->expectIdentifier();
+
+        this->expect(":");
+        auto type = this->expectTypeName();
+
+        args.emplace_back(AST::Argument::New(name, type));
+      } while (this->eat(","));
+
+      this->expect(")");
+    }
+
+    ASTPtr<AST::TypeName> rettype = nullptr;
+
+    if (this->eat("->")) {
+      rettype = this->expectTypeName();
+    }
+
+    this->expect("{");
+    auto block = ASTCast<AST::Block>(this->Stmt());
+
+    auto ast = AST::Function::New(tok, tok, std::move(args), is_var_arg, rettype, block);
+
+    ast->kind = ASTKind::LambdaFunc;
+
+    return ast;
+  }
+
+  return this->ScopeResol();
+}
+
 ASTPointer Parser::IndexRef() {
-  auto x = this->ScopeResol();
+  auto x = this->Lambda();
 
   while (this->check()) {
     auto& op = *this->cur;

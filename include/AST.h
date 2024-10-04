@@ -32,6 +32,10 @@ enum class ASTKind {
   ClassName,
   // ------------------/
 
+  LambdaFunc, // => AST::Function
+
+  OverloadResolutionGuide, // "of"
+
   Array,
 
   IndexRef,
@@ -107,7 +111,7 @@ enum class ASTKind {
 
   TypeName,
 
-  Program,
+  Signature,
 };
 
 namespace AST {
@@ -200,10 +204,12 @@ struct Identifier : Named {
   vector<builtins::Function const*> candidates_builtin;
 
   //
+  // (unused)
   // オーバーロードの解決ができる情報がある文脈の場合は true
   bool sema_allow_ambigious = false;
 
   //
+  // (unused)
   // テンプレート引数の型を推論できる文脈にある場合は true
   bool sema_guess_parameter = false;
 
@@ -211,6 +217,8 @@ struct Identifier : Named {
 
   TypeInfo ft_ret;
   vector<TypeInfo> ft_args;
+
+  vector<TypeInfo> template_args;
 
   //
   // for BuiltinMemberVariable
@@ -317,6 +325,18 @@ struct TypeName : Named {
   ASTPointer Clone() const override;
 
   TypeName(Token name);
+};
+
+struct Signature : Base {
+  ASTVec<TypeName> arg_type_list;
+  ASTPtr<TypeName> result_type;
+
+  static ASTPtr<Signature> New(Token tok, ASTVec<TypeName> arg_type_list,
+                               ASTPtr<TypeName> result_type);
+
+  ASTPointer Clone() const override;
+
+  Signature(Token tok, ASTVec<TypeName> arg_type_list, ASTPtr<TypeName> result_type);
 };
 
 struct VarDef : Named {

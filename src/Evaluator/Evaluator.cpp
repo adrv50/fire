@@ -118,6 +118,22 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     return this->eval_index_ref(this->evaluate(ex->lhs), this->evaluate(ex->rhs));
   }
 
+  case Kind::LambdaFunc: {
+    auto func = ASTCast<AST::Function>(ast);
+
+    auto obj = ObjNew<ObjCallable>(func);
+
+    obj->type.params = {this->evaluate(func->return_type)->type};
+
+    for (auto&& arg : func->arguments)
+      obj->type.params.emplace_back(this->evaluate(arg->type)->type);
+
+    return obj;
+  }
+
+  case Kind::OverloadResolutionGuide:
+    ast = ast->as_expr()->lhs;
+
   case Kind::FuncName: {
     auto id = ast->GetID();
     auto obj = ObjNew<ObjCallable>(id->candidates[0]);

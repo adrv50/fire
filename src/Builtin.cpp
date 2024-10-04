@@ -151,32 +151,17 @@ static const std::vector<Function> g_builtin_functions = {
 static const vector<std::pair<TypeInfo, Function>>
 g_builtin_member_functions = {
   { // substr(index)
-    TypeKind::String, {
-      "substr", Substr, TypeKind::String, {
-        TypeKind::Int
-      }
-    }
+    TypeKind::String, { "substr", Substr, TypeKind::String, { TypeKind::Int } }
   },
 
   { // substr(index, len)
-    TypeKind::String, {
-      "substr", Substr2, TypeKind::String, {
-        TypeKind::Int, TypeKind::Int
-      }
-    }
+    TypeKind::String, { "substr", Substr2, TypeKind::String, { TypeKind::Int, TypeKind::Int } }
   },
 
-  {
-    TypeKind::String, {
-      "length", Length, TypeKind::Int, { },
-    }
-  },
+  { TypeKind::String, { "length", Length, TypeKind::Int, { }, } },
+  { TypeKind::Vector, { "length", Length, TypeKind::Int, { }, } },
   
-  {
-    TypeKind::Unknown, {
-      "to_string", ToString, TypeKind::String, { },
-    }
-  },
+  { TypeKind::Unknown, { "to_string", ToString, TypeKind::String, { }, } },
   
   // { "length",   Length,    TypeKind::Int, { {TypeKind::Vector, {TypeKind::Unknown}} }, },
 

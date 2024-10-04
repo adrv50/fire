@@ -81,4 +81,28 @@ ASTPtr<AST::TypeName> Parser::expectTypeName() {
   return ast;
 }
 
+ASTPtr<AST::Signature> Parser::parse_signature() {
+  auto tok = *this->cur;
+
+  this->expect("(");
+
+  ASTVec<AST::TypeName> args;
+
+  if (!this->eat(")")) {
+    do {
+      args.emplace_back(this->expectTypeName());
+    } while (this->eat(","));
+
+    this->expect(")");
+  }
+
+  ASTPtr<AST::TypeName> restype = nullptr;
+
+  if (this->eat("->")) {
+    restype = this->expectTypeName();
+  }
+
+  return AST::Signature::New(tok, std::move(args), restype);
+}
+
 } // namespace fire::parser
