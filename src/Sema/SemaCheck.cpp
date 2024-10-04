@@ -107,11 +107,11 @@ void Sema::check(ASTPointer ast) {
     this->cur_function = func;
 
     for (auto&& arg : func->arguments) {
-      arg.deducted_type = this->EvalType(arg.arg->type);
+      arg.deducted_type = this->eval_type(arg.arg->type);
       arg.is_type_deducted = true;
     }
 
-    func->result_type = this->EvalType(x->return_type);
+    func->result_type = this->eval_type(x->return_type);
 
     this->EnterScope(x);
 
@@ -167,12 +167,12 @@ void Sema::check(ASTPointer ast) {
     ScopeContext::LocalVar& var = ((BlockScope*)curScope)->variables[x->index];
 
     if (x->type) {
-      var.deducted_type = this->EvalType(x->type);
+      var.deducted_type = this->eval_type(x->type);
       var.is_type_deducted = true;
     }
 
     if (x->init) {
-      auto type = this->EvalType(x->init);
+      auto type = this->eval_type(x->init);
 
       if (x->type && !var.deducted_type.equals(type)) {
         throw Error(x->init, "expected '" + var.deducted_type.to_string() +
@@ -190,7 +190,7 @@ void Sema::check(ASTPointer ast) {
   case ASTKind::If: {
     auto d = ast->as_stmt()->get_data<AST::Statement::If>();
 
-    if (!this->EvalType(d.cond).equals(TypeKind::Bool)) {
+    if (!this->eval_type(d.cond).equals(TypeKind::Bool)) {
       throw Error(d.cond, "expected boolean expression");
     }
 
@@ -219,7 +219,7 @@ void Sema::check(ASTPointer ast) {
     vector<std::pair<ASTPointer, TypeInfo>> temp;
 
     for (auto&& c : d.catchers) {
-      auto type = this->EvalType(c.type);
+      auto type = this->eval_type(c.type);
 
       for (auto&& c2 : d.catchers) {
         if (type.equals(c2._type)) {
@@ -233,7 +233,7 @@ void Sema::check(ASTPointer ast) {
       auto& e = ((BlockScope*)this->GetScopeOf(c.catched))->variables[0];
 
       e.name = c.varname.str;
-      e.deducted_type = this->EvalType(c.type);
+      e.deducted_type = this->eval_type(c.type);
       e.is_type_deducted = true;
 
       this->check(c.catched);
@@ -258,7 +258,7 @@ void Sema::check(ASTPointer ast) {
     break;
 
   default:
-    this->EvalType(ast);
+    this->eval_type(ast);
   }
 }
 } // namespace fire::semantics_checker

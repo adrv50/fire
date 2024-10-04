@@ -6,8 +6,8 @@ TypeInfo Sema::EvalExpr(ASTPtr<AST::Expr> ast) {
   using Kind = ASTKind;
   using TK = TypeKind;
 
-  auto lhs = this->EvalType(ast->lhs);
-  auto rhs = this->EvalType(ast->rhs);
+  auto lhs = this->eval_type(ast->lhs);
+  auto rhs = this->eval_type(ast->rhs);
 
   bool is_same = lhs.equals(rhs);
 

@@ -177,7 +177,7 @@ ASTPointer Parser::ScopeResol() {
 
     auto op = *this->ate;
 
-    return new_expr(ASTKind::OverloadResolutionGuide, op, x, this->parse_signature());
+    return new_expr(ASTKind::OverloadResolutionGuide, op, x, this->expect_signature());
   }
 
   return x;

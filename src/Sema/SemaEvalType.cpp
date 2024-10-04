@@ -10,7 +10,7 @@
 
 namespace fire::semantics_checker {
 
-TypeInfo Sema::EvalType(ASTPointer ast) {
+TypeInfo Sema::eval_type(ASTPointer ast) {
   using Kind = ASTKind;
 
   if (!ast)
@@ -61,7 +61,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
         }
 
         for (auto&& param : x->type_params) {
-          type.params.emplace_back(this->EvalType(param));
+          type.params.emplace_back(this->eval_type(param));
         }
 
         return type;
@@ -81,7 +81,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       return TypeInfo::from_enum(rs.ast_enum);
 
     case NameType::Class:
-      return TypeInfo::instance_of(rs.ast_class);
+      return TypeInfo::from_class(rs.ast_class);
     }
 
     // type.name = x->GetName();
@@ -128,12 +128,12 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
                    "\"array<T>([]...])\")");
     }
 
-    auto const& elemType = type.params.emplace_back(this->EvalType(x->elements[0]));
+    auto const& elemType = type.params.emplace_back(this->eval_type(x->elements[0]));
 
     x->elem_type = elemType;
 
     for (auto it = x->elements.begin() + 1; it != x->elements.end(); it++) {
-      if (!elemType.equals(this->EvalType(*it))) {
+      if (!elemType.equals(this->eval_type(*it))) {
         throw Error(*it, "expected '" + elemType.to_string() +
                              "' type expression as element in array");
       }
@@ -148,7 +148,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     x->lhs->GetID()->must_completed = false;
 
     auto functor_ast = x->lhs;
-    auto functor = this->EvalType(functor_ast);
+    auto functor = this->eval_type(functor_ast);
 
     if (functor_ast->kind != Kind::FuncName) {
       throw Error(functor_ast, "expected function name");
@@ -163,7 +163,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     alert;
 
     auto sig_ast = ASTCast<AST::Signature>(x->rhs);
-    auto sig = this->EvalType(sig_ast);
+    auto sig = this->eval_type(sig_ast);
 
     auto const& sig_ret = sig.params[0];
     auto const sig_args = TypeVec(sig.params.begin() + 1, sig.params.end());
@@ -236,10 +236,10 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
         for (auto&& p : params)
           inst.add_name(p.name, p.type);
 
-        auto cd_sig = _Temp{cd, {}, {}, this->EvalType(cd->return_type)};
+        auto cd_sig = _Temp{cd, {}, {}, this->eval_type(cd->return_type)};
 
         for (auto&& arg : cd->arguments) {
-          cd_sig.arg_types.emplace_back(this->EvalType(arg->type));
+          cd_sig.arg_types.emplace_back(this->eval_type(arg->type));
         }
 
         this->leave_instantiation_scope();
@@ -264,13 +264,13 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
       else {
         for (size_t i = 0; i < sig_args.size(); i++) {
-          if (!sig_args[i].equals(this->EvalType(cd->arguments[i]->type))) {
+          if (!sig_args[i].equals(this->eval_type(cd->arguments[i]->type))) {
             alert;
             goto _pass_candidate;
           }
         }
 
-        if (auto _ret = this->EvalType(cd->return_type); sig_ret.equals(_ret))
+        if (auto _ret = this->eval_type(cd->return_type); sig_ret.equals(_ret))
           final_cd.emplace_back(_Temp{cd, {}, sig_args, _ret});
       }
     _pass_candidate:;
@@ -308,10 +308,10 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     auto sig = ASTCast<AST::Signature>(ast);
 
-    ret.params.emplace_back(this->EvalType(sig->result_type));
+    ret.params.emplace_back(this->eval_type(sig->result_type));
 
     for (auto&& t : sig->arg_type_list)
-      ret.params.emplace_back(this->EvalType(t));
+      ret.params.emplace_back(this->eval_type(t));
 
     return ret;
   }
@@ -448,10 +448,10 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
 
       // if (!func->is_templated) {
-      type.params.emplace_back(id->ft_ret = this->EvalType(func->return_type));
+      type.params.emplace_back(id->ft_ret = this->eval_type(func->return_type));
 
       for (auto&& arg : func->arguments) {
-        id->ft_args.emplace_back(type.params.emplace_back(this->EvalType(arg->type)));
+        id->ft_args.emplace_back(type.params.emplace_back(this->eval_type(arg->type)));
       }
       // }
 
@@ -492,24 +492,14 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       id->kind = ASTKind::ClassName;
       id->ast_class = idinfo.result.ast_class;
 
-      TypeInfo ret = TypeKind::TypeName;
-
-      ret.type_ast = id->ast_class;
-      ret.name = id->ast_class->GetName();
-
-      return ret;
+      return TypeInfo::from_class(id->ast_class);
     }
 
     case NameType::Enum: {
       id->kind = ASTKind::EnumName;
       id->ast_enum = idinfo.result.ast_enum;
 
-      TypeInfo ret = TypeKind::TypeName;
-
-      ret.type_ast = id->ast_enum;
-      ret.name = id->ast_enum->GetName();
-
-      return ret;
+      return TypeInfo::from_enum(id->ast_enum);
     }
 
     case NameType::TypeName: {
@@ -577,11 +567,11 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
         TypeInfo type{TypeKind::Function};
 
         alert;
-        type.params = {this->EvalType(id->candidates[0]->return_type)};
+        type.params = {this->eval_type(id->candidates[0]->return_type)};
 
         for (auto&& arg : id->candidates[0]->arguments) {
           alert;
-          type.params.emplace_back(this->EvalType(arg->type));
+          type.params.emplace_back(this->eval_type(arg->type));
         }
 
         alert;
@@ -635,7 +625,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       id->must_completed = false;
     }
 
-    TypeInfo functor_type = this->EvalType(functor);
+    TypeInfo functor_type = this->eval_type(functor);
 
     TypeVec arg_types;
 
@@ -645,7 +635,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     }
 
     for (ASTPointer arg : call->args) {
-      arg_types.emplace_back(this->EvalType(arg));
+      arg_types.emplace_back(this->eval_type(arg));
     }
 
     switch (functor->kind) {
@@ -670,7 +660,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
           TypeVec formal_arg_types;
 
           for (ASTPtr<AST::Argument> arg : candidate->arguments)
-            formal_arg_types.emplace_back(this->EvalType(arg->type));
+            formal_arg_types.emplace_back(this->eval_type(arg->type));
 
           auto res = this->check_function_call_parameters(
               call->args, candidate->is_var_arg, formal_arg_types, arg_types, false);
@@ -696,7 +686,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       call->callee_ast = final_candidates[0];
 
-      return this->EvalType(final_candidates[0]->return_type);
+      return this->eval_type(final_candidates[0]->return_type);
     }
 
     case ASTKind::BuiltinMemberFunction:
@@ -719,6 +709,10 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       break;
     }
 
+      //
+      // class-name:
+      //   --> create instance
+      //
     case ASTKind::ClassName: {
       auto const& xmv = id->ast_class->member_variables;
 
@@ -730,7 +724,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
 
       for (i64 i = 0; i < (i64)xmv.size(); i++) {
-        if (auto ttt = this->EvalType(xmv[i]->type ? xmv[i]->type : xmv[i]->init);
+        if (auto ttt = this->eval_type(xmv[i]->type ? xmv[i]->type : xmv[i]->init);
             !arg_types[i].equals(ttt)) {
           throw Error(call->args[i], "expected '" + ttt.to_string() +
                                          "' type expression, but found '" +
@@ -740,7 +734,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       ast->kind = ASTKind::CallFunc_Ctor;
 
-      return TypeInfo::instance_of(id->ast_class);
+      return TypeInfo::from_class(id->ast_class);
     }
 
     default: {
@@ -781,16 +775,16 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   }
 
   case Kind::CallFunc_Ctor: {
-    return TypeInfo::instance_of(ast->As<CallFunc>()->get_class_ptr());
+    return TypeInfo::from_class(ast->As<CallFunc>()->get_class_ptr());
   }
 
   case Kind::SpecifyArgumentName:
-    return this->EvalType(ast->as_expr()->rhs);
+    return this->eval_type(ast->as_expr()->rhs);
 
   case Kind::IndexRef: {
     auto x = ASTCast<AST::Expr>(ast);
 
-    auto arr = this->EvalType(x->lhs);
+    auto arr = this->eval_type(x->lhs);
 
     switch (arr.kind) {
     case TypeKind::Vector:
@@ -804,7 +798,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     ASTPtr<AST::Expr> expr = ASTCast<AST::Expr>(ast);
 
-    TypeInfo left_type = this->EvalType(expr->lhs);
+    TypeInfo left_type = this->eval_type(expr->lhs);
 
     ASTPtr<AST::Identifier> rhs_id = Sema::GetID(expr);
 
@@ -826,7 +820,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
             rhs_id->index = index;
             rhs_id->ast_class = x;
 
-            return this->EvalType(mv->type);
+            return this->eval_type(mv->type);
           }
 
           index++;
@@ -868,7 +862,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       expr->kind = ASTKind::MemberFunction;
       rhs_id->self_type = left_type;
 
-      return this->EvalType(rhs_id->candidates[0]->return_type);
+      return this->eval_type(rhs_id->candidates[0]->return_type);
     }
 
     for (auto const& [self_type, func] : builtins::get_builtin_member_functions()) {
@@ -906,7 +900,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   }
 
   case Kind::MemberVariable: {
-    return this->EvalType(
+    return this->eval_type(
         ast->GetID()->ast_class->member_variables[ast->GetID()->index]->type);
   }
 
@@ -923,7 +917,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   case Kind::Not: {
     auto x = ASTCast<AST::Expr>(ast);
 
-    auto type = this->EvalType(x->lhs);
+    auto type = this->eval_type(x->lhs);
 
     if (type.kind != TypeKind::Bool)
       throw Error(x->lhs, "expected boolean expression");
@@ -934,7 +928,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   case Kind::Assign: {
     auto x = ASTCast<AST::Expr>(ast);
 
-    auto src = this->EvalType(x->rhs);
+    auto src = this->eval_type(x->rhs);
 
     if (x->lhs->kind == ASTKind::Identifier || x->lhs->kind == ASTKind::ScopeResol) {
       auto idinfo = this->get_identifier_info(x->lhs);
@@ -946,7 +940,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
     }
 
-    auto dest = this->EvalType(x->lhs);
+    auto dest = this->eval_type(x->lhs);
 
     if (!dest.equals(src)) {
       throw Error(x->rhs, "expected '" + dest.to_string() + "' type expression");

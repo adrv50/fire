@@ -71,9 +71,14 @@ ASTPtr<AST::TypeName> Parser::expectTypeName() {
   auto ast = AST::TypeName::New(*this->expectIdentifier());
 
   if (this->eat_typeparam_bracket_open()) {
-    do {
-      ast->type_params.emplace_back(this->expectTypeName());
-    } while (this->eat(","));
+    if (this->match("(")) {
+      ast->sig = this->expect_signature();
+    }
+    else {
+      do {
+        ast->type_params.emplace_back(this->expectTypeName());
+      } while (this->eat(","));
+    }
 
     this->expect_typeparam_bracket_close();
   }
@@ -81,7 +86,7 @@ ASTPtr<AST::TypeName> Parser::expectTypeName() {
   return ast;
 }
 
-ASTPtr<AST::Signature> Parser::parse_signature() {
+ASTPtr<AST::Signature> Parser::expect_signature() {
   auto tok = *this->cur;
 
   this->expect("(");

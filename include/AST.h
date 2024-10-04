@@ -185,7 +185,7 @@ struct Value : Base {
 struct Named : Base {
   Token name;
 
-  std::string GetName() const;
+  std::string const& GetName() const;
 
 protected:
   Named(ASTKind kind, Token tok, Token name);
@@ -314,6 +314,8 @@ struct Block : Base {
 };
 
 struct TypeName : Named {
+  ASTPtr<Signature> sig;
+
   ASTVec<TypeName> type_params;
   bool is_const;
 

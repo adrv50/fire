@@ -10,16 +10,6 @@ ScopeContext::LocalVar::LocalVar(ASTPtr<AST::VarDef> vardef) {
 
   this->name = vardef->GetName();
   this->decl = vardef;
-
-  // if (vardef->type) {
-  //   this->deducted_type = Sema::GetInstance()->EvalType(vardef->type);
-  //   this->is_type_deducted = true;
-  // }
-
-  // if (vardef->init) {
-  //   this->deducted_type = Sema::GetInstance()->EvalType(vardef->init);
-  //   this->is_type_deducted = true;
-  // }
 }
 
 ScopeContext::LocalVar::LocalVar(ASTPtr<AST::Argument> arg) {
@@ -27,9 +17,6 @@ ScopeContext::LocalVar::LocalVar(ASTPtr<AST::Argument> arg) {
 
   this->name = arg->GetName();
   this->arg = arg;
-
-  // this->deducted_type = Sema::GetInstance()->EvalType(arg->type);
-  // this->is_type_deducted = true;
 }
 
 // ------------------------------------
@@ -303,11 +290,6 @@ ScopeContext::LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
 
   arg.depth = this->depth;
   arg.index = this->arguments.size() - 1;
-
-  // if (!this->is_templated()) {
-  //   arg.deducted_type = Sema::GetInstance()->EvalType(def->type);
-  //   arg.is_type_deducted = true;
-  // }
 
   return arg;
 }

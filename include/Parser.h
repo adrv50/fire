@@ -82,7 +82,7 @@ private:
 
   ASTPtr<AST::TypeName> expectTypeName();
 
-  ASTPtr<AST::Signature> parse_signature();
+  ASTPtr<AST::Signature> expect_signature();
 
   static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op, ASTPointer lhs,
                                     ASTPointer rhs) {

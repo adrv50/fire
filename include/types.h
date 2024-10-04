@@ -78,6 +78,9 @@ struct Function;
 struct Enum;
 struct Class;
 
+struct TypeName;
+struct Signature;
+
 // struct Namespace;
 
 } // namespace AST

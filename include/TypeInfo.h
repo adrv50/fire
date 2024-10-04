@@ -65,52 +65,20 @@ struct TypeInfo {
 
   bool is_iterable() const;
 
-  bool is_numeric() const {
-    switch (this->kind) {
-    case TypeKind::Int:
-    case TypeKind::Float:
-      return true;
-    }
+  bool is_numeric() const;
+  bool is_numeric_or_char() const;
 
-    return false;
-  }
+  bool is_char_or_str() const;
 
-  bool is_numeric_or_char() const {
-    return this->is_numeric() || this->kind == TypeKind::Char;
-  }
-
-  bool is_char_or_str() const {
-    return this->kind == TypeKind::Char || this->kind == TypeKind::String;
-  }
-
-  bool is_hit(std::vector<TypeInfo> types) const {
-    for (TypeInfo const& t : types)
-      if (this->equals(t))
-        return true;
-
-    return false;
-  }
-
-  bool is_hit_kind(std::vector<TypeKind> kinds) const {
-    for (TypeKind k : kinds)
-      if (this->kind == k)
-        return true;
-
-    return false;
-  }
+  bool is_hit(std::vector<TypeInfo> types) const;
+  bool is_hit_kind(std::vector<TypeKind> kinds) const;
 
   static TypeInfo from_enum(ASTPtr<AST::Enum> ast);
   static TypeInfo from_class(ASTPtr<AST::Class> ast);
 
-  static TypeInfo instance_of(ASTPtr<AST::Class> ast) {
-    auto ret = from_class(ast);
+  static TypeInfo make_instance_type(ASTPtr<AST::Class> ast);
 
-    ret.kind = TypeKind::Instance;
-
-    return ret;
-  }
-
-  static std::vector<char const*> get_primitive_names();
+  static TypeKind from_name(string const& name);
 
   static bool is_primitive_name(std::string_view);
 
@@ -119,14 +87,8 @@ struct TypeInfo {
 
   TypeInfo without_params() const;
 
-  TypeInfo(TypeKind kind = TypeKind::None)
-      : TypeInfo(kind, {}) {
-  }
-
-  TypeInfo(TypeKind kind, std::vector<TypeInfo> params)
-      : kind(kind),
-        params(std::move(params)) {
-  }
+  TypeInfo(TypeKind kind = TypeKind::None);
+  TypeInfo(TypeKind kind, std::vector<TypeInfo> params);
 };
 
 } // namespace fire

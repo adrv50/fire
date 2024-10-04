@@ -52,7 +52,7 @@ Sema::instantiate_template_func(ASTPtr<AST::Function> func, ASTPointer reqeusted
     ASTPointer actual_parameter_type = id->id_params[i];
 
     param_types[formal_param_name] =
-        InstantiateRequest::Argument{.type = this->EvalType(actual_parameter_type),
+        InstantiateRequest::Argument{.type = this->eval_type(actual_parameter_type),
                                      .given = actual_parameter_type,
                                      .is_deducted = true};
   }
@@ -147,7 +147,7 @@ Sema::instantiate_template_func(ASTPtr<AST::Function> func, ASTPointer reqeusted
   TypeVec formal_arg_types;
 
   for (auto&& arg : req.cloned->arguments) {
-    formal_arg_types.emplace_back(this->EvalType(arg->type));
+    formal_arg_types.emplace_back(this->eval_type(arg->type));
   }
 
   auto res = this->check_function_call_parameters(args, req.cloned->is_var_arg,
@@ -160,7 +160,7 @@ Sema::instantiate_template_func(ASTPtr<AST::Function> func, ASTPointer reqeusted
                                      arg_types[res.index].to_string() + "'");
 
   case ArgumentCheckResult::Ok: {
-    req.result_type = this->EvalType(req.cloned->return_type);
+    req.result_type = this->eval_type(req.cloned->return_type);
 
     if (auto found = this->find_request_of_func(func, req.result_type, arg_types);
         !found) {

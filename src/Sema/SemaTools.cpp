@@ -13,6 +13,38 @@ namespace fire::semantics_checker {
 
 std::list<Sema::ScopeLocation> _bak_list;
 
+TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
+  auto& name = ast->GetName();
+
+  TypeInfo type = TypeInfo::from_name(name);
+
+  switch (type.kind) {
+  case TypeKind::Function: {
+  }
+
+  case TypeKind::Unknown:
+    break;
+
+  default:
+    return type;
+  }
+
+  if (auto tp = this->find_template_parameter_name(name); tp)
+    return *tp;
+
+  auto rs = this->find_name(name);
+
+  switch (rs.type) {
+  case NameType::Enum:
+    return TypeInfo::from_enum(rs.ast_enum);
+
+  case NameType::Class:
+    return TypeInfo::from_class(rs.ast_class);
+  }
+
+  throw Error(ast->token, "unknown type name");
+}
+
 i64 Sema::resolution_overload(ASTVec<AST::Function>& out,
                               ASTVec<AST::Function> const& candidates,
                               FunctionSignature const& sig) {
@@ -247,7 +279,7 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast) {
   id_info.result = this->find_name(ast->GetName());
 
   for (auto&& x : ast->id_params) {
-    auto& y = id_info.id_params.emplace_back(this->EvalType(x));
+    auto& y = id_info.id_params.emplace_back(this->eval_type(x));
 
     if (y.kind == TypeKind::TypeName && y.params.size() == 1) {
       y = y.params[0];
@@ -357,7 +389,7 @@ bool Sema::IsWritable(ASTPointer ast) {
 TypeInfo Sema::ExpectType(TypeInfo const& type, ASTPointer ast) {
   this->_expected.emplace_back(type);
 
-  if (auto t = this->EvalType(ast); !t.equals(type)) {
+  if (auto t = this->eval_type(ast); !t.equals(type)) {
     throw Error(ast, "expected '" + type.to_string() + "' type expression, but found '" +
                          t.to_string() + "'");
   }
@@ -379,10 +411,10 @@ bool Sema::IsExpected(TypeKind kind) {
 TypeInfo Sema::make_functor_type(ASTPtr<AST::Function> ast) {
   TypeInfo ret = TypeKind::Function;
 
-  ret.params.emplace_back(this->EvalType(ast->return_type));
+  ret.params.emplace_back(this->eval_type(ast->return_type));
 
   for (ASTPtr<AST::Argument> const& arg : ast->arguments)
-    ret.params.emplace_back(this->EvalType(arg->type));
+    ret.params.emplace_back(this->eval_type(arg->type));
 
   return ret;
 }

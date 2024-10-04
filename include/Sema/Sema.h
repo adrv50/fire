@@ -153,7 +153,9 @@ public:
 
   void check(ASTPointer ast);
 
-  TypeInfo EvalType(ASTPointer ast);
+  TypeInfo eval_type(ASTPointer ast);
+
+  TypeInfo eval_type_name(ASTPtr<AST::TypeName> ast);
 
   TypeInfo EvalExpr(ASTPtr<AST::Expr> ast);
 
@@ -259,6 +261,15 @@ private:
 
   void leave_instantiation_scope() {
     this->inst_scope.pop_front();
+  }
+
+  TypeInfo* find_template_parameter_name(string const& name) {
+    for (auto&& inst : this->inst_scope) {
+      if (auto p = inst.find_name(name); p)
+        return p;
+    }
+
+    return nullptr;
   }
 
   void SaveScopeLocation();
