@@ -35,27 +35,19 @@ TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
   auto rs = this->find_name(name);
 
   switch (rs.type) {
-  case NameType::Enum:
-    return TypeInfo::from_enum(rs.ast_enum);
+  case NameType::Enum: {
+    TypeInfo ret = TypeInfo::from_enum(rs.ast_enum);
+
+    ret.kind = TypeKind::Enumerator;
+
+    return ret;
+  }
 
   case NameType::Class:
     return TypeInfo::from_class(rs.ast_class);
   }
 
   throw Error(ast->token, "unknown type name");
-}
-
-i64 Sema::resolution_overload(ASTVec<AST::Function>& out,
-                              ASTVec<AST::Function> const& candidates,
-                              FunctionSignature const& sig) {
-
-  (void)out;
-  (void)candidates;
-  (void)sig;
-
-  todo_impl;
-
-  return (i64)out.size();
 }
 
 ScopeContext* Sema::GetRootScope() {

@@ -253,7 +253,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     size_t const argc = x->args.size();
 
-    inst->member_variables.reserve(argc);
+    inst->member_variables.resize(argc);
 
     for (size_t i = 0; i < argc; i++) {
       if (auto init = ast_class->member_variables[i]->init; init) {

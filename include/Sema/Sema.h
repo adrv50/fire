@@ -101,23 +101,6 @@ class Sema {
     string to_string() const;
   };
 
-  // struct SemaFunction {
-  //   ASTPtr<Function> func;
-
-  //   FunctionScope* scope = nullptr;
-
-  //   // vector<TypeInfo> arg_types;
-
-  //   bool is_type_deducted = false; // of result_type
-  //   TypeInfo result_type;
-
-  //   vector<ASTPtr<AST::Statement>>
-  //       return_stmt_list; // use to check return-type specification.
-  //                         // (append only that contains a expression)
-
-  //   SemaFunction(ASTPtr<Function> func);
-  // };
-
   ArgumentCheckResult check_function_call_parameters(ASTVector args, bool isVariableArg,
                                                      TypeVec const& formal,
                                                      TypeVec const& actual,
@@ -210,27 +193,6 @@ private:
 
   TemplateTypeApplier* _find_applied(TemplateTypeApplier const& t);
 
-  // InstantiationTask* find_request_of_func(ASTPtr<AST::Function> func, TypeInfo
-  // ret_type,
-  //                                         TypeVec args); // args = actual
-
-  // ASTPtr<AST::Function>
-  // instantiate_template_func(ASTPtr<AST::Function> func, ASTPointer requested,
-  //                           ASTPtr<AST::Identifier> id, ASTVector args,
-  //                           TypeVec const& arg_types, bool ignore_args);
-
-  struct FunctionSignature {
-    ASTVector template_args;
-    ASTVector args;
-    TypeVec arg_types;
-  };
-
-  i64 resolution_overload(ASTVec<AST::Function>& out,
-                          ASTVec<AST::Function> const& candidates,
-                          FunctionSignature const& sig);
-
-  int _construct_scope_context(ScopeContext& S, ASTPointer ast);
-
   ASTPtr<Block> root;
 
   BlockScope* _scope_context = nullptr;
@@ -250,46 +212,7 @@ private:
   ScopeContext* EnterScope(ASTPointer ast);
   ScopeContext* EnterScope(ScopeContext* ctx);
 
-  // void LeaveScope(ASTPointer ast);
-  // void LeaveScope(ScopeContext* ctx);
   void LeaveScope();
-
-  // struct InstantiationScope {
-  //   vector<std::pair<string, TypeInfo>> arg_types;
-
-  //   void add_name(string const& name, TypeInfo const& type) {
-  //     this->arg_types.emplace_back(name, type);
-  //   }
-
-  //   TypeInfo* find_name(string const& name) {
-  //     for (auto&& [n, t] : this->arg_types)
-  //       if (n == name)
-  //         return &t;
-
-  //     return nullptr;
-  //   }
-  // };
-
-  // std::list<InstantiationScope> inst_scope;
-
-  // InstantiationScope& enter_instantiation_scope() {
-  //   auto& scope = this->inst_scope.emplace_front();
-
-  //   return scope;
-  // }
-
-  // void leave_instantiation_scope() {
-  //   this->inst_scope.pop_front();
-  // }
-
-  // TypeInfo* find_template_parameter_name(string const& name) {
-  //   for (auto&& inst : this->inst_scope) {
-  //     if (auto p = inst.find_name(name); p)
-  //       return p;
-  //   }
-
-  //   return nullptr;
-  // }
 
   void SaveScopeLocation();
   void RestoreScopeLocation();

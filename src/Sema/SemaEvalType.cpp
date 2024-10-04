@@ -101,14 +101,7 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
     auto const& sig_ret = sig.params[0];
     auto const sig_args = TypeVec(sig.params.begin() + 1, sig.params.end());
 
-    struct _Temp {
-      ASTPtr<AST::Function> func;
-      TypeVec template_params;
-      TypeVec arg_types;
-      TypeInfo ret;
-    };
-
-    vector<_Temp> final_cd;
+    ASTVec<AST::Function> final_cd;
 
     for (auto&& cd : id->candidates) {
       alert;
@@ -120,8 +113,11 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       if (cd->template_param_names.size() < id->template_args.size())
         continue;
 
+      TemplateTypeApplier app;
+
       if (cd->is_templated) {
-        todo_impl;
+        if (!this->try_apply_template_function(app, cd, id->template_args, sig_args))
+          continue;
       }
 
       for (size_t i = 0; i < sig_args.size(); i++) {
@@ -132,13 +128,12 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       }
 
       if (auto _ret = this->eval_type(cd->return_type); sig_ret.equals(_ret))
-        final_cd.emplace_back(_Temp{cd, {}, sig_args, _ret});
+        final_cd.emplace_back(cd);
 
     _pass_candidate:;
     }
 
     if (final_cd.empty()) {
-
       throw Error(x->op, "cannot find function '" + id->GetName() +
                              "' matching to signature '(" +
                              utils::join<TypeInfo>(", ", sig_args,
@@ -151,17 +146,17 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       Error e{x->op, "function name '" + id->GetName() + "' is still ambiguous"};
 
       for (auto&& cd : final_cd)
-        e.AddChain(Error(Error::ER_Note, cd.func, "candidate:"));
+        e.AddChain(Error(Error::ER_Note, cd, "candidate:"));
 
       throw e;
     }
 
     TypeInfo ret = TypeKind::Function;
 
-    ret.params = final_cd[0].arg_types;
-    ret.params.insert(ret.params.begin(), final_cd[0].ret);
+    ret.params = sig_args;
+    ret.params.insert(ret.params.begin(), sig_ret);
 
-    id->candidates = {final_cd[0].func};
+    id->candidates = std::move(final_cd);
 
     return ret;
   }
@@ -272,17 +267,11 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       TemplateTypeApplier apply;
 
       if (func->is_templated) {
-        alert;
-
         if (!this->try_apply_template_function(apply, func, id->template_args, {})) {
-          alert;
           return type;
         }
-
-        alert;
       }
 
-      alert;
       type.params.emplace_back(id->ft_ret = this->eval_type(func->return_type));
 
       for (auto&& arg : func->arguments) {

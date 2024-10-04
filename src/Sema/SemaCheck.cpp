@@ -32,7 +32,8 @@ void Sema::check(ASTPointer ast) {
 
       bb[mv->GetName()] = true;
 
-      this->check(mv);
+      this->check(mv->type);
+      this->check(mv->init);
     }
 
     for (auto&& mf : x->member_functions) {

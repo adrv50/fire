@@ -64,7 +64,7 @@ bool Sema::try_apply_template_function(TemplateTypeApplier& out,
   out = this->apply_template_params(ast, args);
 
   for (size_t i = 0; i < func_args.size(); i++) {
-    auto const& name = ast->template_param_names[i].str;
+    auto const& name = ast->arguments[i]->type->GetName();
 
     auto find = out.find_parameter(name);
 
