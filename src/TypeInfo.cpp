@@ -97,14 +97,6 @@ bool TypeInfo::is_primitive_name(std::string_view name) {
 }
 
 bool TypeInfo::equals(TypeInfo const& type) const {
-  if (this->kind == TypeKind::Instance && type.kind == TypeKind::TypeName) {
-    return this->type_ast == type.type_ast;
-  }
-
-  if (this->kind == TypeKind::TypeName && type.kind == TypeKind::Instance) {
-    return this->type_ast == type.type_ast;
-  }
-
   if (this->kind == TypeKind::Unknown || type.kind == TypeKind::Unknown)
     return true;
 
@@ -119,6 +111,7 @@ bool TypeInfo::equals(TypeInfo const& type) const {
 
   switch (this->kind) {
   case TypeKind::TypeName:
+  case TypeKind::Instance:
     if (this->type_ast != type.type_ast)
       return false;
     break;
@@ -141,8 +134,10 @@ string TypeInfo::to_string() const {
 
   switch (this->kind) {
   case TypeKind::TypeName:
-    if (this->params.size() == 1)
-      return "<typeinfo " + this->params[0].to_string() + ">";
+    if (this->params.size() == 1) {
+      ret = this->params[0].to_string();
+      break;
+    }
 
   case TypeKind::Instance:
   case TypeKind::Enumerator:
@@ -181,6 +176,9 @@ string TypeInfo::to_string() const {
 
   if (this->is_const)
     ret += " const";
+
+  if (this->kind == TypeKind::TypeName)
+    return "<typeinfo of " + ret + ">";
 
   return ret;
 }

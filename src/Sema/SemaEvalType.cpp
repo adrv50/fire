@@ -232,8 +232,26 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       }
 
       if (temp.empty() && is_all_template) {
-        throw Error(id->token, "cannot use function name '" + id->GetName() +
-                                   "' without template arguments");
+
+        if (id->candidates.size() == 1) {
+          string msg;
+
+          if (id->id_params.size() < id->candidates[0]->template_param_names.size())
+            msg = "too few template arguments";
+          else
+            msg = "too many template arguments";
+
+          throw Error(id, msg).AddChain(
+              Error(Error::ER_Note, id->candidates[0]->tok_template, "declared here"));
+        }
+
+        if (id->id_params.empty())
+          throw Error(id->token, "cannot use function  '" + id->GetName() +
+                                     "' without template arguments");
+        else
+          throw Error(id->token, "cannot use function '" + id->GetName() + "' with " +
+                                     std::to_string(id->id_params.size()) +
+                                     " template arguments");
       }
 
       id->candidates = std::move(temp);

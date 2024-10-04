@@ -247,6 +247,7 @@ ASTPointer Parser::Top() {
 
     if (this->eat_typeparam_bracket_open()) {
       func->is_templated = true;
+      func->tok_template = *this->ate;
 
       do {
         func->template_param_names.emplace_back(*this->expectIdentifier());
