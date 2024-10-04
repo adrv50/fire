@@ -21,75 +21,8 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
   case Kind::Function:
     return {};
 
-  case Kind::TypeName: {
-    // clang-format off
-    static std::map<TypeKind, char const*> kind_name_map {
-      { TypeKind::None,       "none" },
-      { TypeKind::Int,        "int" },
-      { TypeKind::Float,      "float" },
-      { TypeKind::Bool,       "bool" },
-      { TypeKind::Char,       "char" },
-      { TypeKind::String,     "string" },
-      { TypeKind::Vector,     "vector" },
-      { TypeKind::Tuple,      "tuple" },
-      { TypeKind::Dict,       "dict" },
-      { TypeKind::Instance,   "instance" },
-      { TypeKind::Module,     "module" },
-      { TypeKind::Function,   "function" },
-      { TypeKind::Module,     "module" },
-      { TypeKind::TypeName,   "type" },
-    };
-    // clang-format on
-
-    auto x = ASTCast<AST::TypeName>(ast);
-
-    TypeInfo type;
-
-    for (auto&& [key, val] : kind_name_map) {
-      if (val == x->GetName()) {
-        type = key;
-
-        if (int c = type.needed_param_count();
-            c == 0 && (int)x->type_params.size() >= 1) {
-          throw Error(x->token, "type '" + string(val) + "' cannot have parameters");
-        }
-        else if (c >= 1) {
-          if ((int)x->type_params.size() < c)
-            throw Error(x->token, "too few parameters");
-          else if ((int)x->type_params.size() > c)
-            throw Error(x->token, "too many parameters");
-        }
-
-        for (auto&& param : x->type_params) {
-          type.params.emplace_back(this->eval_type(param));
-        }
-
-        return type;
-      }
-    }
-
-    for (auto&& inst : this->inst_scope) {
-      if (auto p = inst.find_name(x->GetName()); p) {
-        return *p;
-      }
-    }
-
-    auto rs = this->find_name(x->GetName());
-
-    switch (rs.type) {
-    case NameType::Enum:
-      return TypeInfo::from_enum(rs.ast_enum);
-
-    case NameType::Class:
-      return TypeInfo::from_class(rs.ast_class);
-    }
-
-    // type.name = x->GetName();
-    // type.kind = TypeKind::Unknown;
-    // return type;
-
-    throw Error(x->token, "unknown type name");
-  }
+  case Kind::TypeName:
+    return this->eval_type_name(ASTCast<AST::TypeName>(ast));
 
   case Kind::Value: {
     return ast->as_value()->value->type;
@@ -188,100 +121,19 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
         continue;
 
       if (cd->is_templated) {
-        struct _holder {
-          string name;
-          TypeInfo type;
-          bool set = false;
-        };
+        todo_impl;
+      }
 
-        vector<_holder> params;
-
-        for (auto&& tp : cd->template_param_names) {
-          params.emplace_back(_holder{tp.str, {}, false});
-        }
-
-        for (size_t i = 0; i < id->template_args.size(); i++) {
-          params[i].type = id->template_args[i];
-          params[i].set = true;
-        }
-
-        // compare template-args and arg-types
-        for (size_t i = 0; i < cd->arguments.size(); i++) {
-          auto& act = sig.params[i + 1];
-
-          for (auto&& p : params) {
-            if (p.name == cd->arguments[i]->type->GetName()) {
-              if (p.set && !p.type.equals(act)) {
-                alert;
-                goto _pass_candidate;
-              }
-
-              p.type = act;
-              p.set = true;
-
-              break;
-            }
-          }
-        }
-
-        for (auto&& p : params) {
-          if (!p.set) {
-            alert;
-            goto _pass_candidate;
-          }
-        }
-
-        auto& inst = this->enter_instantiation_scope();
-
-        for (auto&& p : params)
-          inst.add_name(p.name, p.type);
-
-        auto cd_sig = _Temp{cd, {}, {}, this->eval_type(cd->return_type)};
-
-        for (auto&& arg : cd->arguments) {
-          cd_sig.arg_types.emplace_back(this->eval_type(arg->type));
-        }
-
-        this->leave_instantiation_scope();
-
-        for (auto&& arg : params) {
-          cd_sig.template_params.emplace_back(arg.type);
-        }
-
-        for (size_t i = 0; i < cd->arguments.size(); i++) {
-          if (!sig_args[i].equals(cd_sig.arg_types[i])) {
-            alert;
-            goto _pass_candidate;
-          }
-        }
-
-        if (!cd_sig.ret.equals(sig_ret)) {
+      for (size_t i = 0; i < sig_args.size(); i++) {
+        if (!sig_args[i].equals(this->eval_type(cd->arguments[i]->type))) {
           alert;
           goto _pass_candidate;
         }
-
-        //
-        // TODO:
-        //  instantiate.
-        //
-
-        auto& _f = final_cd.emplace_back(std::move(cd_sig));
-
-        _f.func = nullptr;
-
-        todo_impl;
       }
-      else {
-        for (size_t i = 0; i < sig_args.size(); i++) {
-          if (!sig_args[i].equals(this->eval_type(cd->arguments[i]->type))) {
-            alert;
-            goto _pass_candidate;
-          }
-        }
 
-        if (auto _ret = this->eval_type(cd->return_type); sig_ret.equals(_ret))
-          final_cd.emplace_back(_Temp{cd, {}, sig_args, _ret});
-      }
+      if (auto _ret = this->eval_type(cd->return_type); sig_ret.equals(_ret))
+        final_cd.emplace_back(_Temp{cd, {}, sig_args, _ret});
+
     _pass_candidate:;
     }
 
@@ -417,57 +269,24 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
       type.is_free_args = func->is_var_arg;
 
+      TemplateTypeApplier apply;
+
       if (func->is_templated) {
-        auto& inst = this->enter_instantiation_scope();
+        alert;
 
-        for (auto it = id->template_args.begin();
-             auto&& param : func->template_param_names) {
-
-          if (it == id->template_args.end()) {
-            if (id->must_completed) {
-              throw Error(id, "type of template argument '" + param.str + "' is missing");
-            }
-
-            this->leave_instantiation_scope();
-            return TypeKind::Function;
-          }
-
-          inst.add_name(param.str, *it);
+        if (!this->try_apply_template_function(apply, func, id->template_args, {})) {
+          alert;
+          return type;
         }
 
-        this->SaveScopeLocation();
-
-        auto scope = (FunctionScope*)this->GetScopeOf(func);
-
-        this->BackToDepth(scope->depth - 1);
-
-        this->EnterScope(scope);
-
-        for (size_t i = 0; auto&& t : idinfo.id_params) {
-          auto& arg = scope->arguments[i];
-
-          arg.deducted_type = t;
-          arg.is_argument = true;
-          arg.is_type_deducted = true;
-
-          i++;
-        }
-
-        this->check(func->block);
-
-        this->RestoreScopeLocation();
+        alert;
       }
 
-      // if (!func->is_templated) {
+      alert;
       type.params.emplace_back(id->ft_ret = this->eval_type(func->return_type));
 
       for (auto&& arg : func->arguments) {
         id->ft_args.emplace_back(type.params.emplace_back(this->eval_type(arg->type)));
-      }
-      // }
-
-      if (func->is_templated) {
-        this->leave_instantiation_scope();
       }
 
       return type;
@@ -519,7 +338,7 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       if (size_t c = type.needed_param_count(); c == 0 && type.params.size() >= 1) {
         throw Error(id, "'" + id->GetName() + "' is not template type");
       }
-      else if (c != type.params.size()) {
+      else if (c >= 1 && c != type.params.size()) {
         throw Error(id, "no match template argument count");
       }
 
@@ -660,12 +479,19 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       for (ASTPtr<AST::Function> candidate : id->candidates) {
         if (id->id_params.size() > candidate->template_param_names.size())
           continue;
-        if (candidate->is_templated) {
-          auto instantiated = this->instantiate_template_func(
-              candidate, call, id, call->args, arg_types, false);
 
-          if (instantiated != nullptr)
-            final_candidates.emplace_back(instantiated);
+        if (candidate->is_templated) {
+          // auto instantiated = this->instantiate_template_func(
+          //     candidate, call, id, call->args, arg_types, false);
+
+          // if (instantiated != nullptr)
+          //   final_candidates.emplace_back(instantiated);
+          TemplateTypeApplier apply;
+
+          if (this->try_apply_template_function(apply, candidate, id->template_args,
+                                                arg_types)) {
+            final_candidates.emplace_back(candidate);
+          }
         }
         else {
           TypeVec formal_arg_types;

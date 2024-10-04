@@ -21,6 +21,8 @@ using u64 = std::uint64_t;
 using std::size_t;
 
 using std::string;
+using std::string_view;
+
 using std::vector;
 
 using StringVector = std::vector<std::string>;

@@ -164,19 +164,60 @@ public:
   static Sema* GetInstance();
 
 private:
-  struct InstantiateTask {
-    ASTPtr<AST::Function>
+  struct TemplateTypeApplier {
+    struct Parameter {
+      string_view name;
+      TypeInfo type;
+
+      Parameter(string_view name, TypeInfo type)
+          : name(name),
+            type(type) {
+        alertexpr(name);
+      }
+    };
+
+    Sema* S;
+
+    ASTPtr<AST::Templatable> ast;
+
+    vector<Parameter> parameter_list;
+
+    Parameter& add_parameter(string_view name, TypeInfo type);
+    Parameter* find_parameter(string_view name);
+
+    TemplateTypeApplier();
+    TemplateTypeApplier(ASTPtr<AST::Templatable> ast,
+                        vector<Parameter> parameter_list = {});
+    ~TemplateTypeApplier();
   };
 
-  vector<InstantiateTask> ins_requests;
+  friend struct TemplateTypeApplier;
 
-  InstantiateRequest* find_request_of_func(ASTPtr<AST::Function> func, TypeInfo ret_type,
-                                           TypeVec args); // args = actual
+  std::vector<TemplateTypeApplier> _applied_templates;
 
-  ASTPtr<AST::Function>
-  instantiate_template_func(ASTPtr<AST::Function> func, ASTPointer requested,
-                            ASTPtr<AST::Identifier> id, ASTVector args,
-                            TypeVec const& arg_types, bool ignore_args);
+  std::list<TemplateTypeApplier*> _applied_ptr_stack;
+
+  TypeInfo* find_template_parameter_name(string const& name);
+
+  //
+  // args = template arguments (parameter)
+  //
+  TemplateTypeApplier apply_template_params(ASTPtr<AST::Templatable> ast,
+                                            TypeVec const& args);
+
+  bool try_apply_template_function(TemplateTypeApplier& out, ASTPtr<AST::Function> ast,
+                                   TypeVec const& args, TypeVec const& func_args);
+
+  TemplateTypeApplier* _find_applied(TemplateTypeApplier const& t);
+
+  // InstantiationTask* find_request_of_func(ASTPtr<AST::Function> func, TypeInfo
+  // ret_type,
+  //                                         TypeVec args); // args = actual
+
+  // ASTPtr<AST::Function>
+  // instantiate_template_func(ASTPtr<AST::Function> func, ASTPointer requested,
+  //                           ASTPtr<AST::Identifier> id, ASTVector args,
+  //                           TypeVec const& arg_types, bool ignore_args);
 
   struct FunctionSignature {
     ASTVector template_args;
@@ -213,42 +254,42 @@ private:
   // void LeaveScope(ScopeContext* ctx);
   void LeaveScope();
 
-  struct InstantiationScope {
-    vector<std::pair<string, TypeInfo>> arg_types;
+  // struct InstantiationScope {
+  //   vector<std::pair<string, TypeInfo>> arg_types;
 
-    void add_name(string const& name, TypeInfo const& type) {
-      this->arg_types.emplace_back(name, type);
-    }
+  //   void add_name(string const& name, TypeInfo const& type) {
+  //     this->arg_types.emplace_back(name, type);
+  //   }
 
-    TypeInfo* find_name(string const& name) {
-      for (auto&& [n, t] : this->arg_types)
-        if (n == name)
-          return &t;
+  //   TypeInfo* find_name(string const& name) {
+  //     for (auto&& [n, t] : this->arg_types)
+  //       if (n == name)
+  //         return &t;
 
-      return nullptr;
-    }
-  };
+  //     return nullptr;
+  //   }
+  // };
 
-  std::list<InstantiationScope> inst_scope;
+  // std::list<InstantiationScope> inst_scope;
 
-  InstantiationScope& enter_instantiation_scope() {
-    auto& scope = this->inst_scope.emplace_front();
+  // InstantiationScope& enter_instantiation_scope() {
+  //   auto& scope = this->inst_scope.emplace_front();
 
-    return scope;
-  }
+  //   return scope;
+  // }
 
-  void leave_instantiation_scope() {
-    this->inst_scope.pop_front();
-  }
+  // void leave_instantiation_scope() {
+  //   this->inst_scope.pop_front();
+  // }
 
-  TypeInfo* find_template_parameter_name(string const& name) {
-    for (auto&& inst : this->inst_scope) {
-      if (auto p = inst.find_name(name); p)
-        return p;
-    }
+  // TypeInfo* find_template_parameter_name(string const& name) {
+  //   for (auto&& inst : this->inst_scope) {
+  //     if (auto p = inst.find_name(name); p)
+  //       return p;
+  //   }
 
-    return nullptr;
-  }
+  //   return nullptr;
+  // }
 
   void SaveScopeLocation();
   void RestoreScopeLocation();

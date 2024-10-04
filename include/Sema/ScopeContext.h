@@ -51,6 +51,8 @@ struct ScopeContext {
 
   int depth = 0;
 
+  ScopeContext* _owner = nullptr;
+
   bool Contains(ScopeContext* scope, bool recursive = false) const;
 
   virtual bool IsNamedAs(string const&) const {
@@ -88,6 +90,8 @@ struct BlockScope : ScopeContext {
   vector<ScopeContext*> child_scopes;
 
   ScopeContext*& AddScope(ScopeContext* s) {
+    s->_owner = this;
+
     return this->child_scopes.emplace_back(s);
   }
 
@@ -121,12 +125,6 @@ struct FunctionScope : ScopeContext {
   TypeInfo result_type;
 
   ASTVec<AST::Statement> return_stmt_list;
-
-  vector<FunctionScope*> instantiated;
-
-  FunctionScope*& AppendInstantiated(ASTPtr<AST::Function> fn) {
-    return this->instantiated.emplace_back(new FunctionScope(this->depth, fn));
-  }
 
   bool is_templated() const {
     return ast->is_templated;

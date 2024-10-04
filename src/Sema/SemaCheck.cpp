@@ -11,47 +11,6 @@ namespace fire::semantics_checker {
 
 void Sema::check_full() {
   this->check(this->root);
-
-  /*
-
-  this->SaveScopeLocation();
-
-  for (auto&& req : this->ins_requests) {
-
-    this->_location = req.scope_loc;
-
-    try {
-
-      assert(req.cloned != nullptr);
-
-      this->check(req.cloned);
-    }
-    catch (Error err) {
-      string func_name = req.original->GetName() + "@<";
-
-      for (int i = -1; auto&& [_name, _data] : req.param_types) {
-        i++;
-
-        func_name += _name + "=" + _data.type.to_string();
-
-        if (i + 1 < req.param_types.size())
-          func_name += ", ";
-      }
-
-      func_name += ">(" +
-                   utils::join<TypeInfo>(", ", req.arg_types,
-                                         [](TypeInfo t) -> string {
-                                           return t.to_string();
-                                         }) +
-                   ")";
-
-      throw err.AddChain(Error(Error::ER_Note, req.requested, "requested here"))
-          .InLocation("in instantiation of '" + func_name + "'");
-    }
-  }
-
-  this->RestoreScopeLocation();
-  */
 }
 
 void Sema::check(ASTPointer ast) {

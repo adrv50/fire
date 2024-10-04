@@ -273,13 +273,12 @@ FunctionScope::FunctionScope(int depth, ASTPtr<AST::Function> ast)
   }
 
   this->block = new BlockScope(this->depth + 1, ast->block);
+
+  this->block->_owner = this;
 }
 
 FunctionScope::~FunctionScope() {
   delete this->block;
-
-  for (auto&& s : this->instantiated)
-    delete s;
 }
 
 ScopeContext::LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
@@ -311,22 +310,12 @@ ScopeContext* FunctionScope::find_child_scope(ASTPointer ast) {
   if (this->ast == ast)
     return this;
 
-  for (auto&& I : this->instantiated) {
-    if (auto x = I->find_child_scope(ast); x)
-      return x;
-  }
-
   return this->block->find_child_scope(ast);
 }
 
 ScopeContext* FunctionScope::find_child_scope(ScopeContext* ctx) {
   if (this == ctx)
     return this;
-
-  for (auto&& I : this->instantiated) {
-    if (auto x = I->find_child_scope(ctx); x)
-      return x;
-  }
 
   return this->block->find_child_scope(ctx);
 }
