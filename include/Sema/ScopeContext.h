@@ -124,7 +124,7 @@ struct BlockScope : ScopeContext {
 
   std::string to_string() const override;
 
-  BlockScope(int depth, ASTPtr<AST::Block> ast);
+  BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add = 0);
   ~BlockScope();
 };
 
@@ -179,7 +179,7 @@ struct NamespaceScope : BlockScope {
 
   ASTVec<AST::Block> _ast;
 
-  NamespaceScope(int depth, ASTPtr<AST::Block> ast);
+  NamespaceScope(int depth, ASTPtr<AST::Block> ast, int index_add);
   ~NamespaceScope();
 };
 

@@ -80,7 +80,7 @@ vector<ScopeContext*> ScopeContext::find_name(string const&) {
 // ------------------------------------
 //  BlockScope
 
-BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast)
+BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
     : ScopeContext(SC_Block),
       ast(ast) {
 
@@ -100,9 +100,13 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast)
       this->AddScope(new FunctionScope(this->depth + 1, ASTCast<AST::Function>(e)));
       break;
 
-    case ASTKind::Vardef:
-      this->add_var(ASTCast<AST::VarDef>(e));
+    case ASTKind::Vardef: {
+      auto& v = this->add_var(ASTCast<AST::VarDef>(e));
+
+      v.index_add = index_add + this->child_var_count;
+
       break;
+    }
 
     case ASTKind::If: {
       auto d = e->As<AST::Statement>()->get_data<AST::Statement::If>();
@@ -166,40 +170,15 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast)
     case ASTKind::Namespace: {
       auto block = ASTCast<AST::Block>(e);
 
-      auto scope = new NamespaceScope(this->depth, block);
-
-      // for (auto&& s : this->child_scopes) {
-      //   if (auto ns = (NamespaceScope*)s;
-      //       ns->type == SC_Namespace && ns->name == scope->name) {
-
-      //     ns->_ast.emplace_back(block);
-
-      //     for (auto&& v : scope->variables) {
-      //       if (ns->find_var(v.name))
-      //         continue;
-
-      //       v.index += ns->variables.size();
-
-      //       ns->variables.emplace_back(v);
-      //     }
-
-      //     for (auto&& s2 : scope->child_scopes) {
-      //       ns->AddScope(s2);
-      //       s2 = nullptr;
-      //     }
-
-      //     ns->child_var_count += scope->child_var_count;
-
-      //     delete scope;
-      //     goto __found;
-      //   }
-      // }
+      auto scope = new NamespaceScope(
+          this->depth, block, index_add + this->variables.size() + this->child_var_count);
 
       auto c = (NamespaceScope*)this->AddScope(scope);
 
-      this->child_var_count += c->child_var_count;
+      this->child_var_count += c->variables.size();
 
-    __found:;
+      alertexpr(this->child_var_count);
+
       break;
     }
     }
@@ -215,47 +194,49 @@ BlockScope::~BlockScope() {
 
 ScopeContext*& BlockScope::AddScope(ScopeContext* scope) {
 
+  // if (scope->is_block) {
+  //   this->child_var_count += ((BlockScope*)scope)->variables.size();
+  // }
+
   if (scope->type == SC_Namespace) {
 
-    auto ns = (NamespaceScope*)scope;
+    auto src = (NamespaceScope*)scope;
 
     for (auto&& c : this->child_scopes) {
       if (c->type != SC_Namespace)
         continue;
 
-      auto nc = (NamespaceScope*)c;
+      auto dest = (NamespaceScope*)c;
 
-      if (nc->name != ns->name)
+      if (dest->name != src->name)
         continue;
 
-      nc->_ast.emplace_back(ns->ast);
+      dest->_ast.emplace_back(src->ast);
 
-      auto index_add = nc->child_var_count + this->child_var_count;
-
-      for (auto&& v : ns->variables) {
-        if (nc->find_var(v.name))
+      for (auto&& v : src->variables) {
+        if (dest->find_var(v.name))
           continue;
 
-        v.index_add = index_add;
+        v.index_add = this->child_var_count;
 
-        nc->variables.emplace_back(v);
+        dest->variables.emplace_back(v);
       }
 
-      nc->child_var_count += ns->child_var_count;
-
-      for (auto&& x : ns->child_scopes) {
-        nc->AddScope(x);
+      //
+      // Marge namespace if same name.
+      //
+      for (auto&& c2 : src->child_scopes) {
+        dest->AddScope(c2);
       }
 
-      ns->child_scopes.clear();
+      src->child_scopes.clear();
 
-      delete ns;
+      delete src;
 
       return c;
     }
   }
 
-_pass:
   scope->_owner = this;
 
   return this->child_scopes.emplace_back(scope);
@@ -268,7 +249,7 @@ ScopeContext::LocalVar& BlockScope::add_var(ASTPtr<AST::VarDef> def) {
     pvar = &this->variables.emplace_back(def);
 
     pvar->index = this->variables.size() - 1;
-    pvar->index_add = this->child_var_count;
+    // pvar->index_add = this->child_var_count;
   }
 
   pvar->depth = this->depth;
@@ -434,12 +415,12 @@ std::string FunctionScope::to_string() const {
 // ------------------------------------
 //  NamespaceScope
 
-NamespaceScope::NamespaceScope(int depth, ASTPtr<AST::Block> ast)
-    : BlockScope(depth, ast),
+NamespaceScope::NamespaceScope(int depth, ASTPtr<AST::Block> ast, int index_add)
+    : BlockScope(depth, ast, index_add),
       name(ast->token.str) {
   this->type = SC_Namespace;
 
-  this->child_var_count = this->variables.size();
+  // this->child_var_count = this->variables.size();
 }
 
 NamespaceScope::~NamespaceScope() {

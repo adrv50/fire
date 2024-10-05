@@ -44,8 +44,7 @@ void Evaluator::eval_stmt(ASTPointer ast) {
     (*this->loops.begin())->continued = true;
     break;
 
-  case Kind::Block:
-  case Kind::Namespace: {
+  case Kind::Block: {
     CAST(Block);
 
     auto stack = this->push_stack(x->stack_size);
@@ -58,6 +57,16 @@ void Evaluator::eval_stmt(ASTPointer ast) {
     }
 
     this->pop_stack();
+
+    break;
+  }
+
+  case Kind::Namespace: {
+    CAST(Block);
+
+    for (auto&& y : x->list) {
+      this->evaluate(y);
+    }
 
     break;
   }
