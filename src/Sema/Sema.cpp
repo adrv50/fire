@@ -94,6 +94,8 @@ Sema::Sema(ASTPtr<AST::Block> prg)
 
   this->_scope_history.emplace_front(this->_scope_context);
 
+  alertexpr(this->_scope_context->child_var_count);
+
   debug(std::cout << scope2s(this->_scope_context) << std::endl);
 
   // this->GetScopeLoc() = {this->_scope_context, {this->_scope_context}};

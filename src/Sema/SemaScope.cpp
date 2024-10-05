@@ -175,14 +175,19 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
 
       auto c = (NamespaceScope*)this->AddScope(scope);
 
-      this->child_var_count += c->variables.size();
-
-      alertexpr(this->child_var_count);
+      if (scope == c) {
+        this->child_var_count += c->child_var_count + c->variables.size();
+      }
+      else {
+        this->child_var_count += scope->variables.size();
+      }
 
       break;
     }
     }
   }
+
+  ast->stack_size = this->child_var_count + this->variables.size();
 
   // alertexpr(var_count_total);
 }
