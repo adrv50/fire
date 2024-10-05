@@ -182,11 +182,9 @@ ASTVec<Function> Sema::_find_func(string const& name) {
 }
 
 ASTPtr<Enum> Sema::_find_enum(string const& name) {
-  // for (auto&& e : this->enums)
-  //   if (e->GetName() == name)
-  //     return e;
-
-  return nullptr;
+  return ASTCast<AST::Enum>(this->context_reverse_search([&name](ASTPointer p) {
+    return p->kind == ASTKind::Enum && p->As<AST::Named>()->GetName() == name;
+  }));
 }
 
 ASTPtr<Class> Sema::_find_class(string const& name) {
@@ -228,6 +226,11 @@ Sema::NameFindResult Sema::find_name(string const& name, bool const only_cur_sco
 
   if (result.lvar) {
     result.type = NameType::Var;
+
+    if (only_cur_scope) {
+      this->RestoreScopeLocation();
+    }
+
     return result;
   }
 
@@ -325,6 +328,14 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
 
   string idname = ast->first->GetName();
 
+  this->SaveScopeLocation();
+
+  if (info.result.type == NameType::Namespace) {
+    auto scope = this->GetScopeOf(info.result.ast_namespace);
+
+    this->BackTo(scope->_owner);
+  }
+
   for (auto&& id : ast->idlist) {
     auto name = id->GetName();
 
@@ -380,27 +391,22 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
 
     case NameType::Namespace: {
 
-      auto scope = (NamespaceScope*)this->GetScopeOf(info.result.ast_namespace);
-
-      this->SaveScopeLocation();
-      this->BackTo(scope->_owner);
-
-      this->EnterScope(scope);
+      this->EnterScope(info.result.ast_namespace);
 
       info = this->get_identifier_info(id, true);
-
-      this->RestoreScopeLocation();
 
       break;
     }
 
     default:
-      throw Error(id->token, "'" + idname + "' is not enum or class or namespace");
+      throw Error(info.ast, "'" + idname + "' is not enum or class or namespace");
     }
 
   _loop_continue:;
     idname += "::" + name;
   }
+
+  this->RestoreScopeLocation();
 
   return info;
 }

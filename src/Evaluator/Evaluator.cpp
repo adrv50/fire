@@ -50,7 +50,7 @@ ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
 
   auto x = ast->GetID();
 
-  return this->get_stack(x->depth /*distance*/).var_list[x->index];
+  return this->get_stack(x->distance).var_list[x->index + x->index_add];
 }
 
 ObjPointer& Evaluator::eval_index_ref(ObjPointer array, ObjPointer _index_obj) {
@@ -95,11 +95,8 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     return ast->as_value()->value;
   }
 
-  case Kind::Variable: {
-    auto x = ast->GetID();
-
-    return this->get_stack(x->depth /*distance*/).var_list[x->index];
-  }
+  case Kind::Variable:
+    return this->eval_as_left(ast);
 
   case Kind::Array: {
     CAST(Array);

@@ -77,13 +77,11 @@ void execute_file(std::string const& path) {
 
     semantics_checker::Sema sema{prg};
 
-    alert;
     sema.check_full();
 
     eval::Evaluator ev;
 
-    alert;
-    // ev.evaluate(prg);
+    ev.evaluate(prg);
   }
 
   catch (Error const& err) {

@@ -220,8 +220,9 @@ struct Identifier : Named {
 
   //
   // for Kind::Variable
-  int depth = 0;
+  int distance = 0;
   int index = 0; // (=> or member variable, enumerator)
+  int index_add = 0;
 
   ASTPtr<Class> ast_class = nullptr;
   ASTPtr<Enum> ast_enum = nullptr;
@@ -340,6 +341,7 @@ struct VarDef : Named {
   ASTPointer init;
 
   int index = 0;
+  int index_add = 0;
 
   static ASTPtr<VarDef> New(Token tok, Token name, ASTPtr<TypeName> type,
                             ASTPointer init);

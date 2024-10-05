@@ -264,6 +264,8 @@ private:
 
   std::vector<IdentifierInfo> _identifier_info_keep;
 
+  // std::vector<std::pair<ASTPtr<AST::Identifier>, TypeInfo>> id_result_keep;
+
   IdentifierInfo* get_keeped_id_info(ASTPtr<AST::Identifier> id) {
     for (auto&& info : _identifier_info_keep)
       if (info.ast == id)

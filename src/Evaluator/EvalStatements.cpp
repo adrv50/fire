@@ -137,8 +137,9 @@ void Evaluator::eval_stmt(ASTPointer ast) {
   case Kind::Vardef: {
     CAST(VarDef);
 
-    if (x->init)
-      this->get_cur_stack().var_list[x->index] = this->evaluate(x->init);
+    if (x->init) {
+      this->get_cur_stack().var_list[x->index + x->index_add] = this->evaluate(x->init);
+    }
 
     break;
   }

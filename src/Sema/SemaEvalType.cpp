@@ -204,10 +204,12 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       if (!res.lvar->is_type_deducted)
         throw Error(ast->token, "cannot use variable before assignment");
 
-      // distance
-      id->depth = this->GetCurScope()->depth - res.lvar->depth;
+      id->distance = this->GetCurScope()->depth - res.lvar->depth;
 
       id->index = res.lvar->index;
+      id->index_add = res.lvar->index_add;
+
+      res.lvar->decl->index_add = id->index_add;
 
       return res.lvar->deducted_type;
     }
@@ -379,11 +381,9 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
     auto id = scoperesol->GetLastID();
 
     switch (idinfo.result.type) {
-    case NameType::Var: {
-      todo_impl;
-      ast->kind = ASTKind::Variable;
+    case NameType::Var:
+    case NameType::Func:
       break;
-    }
 
     case NameType::Enumerator: {
       ast->kind = Kind::Enumerator;
@@ -427,15 +427,6 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
       return TypeKind::Function;
     }
-
-      // case NameType::Func: {
-      //   this->keep_id(idinfo);
-
-      //   id->candidates = std::move(idinfo.result.functions);
-      //   id->sema_use_keeped = true;
-
-      //   return this->eval_type(id);
-      // }
 
     case NameType::Namespace: {
       throw Error(ast, "expected identifier-expression after this token ");
@@ -514,11 +505,6 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
           continue;
 
         if (candidate->is_templated) {
-          // auto instantiated = this->instantiate_template_func(
-          //     candidate, call, id, call->args, arg_types, false);
-
-          // if (instantiated != nullptr)
-          //   final_candidates.emplace_back(instantiated);
           TemplateTypeApplier apply;
 
           if (this->try_apply_template_function(apply, candidate, id->template_args,

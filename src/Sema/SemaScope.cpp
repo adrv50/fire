@@ -178,9 +178,9 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
       if (scope == c) {
         this->child_var_count += c->child_var_count + c->variables.size();
       }
-      else {
-        this->child_var_count += scope->variables.size();
-      }
+      // else {
+      //   this->child_var_count += scope->variables.size();
+      // }
 
       break;
     }
@@ -218,11 +218,14 @@ ScopeContext*& BlockScope::AddScope(ScopeContext* scope) {
 
       dest->_ast.emplace_back(src->ast);
 
+      auto index_add = this->child_var_count;
+
       for (auto&& v : src->variables) {
         if (dest->find_var(v.name))
           continue;
 
-        v.index_add = this->child_var_count;
+        v.index_add = index_add;
+        this->child_var_count++;
 
         dest->variables.emplace_back(v);
       }

@@ -179,6 +179,15 @@ struct NamespaceScope : BlockScope {
 
   ASTVec<AST::Block> _ast;
 
+  ScopeContext* find_child_scope(ASTPointer ast) override {
+    for (auto&& x : this->_ast) {
+      if (x == ast)
+        return this;
+    }
+
+    return BlockScope::find_child_scope(ast);
+  }
+
   NamespaceScope(int depth, ASTPtr<AST::Block> ast, int index_add);
   ~NamespaceScope();
 };
