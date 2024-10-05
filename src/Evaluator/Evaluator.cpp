@@ -277,6 +277,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   case Kind::Break:
   case Kind::Continue:
   case Kind::Block:
+  case Kind::Namespace:
   case Kind::If:
   case Kind::While:
   case Kind::TryCatch:

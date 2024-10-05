@@ -44,7 +44,8 @@ void Evaluator::eval_stmt(ASTPointer ast) {
     (*this->loops.begin())->continued = true;
     break;
 
-  case Kind::Block: {
+  case Kind::Block:
+  case Kind::Namespace: {
     CAST(Block);
 
     auto stack = this->push_stack(x->stack_size);

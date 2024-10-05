@@ -56,7 +56,9 @@ class Sema {
     ASTPtr<Enum> ast_enum = nullptr; // NameType::Enum
     int enumerator_index = 0;        // NameType::Enumerator
 
-    ASTPtr<Class> ast_class;
+    ASTPtr<Class> ast_class = nullptr;
+
+    ASTPtr<AST::Block> ast_namespace = nullptr;
 
     TypeKind kind = TypeKind::Unknown;
 
@@ -110,10 +112,15 @@ class Sema {
   ASTVec<Function> _find_func(string const& name);
   ASTPtr<Enum> _find_enum(string const& name);
   ASTPtr<Class> _find_class(string const& name);
+  ASTPtr<Block> _find_namespace(string const& name);
 
-  NameFindResult find_name(string const& name);
+  ASTPointer context_reverse_search(std::function<bool(ASTPointer)> func);
 
-  IdentifierInfo get_identifier_info(ASTPtr<AST::Identifier> ast);
+  NameFindResult find_name(string const& name, bool const only_cur_scope = false);
+
+  IdentifierInfo get_identifier_info(ASTPtr<AST::Identifier> ast,
+                                     bool only_cur_scope = false);
+
   IdentifierInfo get_identifier_info(ASTPtr<AST::ScopeResol> ast);
 
   IdentifierInfo get_identifier_info(ASTPointer ast) {
@@ -124,11 +131,6 @@ class Sema {
   }
 
 public:
-  struct ScopeLocation {
-    ScopeContext* Current;
-    vector<ScopeContext*> History;
-  };
-
   Sema(ASTPtr<AST::Block> prg);
   ~Sema();
 
@@ -196,11 +198,11 @@ private:
   ASTPtr<Block> root;
 
   BlockScope* _scope_context = nullptr;
+  std::list<ScopeContext*> _scope_history;
 
-  // ScopeContext* _cur_scope = _scope_context;
-  // vector<ScopeContext*> _scope_history;
-
-  ScopeLocation _location;
+  std::list<ScopeContext*>& GetHistory() {
+    return _scope_history;
+  }
 
   FunctionScope* cur_function = nullptr;
 
@@ -214,11 +216,15 @@ private:
 
   void LeaveScope();
 
+  void ClearScopeHistory() {
+    this->GetHistory().clear();
+  }
+
   void SaveScopeLocation();
   void RestoreScopeLocation();
-  ScopeLocation GetScopeLoc();
 
   void BackToDepth(int depth);
+  bool BackTo(ScopeContext* ctx);
 
   int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth);
 
@@ -255,6 +261,20 @@ private:
 
   TypeInfo make_functor_type(ASTPtr<AST::Function> ast);
   TypeInfo make_functor_type(builtins::Function const* builtin);
+
+  std::vector<IdentifierInfo> _identifier_info_keep;
+
+  IdentifierInfo* get_keeped_id_info(ASTPtr<AST::Identifier> id) {
+    for (auto&& info : _identifier_info_keep)
+      if (info.ast == id)
+        return &info;
+
+    return nullptr;
+  }
+
+  IdentifierInfo& keep_id(IdentifierInfo info) {
+    return _identifier_info_keep.emplace_back(std::move(info));
+  }
 };
 
 } // namespace fire::semantics_checker

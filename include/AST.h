@@ -106,8 +106,9 @@ enum class ASTKind {
   Function,
 
   Enum,
-
   Class,
+
+  Namespace,
 
   TypeName,
 
@@ -198,22 +199,15 @@ struct Identifier : Named {
 
   ASTVector id_params; // T = Identifier or ScopeResol
 
+  // flags for Sema
+  bool sema_must_completed = true;
+  bool sema_allow_ambiguous = false;
+  bool sema_use_keeped = false;
+
   //
   // for Kind::FuncName or BuiltinFuncName
   ASTVec<Function> candidates;
   vector<builtins::Function const*> candidates_builtin;
-
-  //
-  // (unused)
-  // オーバーロードの解決ができる情報がある文脈の場合は true
-  bool sema_allow_ambigious = false;
-
-  //
-  // (unused)
-  // テンプレート引数の型を推論できる文脈にある場合は true
-  bool sema_guess_parameter = false;
-
-  bool must_completed = true;
 
   TypeInfo ft_ret;
   vector<TypeInfo> ft_args;

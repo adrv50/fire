@@ -288,6 +288,29 @@ ASTPointer Parser::Top() {
     return func;
   }
 
+  if (this->eat("namespace")) {
+    auto ast = AST::Block::New(*this->expectIdentifier());
+
+    ast->kind = ASTKind::Namespace;
+
+    iter = this->cur;
+    this->expect("{");
+
+    if (this->eat("}"))
+      return ast;
+
+    bool closed = false;
+
+    do {
+      ast->list.emplace_back(this->Top());
+    } while (this->check() && !(closed = this->eat("}")));
+
+    if (!closed)
+      throw Error(*iter, "unterminated namespace block");
+
+    return ast;
+  }
+
   if (this->eat("include")) {
     todo_impl;
   }
@@ -296,17 +319,21 @@ ASTPointer Parser::Top() {
 }
 
 ASTPtr<AST::Block> Parser::Parse() {
-  auto ret = AST::Block::New("");
+  auto ret = AST::Block::New(*this->cur);
 
   while (this->check()) {
     ret->list.emplace_back(this->Top());
   }
 
+  for (size_t i = 0; i < this->tokens.size(); i++) {
+    this->tokens[i]._index = (i64)i;
+  }
+
   return ret;
 }
 
-Parser::Parser(TokenVector tokens)
-    : tokens(std::move(tokens)),
+Parser::Parser(TokenVector& tokens)
+    : tokens(tokens),
       cur(this->tokens.begin()),
       end(this->tokens.end()) {
 }

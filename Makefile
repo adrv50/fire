@@ -50,6 +50,7 @@ release: $(BUILD)
 		LDFLAGS="-Wl,--gc-sections,-s" -C $(BUILD) -f $(TOPDIR)/Makefile
 
 run: all
+	@echo -------------------------------------
 	@./fired test.fr
 
 $(BUILD):

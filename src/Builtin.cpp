@@ -70,34 +70,6 @@ define_builtin_func(Open) {
   return ObjNew<ObjString>(data);
 }
 
-define_builtin_func(Import) {
-  auto path = args[0]->ToString();
-
-  auto source = std::make_shared<SourceStorage>(path);
-
-  source->Open();
-
-  if (!source->IsOpen()) {
-    Error(ast->args[0]->token, "cannot open file '" + path + "'")();
-  }
-
-  Lexer lexer{*source};
-
-  auto prg = parser::Parser(lexer.Lex()).Parse();
-
-  auto ret = ObjNew<ObjModule>(source, prg);
-
-  ret->name = path.substr(0, path.rfind('.'));
-
-  if (auto slash = ret->name.rfind('/'); slash != std::string::npos) {
-    ret->name = ret->name.substr(slash + 1);
-  }
-
-  todo_impl;
-
-  return ret;
-}
-
 define_builtin_func(Substr) {
   auto str = args[0]->As<ObjString>();
   auto pos = args[1]->As<ObjPrimitive>()->vi;
@@ -144,7 +116,6 @@ static const std::vector<Function> g_builtin_functions = {
 
   { "open",     Open,      TypeKind::String, { TypeKind::String }, },
 
-  { "@import",  Import,    TypeKind::Module, { TypeKind::String }, },
 
 };
 

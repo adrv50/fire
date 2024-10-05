@@ -66,22 +66,24 @@ void execute_file(std::string const& path) {
   try {
     Lexer lexer{source};
 
-    auto tokens = lexer.Lex();
+    source.token_list = lexer.Lex();
 
-    if (tokens.empty())
+    if (source.token_list.empty())
       return;
 
-    parser::Parser parser{tokens};
+    parser::Parser parser{source.token_list};
 
     ASTPtr<AST::Block> prg = parser.Parse();
 
     semantics_checker::Sema sema{prg};
 
+    alert;
     sema.check_full();
 
     eval::Evaluator ev;
 
-    ev.evaluate(prg);
+    alert;
+    // ev.evaluate(prg);
   }
 
   catch (Error const& err) {

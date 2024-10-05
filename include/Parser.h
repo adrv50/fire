@@ -7,7 +7,7 @@ namespace fire::parser {
 class Parser {
 
 public:
-  Parser(TokenVector tokens);
+  Parser(TokenVector& tokens);
 
   // ASTPointer Ident();
 
@@ -94,7 +94,7 @@ private:
     return new_expr(ASTKind::Assign, op, lhs, new_expr(kind, op, lhs, rhs));
   }
 
-  TokenVector tokens;
+  TokenVector& tokens;
   TokenIterator cur, end, ate;
 
   bool _in_class = false;

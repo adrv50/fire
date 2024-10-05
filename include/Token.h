@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include "Object.h"
 #include "Source.h"
 
@@ -26,12 +28,16 @@ struct Token {
   std::string str;
   SourceLocation sourceloc;
 
+  i64 _index = 0;
+
+  Token const* get_backword(int step = 1);
+  Token const* get_forword(int step = 1);
+
   bool operator==(Token const& tok) const {
     return this->kind == tok.kind && this->str == tok.str;
   }
 
-  Token(TokenKind kind, std::string const& str,
-        SourceLocation sourceloc = {})
+  Token(TokenKind kind, std::string const& str, SourceLocation sourceloc = {})
       : kind(kind),
         str(str),
         sourceloc(sourceloc) {

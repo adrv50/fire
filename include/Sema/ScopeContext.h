@@ -24,6 +24,7 @@ struct ScopeContext {
     SC_Func,
     SC_Enum,
     SC_Class,
+    SC_Namespace,
   };
 
   struct LocalVar {
@@ -39,6 +40,8 @@ struct ScopeContext {
     int depth = 0;
     int index = 0;
 
+    int index_add = 0;
+
     LocalVar(string name = "")
         : name(std::move(name)) {
     }
@@ -50,6 +53,8 @@ struct ScopeContext {
   Types type;
 
   int depth = 0;
+
+  bool is_block;
 
   ScopeContext* _owner = nullptr;
 
@@ -66,6 +71,10 @@ struct ScopeContext {
   virtual ScopeContext* find_child_scope(ASTPointer ast);
   virtual ScopeContext* find_child_scope(ScopeContext* ctx);
 
+  virtual bool contains(ScopeContext*) {
+    return false;
+  }
+
   // find a named scope
   virtual vector<ScopeContext*> find_name(string const& name);
 
@@ -75,7 +84,8 @@ struct ScopeContext {
 
 protected:
   ScopeContext(Types type)
-      : type(type) {
+      : type(type),
+        is_block(type == SC_Block) {
   }
 };
 
@@ -87,13 +97,11 @@ struct BlockScope : ScopeContext {
 
   vector<LocalVar> variables;
 
+  size_t child_var_count = 0;
+
   vector<ScopeContext*> child_scopes;
 
-  ScopeContext*& AddScope(ScopeContext* s) {
-    s->_owner = this;
-
-    return this->child_scopes.emplace_back(s);
-  }
+  ScopeContext*& AddScope(ScopeContext* s);
 
   LocalVar& add_var(ASTPtr<AST::VarDef> def);
 
@@ -103,6 +111,14 @@ struct BlockScope : ScopeContext {
 
   ScopeContext* find_child_scope(ASTPointer ast) override;
   ScopeContext* find_child_scope(ScopeContext* ctx) override;
+
+  bool contains(ScopeContext* ctx) override {
+    for (auto&& c : this->child_scopes)
+      if (c == ctx)
+        return true;
+
+    return false;
+  }
 
   vector<ScopeContext*> find_name(string const& name) override;
 
@@ -143,12 +159,28 @@ struct FunctionScope : ScopeContext {
   ScopeContext* find_child_scope(ScopeContext* ctx) override;
   ScopeContext* find_child_scope(ASTPointer ast) override;
 
+  bool contains(ScopeContext* ctx) override {
+    return this->block == ctx;
+  }
+
   vector<ScopeContext*> find_name(string const& name) override;
 
   std::string to_string() const override;
 
   FunctionScope(int depth, ASTPtr<AST::Function> ast);
   ~FunctionScope();
+};
+
+// ------------------------------------
+//  NamespaceScope
+
+struct NamespaceScope : BlockScope {
+  string name;
+
+  ASTVec<AST::Block> _ast;
+
+  NamespaceScope(int depth, ASTPtr<AST::Block> ast);
+  ~NamespaceScope();
 };
 
 } // namespace fire::semantics_checker

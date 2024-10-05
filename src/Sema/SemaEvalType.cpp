@@ -78,7 +78,7 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
   case Kind::OverloadResolutionGuide: {
     auto x = ASTCast<AST::Expr>(ast);
 
-    x->lhs->GetID()->must_completed = false;
+    x->lhs->GetID()->sema_must_completed = false;
 
     auto functor_ast = x->lhs;
     auto functor = this->eval_type(functor_ast);
@@ -177,7 +177,13 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
   case Kind::Identifier: {
 
     auto id = ASTCast<AST::Identifier>(ast);
-    auto idinfo = this->get_identifier_info(id);
+
+    IdentifierInfo idinfo;
+
+    if (id->sema_use_keeped)
+      idinfo = *this->get_keeped_id_info(id);
+    else
+      idinfo = this->get_identifier_info(id);
 
     auto& res = idinfo.result;
 
@@ -219,7 +225,7 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
         if (!c->is_templated)
           is_all_template = false;
 
-        if (id->must_completed) {
+        if (id->sema_must_completed) {
           if (c->template_param_names.size() != id->id_params.size()) {
             continue;
           }
@@ -257,7 +263,7 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       id->candidates = std::move(temp);
 
       if (id->candidates.size() >= 2) {
-        if (!id->must_completed)
+        if (!id->sema_must_completed)
           return TypeKind::Function;
 
         auto err =
@@ -305,7 +311,7 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       id->candidates_builtin = std::move(idinfo.result.builtin_funcs);
 
       if (id->candidates_builtin.size() >= 2) {
-        if (!id->sema_allow_ambigious)
+        if (!id->sema_allow_ambiguous)
           throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
 
         return TypeKind::Function; // ambigious -> called by case CallFunc
@@ -355,7 +361,11 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
     case NameType::Unknown:
       throw Error(ast->token, "cannot find name '" + id->GetName() + "'");
 
+    case NameType::Namespace:
+      throw Error(ast, "expected identifier-expression after this token ");
+
     default:
+      alertexpr(static_cast<int>(res.type));
       todo_impl;
     }
 
@@ -366,6 +376,8 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
     auto scoperesol = ASTCast<AST::ScopeResol>(ast);
     auto idinfo = this->get_identifier_info(scoperesol);
 
+    auto id = scoperesol->GetLastID();
+
     switch (idinfo.result.type) {
     case NameType::Var: {
       todo_impl;
@@ -375,8 +387,6 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
     case NameType::Enumerator: {
       ast->kind = Kind::Enumerator;
-
-      auto id = ast->GetID();
 
       id->ast_enum = idinfo.result.ast_enum;
       id->index = idinfo.result.enumerator_index;
@@ -390,13 +400,13 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
     }
 
     case NameType::MemberFunc: {
-      auto id = ast->GetID();
+      todo_impl;
 
       ast->kind = ASTKind::FuncName;
 
       id->candidates = idinfo.result.functions;
 
-      if (!id->sema_allow_ambigious) {
+      if (!id->sema_allow_ambiguous) {
         if (id->candidates.size() >= 2) {
           throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
         }
@@ -418,14 +428,32 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       return TypeKind::Function;
     }
 
-    case NameType::Unknown:
-      todo_impl;
-      break;
+      // case NameType::Func: {
+      //   this->keep_id(idinfo);
+
+      //   id->candidates = std::move(idinfo.result.functions);
+      //   id->sema_use_keeped = true;
+
+      //   return this->eval_type(id);
+      // }
+
+    case NameType::Namespace: {
+      throw Error(ast, "expected identifier-expression after this token ");
     }
 
-    todo_impl;
+    case NameType::Unknown:
+      throw Error(ast, "cannot find name '" + AST::ToString(ast) + "'");
+    }
 
-    break;
+    this->keep_id(idinfo);
+
+    id->sema_use_keeped = true;
+
+    auto type = this->eval_type(id);
+
+    ast->kind = id->kind;
+
+    return type;
   }
 
   case Kind::Enumerator: {
@@ -456,10 +484,8 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
     if (functor->is_ident_or_scoperesol() || functor->kind == ASTKind::MemberAccess) {
       id = Sema::GetID(functor);
 
-      id->sema_allow_ambigious = true;
-      id->sema_guess_parameter = true;
-
-      id->must_completed = false;
+      id->sema_allow_ambiguous = true;
+      id->sema_must_completed = false;
     }
 
     TypeInfo functor_type = this->eval_type(functor);
@@ -656,7 +682,7 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
     string name = rhs_id->GetName();
 
-    alertexpr(rhs_id->sema_allow_ambigious);
+    alertexpr(rhs_id->sema_allow_ambiguous);
 
     switch (left_type.kind) {
     case TypeKind::Instance: {
@@ -706,7 +732,7 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
     }
     }
 
-    if (!rhs_id->sema_allow_ambigious && rhs_id->candidates.size() >= 2) {
+    if (!rhs_id->sema_allow_ambiguous && rhs_id->candidates.size() >= 2) {
       goto _ambiguous_err;
     }
 
@@ -723,7 +749,7 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       }
     }
 
-    if (!rhs_id->sema_allow_ambigious && rhs_id->candidates_builtin.size() >= 2) {
+    if (!rhs_id->sema_allow_ambiguous && rhs_id->candidates_builtin.size() >= 2) {
     _ambiguous_err:
       throw Error(rhs_id, "member function '" + left_type.to_string() + "::" + name +
                               "' is ambiguous");

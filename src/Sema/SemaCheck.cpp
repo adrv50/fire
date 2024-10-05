@@ -106,7 +106,8 @@ void Sema::check(ASTPointer ast) {
     break;
   }
 
-  case ASTKind::Block: {
+  case ASTKind::Block:
+  case ASTKind::Namespace: {
     auto x = ASTCast<AST::Block>(ast);
 
     this->EnterScope(x);
