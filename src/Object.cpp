@@ -181,7 +181,7 @@ ObjInstance::ObjInstance(ASTPtr<AST::Class> ast)
 
 std::string ObjCallable::GetName() const {
   if (this->is_named) {
-    return this->func ? this->func->GetName() : this->builtin->name;
+    return this->func ? string(this->func->GetName()) : this->builtin->name;
   }
 
   return "";
@@ -230,7 +230,7 @@ std::string ObjModule::ToString() const {
 //  ObjType
 
 std::string ObjType::GetName() const {
-  return this->ast_class ? this->ast_class->GetName() : this->ast_enum->GetName();
+  return string(this->ast_class ? this->ast_class->GetName() : this->ast_enum->GetName());
 }
 
 std::string ObjType::ToString() const {

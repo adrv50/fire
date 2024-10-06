@@ -76,6 +76,7 @@ class Sema {
 
   struct ArgumentCheckResult {
     enum Result {
+      None,
       Ok,
       TooFewArguments,
       TooManyArguments,
@@ -108,15 +109,15 @@ class Sema {
                                                      TypeVec const& actual,
                                                      bool ignore_mismatch);
 
-  ScopeContext::LocalVar* _find_variable(string const& name);
-  ASTVec<Function> _find_func(string const& name);
-  ASTPtr<Enum> _find_enum(string const& name);
-  ASTPtr<Class> _find_class(string const& name);
-  ASTPtr<Block> _find_namespace(string const& name);
+  ScopeContext::LocalVar* _find_variable(string_view const& name);
+  ASTVec<Function> _find_func(string_view const& name);
+  ASTPtr<Enum> _find_enum(string_view const& name);
+  ASTPtr<Class> _find_class(string_view const& name);
+  ASTPtr<Block> _find_namespace(string_view const& name);
 
   ASTPointer context_reverse_search(std::function<bool(ASTPointer)> func);
 
-  NameFindResult find_name(string const& name, bool const only_cur_scope = false);
+  NameFindResult find_name(string_view const& name, bool const only_cur_scope = false);
 
   IdentifierInfo get_identifier_info(ASTPtr<AST::Identifier> ast,
                                      bool only_cur_scope = false);
@@ -150,6 +151,23 @@ public:
 
 private:
   struct TemplateTypeApplier {
+
+    enum class Result {
+      //
+      // just after created instance
+      NotApplied,
+
+      //
+      // applied parameter types, but not checked.
+      NotChecked,
+
+      TooManyParams,
+
+      CannotDeductType,
+
+      ArgumentError,
+    };
+
     struct Parameter {
       string_view name;
       TypeInfo type;
@@ -167,8 +185,20 @@ private:
 
     vector<Parameter> parameter_list;
 
+    Result result = Result::NotApplied;
+    size_t err_param_index = 0;
+
+    ArgumentCheckResult arg_result = ArgumentCheckResult::None;
+
+    // index of error item
+    size_t index = 0;
+
     Parameter& add_parameter(string_view name, TypeInfo type);
     Parameter* find_parameter(string_view name);
+
+    //
+    // ast = error location
+    Error make_error(ASTPointer ast);
 
     TemplateTypeApplier();
     TemplateTypeApplier(ASTPtr<AST::Templatable> ast,
@@ -182,7 +212,7 @@ private:
 
   std::list<TemplateTypeApplier*> _applied_ptr_stack;
 
-  TypeInfo* find_template_parameter_name(string const& name);
+  TypeInfo* find_template_parameter_name(string_view const& name);
 
   //
   // args = template arguments (parameter)

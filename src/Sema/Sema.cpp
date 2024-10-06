@@ -18,9 +18,10 @@ static string scope2s_var(string indent, string ns,
   ret += indent + ns + "{\n";
 
   for (auto&& v : lvar) {
-    ret += indent +
-           utils::Format("  '%s': decl=%p, distance=%d, index=%d, index_add=%d\n",
-                         v.name.c_str(), v.decl.get(), v.depth, v.index, v.index_add);
+    ret +=
+        indent + utils::Format("  '%.*s': decl=%p, distance=%d, index=%d, index_add=%d\n",
+                               (int)v.name.length(), v.name.data(), v.decl.get(), v.depth,
+                               v.index, v.index_add);
   }
 
   ret += indent + "},\n";

@@ -501,16 +501,22 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       ASTVec<AST::Function> final_candidates;
 
       for (ASTPtr<AST::Function> candidate : id->candidates) {
-        if (id->id_params.size() > candidate->template_param_names.size())
-          continue;
+        // if (id->id_params.size() > candidate->template_param_names.size())
+        //   continue;
+
+        TemplateTypeApplier apply;
 
         if (candidate->is_templated) {
-          TemplateTypeApplier apply;
 
           if (this->try_apply_template_function(apply, candidate, id->template_args,
                                                 arg_types)) {
             final_candidates.emplace_back(candidate);
           }
+          else if (id->candidates.size() == 1) {
+            todo_impl;
+          }
+
+          continue;
         }
         else {
           TypeVec formal_arg_types;
@@ -523,6 +529,25 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
           if (res.result == ArgumentCheckResult::Ok) {
             final_candidates.emplace_back(candidate);
+          }
+
+          else if (id->candidates.size() == 1) {
+            switch (res.result) {
+            case ArgumentCheckResult::TypeMismatch:
+              throw Error(call->token, "expected '" +
+                                           formal_arg_types[res.index].to_string() +
+                                           "' type expression, but found '" +
+                                           arg_types[res.index].to_string() + "'")
+                  .AddChain(Error(Error::ER_Note, candidate->arguments[res.index]->type,
+                                  "defined here"));
+
+            case ArgumentCheckResult::TooFewArguments:
+            case ArgumentCheckResult::TooManyArguments:
+              throw Error(call->token, res.result == ArgumentCheckResult::TooFewArguments
+                                           ? "too few arguments"
+                                           : "too many arguments")
+                  .AddChain(Error(Error::ER_Note, candidate, "defined here"));
+            }
           }
         }
       }
@@ -666,7 +691,7 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
     ASTPtr<AST::Identifier> rhs_id = Sema::GetID(expr);
 
-    string name = rhs_id->GetName();
+    string_view name = rhs_id->GetName();
 
     alertexpr(rhs_id->sema_allow_ambiguous);
 

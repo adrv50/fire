@@ -23,7 +23,7 @@ string ToString(ASTPointer ast) {
   case ASTKind::TypeName: {
     auto x = ast->As<TypeName>();
 
-    string s = x->GetName();
+    string s = string(x->GetName());
 
     if (!x->type_params.empty()) {
       s += "@<" + utils::join<ASTPtr<TypeName>>(", ", x->type_params, ToString) + ">";
@@ -41,7 +41,7 @@ string ToString(ASTPointer ast) {
     }
 
   case ASTKind::Value:
-    return ast->token.str;
+    return string(ast->token.str);
 
   case ASTKind::ScopeResol: {
     auto x = ast->As<ScopeResol>();

@@ -79,7 +79,7 @@ Value::Value(Token tok, ObjPointer value)
 
 // ----------------------------------- //
 
-string const& Named::GetName() const {
+string_view const& Named::GetName() const {
   return this->name.str;
 }
 

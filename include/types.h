@@ -23,7 +23,18 @@ using std::size_t;
 using std::string;
 using std::string_view;
 
+static inline string operator+(string const& s, string_view sv) {
+  return s + string(sv);
+}
+
+static inline string operator+(string_view sv, string const& s) {
+  return string(sv) + s;
+}
+
 using std::vector;
+
+template <typename T>
+using Vec = std::vector<T>;
 
 using StringVector = std::vector<std::string>;
 

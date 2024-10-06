@@ -57,7 +57,7 @@ ASTPointer ScopeContext::GetAST() const {
   return nullptr;
 }
 
-ScopeContext::LocalVar* ScopeContext::find_var(string const&) {
+ScopeContext::LocalVar* ScopeContext::find_var(string_view const&) {
   alert;
   return nullptr;
 }
@@ -276,7 +276,7 @@ ASTPointer BlockScope::GetAST() const {
   return this->ast;
 }
 
-ScopeContext::LocalVar* BlockScope::find_var(string const& name) {
+ScopeContext::LocalVar* BlockScope::find_var(string_view const& name) {
   for (auto&& var : this->variables) {
     if (var.name == name)
       return &var;
@@ -373,7 +373,7 @@ FunctionScope::~FunctionScope() {
 }
 
 ScopeContext::LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
-  auto& arg = this->arguments.emplace_back(def->GetName());
+  LocalVar& arg = this->arguments.emplace_back(def->GetName());
 
   arg.arg = def;
   arg.is_argument = true;
@@ -388,7 +388,7 @@ ASTPointer FunctionScope::GetAST() const {
   return this->ast;
 }
 
-ScopeContext::LocalVar* FunctionScope::find_var(string const& name) {
+ScopeContext::LocalVar* FunctionScope::find_var(string_view const& name) {
   for (auto&& arg : this->arguments) {
     if (arg.name == name)
       return &arg;

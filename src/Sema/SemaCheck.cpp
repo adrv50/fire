@@ -27,10 +27,10 @@ void Sema::check(ASTPointer ast) {
     auto x = ASTCast<AST::Class>(ast);
 
     for (auto&& mv : x->member_variables) {
-      if (bb[mv->GetName()])
+      if (bb[string(mv->GetName())])
         throw Error(mv->name, "duplicate member variable name");
 
-      bb[mv->GetName()] = true;
+      bb[string(mv->GetName())] = true;
 
       this->check(mv->type);
       this->check(mv->init);

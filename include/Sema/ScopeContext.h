@@ -28,7 +28,7 @@ struct ScopeContext {
   };
 
   struct LocalVar {
-    string name;
+    string_view name;
 
     TypeInfo deducted_type;
     bool is_type_deducted = false;
@@ -42,8 +42,8 @@ struct ScopeContext {
 
     int index_add = 0;
 
-    LocalVar(string name = "")
-        : name(std::move(name)) {
+    LocalVar(string_view name = "")
+        : name(name) {
     }
 
     LocalVar(ASTPtr<AST::VarDef> vardef);
@@ -66,7 +66,7 @@ struct ScopeContext {
 
   virtual ASTPointer GetAST() const;
 
-  virtual LocalVar* find_var(string const& name);
+  virtual LocalVar* find_var(string_view const& name);
 
   virtual ScopeContext* find_child_scope(ASTPointer ast);
   virtual ScopeContext* find_child_scope(ScopeContext* ctx);
@@ -107,7 +107,7 @@ struct BlockScope : ScopeContext {
 
   ASTPointer GetAST() const override;
 
-  LocalVar* find_var(string const& name) override;
+  LocalVar* find_var(string_view const& name) override;
 
   ScopeContext* find_child_scope(ASTPointer ast) override;
   ScopeContext* find_child_scope(ScopeContext* ctx) override;
@@ -154,7 +154,7 @@ struct FunctionScope : ScopeContext {
 
   ASTPointer GetAST() const override;
 
-  LocalVar* find_var(string const& name) override;
+  LocalVar* find_var(string_view const& name) override;
 
   ScopeContext* find_child_scope(ScopeContext* ctx) override;
   ScopeContext* find_child_scope(ASTPointer ast) override;

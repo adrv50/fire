@@ -186,7 +186,7 @@ struct Value : Base {
 struct Named : Base {
   Token name;
 
-  std::string const& GetName() const;
+  string_view const& GetName() const;
 
 protected:
   Named(ASTKind kind, Token tok, Token name);

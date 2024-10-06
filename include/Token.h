@@ -24,14 +24,18 @@ enum class TokenKind : u8 {
 };
 
 struct Token {
-  TokenKind kind;
-  std::string str;
-  SourceLocation sourceloc;
-
   i64 _index = 0;
+
+  TokenKind kind;
+  std::string_view str;
+  SourceLocation sourceloc;
 
   Token const* get_backword(int step = 1);
   Token const* get_forword(int step = 1);
+
+  string& get_src_data() {
+    return this->sourceloc.ref->data;
+  }
 
   bool operator==(Token const& tok) const {
     return this->kind == tok.kind && this->str == tok.str;

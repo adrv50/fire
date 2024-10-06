@@ -57,16 +57,17 @@ int parse_command_line(CmdLineArguments& cmd, int argc, char** argv) {
 void execute_file(std::string const& path) {
   using namespace fire;
 
-  SourceStorage source{path};
-
-  if (!source.Open()) {
-    Error::fatal_error("cannot open file '" + path + "'");
-  }
-
   try {
+
+    SourceStorage source{path};
+
+    if (!source.Open()) {
+      Error::fatal_error("cannot open file '" + path + "'");
+    }
+
     Lexer lexer{source};
 
-    source.token_list = lexer.Lex();
+    lexer.Lex(source.token_list);
 
     if (source.token_list.empty())
       return;

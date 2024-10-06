@@ -16,18 +16,18 @@ static ObjPtr<ObjPrimitive> make_value_from_token(Token const& tok) {
   switch (k) {
   case TokenKind::Int: {
     obj->type = TypeKind::Int;
-    obj->vi = std::stoll(s);
+    obj->vi = atoll(s.data());
     break;
   }
 
   case TokenKind::Float: {
     obj->type = TypeKind::Float;
-    obj->vf = std::stod(s);
+    obj->vf = atof(s.data());
     break;
   }
 
   case TokenKind::Char: {
-    auto s16 = utils::to_u16string(s.substr(1, s.length() - 2));
+    auto s16 = utils::to_u16string(string(s.substr(1, s.length() - 2)));
 
     if (s16.length() != 1)
       throw Error(tok, "the length of character literal is must 1.");
@@ -82,13 +82,15 @@ ASTPointer Parser::Factor() {
 
     while (it != end) {
       if (*it == '\\') {
+        size_t index = tok.sourceloc.position + (it - tok.str.begin());
+
         switch (it[1]) {
         case 'n':
-          tok.str.replace(it, it + 2, "\n");
+          tok.get_src_data().replace(index, index + 2, "\n");
           break;
 
         case 'r':
-          tok.str.replace(it, it + 2, "\r");
+          tok.get_src_data().replace(index, index + 2, "\r");
           break;
 
         default:
@@ -112,8 +114,8 @@ ASTPointer Parser::Factor() {
     return AST::Value::New(tok, make_value_from_token(tok));
 
   case TokenKind::String: {
-    auto xx =
-        AST::Value::New(tok, ObjNew<ObjString>(tok.str.substr(1, tok.str.length() - 2)));
+    auto xx = AST::Value::New(
+        tok, ObjNew<ObjString>(string(tok.str.substr(1, tok.str.length() - 2))));
 
     return xx;
   }
