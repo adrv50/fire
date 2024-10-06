@@ -109,22 +109,21 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
     }
 
     case ASTKind::If: {
-      auto d = e->As<AST::Statement>()->get_data<AST::Statement::If>();
+      auto d = e->As<AST::Statement>()->data_if;
 
-      this->AddScope(new BlockScope(this->depth + 1,
-                                    ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_true))));
+      this->AddScope(new BlockScope(
+          this->depth + 1, ASTCast<AST::Block>(ASTCast<AST::Block>(d->if_true))));
 
-      if (d.if_false) {
+      if (d->if_false) {
         this->AddScope(new BlockScope(
-            this->depth + 1, ASTCast<AST::Block>(ASTCast<AST::Block>(d.if_false))));
+            this->depth + 1, ASTCast<AST::Block>(ASTCast<AST::Block>(d->if_false))));
       }
 
       break;
     }
 
     case ASTKind::While: {
-      this->AddScope(new BlockScope(
-          this->depth + 1, e->as_stmt()->get_data<AST::Statement::While>().block));
+      this->AddScope(new BlockScope(this->depth + 1, e->as_stmt()->data_while->block));
 
       break;
     }
@@ -133,11 +132,11 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
       todo_impl;
 
     case ASTKind::TryCatch: {
-      auto d = e->as_stmt()->get_data<AST::Statement::TryCatch>();
+      auto d = e->as_stmt()->data_try_catch;
 
-      this->AddScope(new BlockScope(this->depth + 1, d.tryblock));
+      this->AddScope(new BlockScope(this->depth + 1, d->tryblock));
 
-      for (auto&& c : d.catchers) {
+      for (auto&& c : d->catchers) {
         auto b = new BlockScope(this->depth + 1, c.catched);
 
         auto& lvar = b->variables.emplace_back();

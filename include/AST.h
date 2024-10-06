@@ -367,7 +367,7 @@ struct Statement : Base {
     };
 
     ASTPointer cond;
-    std::vector<Case> cases;
+    Vec<Case> cases;
   };
 
   struct While {
@@ -386,43 +386,40 @@ struct Statement : Base {
     };
 
     ASTPtr<Block> tryblock;
-    std::vector<Catcher> catchers;
+    Vec<Catcher> catchers;
   };
 
-  template <typename T>
-  T get_data() const {
-    return std::any_cast<T>(this->_astdata);
-  }
+  union {
+    If* data_if;
+    Switch* data_switch;
+    While* data_while;
+    TryCatch* data_try_catch;
 
-  template <typename T>
-  void set_data(T&& data) {
-    this->_astdata = std::forward<T>(data);
-  }
+    void* _data = nullptr;
+  };
 
-  ASTPtr<AST::Expr> get_expr() const {
-    return ASTCast<AST::Expr>(this->get_data<ASTPointer>());
-  }
+  ASTPointer expr;
 
   static ASTPtr<Statement> NewIf(Token tok, ASTPointer cond, ASTPointer if_true,
                                  ASTPointer if_false = nullptr);
 
   static ASTPtr<Statement> NewSwitch(Token tok, ASTPointer cond,
-                                     std::vector<Switch::Case> cases = {});
+                                     Vec<Switch::Case> cases = {});
 
   static ASTPtr<Statement> NewWhile(Token tok, ASTPointer cond, ASTPtr<Block> block);
 
   static ASTPtr<Statement> NewTryCatch(Token tok, ASTPtr<Block> tryblock,
                                        vector<TryCatch::Catcher> catchers);
 
-  static ASTPtr<Statement> New(ASTKind kind, Token tok,
-                               std::any data = (ASTPointer) nullptr);
+  static ASTPtr<Statement> New(ASTKind kind, Token tok, void* data = nullptr);
+
+  static ASTPtr<Statement> NewExpr(ASTKind kind, Token tok, ASTPointer expr);
 
   ASTPointer Clone() const override;
 
-  Statement(ASTKind kind, Token tok, std::any data);
-
-private:
-  std::any _astdata;
+  Statement(ASTKind kind, Token tok, void* data);
+  Statement(ASTKind kind, Token tok, ASTPointer expr);
+  ~Statement();
 };
 
 struct Templatable : Named {

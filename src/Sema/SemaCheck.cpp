@@ -149,40 +149,38 @@ void Sema::check(ASTPointer ast) {
   }
 
   case ASTKind::If: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::If>();
+    auto d = ast->as_stmt()->data_if;
 
-    if (!this->eval_type(d.cond).equals(TypeKind::Bool)) {
-      throw Error(d.cond, "expected boolean expression");
+    if (!this->eval_type(d->cond).equals(TypeKind::Bool)) {
+      throw Error(d->cond, "expected boolean expression");
     }
 
-    this->check(d.if_true);
-    this->check(d.if_false);
+    this->check(d->if_true);
+    this->check(d->if_false);
 
-    ast->as_stmt()->set_data(d);
     break;
   }
 
   case ASTKind::While: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::While>();
+    auto d = ast->as_stmt()->data_while;
 
-    this->check(d.cond);
-    this->check(d.block);
+    this->check(d->cond);
+    this->check(d->block);
 
-    ast->as_stmt()->set_data(d);
     break;
   }
 
   case ASTKind::TryCatch: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::TryCatch>();
+    auto d = ast->as_stmt()->data_try_catch;
 
-    this->check(d.tryblock);
+    this->check(d->tryblock);
 
     vector<std::pair<ASTPointer, TypeInfo>> temp;
 
-    for (auto&& c : d.catchers) {
+    for (auto&& c : d->catchers) {
       auto type = this->eval_type(c.type);
 
-      for (auto&& c2 : d.catchers) {
+      for (auto&& c2 : d->catchers) {
         if (type.equals(c2._type)) {
           throw Error(c.type, "duplicated exception type")
               .AddChain(Error(Error::ER_Note, c2.type, "first defined here"));
@@ -200,17 +198,16 @@ void Sema::check(ASTPointer ast) {
       this->check(c.catched);
     }
 
-    ast->as_stmt()->set_data(d);
     break;
   }
 
   case ASTKind::Return: {
-    this->ExpectType(this->cur_function->result_type, ast->as_stmt()->get_expr());
+    this->ExpectType(this->cur_function->result_type, ast->as_stmt()->expr);
     break;
   }
 
   case ASTKind::Throw: {
-    this->check(ast->as_stmt()->get_expr());
+    this->check(ast->as_stmt()->expr);
     break;
   }
 

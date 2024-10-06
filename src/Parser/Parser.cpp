@@ -99,7 +99,7 @@ ASTPointer Parser::Stmt() {
       return AST::Statement::New(ASTKind::Return, tok);
     }
 
-    auto ast = AST::Statement::New(ASTKind::Return, tok, this->Expr());
+    auto ast = AST::Statement::NewExpr(ASTKind::Return, tok, this->Expr());
     this->expect(";");
 
     return ast;
@@ -126,7 +126,7 @@ ASTPointer Parser::Stmt() {
   }
 
   if (this->eat("throw")) {
-    auto ast = AST::Statement::New(ASTKind::Throw, tok, this->Expr());
+    auto ast = AST::Statement::NewExpr(ASTKind::Throw, tok, this->Expr());
 
     this->expect(";");
     return ast;

@@ -98,7 +98,7 @@ struct ObjNone : Object {
     return ObjNew<ObjNone>();
   }
 
-  std::string ToString() const override {
+  string ToString() const override {
     return "none";
   }
 

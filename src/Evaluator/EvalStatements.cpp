@@ -20,7 +20,7 @@ void Evaluator::eval_stmt(ASTPointer ast) {
 
     auto& stack = *this->call_stack.begin();
 
-    stack->func_result = this->evaluate(stmt->get_expr());
+    stack->func_result = this->evaluate(stmt->expr);
 
     for (auto&& s : this->var_stack) {
       s->returned = true;
@@ -34,7 +34,7 @@ void Evaluator::eval_stmt(ASTPointer ast) {
   }
 
   case Kind::Throw:
-    throw this->evaluate(ast->as_stmt()->get_expr());
+    throw this->evaluate(ast->as_stmt()->expr);
 
   case Kind::Break:
     (*this->loops.begin())->breaked = true;
@@ -72,44 +72,44 @@ void Evaluator::eval_stmt(ASTPointer ast) {
   }
 
   case Kind::If: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::If>();
+    auto d = ast->as_stmt()->data_if;
 
-    auto cond = this->evaluate(d.cond);
+    auto cond = this->evaluate(d->cond);
 
     if (cond->get_vb())
-      this->evaluate(d.if_true);
+      this->evaluate(d->if_true);
     else
-      this->evaluate(d.if_false);
+      this->evaluate(d->if_false);
 
     break;
   }
 
   case Kind::While: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::While>();
+    auto d = ast->as_stmt()->data_while;
 
-    while (this->evaluate(d.cond)->get_vb()) {
-      this->evaluate(d.block);
+    while (this->evaluate(d->cond)->get_vb()) {
+      this->evaluate(d->block);
     }
 
     break;
   }
 
   case Kind::TryCatch: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::TryCatch>();
+    auto d = ast->as_stmt()->data_try_catch;
 
     auto s1 = this->var_stack;
     auto s2 = this->call_stack;
     auto s3 = this->loops;
 
     try {
-      this->evaluate(d.tryblock);
+      this->evaluate(d->tryblock);
     }
     catch (ObjPointer obj) {
       this->var_stack = s1;
       this->call_stack = s2;
       this->loops = s3;
 
-      for (auto&& c : d.catchers) {
+      for (auto&& c : d->catchers) {
         if (c._type.equals(obj->type)) {
           auto s = this->push_stack(1);
 

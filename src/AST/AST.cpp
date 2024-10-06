@@ -240,32 +240,61 @@ VarDef::VarDef(Token tok, Token name, ASTPtr<TypeName> type, ASTPointer init)
 
 ASTPtr<Statement> Statement::NewIf(Token tok, ASTPointer cond, ASTPointer if_true,
                                    ASTPointer if_false) {
-  return ASTNew<Statement>(ASTKind::If, tok, If{cond, if_true, if_false});
+  return ASTNew<Statement>(ASTKind::If, tok, new If{cond, if_true, if_false});
 }
 
 ASTPtr<Statement> Statement::NewSwitch(Token tok, ASTPointer cond,
-                                       std::vector<Switch::Case> cases) {
-  return ASTNew<Statement>(ASTKind::Switch, tok, Switch{cond, std::move(cases)});
+                                       Vec<Switch::Case> cases) {
+  return ASTNew<Statement>(ASTKind::Switch, tok, new Switch{cond, std::move(cases)});
 }
 
 ASTPtr<Statement> Statement::NewWhile(Token tok, ASTPointer cond, ASTPtr<Block> block) {
 
-  return ASTNew<Statement>(ASTKind::While, tok, While{cond, block});
+  return ASTNew<Statement>(ASTKind::While, tok, new While{cond, block});
 }
 
 ASTPtr<Statement> Statement::NewTryCatch(Token tok, ASTPtr<Block> tryblock,
                                          vector<TryCatch::Catcher> catchers) {
   return ASTNew<Statement>(ASTKind::TryCatch, tok,
-                           TryCatch{tryblock, std::move(catchers)});
+                           new TryCatch{tryblock, std::move(catchers)});
 }
 
-ASTPtr<Statement> Statement::New(ASTKind kind, Token tok, std::any data) {
-  return ASTNew<Statement>(kind, tok, std::move(data));
+ASTPtr<Statement> Statement::New(ASTKind kind, Token tok, void* data) {
+  return ASTNew<Statement>(kind, tok, data);
 }
 
-Statement::Statement(ASTKind kind, Token tok, std::any data)
+ASTPtr<Statement> Statement::NewExpr(ASTKind kind, Token tok, ASTPointer expr) {
+  return ASTNew<Statement>(kind, tok, expr);
+}
+
+Statement::Statement(ASTKind kind, Token tok, void* data)
     : Base(kind, tok),
-      _astdata(data) {
+      _data(data) {
+}
+
+Statement::Statement(ASTKind kind, Token tok, ASTPointer expr)
+    : Base(kind, tok),
+      expr(expr) {
+}
+
+Statement::~Statement() {
+  switch (this->kind) {
+  case ASTKind::If:
+    delete this->data_if;
+    break;
+
+  case ASTKind::Switch:
+    delete this->data_switch;
+    break;
+
+  case ASTKind::While:
+    delete this->data_while;
+    break;
+
+  case ASTKind::TryCatch:
+    delete this->data_try_catch;
+    break;
+  }
 }
 
 void Templatable::_Copy(Templatable const* _t) {
@@ -441,24 +470,26 @@ ASTPointer VarDef::Clone() const {
 ASTPointer Statement::Clone() const {
   switch (this->kind) {
   case ASTKind::If:
-    return NewIf(this->token, this->get_data<If>().cond, this->get_data<If>().if_true,
-                 this->get_data<If>().if_false);
+    return NewIf(this->token, this->data_if->cond, this->data_if->if_true,
+                 this->data_if->if_false);
 
   case ASTKind::Switch: {
-    auto d = this->get_data<Switch>();
-    std::vector<Switch::Case> _cases;
+    auto d = this->data_switch;
 
-    for (auto&& c : d.cases)
+    Vec<Switch::Case> _cases;
+
+    for (auto&& c : d->cases)
       _cases.emplace_back(
           Switch::Case{.expr = c.expr->Clone(), .block = c.block->Clone()});
 
-    return NewSwitch(this->token, d.cond->Clone(), std::move(_cases));
+    return NewSwitch(this->token, d->cond->Clone(), std::move(_cases));
   }
 
   case ASTKind::While: {
-    auto d = this->get_data<While>();
+    auto d = this->data_while;
 
-    return NewWhile(this->token, d.cond->Clone(), ASTCast<AST::Block>(d.block->Clone()));
+    return NewWhile(this->token, d->cond->Clone(),
+                    ASTCast<AST::Block>(d->block->Clone()));
   }
 
   case ASTKind::Break:
@@ -473,7 +504,7 @@ ASTPointer Statement::Clone() const {
     todo_impl;
   }
 
-  return New(this->kind, this->token, this->get_expr()->Clone());
+  return NewExpr(this->kind, this->token, this->expr->Clone());
 }
 
 ASTPtr<Signature> Signature::New(Token tok, ASTVec<TypeName> arg_type_list,
