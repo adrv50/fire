@@ -175,4 +175,14 @@ using ObjVec = std::vector<ObjPtr<T>>;
 template <class T>
 using ASTVec = std::vector<ASTPtr<T>>;
 
+template <typename T, typename U>
+ASTVec<T> CloneASTVec(ASTVec<U> const& vec) {
+  ASTVec<T> v;
+
+  for (auto&& elem : vec)
+    v.emplace_back(ASTCast<T>(elem->Clone()));
+
+  return v;
+}
+
 } // namespace fire

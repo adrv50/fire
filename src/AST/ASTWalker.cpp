@@ -1,5 +1,6 @@
 #include "alert.h"
 #include "AST.h"
+#include "ASTWalker.h"
 
 namespace fire::AST {
 

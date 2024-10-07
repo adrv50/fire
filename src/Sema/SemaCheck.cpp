@@ -2,6 +2,8 @@
 #include "Error.h"
 #include "Sema/Sema.h"
 
+#include "ASTWalker.h"
+
 #define foreach(_Name, _Content) for (auto&& _Name : _Content)
 
 #define printkind alertmsg(static_cast<int>(ast->kind))
