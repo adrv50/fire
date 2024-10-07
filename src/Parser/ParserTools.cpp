@@ -20,13 +20,17 @@ bool Parser::eat(std::string_view str) {
   return false;
 }
 
-void Parser::expect(std::string_view str, bool no_next) {
+void Parser::expect(std::string_view str, bool keep_token) {
   if (!this->eat(str)) {
-    throw Error(*this->cur, "expected '" + std::string(str) + "' buf found '" +
-                                std::string(this->cur->str) + "'");
+    if (this->cur == this->end)
+      throw Error(*(this->cur - 1))
+          .format("expected '%.*s' after this token", str.length(), str.data());
+    else
+      throw Error(*this->cur, "expected '" + std::string(str) + "' but found '" +
+                                  std::string(this->cur->str) + "'");
   }
 
-  if (no_next)
+  if (keep_token)
     this->cur--;
 }
 

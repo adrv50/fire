@@ -311,15 +311,14 @@ ASTPointer Parser::Top() {
     return ast;
   }
 
-  if (this->eat("include")) {
-    todo_impl;
-  }
-
   return this->Stmt();
 }
 
 ASTPtr<AST::Block> Parser::Parse() {
   auto ret = AST::Block::New(*this->cur);
+
+  while (this->eat("include")) {
+    }
 
   while (this->check()) {
     ret->list.emplace_back(this->Top());
