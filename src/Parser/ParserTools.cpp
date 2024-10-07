@@ -43,6 +43,12 @@ bool Parser::eat_typeparam_bracket_open() {
   return false;
 }
 
+void Parser::expect_typeparam_bracket_open() {
+  this->expect("<");
+
+  _typeparam_bracket_depth++;
+}
+
 bool Parser::eat_typeparam_bracket_close() {
   if (_typeparam_bracket_depth >= 1 && this->match(">>")) {
     this->cur->str = ">";

@@ -41,6 +41,8 @@ private:
   void expect(std::string_view str, bool keep_token = false);
 
   bool eat_typeparam_bracket_open();
+  void expect_typeparam_bracket_open();
+
   bool eat_typeparam_bracket_close();
   void expect_typeparam_bracket_close();
 

@@ -203,7 +203,7 @@ ASTPointer Parser::Top() {
     return ast;
   }
 
-  if (this->eat("class") || this->eat("struct")) {
+  if (this->eat("class")) {
     auto ast = AST::Class::New(tok, *this->expectIdentifier());
 
     this->expect("{");
@@ -318,7 +318,7 @@ ASTPtr<AST::Block> Parser::Parse() {
   auto ret = AST::Block::New(*this->cur);
 
   while (this->eat("include")) {
-    }
+  }
 
   while (this->check()) {
     ret->list.emplace_back(this->Top());

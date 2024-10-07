@@ -36,15 +36,15 @@ TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
 
   switch (rs.type) {
   case NameType::Enum: {
-    TypeInfo ret = TypeInfo::from_enum(rs.ast_enum);
+    TypeInfo ret = TypeKind::Enumerator;
 
-    ret.kind = TypeKind::Enumerator;
+    ret.type_ast = rs.ast_enum;
 
     return ret;
   }
 
   case NameType::Class:
-    return TypeInfo::from_class(rs.ast_class);
+    return TypeInfo::make_instance_type(rs.ast_class);
   }
 
   throw Error(ast->token, "unknown type name");

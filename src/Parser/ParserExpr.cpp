@@ -127,7 +127,7 @@ ASTPointer Parser::Factor() {
 
       x->paramtok = *this->cur;
 
-      this->expect("<");
+      this->expect_typeparam_bracket_open();
 
       do {
         auto& templ_arg = x->id_params.emplace_back(this->ScopeResol());

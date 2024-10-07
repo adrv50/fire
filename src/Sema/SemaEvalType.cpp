@@ -615,7 +615,7 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
       ast->kind = ASTKind::CallFunc_Ctor;
 
-      return TypeInfo::from_class(id->ast_class);
+      return TypeInfo::make_instance_type(id->ast_class);
     }
 
     default: {
