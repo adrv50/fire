@@ -726,21 +726,6 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       }
       break;
     }
-
-    case TypeKind::Enumerator: {
-      //
-      // TODO:
-      //   列挙型で、構造体のメンバ定義されてる場合、そのメンバを探す
-      //
-      // enum Kind {
-      //   A(a: int, b: string)
-      // }
-      //
-      //   ^ 左辺の値が Kind::A のとき、右辺が a であればその値を返す
-      // (Evaluator での実装も必要)
-      //
-      todo_impl;
-    }
     }
 
     if (!rhs_id->sema_allow_ambiguous && rhs_id->candidates.size() >= 2) {

@@ -16,4 +16,4 @@ namespace fire::AST {
 
 string ToString(ASTPointer ast);
 
-}
+} // namespace fire::AST

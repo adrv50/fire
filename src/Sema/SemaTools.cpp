@@ -67,6 +67,7 @@ ScopeContext* Sema::GetScopeOf(ASTPointer ast) {
 ScopeContext* Sema::EnterScope(ASTPointer ast) {
 
   auto& cur = this->GetCurScope();
+
   auto scope = cur->find_child_scope(ast);
 
   if (!scope && ast->kind == ASTKind::Namespace && cur->is_block) {

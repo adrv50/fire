@@ -79,6 +79,8 @@ enum class ASTKind {
 
   If,
 
+  Match,
+
   Switch,
   While,
 

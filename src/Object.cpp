@@ -133,7 +133,29 @@ ObjString::ObjString(std::string const& str)
 //  ObjEnumerator
 
 std::string ObjEnumerator::ToString() const {
-  return this->ast->GetName() + "::" + this->ast->enumerators[this->index].name.str;
+  auto& e = this->ast->enumerators[this->index];
+
+  auto s = this->ast->GetName() + "::" + e.name.str;
+
+  switch (e.data_type) {
+  case AST::Enum::Enumerator::DataType::Value:
+    s += "(" + this->data->ToStringAsMember() + ")";
+    break;
+
+  case AST::Enum::Enumerator::DataType::Structure: {
+    s += "(";
+
+    for (size_t i = 0; i < e.types.size(); i++) {
+      s += e.types[i]->As<AST::Argument>()->name.str + ": " +
+           this->data->As<ObjIterable>()->list[i]->ToStringAsMember() + ", ";
+    }
+
+    s.insert(s.length() - 2, ")\0");
+    break;
+  }
+  }
+
+  return s;
 }
 
 ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)

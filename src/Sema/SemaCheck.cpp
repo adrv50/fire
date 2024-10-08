@@ -22,17 +22,50 @@ void Sema::check(ASTPointer ast) {
 
   switch (ast->kind) {
 
+  case ASTKind::Enum: {
+    Vec<string_view> v;
+
+    auto x = ASTCast<AST::Enum>(ast);
+
+    for (auto&& e : x->enumerators) {
+      if (utils::contains(v, e.name.str))
+        throw Error(e.name, "duplicate enumerator name");
+      else
+        v.emplace_back(e.name.str);
+
+      if (e.data_type == Enum::Enumerator::DataType::Value) {
+        this->eval_type(e.types[0]);
+      }
+      else {
+        Vec<string_view> v2;
+
+        for (auto&& t : e.types) {
+          auto arg = ASTCast<AST::Argument>(t);
+
+          this->eval_type(arg->type);
+
+          if (utils::contains(v2, arg->GetName()))
+            throw Error(arg->name, "duplicate member variable name");
+          else
+            v2.emplace_back(arg->name.str);
+        }
+      }
+    }
+
+    break;
+  }
+
   case ASTKind::Class: {
 
-    std::map<string, bool> bb;
+    Vec<string_view> v;
 
     auto x = ASTCast<AST::Class>(ast);
 
     for (auto&& mv : x->member_variables) {
-      if (bb[string(mv->GetName())])
+      if (auto n = mv->GetName(); utils::contains(v, n))
         throw Error(mv->name, "duplicate member variable name");
-
-      bb[string(mv->GetName())] = true;
+      else
+        v.emplace_back(n);
 
       this->check(mv->type);
       this->check(mv->init);
@@ -161,6 +194,39 @@ void Sema::check(ASTPointer ast) {
     this->check(d->if_false);
 
     break;
+  }
+
+  case ASTKind::Match: {
+    auto x = ASTCast<AST::Match>(ast);
+
+    auto cond = this->eval_type(x->cond);
+
+    for (auto&& pattern : x->patterns) {
+      auto px = pattern.expr;
+
+      alertexpr(pattern.block);
+      alertexpr(this->GetCurScope());
+
+      alert;
+      auto var_scope = (BlockScope*)this->EnterScope(pattern.block);
+
+      alertexpr(var_scope);
+
+      alert;
+      auto scope = (BlockScope*)this->EnterScope(pattern.block);
+
+      todo_impl;
+
+      this->LeaveScope();
+      this->LeaveScope();
+    }
+
+    break;
+  }
+
+  case ASTKind::Switch: {
+
+    todo_impl;
   }
 
   case ASTKind::While: {

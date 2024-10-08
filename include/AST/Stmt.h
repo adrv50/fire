@@ -75,7 +75,7 @@ struct Statement : Base {
     void* _data = nullptr;
   };
 
-  ASTPointer expr;
+  ASTPointer expr = nullptr;
 
   static ASTPtr<Statement> NewIf(Token tok, ASTPointer cond, ASTPointer if_true,
                                  ASTPointer if_false = nullptr);
@@ -97,6 +97,30 @@ struct Statement : Base {
   Statement(ASTKind kind, Token tok, void* data);
   Statement(ASTKind kind, Token tok, ASTPointer expr);
   ~Statement();
+};
+
+struct Match : Base {
+  struct Pattern {
+    ASTPointer expr;
+    ASTPtr<Block> block;
+
+    bool everything; // _ => { }
+
+    Pattern(ASTPointer expr, ASTPtr<Block> block, bool everything = false)
+        : expr(expr),
+          block(block),
+          everything(everything) {
+    }
+  };
+
+  ASTPointer cond;
+  Vec<Pattern> patterns;
+
+  static ASTPtr<Match> New(Token tok, ASTPointer cond, Vec<Pattern> patterns);
+
+  ASTPointer Clone() const override;
+
+  Match(Token tok, ASTPointer cond, Vec<Pattern> patterns);
 };
 
 } // namespace fire::AST

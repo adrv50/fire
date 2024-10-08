@@ -122,6 +122,56 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
       break;
     }
 
+    case ASTKind::Match: {
+      auto& ep = ASTCast<AST::Match>(e)->patterns;
+
+      for (auto&& eb : ep) {
+
+        // for temporary variable definition
+        auto eb_var_scope = new BlockScope(this->depth + 1, nullptr);
+
+        eb_var_scope->ast = eb.block;
+
+        {
+          ASTVec<Identifier> v;
+
+          if (eb.expr->is_id_nonqual()) {
+            v.emplace_back(ASTCast<AST::Identifier>(eb.expr));
+          }
+          else if (eb.expr->is(ASTKind::CallFunc)) {
+            for (auto&& arg : eb.expr->As<CallFunc>()->args)
+              if (arg->is(ASTKind::Identifier) && !arg->is_qual_id())
+                v.emplace_back(ASTCast<AST::Identifier>(arg));
+          }
+
+          for (auto&& e : v) {
+            auto& var = eb_var_scope->variables.emplace_back();
+
+            var.name = e->GetName();
+
+            var.depth = eb_var_scope->depth;
+            var.index = eb_var_scope->variables.size();
+          }
+        }
+
+        // scope of pattern block
+        auto eb_scope = new BlockScope(this->depth + 2, eb.block);
+
+        eb_var_scope->AddScope(eb_scope);
+
+        this->AddScope(eb_var_scope);
+
+        //
+        // match ... {
+        //   Kind::A(a, b)    // eb_var_scope (v-stack for 'a', 'b')
+        //     => {           //   eb_scope
+        //     }
+        // }
+      }
+
+      break;
+    }
+
     case ASTKind::While: {
       this->AddScope(new BlockScope(this->depth + 1, e->as_stmt()->data_while->block));
 
@@ -285,10 +335,10 @@ ScopeContext::LocalVar* BlockScope::find_var(string_view const& name) {
 }
 
 ScopeContext* BlockScope::find_child_scope(ASTPointer ast) {
-  if (this->ast == ast)
-    return this;
-
   for (auto&& c : this->child_scopes) {
+    if (c->GetAST() == ast)
+      return c;
+
     if (auto s = c->find_child_scope(ast); s)
       return s;
   }
@@ -297,12 +347,12 @@ ScopeContext* BlockScope::find_child_scope(ASTPointer ast) {
 }
 
 ScopeContext* BlockScope::find_child_scope(ScopeContext* ctx) {
-  if (this == ctx)
-    return this;
-
   for (auto&& c : this->child_scopes) {
     if (c == ctx)
       return c;
+
+    if (auto s = c->find_child_scope(ctx); s)
+      return s;
   }
 
   return nullptr;

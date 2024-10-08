@@ -9,7 +9,7 @@ namespace fire::parser {
 
 ASTPointer Parser::Stmt() {
 
-  auto tok = *this->cur;
+  auto& tok = *this->cur;
 
   if (this->eat("{")) {
     auto ast = AST::Block::New(tok);
@@ -31,6 +31,30 @@ ASTPointer Parser::Stmt() {
     }
 
     throw Error(tok, "not terminated block");
+  }
+
+  if (this->eat("match")) {
+    auto ast = AST::Match::New(tok, this->Expr(), {});
+
+    this->expect("{");
+
+    bool b = false;
+
+    do {
+      auto e = this->Expr();
+
+      this->expect("=>");
+
+      this->expect("{", true);
+
+      ast->patterns.emplace_back(e, ASTCast<AST::Block>(this->Stmt()));
+
+    } while (this->check() && !(b = this->eat("}")));
+
+    if (!b)
+      throw Error(tok, "not terminated block of match-statement");
+
+    return ast;
   }
 
   if (this->eat("if")) {
@@ -190,10 +214,23 @@ ASTPointer Parser::Top() {
     }
 
     do {
-      auto& e = ast->append(*this->expectIdentifier(), nullptr);
+      auto& e = ast->append(*this->expectIdentifier());
 
       if (this->eat("(")) {
-        e.type = this->expectTypeName();
+        if (this->match(TokenKind::Identifier, ":")) {
+          do {
+            auto& name = *this->expectIdentifier();
+
+            this->cur++; // ":"
+            auto type = this->expectTypeName();
+
+            e.types.emplace_back(AST::Argument::New(name, type));
+          } while (this->eat(","));
+        }
+        else {
+          e.types.emplace_back(this->expectTypeName());
+        }
+
         this->expect(")");
       }
     } while (this->eat(","));

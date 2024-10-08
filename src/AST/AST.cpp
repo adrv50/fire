@@ -4,13 +4,24 @@
 namespace fire::AST {
 
 template <class T, class... Args>
-requires std::constructible_from<T, Args...>
 ASTPtr<T> ASTNew(Args&&... args) {
 #if _DBG_DONT_USE_SMART_PTR_
   return new T(std::forward<Args>(args)...);
 #else
   return std::make_shared<T>(std::forward<Args>(args)...);
 #endif
+}
+
+bool Base::is(ASTKind k) {
+  return this->kind == k;
+}
+
+bool Base::is_qual_id() {
+  return this->is(ASTKind::Identifier) && this->GetID()->id_params.size() >= 1;
+}
+
+bool Base::is_id_nonqual() {
+  return this->is(ASTKind::Identifier) && this->GetID()->id_params.empty();
 }
 
 Expr const* Base::as_expr() const {
@@ -297,6 +308,26 @@ Statement::~Statement() {
   }
 }
 
+ASTPointer Match::Clone() const {
+  auto ast = New(this->token, this->cond->Clone(), {});
+
+  for (auto&& p : this->patterns)
+    ast->patterns.emplace_back(p.expr->Clone(), ASTCast<AST::Block>(p.block->Clone()),
+                               p.everything);
+
+  return ast;
+}
+
+ASTPtr<Match> Match::New(Token tok, ASTPointer cond, Vec<Pattern> patterns) {
+  return ASTNew<Match>(tok, cond, std::move(patterns));
+}
+
+Match::Match(Token tok, ASTPointer cond, Vec<Pattern> patterns)
+    : Base(ASTKind::Match, tok),
+      cond(cond),
+      patterns(std::move(patterns)) {
+}
+
 void Templatable::_Copy(Templatable const* _t) {
   this->tok_template = _t->tok_template;
   this->is_templated = _t->is_templated;
@@ -371,14 +402,6 @@ Function::Function(Token tok, Token name, ASTVec<Argument> args, bool is_var_arg
       return_type(rettype),
       block(block),
       is_var_arg(is_var_arg) {
-}
-
-Enum::Enumerator& Enum::append(Token name, ASTPtr<TypeName> type) {
-  return this->enumerators.emplace_back(Enumerator{name, type});
-}
-
-Enum::Enumerator& Enum::append(Enumerator const& e) {
-  return this->enumerators.emplace_back(e);
 }
 
 ASTPtr<Enum> Enum::New(Token tok, Token name) {

@@ -35,6 +35,10 @@ struct Base {
 
   Value const* as_value() const;
 
+  bool is(ASTKind k);
+  bool is_qual_id();
+  bool is_id_nonqual();
+
   virtual Identifier* GetID();
 
   virtual ASTPointer Clone() const = 0;
@@ -72,4 +76,4 @@ protected:
   void _Copy(Templatable const* _t);
 };
 
-}
+} // namespace fire::AST
