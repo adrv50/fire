@@ -92,6 +92,9 @@ struct CallFunc : Base {
 
   bool call_functor = false;
 
+  ASTPtr<Enum> ast_enum = nullptr;
+  size_t enum_index = 0;
+
   static ASTPtr<CallFunc> New(ASTPointer callee, ASTVector args = {});
 
   ASTPointer Clone() const override;

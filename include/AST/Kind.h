@@ -38,8 +38,8 @@ enum class ASTKind {
   //   ------------------/
 
   CallFunc,
-
   CallFunc_Ctor,
+  CallFunc_Enumerator,
 
   //
   // in call-func expr.

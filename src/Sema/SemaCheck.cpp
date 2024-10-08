@@ -238,6 +238,9 @@ void Sema::check(ASTPointer ast) {
           enumerator = ASTCast<AST::ScopeResol>(cf->callee);
           args = cf->args;
 
+          if (enumerator->is(ASTKind::ScopeResol))
+            enumerator->GetID()->sema_must_completed = false;
+
           auto e_type = this->eval_type(enumerator);
 
           alertexpr(static_cast<int>(e_type.kind));
@@ -262,23 +265,44 @@ void Sema::check(ASTPointer ast) {
               todo_impl;
             }
 
-            auto& var = var_scope->variables[0];
+            if (var_scope->variables.size() >= 2) {
+              throw Error(*id->token.get_forword(),
+                          "too many arguments for catch data of enumerator");
+            }
+            else if (var_scope->variables.size() == 1) {
+              auto& var = var_scope->variables[0];
 
-            var.deducted_type = this->eval_type(e.types[0]);
-            var.is_type_deducted = true;
+              var.deducted_type = this->eval_type(e.types[0]);
+              var.is_type_deducted = true;
+            }
+            else {
+              this->ExpectType(this->eval_type(e.types[0]), args[0]);
+            }
 
             break;
           }
 
           case Enum::Enumerator::DataType::Structure: {
             if (args.size() != e.types.size()) {
-              todo_impl;
+              todo_impl
             }
 
-            for (size_t i = 0; i < args.size(); i++) {
-              auto& v = var_scope->variables[i];
+            for (size_t i = 0, j = 0; i < args.size(); i++) {
+              auto et = this->eval_type(e.types[i]);
 
-              v.deducted_type = this->eval_type(e.types[i]);
+              if (!args[i]->is_id_nonqual()) {
+                if (auto t_arg = this->eval_type(args[i]); !et.equals(t_arg)) {
+                  throw Error(args[i], "expected '" + et.to_string() +
+                                           "' type expression, but found '" +
+                                           t_arg.to_string() + "'");
+                }
+
+                continue;
+              }
+
+              auto& v = var_scope->variables[j++];
+
+              v.deducted_type = std::move(et);
               v.is_type_deducted = true;
             }
 

@@ -263,6 +263,27 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     return inst;
   }
 
+  case Kind::CallFunc_Enumerator: {
+    auto x = ASTCast<AST::CallFunc>(ast);
+
+    auto obj = ObjNew<ObjEnumerator>(x->ast_enum, x->enum_index);
+
+    if (x->ast_enum->enumerators[x->enum_index].data_type ==
+        AST::Enum::Enumerator::DataType::Value) {
+      obj->data = this->evaluate(x->args[0]);
+    }
+    else {
+      auto list = ObjNew<ObjIterable>(TypeKind::Vector);
+
+      for (auto&& arg : x->args)
+        list->Append(this->evaluate(arg));
+
+      obj->data = list;
+    }
+
+    return obj;
+  }
+
   case Kind::Assign: {
     auto x = ast->as_expr();
 

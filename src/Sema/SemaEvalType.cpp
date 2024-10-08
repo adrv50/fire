@@ -21,6 +21,9 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
   case Kind::Function:
     return {};
 
+  case Kind::Argument:
+    ast = ast->As<AST::Argument>()->type;
+
   case Kind::TypeName:
     return this->eval_type_name(ASTCast<AST::TypeName>(ast));
 
@@ -632,7 +635,29 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
     case ASTKind::Enumerator: {
 
-      todo_impl;
+      call->ast_enum = id->ast_enum;
+      call->enum_index = id->index;
+
+      auto& e = id->ast_enum->enumerators[id->index];
+
+      if (arg_types.size() != e.types.size()) {
+        throw Error(call, "too " +
+                              string(arg_types.size() < e.types.size() ? "few" : "many") +
+                              " arguments to construct enumerator '" +
+                              AST::ToString(functor) + "'");
+      }
+
+      for (size_t i = 0; i < e.types.size(); i++) {
+        if (auto et = this->eval_type(e.types[i]); !et.equals(arg_types[i])) {
+          throw Error(call->args[i], "expected '" + et.to_string() +
+                                         "' type expression, but found '" +
+                                         arg_types[i].to_string() + "'");
+        }
+      }
+
+      ast->kind = ASTKind::CallFunc_Enumerator;
+
+      return functor_type;
     }
 
     default: {
