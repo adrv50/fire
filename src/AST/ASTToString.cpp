@@ -23,7 +23,7 @@ string ToString(ASTPointer ast) {
   case ASTKind::TypeName: {
     auto x = ast->As<TypeName>();
 
-    string s = x->GetName();
+    string s = string(x->GetName());
 
     if (!x->type_params.empty()) {
       s += "@<" + utils::join<ASTPtr<TypeName>>(", ", x->type_params, ToString) + ">";
@@ -41,7 +41,7 @@ string ToString(ASTPointer ast) {
     }
 
   case ASTKind::Value:
-    return ast->token.str;
+    return string(ast->token.str);
 
   case ASTKind::ScopeResol: {
     auto x = ast->As<ScopeResol>();
@@ -72,18 +72,18 @@ string ToString(ASTPointer ast) {
   }
 
   case ASTKind::While: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::While>();
+    auto d = ast->as_stmt()->data_while;
 
-    return "while " + ToString(d.cond) + " " + ToString(d.block);
+    return "while " + ToString(d->cond) + " " + ToString(d->block);
   }
 
   case ASTKind::If: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::If>();
+    auto d = ast->as_stmt()->data_if;
 
-    auto s = "if " + ToString(d.cond) + " " + ToString(d.if_true);
+    auto s = "if " + ToString(d->cond) + " " + ToString(d->if_true);
 
-    if (d.if_false)
-      s += "else " + ToString(d.if_false);
+    if (d->if_false)
+      s += "else " + ToString(d->if_false);
 
     return s;
   }

@@ -1,6 +1,10 @@
+#include <span>
+
 #include "alert.h"
 #include "Error.h"
 #include "Sema/Sema.h"
+
+#include "ASTWalker.h"
 
 #define foreach(_Name, _Content) for (auto&& _Name : _Content)
 
@@ -11,47 +15,6 @@ namespace fire::semantics_checker {
 
 void Sema::check_full() {
   this->check(this->root);
-
-  /*
-
-  this->SaveScopeLocation();
-
-  for (auto&& req : this->ins_requests) {
-
-    this->_location = req.scope_loc;
-
-    try {
-
-      assert(req.cloned != nullptr);
-
-      this->check(req.cloned);
-    }
-    catch (Error err) {
-      string func_name = req.original->GetName() + "@<";
-
-      for (int i = -1; auto&& [_name, _data] : req.param_types) {
-        i++;
-
-        func_name += _name + "=" + _data.type.to_string();
-
-        if (i + 1 < req.param_types.size())
-          func_name += ", ";
-      }
-
-      func_name += ">(" +
-                   utils::join<TypeInfo>(", ", req.arg_types,
-                                         [](TypeInfo t) -> string {
-                                           return t.to_string();
-                                         }) +
-                   ")";
-
-      throw err.AddChain(Error(Error::ER_Note, req.requested, "requested here"))
-          .InLocation("in instantiation of '" + func_name + "'");
-    }
-  }
-
-  this->RestoreScopeLocation();
-  */
 }
 
 void Sema::check(ASTPointer ast) {
@@ -61,23 +24,56 @@ void Sema::check(ASTPointer ast) {
 
   switch (ast->kind) {
 
+  case ASTKind::Enum: {
+    Vec<string_view> v;
+
+    auto x = ASTCast<AST::Enum>(ast);
+
+    for (auto&& e : x->enumerators) {
+      if (utils::contains(v, e.name.str))
+        throw Error(e.name, "duplicate enumerator name");
+      else
+        v.emplace_back(e.name.str);
+
+      if (e.data_type == Enum::Enumerator::DataType::Value) {
+        this->eval_type(e.types[0]);
+      }
+      else {
+        Vec<string_view> v2;
+
+        for (auto&& t : e.types) {
+          auto arg = ASTCast<AST::Argument>(t);
+
+          this->eval_type(arg->type);
+
+          if (utils::contains(v2, arg->GetName()))
+            throw Error(arg->name, "duplicate member variable name");
+          else
+            v2.emplace_back(arg->name.str);
+        }
+      }
+    }
+
+    break;
+  }
+
   case ASTKind::Class: {
 
-    std::map<string, bool> bb;
+    Vec<string_view> v;
 
     auto x = ASTCast<AST::Class>(ast);
 
-    auto xmv = x->get_member_variables();
-    auto xmf = x->get_member_functions();
-
-    for (auto&& mv : xmv) {
-      if (bb[mv->GetName()])
+    for (auto&& mv : x->member_variables) {
+      if (auto n = mv->GetName(); utils::contains(v, n))
         throw Error(mv->name, "duplicate member variable name");
+      else
+        v.emplace_back(n);
 
-      bb[mv->GetName()] = true;
+      this->check(mv->type);
+      this->check(mv->init);
     }
 
-    for (auto&& mf : xmf) {
+    for (auto&& mf : x->member_functions) {
       this->check(mf);
     }
 
@@ -103,51 +99,24 @@ void Sema::check(ASTPointer ast) {
     if (func->is_templated()) {
       break;
     }
-    else {
-      for (auto&& arg : func->arguments) {
-        arg.deducted_type = this->EvalType(arg.arg->type);
-        arg.is_type_deducted = true;
-      }
+
+    auto pfunc = this->cur_function;
+    this->cur_function = func;
+
+    for (auto&& arg : func->arguments) {
+      arg.deducted_type = this->eval_type(arg.arg->type);
+      arg.is_type_deducted = true;
     }
 
-    this->EnterScope(x);
+    func->result_type = this->eval_type(x->return_type);
 
-    func->result_type = this->EvalType(x->return_type);
+    this->EnterScope(x);
 
     AST::walk_ast(func->block->ast, [&func](AST::ASTWalkerLocation loc, ASTPointer _ast) {
       if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
         func->return_stmt_list.emplace_back(ASTCast<AST::Statement>(_ast));
       }
     });
-
-    auto ret_type_note = Error(Error::ER_Note, func->ast->return_type, "specified here");
-
-    for (auto&& ret : func->return_stmt_list) {
-      auto expr = ret->As<AST::Statement>()->get_expr();
-
-      if (auto type = this->EvalType(expr); !type.equals(func->result_type)) {
-        if (func->result_type.equals(TypeKind::None)) {
-
-          //
-          // TODO: Suggest return type specification
-          //
-
-          throw Error(ret->token, "expected ';' after this token");
-        }
-        else if (!expr) {
-          Error(ret->token, "expected '" + func->result_type.to_string() +
-                                "' type expression after this token")
-              .emit();
-        }
-        else {
-          throw Error(expr, "expected '" + func->result_type.to_string() +
-                                "' type expression, but found '" + type.to_string() + "'")
-              .AddChain(ret_type_note);
-        }
-
-        goto _return_type_note;
-      }
-    }
 
     if (!func->result_type.equals(TypeKind::None)) {
       if (func->return_stmt_list.empty()) {
@@ -157,7 +126,6 @@ void Sema::check(ASTPointer ast) {
                                     "anything.")
             .emit();
 
-      _return_type_note:
         throw Error(Error::ER_Note, func->ast->return_type, "specified here");
       }
       else if (auto block = func->block;
@@ -170,18 +138,19 @@ void Sema::check(ASTPointer ast) {
 
     this->LeaveScope();
 
+    this->cur_function = pfunc;
+
     break;
   }
 
-  case ASTKind::Block: {
+  case ASTKind::Block:
+  case ASTKind::Namespace: {
     auto x = ASTCast<AST::Block>(ast);
 
-    auto scope = (BlockScope*)this->EnterScope(x);
+    this->EnterScope(x);
 
     for (auto&& e : x->list)
       this->check(e);
-
-    x->stack_size = scope->variables.size();
 
     this->LeaveScope();
 
@@ -196,12 +165,12 @@ void Sema::check(ASTPointer ast) {
     ScopeContext::LocalVar& var = ((BlockScope*)curScope)->variables[x->index];
 
     if (x->type) {
-      var.deducted_type = this->EvalType(x->type);
+      var.deducted_type = this->eval_type(x->type);
       var.is_type_deducted = true;
     }
 
     if (x->init) {
-      auto type = this->EvalType(x->init);
+      auto type = this->eval_type(x->init);
 
       if (x->type && !var.deducted_type.equals(type)) {
         throw Error(x->init, "expected '" + var.deducted_type.to_string() +
@@ -217,40 +186,199 @@ void Sema::check(ASTPointer ast) {
   }
 
   case ASTKind::If: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::If>();
+    auto d = ast->as_stmt()->data_if;
 
-    if (!this->EvalType(d.cond).equals(TypeKind::Bool)) {
-      throw Error(d.cond, "expected boolean expression");
+    if (!this->eval_type(d->cond).equals(TypeKind::Bool)) {
+      throw Error(d->cond, "expected boolean expression");
     }
 
-    this->check(d.if_true);
-    this->check(d.if_false);
+    this->check(d->if_true);
+    this->check(d->if_false);
 
-    ast->as_stmt()->set_data(d);
     break;
   }
 
+  case ASTKind::Match: {
+    auto x = ASTCast<AST::Match>(ast);
+
+    auto cond = this->eval_type(x->cond);
+
+    for (auto&& pattern : x->patterns) {
+      auto px = pattern.expr;
+
+      if (pattern.everything) {
+        pattern.type = Match::Pattern::Type::AllCases;
+
+        this->EnterScope(pattern.block);
+
+        this->check(pattern.block);
+
+        this->LeaveScope();
+        continue;
+      }
+
+      auto var_scope = (BlockScope*)this->EnterScope(pattern.block);
+
+      if (var_scope->variables.empty()) {
+        alert;
+
+        this->ExpectType(cond, px);
+        this->check(pattern.block);
+
+        pattern.type = Match::Pattern::Type::ExprEval;
+        pattern.is_eval_expr = true;
+
+        this->LeaveScope();
+        continue;
+      }
+
+      alertexpr(var_scope);
+
+      if (px->is_id_nonqual()) {
+        auto& var = var_scope->variables[0];
+
+        var.deducted_type = cond;
+        var.is_type_deducted = true;
+
+        this->eval_type(px);
+        this->check(pattern.block);
+
+        pattern.type = Match::Pattern::Type::Variable;
+      }
+      else {
+        ASTPtr<AST::ScopeResol> enumerator = nullptr;
+        std::span<ASTPointer> args;
+
+        switch (px->kind) {
+        case ASTKind::ScopeResol:
+          enumerator = ASTCast<AST::ScopeResol>(px);
+          pattern.type = Match::Pattern::Type::Enumerator;
+          break;
+
+        case ASTKind::CallFunc: {
+          pattern.type = Match::Pattern::Type::EnumeratorWithArguments;
+
+          auto cf = ASTCast<AST::CallFunc>(px);
+
+          enumerator = ASTCast<AST::ScopeResol>(cf->callee);
+          args = cf->args;
+
+          if (enumerator->is(ASTKind::ScopeResol))
+            enumerator->GetID()->sema_must_completed = false;
+
+          auto e_type = this->eval_type(enumerator);
+
+          alertexpr(static_cast<int>(e_type.kind));
+
+          if (e_type.kind != TypeKind::Enumerator || e_type.type_ast != cond.type_ast) {
+            todo_impl;
+          }
+
+          auto id = enumerator->GetID();
+          auto& e = id->ast_enum->enumerators[id->index];
+
+          switch (e.data_type) {
+          case Enum::Enumerator::DataType::NoData:
+            throw Error(id->token, "unexpected token '(' after this token");
+            break;
+
+          case Enum::Enumerator::DataType::Value: {
+            if (args.empty()) {
+              todo_impl;
+            }
+            else if (args.size() >= 2) {
+              todo_impl;
+            }
+
+            if (var_scope->variables.size() >= 2) {
+              throw Error(*id->token.get_next(),
+                          "too many arguments for catch data of enumerator");
+            }
+            else if (var_scope->variables.size() == 1) {
+              auto& var = var_scope->variables[0];
+
+              var.deducted_type = this->eval_type(e.types[0]);
+              var.is_type_deducted = true;
+            }
+            // else {
+            //   this->ExpectType(this->eval_type(e.types[0]), args[0]);
+            // }
+
+            break;
+          }
+
+          case Enum::Enumerator::DataType::Structure: {
+            if (args.size() != e.types.size()) {
+              throw Error(enumerator,
+                          "too " + string(args.size() < e.types.size() ? "few" : "many") +
+                              " arguments to check matching of '" +
+                              AST::ToString(enumerator) + "'");
+            }
+
+            for (size_t i = 0, j = 0; i < args.size(); i++) {
+              auto et = this->eval_type(e.types[i]);
+
+              if (!args[i]->is_id_nonqual()) {
+                if (auto t_arg = this->eval_type(args[i]); !et.equals(t_arg)) {
+                  throw Error(args[i], "expected '" + et.to_string() +
+                                           "' type expression, but found '" +
+                                           t_arg.to_string() + "'");
+                }
+
+                continue;
+              }
+
+              auto& v = var_scope->variables[j++];
+
+              v.deducted_type = std::move(et);
+              v.is_type_deducted = true;
+            }
+
+            break;
+          }
+          }
+
+          this->check(pattern.block);
+
+          break;
+        }
+
+        default:
+          todo_impl; // invalid syntax
+        }
+      }
+
+      this->LeaveScope();
+    }
+
+    break;
+  }
+
+  case ASTKind::Switch: {
+
+    todo_impl;
+  }
+
   case ASTKind::While: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::While>();
+    auto d = ast->as_stmt()->data_while;
 
-    this->check(d.cond);
-    this->check(d.block);
+    this->check(d->cond);
+    this->check(d->block);
 
-    ast->as_stmt()->set_data(d);
     break;
   }
 
   case ASTKind::TryCatch: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::TryCatch>();
+    auto d = ast->as_stmt()->data_try_catch;
 
-    this->check(d.tryblock);
+    this->check(d->tryblock);
 
     vector<std::pair<ASTPointer, TypeInfo>> temp;
 
-    for (auto&& c : d.catchers) {
-      auto type = this->EvalType(c.type);
+    for (auto&& c : d->catchers) {
+      auto type = this->eval_type(c.type);
 
-      for (auto&& c2 : d.catchers) {
+      for (auto&& c2 : d->catchers) {
         if (type.equals(c2._type)) {
           throw Error(c.type, "duplicated exception type")
               .AddChain(Error(Error::ER_Note, c2.type, "first defined here"));
@@ -262,27 +390,31 @@ void Sema::check(ASTPointer ast) {
       auto& e = ((BlockScope*)this->GetScopeOf(c.catched))->variables[0];
 
       e.name = c.varname.str;
-      e.deducted_type = this->EvalType(c.type);
+      e.deducted_type = this->eval_type(c.type);
       e.is_type_deducted = true;
 
       this->check(c.catched);
     }
 
-    ast->as_stmt()->set_data(d);
     break;
   }
 
-  case ASTKind::Return:
-  case ASTKind::Throw:
-    this->check(ast->as_stmt()->get_expr());
+  case ASTKind::Return: {
+    this->ExpectType(this->cur_function->result_type, ast->as_stmt()->expr);
     break;
+  }
+
+  case ASTKind::Throw: {
+    this->check(ast->as_stmt()->expr);
+    break;
+  }
 
   case ASTKind::Break:
   case ASTKind::Continue:
     break;
 
   default:
-    this->EvalType(ast);
+    this->eval_type(ast);
   }
 }
 } // namespace fire::semantics_checker

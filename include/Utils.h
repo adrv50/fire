@@ -32,6 +32,11 @@ string join(string const& s, vector<T> const& vec, auto tostrfn) {
   return ret;
 }
 
+template <typename E>
+bool contains(Vec<E> const& v, E const& e) {
+  return std::find(v.begin(), v.end(), e) != v.end();
+}
+
 string remove_color(string str);
 i64 get_length_without_color(string const& str);
 i64 get_color_length_in_str(string const& str);

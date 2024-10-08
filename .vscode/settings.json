@@ -2,6 +2,8 @@
     "editor.formatOnSave": true,
     "editor.formatOnPaste": false,
     "editor.formatOnType": false,
+
+    "editor.suggest.insertMode": "insert",
     
     "files.associations": {
         "array": "cpp",

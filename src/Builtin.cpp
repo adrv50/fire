@@ -70,34 +70,6 @@ define_builtin_func(Open) {
   return ObjNew<ObjString>(data);
 }
 
-define_builtin_func(Import) {
-  auto path = args[0]->ToString();
-
-  auto source = std::make_shared<SourceStorage>(path);
-
-  source->Open();
-
-  if (!source->IsOpen()) {
-    Error(ast->args[0]->token, "cannot open file '" + path + "'")();
-  }
-
-  Lexer lexer{*source};
-
-  auto prg = parser::Parser(lexer.Lex()).Parse();
-
-  auto ret = ObjNew<ObjModule>(source, prg);
-
-  ret->name = path.substr(0, path.rfind('.'));
-
-  if (auto slash = ret->name.rfind('/'); slash != std::string::npos) {
-    ret->name = ret->name.substr(slash + 1);
-  }
-
-  todo_impl;
-
-  return ret;
-}
-
 define_builtin_func(Substr) {
   auto str = args[0]->As<ObjString>();
   auto pos = args[1]->As<ObjPrimitive>()->vi;
@@ -132,6 +104,10 @@ define_builtin_func(Length) {
   todo_impl;
 }
 
+define_builtin_func(ToString) {
+  return ObjNew<ObjString>(args[0]->ToString());
+}
+
 // clang-format off
 static const std::vector<Function> g_builtin_functions = {
 
@@ -140,33 +116,23 @@ static const std::vector<Function> g_builtin_functions = {
 
   { "open",     Open,      TypeKind::String, { TypeKind::String }, },
 
-  { "@import",  Import,    TypeKind::Module, { TypeKind::String }, },
 
 };
 
 static const vector<std::pair<TypeInfo, Function>>
 g_builtin_member_functions = {
   { // substr(index)
-    TypeKind::String, {
-      "substr", Substr, TypeKind::String, {
-        TypeKind::Int
-      }
-    }
+    TypeKind::String, { "substr", Substr, TypeKind::String, { TypeKind::Int } }
   },
 
   { // substr(index, len)
-    TypeKind::String, {
-      "substr", Substr2, TypeKind::String, {
-        TypeKind::Int, TypeKind::Int
-      }
-    }
+    TypeKind::String, { "substr", Substr2, TypeKind::String, { TypeKind::Int, TypeKind::Int } }
   },
 
-  {
-    TypeKind::String, {
-      "length", Length, TypeKind::Int, { },
-    }
-  },
+  { TypeKind::String, { "length", Length, TypeKind::Int, { }, } },
+  { TypeKind::Vector, { "length", Length, TypeKind::Int, { }, } },
+  
+  { TypeKind::Unknown, { "to_string", ToString, TypeKind::String, { }, } },
   
   // { "length",   Length,    TypeKind::Int, { {TypeKind::Vector, {TypeKind::Unknown}} }, },
 
@@ -177,19 +143,23 @@ g_builtin_member_functions = {
 #define make_builtin_member                                                              \
   []([[maybe_unused]] ASTPointer self_ast, [[maybe_unused]] ObjPointer self) -> ObjPointer
 
-static const vector<MemberVariable> g_builtin_member_variables = {
-    {"abs", TypeKind::Int, TypeKind::Int, make_builtin_member{i64 val = self->get_vi();
+// clang-format off
+static const vector<MemberVariable>
+g_builtin_member_variables = {
 
-if (val < 0)
-  val = -val;
+{ "abs", TypeKind::Int, TypeKind::Int,
+  make_builtin_member{
+    i64 val = self->get_vi();
 
-return ObjNew<ObjPrimitive>(val);
+    if (val < 0)
+      val = -val;
 
-} // namespace fire::builtins
-}
-,
-}
-;
+    return ObjNew<ObjPrimitive>(val);
+  }
+},
+
+};
+// clang-format on
 
 ObjPointer Function::Call(ASTPtr<AST::CallFunc> ast, ObjVector args) const {
   return this->func(ast, std::move(args));

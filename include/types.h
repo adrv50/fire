@@ -21,7 +21,20 @@ using u64 = std::uint64_t;
 using std::size_t;
 
 using std::string;
+using std::string_view;
+
+static inline string operator+(string const& s, string_view sv) {
+  return s + string(sv);
+}
+
+static inline string operator+(string_view sv, string const& s) {
+  return string(sv) + s;
+}
+
 using std::vector;
+
+template <typename T>
+using Vec = std::vector<T>;
 
 using StringVector = std::vector<std::string>;
 
@@ -77,6 +90,9 @@ struct TypeName;
 struct Function;
 struct Enum;
 struct Class;
+
+struct TypeName;
+struct Signature;
 
 // struct Namespace;
 
@@ -158,5 +174,15 @@ using ObjVec = std::vector<ObjPtr<T>>;
 
 template <class T>
 using ASTVec = std::vector<ASTPtr<T>>;
+
+template <typename T, typename U>
+ASTVec<T> CloneASTVec(ASTVec<U> const& vec) {
+  ASTVec<T> v;
+
+  for (auto&& elem : vec)
+    v.emplace_back(ASTCast<T>(elem->Clone()));
+
+  return v;
+}
 
 } // namespace fire

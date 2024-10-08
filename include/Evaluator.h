@@ -14,7 +14,9 @@ public:
   ~Evaluator();
 
   ObjPointer evaluate(ASTPointer ast);
+
   ObjPointer eval_expr(ASTPtr<AST::Expr> ast);
+  void eval_stmt(ASTPointer ast);
 
   ObjPointer& eval_as_left(ASTPointer ast);
 
@@ -31,20 +33,24 @@ private:
     bool continued = false;
 
     VarStack(size_t vcount) {
-      this->var_list.reserve(vcount);
+      this->var_list.resize(vcount);
     }
   };
 
-  VarStack& push_stack(size_t var_count);
+  using VarStackPtr = std::shared_ptr<VarStack>;
+
+  VarStackPtr push_stack(size_t var_count);
   void pop_stack();
 
   VarStack& get_cur_stack();
   VarStack& get_stack(int distance);
 
-  std::list<VarStack*> var_stack;
+  std::list<VarStackPtr> var_stack;
 
-  std::list<VarStack*> call_stack;
-  std::list<VarStack*> loops;
+  std::list<VarStackPtr> call_stack;
+  std::list<VarStackPtr> loops;
+
+  static ObjPtr<ObjNone> _None;
 };
 
 } // namespace fire::eval

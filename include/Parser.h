@@ -7,12 +7,14 @@ namespace fire::parser {
 class Parser {
 
 public:
-  Parser(TokenVector tokens);
+  Parser(TokenVector& tokens);
 
   // ASTPointer Ident();
 
   ASTPointer Factor();
   ASTPointer ScopeResol();
+
+  ASTPointer Lambda();
 
   ASTPointer IndexRef();
   ASTPointer Unary();
@@ -36,9 +38,11 @@ private:
   bool check() const;
 
   bool eat(std::string_view str);
-  void expect(std::string_view str, bool keep_position = false);
+  void expect(std::string_view str, bool keep_token = false);
 
   bool eat_typeparam_bracket_open();
+  void expect_typeparam_bracket_open();
+
   bool eat_typeparam_bracket_close();
   void expect_typeparam_bracket_close();
 
@@ -69,16 +73,6 @@ private:
     return ret;
   }
 
-  static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op, ASTPointer lhs,
-                                    ASTPointer rhs) {
-    return AST::Expr::New(k, op, lhs, rhs);
-  }
-
-  static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op, ASTPointer lhs,
-                                      ASTPointer rhs) {
-    return new_expr(ASTKind::Assign, op, lhs, new_expr(kind, op, lhs, rhs));
-  }
-
   TokenIterator insert_token(Token tok) {
     this->cur = this->tokens.insert(this->cur, tok);
     this->end = this->tokens.end();
@@ -90,7 +84,19 @@ private:
 
   ASTPtr<AST::TypeName> expectTypeName();
 
-  TokenVector tokens;
+  ASTPtr<AST::Signature> expect_signature();
+
+  static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op, ASTPointer lhs,
+                                    ASTPointer rhs) {
+    return AST::Expr::New(k, op, lhs, rhs);
+  }
+
+  static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op, ASTPointer lhs,
+                                      ASTPointer rhs) {
+    return new_expr(ASTKind::Assign, op, lhs, new_expr(kind, op, lhs, rhs));
+  }
+
+  TokenVector& tokens;
   TokenIterator cur, end, ate;
 
   bool _in_class = false;

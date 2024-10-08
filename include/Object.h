@@ -44,6 +44,10 @@ struct Object {
     return this->type.kind == TypeKind::Instance;
   }
 
+  bool is_iterable() const {
+    return this->is_string() || this->is_vector();
+  }
+
   bool is_string() const {
     return this->type.kind == TypeKind::String;
   }
@@ -85,6 +89,17 @@ struct Object {
   virtual ObjPointer Clone() const = 0;
   virtual std::string ToString() const = 0;
 
+  std::string ToStringAsMember() const {
+    auto s = this->ToString();
+
+    if (this->type.kind == TypeKind::String) {
+      s.insert(s.begin(), '"');
+      s.push_back('"');
+    }
+
+    return s;
+  }
+
 protected:
   Object(TypeInfo type);
 };
@@ -94,7 +109,7 @@ struct ObjNone : Object {
     return ObjNew<ObjNone>();
   }
 
-  std::string ToString() const override {
+  string ToString() const override {
     return "none";
   }
 
@@ -220,15 +235,32 @@ struct ObjEnumerator : Object {
   ObjPointer data = nullptr;
 
   ObjPointer Clone() const override {
-    return ObjNew<ObjEnumerator>(*this);
+    auto x = ObjNew<ObjEnumerator>(this->ast, this->index);
+
+    if (this->data)
+      x->data = this->data->Clone();
+
+    return x;
   }
 
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
-    return obj->type.kind == TypeKind::Enumerator &&
-           this->ast == obj->As<ObjEnumerator>()->ast &&
-           this->index == obj->As<ObjEnumerator>()->index;
+    if (obj->type.kind != TypeKind::Enumerator)
+      return false;
+
+    if (auto x = obj->As<ObjEnumerator>(); this->ast != x->ast)
+      return false;
+
+    else if (this->index != x->index)
+      return false;
+
+    else if (this->data) {
+      if (!x->data || !this->data->Equals(x->data))
+        return false;
+    }
+
+    return true;
   }
 
   ObjEnumerator(ASTPtr<AST::Enum> ast, int index);

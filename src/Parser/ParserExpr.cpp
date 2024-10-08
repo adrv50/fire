@@ -16,18 +16,18 @@ static ObjPtr<ObjPrimitive> make_value_from_token(Token const& tok) {
   switch (k) {
   case TokenKind::Int: {
     obj->type = TypeKind::Int;
-    obj->vi = std::stoll(s);
+    obj->vi = atoll(s.data());
     break;
   }
 
   case TokenKind::Float: {
     obj->type = TypeKind::Float;
-    obj->vf = std::stod(s);
+    obj->vf = atof(s.data());
     break;
   }
 
   case TokenKind::Char: {
-    auto s16 = utils::to_u16string(s.substr(1, s.length() - 2));
+    auto s16 = utils::to_u16string(string(s.substr(1, s.length() - 2)));
 
     if (s16.length() != 1)
       throw Error(tok, "the length of character literal is must 1.");
@@ -82,13 +82,15 @@ ASTPointer Parser::Factor() {
 
     while (it != end) {
       if (*it == '\\') {
+        size_t index = tok.sourceloc.position + (it - tok.str.begin());
+
         switch (it[1]) {
         case 'n':
-          tok.str.replace(it, it + 2, "\n");
+          tok.get_src_data().replace(index, index + 2, "\n");
           break;
 
         case 'r':
-          tok.str.replace(it, it + 2, "\r");
+          tok.get_src_data().replace(index, index + 2, "\r");
           break;
 
         default:
@@ -112,8 +114,8 @@ ASTPointer Parser::Factor() {
     return AST::Value::New(tok, make_value_from_token(tok));
 
   case TokenKind::String: {
-    auto xx =
-        AST::Value::New(tok, ObjNew<ObjString>(tok.str.substr(1, tok.str.length() - 2)));
+    auto xx = AST::Value::New(
+        tok, ObjNew<ObjString>(string(tok.str.substr(1, tok.str.length() - 2))));
 
     return xx;
   }
@@ -125,7 +127,7 @@ ASTPointer Parser::Factor() {
 
       x->paramtok = *this->cur;
 
-      this->expect("<");
+      this->expect_typeparam_bracket_open();
 
       do {
         auto& templ_arg = x->id_params.emplace_back(this->ScopeResol());
@@ -148,6 +150,9 @@ ASTPointer Parser::Factor() {
 ASTPointer Parser::ScopeResol() {
   auto x = this->Factor();
 
+  //
+  // scope-resolution
+  //
   if (this->match("::")) {
     if (x->kind != ASTKind::Identifier)
       throw Error(*this->cur, "invalid syntax");
@@ -165,11 +170,65 @@ ASTPointer Parser::ScopeResol() {
     x = sr;
   }
 
+  //
+  // overload-reslotion-guide
+  //
+  if (this->eat("of")) {
+    if (!x->is_ident_or_scoperesol())
+      throw Error(*this->ate, "invalid syntax");
+
+    auto op = *this->ate;
+
+    return new_expr(ASTKind::OverloadResolutionGuide, op, x, this->expect_signature());
+  }
+
   return x;
 }
 
+ASTPointer Parser::Lambda() {
+
+  if (this->eat("lambda")) {
+    auto tok = *this->ate;
+
+    this->expect("(");
+
+    ASTVec<AST::Argument> args;
+    bool is_var_arg = false;
+
+    if (!this->eat(")")) {
+      do {
+        auto name = *this->expectIdentifier();
+
+        this->expect(":");
+        auto type = this->expectTypeName();
+
+        args.emplace_back(AST::Argument::New(name, type));
+      } while (this->eat(","));
+
+      this->expect(")");
+    }
+
+    ASTPtr<AST::TypeName> rettype = nullptr;
+
+    if (this->eat("->")) {
+      rettype = this->expectTypeName();
+    }
+
+    this->expect("{");
+    auto block = ASTCast<AST::Block>(this->Stmt());
+
+    auto ast = AST::Function::New(tok, tok, std::move(args), is_var_arg, rettype, block);
+
+    ast->kind = ASTKind::LambdaFunc;
+
+    return ast;
+  }
+
+  return this->ScopeResol();
+}
+
 ASTPointer Parser::IndexRef() {
-  auto x = this->ScopeResol();
+  auto x = this->Lambda();
 
   while (this->check()) {
     auto& op = *this->cur;

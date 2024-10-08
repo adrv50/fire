@@ -9,7 +9,9 @@
 namespace fire {
 
 // clang-format off
-static std::vector<char const*> g_names{
+static char const* g_names[] = {
+  "none",
+
   "int",
   "float",
   "bool",
@@ -21,19 +23,69 @@ static std::vector<char const*> g_names{
   "tuple",
   "dict",
 
-  "(enumerator)",
-  "(instance)",
+  "", // Enumerator
+  "", // Instance
 
-  "function",
-  "module",
+  "function", // Function
+  "", // Module
 
-  "(typename)",
-  "(unk)",
+  "", // TypeName
+  "", // Unknown
 };
+
+
+debug(
+static std::map<TypeKind, char const*> kind_name_map {
+  { TypeKind::None,       "none" },
+  { TypeKind::Int,        "int" },
+  { TypeKind::Float,      "float" },
+  { TypeKind::Bool,       "bool" },
+  { TypeKind::Char,       "char" },
+  { TypeKind::String,     "string" },
+  { TypeKind::Vector,     "vector" },
+  { TypeKind::Tuple,      "tuple" },
+  { TypeKind::Dict,       "dict" },
+  { TypeKind::Instance,   "instance" },
+  { TypeKind::Module,     "module" },
+  { TypeKind::Function,   "function" },
+  { TypeKind::Module,     "module" },
+  { TypeKind::TypeName,   "type" },
+}
+);
 // clang-format on
 
-std::vector<char const*> TypeInfo::get_primitive_names() {
-  return g_names;
+bool TypeInfo::is_numeric() const {
+  switch (this->kind) {
+  case TypeKind::Int:
+  case TypeKind::Float:
+    return true;
+  }
+
+  return false;
+}
+
+bool TypeInfo::is_numeric_or_char() const {
+  return this->is_numeric() || this->kind == TypeKind::Char;
+}
+
+bool TypeInfo::is_char_or_str() const {
+  return this->kind == TypeKind::Char || this->kind == TypeKind::String;
+}
+
+bool TypeInfo::is_hit(std::vector<TypeInfo> types) const {
+  for (TypeInfo const& t : types)
+    if (this->equals(t))
+      return true;
+
+  return false;
+}
+
+bool TypeInfo::is_hit_kind(std::vector<TypeKind> kinds) const {
+  for (TypeKind k : kinds)
+    if (this->kind == k)
+      return true;
+
+  return false;
 }
 
 bool TypeInfo::is_primitive_name(std::string_view name) {
@@ -45,14 +97,6 @@ bool TypeInfo::is_primitive_name(std::string_view name) {
 }
 
 bool TypeInfo::equals(TypeInfo const& type) const {
-  if (this->kind == TypeKind::Instance && type.kind == TypeKind::TypeName) {
-    return this->type_ast == type.type_ast;
-  }
-
-  if (this->kind == TypeKind::TypeName && type.kind == TypeKind::Instance) {
-    return this->type_ast == type.type_ast;
-  }
-
   if (this->kind == TypeKind::Unknown || type.kind == TypeKind::Unknown)
     return true;
 
@@ -67,6 +111,7 @@ bool TypeInfo::equals(TypeInfo const& type) const {
 
   switch (this->kind) {
   case TypeKind::TypeName:
+  case TypeKind::Instance:
     if (this->type_ast != type.type_ast)
       return false;
     break;
@@ -85,42 +130,29 @@ bool TypeInfo::equals(TypeInfo const& type) const {
 }
 
 string TypeInfo::to_string() const {
-  // clang-format off
-  static std::map<TypeKind, char const*> kind_name_map {
-    { TypeKind::None,       "none" },
-    { TypeKind::Int,        "int" },
-    { TypeKind::Float,      "float" },
-    { TypeKind::Bool,       "bool" },
-    { TypeKind::Char,       "char" },
-    { TypeKind::String,     "string" },
-    { TypeKind::Vector,     "vector" },
-    { TypeKind::Tuple,      "tuple" },
-    { TypeKind::Dict,       "dict" },
-    { TypeKind::Instance,   "instance" },
-    { TypeKind::Module,     "module" },
-    { TypeKind::Function,   "function" },
-    { TypeKind::Module,     "module" },
-    { TypeKind::TypeName,   "type" },
-  };
-  // clang-format on
-
-  debug(assert(kind_name_map.contains(this->kind)));
-
   string ret;
 
   switch (this->kind) {
   case TypeKind::TypeName:
-    if (this->params.size() == 1)
-      return "<typeinfo " + this->params[0].to_string() + ">";
+    if (this->params.size() == 1) {
+      alert;
+      ret = this->params[0].to_string();
+      break;
+    }
+
+  case TypeKind::Enumerator:
+    return this->type_ast->As<AST::Enum>()->GetName() +
+           "::" + this->type_ast->As<AST::Enum>()->enumerators[this->enum_index].name.str;
 
   case TypeKind::Instance:
-  case TypeKind::Enumerator:
   case TypeKind::Unknown:
     ret = this->name;
     break;
 
   default:
-    ret = kind_name_map[this->kind];
+    debug(assert(kind_name_map.contains(this->kind)));
+    ret = g_names[static_cast<u8>(this->kind)];
+    break;
   }
 
   if (this->kind == TypeKind::Function) {
@@ -149,6 +181,9 @@ string TypeInfo::to_string() const {
   if (this->is_const)
     ret += " const";
 
+  if (this->kind == TypeKind::TypeName)
+    return "<typeinfo of " + ret + ">";
+
   return ret;
 }
 
@@ -165,6 +200,7 @@ int TypeInfo::needed_param_count() const {
   case TypeKind::Vector:
     return 1;
 
+  case TypeKind::Function:
   case TypeKind::Tuple:
     return -1;
 
@@ -208,6 +244,34 @@ TypeInfo TypeInfo::from_class(ASTPtr<AST::Class> ast) {
   t.name = ast->GetName();
 
   return t;
+}
+
+TypeInfo TypeInfo::make_instance_type(ASTPtr<AST::Class> ast) {
+  auto ret = from_class(ast);
+
+  ret.kind = TypeKind::Instance;
+
+  return ret;
+}
+
+TypeKind TypeInfo::from_name(string const& name) {
+  for (int i = 0; auto& s : g_names) {
+    if (s == name)
+      return static_cast<TypeKind>(i);
+
+    i++;
+  }
+
+  return TypeKind::Unknown;
+}
+
+TypeInfo::TypeInfo(TypeKind kind)
+    : TypeInfo(kind, {}) {
+}
+
+TypeInfo::TypeInfo(TypeKind kind, std::vector<TypeInfo> params)
+    : kind(kind),
+      params(std::move(params)) {
 }
 
 } // namespace fire

@@ -7,21 +7,20 @@
 namespace fire {
 
 static char const* punctuaters[] = {
-    "...", "<<=", ">>=", "<<", ">>", "<=", ">=", "==", "!=", "..", "+=", "-=",
-    "*=",  "/=",  "%=",  "&=", "^=", "|=", "&&", "||", "->", "::", "<",  ">",
-    "+",   "-",   "/",   "*",  "%",  "=",  ";",  ":",  ",",  ".",  "[",  "]",
-    "(",   ")",   "{",   "}",  "!",  "?",  "&",  "^",  "|",  "@",
+    "...", "<<=", ">>=", "<<", ">>", "=>", "<=", ">=", "==", "!=", "..", "+=",
+    "-=",  "*=",  "/=",  "%=", "&=", "^=", "|=", "&&", "||", "->", "::", "<",
+    ">",   "+",   "-",   "/",  "*",  "%",  "=",  ";",  ":",  ",",  ".",  "[",
+    "]",   "(",   ")",   "{",  "}",  "!",  "?",  "&",  "^",  "|",  "@",
 };
 
-Lexer::Lexer(SourceStorage const& source)
+Lexer::Lexer(SourceStorage& source)
     : source(source),
       position(0),
-      length(source.data.length()) {
+      length(source.data.length()),
+      src_view(source.data) {
 }
 
-TokenVector Lexer::Lex() {
-  TokenVector vec;
-
+bool Lexer::Lex(Vec<Token>& out) {
   this->pass_space();
 
   while (this->check()) {
@@ -47,10 +46,8 @@ TokenVector Lexer::Lex() {
       continue;
     }
 
-    auto& tok = vec.emplace_back();
-
-    tok.str = " ";
-    tok.sourceloc = SourceLocation(pos, 1, &this->source);
+    Token& tok = out.emplace_back(
+        Token(TokenKind::Unknown, " ", SourceLocation(pos, 1, &this->source)));
 
     // hex
     if (this->eat("0x") || this->eat("0X")) {
@@ -130,12 +127,14 @@ TokenVector Lexer::Lex() {
       tok.kind = TokenKind::Boolean;
 
   found_punct:
-    tok.sourceloc = SourceLocation(pos, tok.str.length(), &this->source);
+
+    // tok.sourceloc = SourceLocation(pos, tok.str.length(), &this->source);
+    tok.sourceloc.length = this->position - pos;
 
     this->pass_space();
   }
 
-  return vec;
+  return true;
 }
 
 bool Lexer::check() const {
@@ -152,8 +151,11 @@ void Lexer::pass_space() {
 }
 
 bool Lexer::match(std::string_view str) {
-  return (i64)(this->position + str.length()) <= this->length &&
-         this->trim(str.length()) == str;
+
+  i64 const len = static_cast<i64>(str.length());
+
+  return this->position + len <= this->length &&
+         this->src_view.substr(this->position, len) == str;
 }
 
 } // namespace fire

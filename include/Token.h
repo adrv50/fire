@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include "Object.h"
 #include "Source.h"
 
@@ -22,16 +24,24 @@ enum class TokenKind : u8 {
 };
 
 struct Token {
+  i64 _index = 0;
+
   TokenKind kind;
-  std::string str;
+  std::string_view str;
   SourceLocation sourceloc;
+
+  Token const* get_prev(int step = 1);
+  Token const* get_next(int step = 1);
+
+  string& get_src_data() {
+    return this->sourceloc.ref->data;
+  }
 
   bool operator==(Token const& tok) const {
     return this->kind == tok.kind && this->str == tok.str;
   }
 
-  Token(TokenKind kind, std::string const& str,
-        SourceLocation sourceloc = {})
+  Token(TokenKind kind, std::string const& str, SourceLocation sourceloc = {})
       : kind(kind),
         str(str),
         sourceloc(sourceloc) {

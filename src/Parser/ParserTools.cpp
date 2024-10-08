@@ -20,13 +20,17 @@ bool Parser::eat(std::string_view str) {
   return false;
 }
 
-void Parser::expect(std::string_view str, bool no_next) {
+void Parser::expect(std::string_view str, bool keep_token) {
   if (!this->eat(str)) {
-    throw Error(*this->cur, "expected '" + std::string(str) + "' buf found '" +
-                                std::string(this->cur->str) + "'");
+    if (this->cur == this->end)
+      throw Error(*(this->cur - 1))
+          .format("expected '%.*s' after this token", str.length(), str.data());
+    else
+      throw Error(*this->cur, "expected '" + std::string(str) + "' but found '" +
+                                  std::string(this->cur->str) + "'");
   }
 
-  if (no_next)
+  if (keep_token)
     this->cur--;
 }
 
@@ -37,6 +41,12 @@ bool Parser::eat_typeparam_bracket_open() {
   }
 
   return false;
+}
+
+void Parser::expect_typeparam_bracket_open() {
+  this->expect("<");
+
+  _typeparam_bracket_depth++;
 }
 
 bool Parser::eat_typeparam_bracket_close() {
@@ -71,14 +81,43 @@ ASTPtr<AST::TypeName> Parser::expectTypeName() {
   auto ast = AST::TypeName::New(*this->expectIdentifier());
 
   if (this->eat_typeparam_bracket_open()) {
-    do {
-      ast->type_params.emplace_back(this->expectTypeName());
-    } while (this->eat(","));
+    if (this->match("(")) {
+      ast->sig = this->expect_signature();
+    }
+    else {
+      do {
+        ast->type_params.emplace_back(this->expectTypeName());
+      } while (this->eat(","));
+    }
 
     this->expect_typeparam_bracket_close();
   }
 
   return ast;
+}
+
+ASTPtr<AST::Signature> Parser::expect_signature() {
+  auto tok = *this->cur;
+
+  this->expect("(");
+
+  ASTVec<AST::TypeName> args;
+
+  if (!this->eat(")")) {
+    do {
+      args.emplace_back(this->expectTypeName());
+    } while (this->eat(","));
+
+    this->expect(")");
+  }
+
+  ASTPtr<AST::TypeName> restype = nullptr;
+
+  if (this->eat("->")) {
+    restype = this->expectTypeName();
+  }
+
+  return AST::Signature::New(tok, std::move(args), restype);
 }
 
 } // namespace fire::parser

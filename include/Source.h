@@ -10,6 +10,8 @@
 
 namespace fire {
 
+struct Token;
+
 struct SourceStorage {
   struct LineRange {
     i64 index, begin, end, length;
@@ -32,6 +34,8 @@ struct SourceStorage {
   std::unique_ptr<std::ifstream> file;
 
   std::vector<LineRange> line_range_list;
+
+  std::vector<Token> token_list;
 
   bool Open();
   bool IsOpen() const;
@@ -60,14 +64,14 @@ struct SourceLocation {
   i64 length;
   i64 pos_in_line;
 
-  SourceStorage const* ref;
+  SourceStorage* ref;
   SourceStorage::LineRange line;
 
   std::string_view GetLine() const {
     return this->ref->GetLineView(this->line);
   }
 
-  SourceLocation(i64 pos, i64 len, SourceStorage const* r)
+  SourceLocation(i64 pos, i64 len, SourceStorage* r)
       : position(pos),
         length(len),
         pos_in_line(0),

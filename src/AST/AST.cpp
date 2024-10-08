@@ -4,13 +4,24 @@
 namespace fire::AST {
 
 template <class T, class... Args>
-requires std::constructible_from<T, Args...>
 ASTPtr<T> ASTNew(Args&&... args) {
 #if _DBG_DONT_USE_SMART_PTR_
   return new T(std::forward<Args>(args)...);
 #else
   return std::make_shared<T>(std::forward<Args>(args)...);
 #endif
+}
+
+bool Base::is(ASTKind k) {
+  return this->kind == k;
+}
+
+bool Base::is_qual_id() {
+  return this->is(ASTKind::Identifier) && this->GetID()->id_params.size() >= 1;
+}
+
+bool Base::is_id_nonqual() {
+  return this->is(ASTKind::Identifier) && this->GetID()->id_params.empty();
 }
 
 Expr const* Base::as_expr() const {
@@ -29,6 +40,14 @@ Statement* Base::as_stmt() {
   return static_cast<Statement*>(this);
 }
 
+Value const* Base::as_value() const {
+  return (Value const*)this;
+}
+
+Identifier* Base::GetID() {
+  return nullptr;
+}
+
 i64 Base::GetChilds(ASTVector& out) const {
 
   (void)out;
@@ -37,12 +56,62 @@ i64 Base::GetChilds(ASTVector& out) const {
   return 0;
 }
 
+Base::Base(ASTKind kind, Token token)
+    : Base(kind, token, token) {
+}
+
+Base::Base(ASTKind kind, Token token, Token endtok)
+    : kind(kind),
+      token(token),
+      endtok(endtok),
+      _constructed_as(kind) {
+}
+
+// ----------------------------------- //
+
 ASTPtr<Value> Value::New(Token tok, ObjPointer val) {
   return ASTNew<Value>(tok, val);
 }
 
-ASTPtr<Variable> Variable::New(Token tok, int index, int backstep) {
-  return ASTNew<Variable>(tok, index, backstep);
+ASTPointer Value::Clone() const {
+  assert(this->value);
+
+  auto xx = New(this->token, this->value->Clone());
+
+  assert(xx->value);
+
+  return xx;
+}
+
+Value::Value(Token tok, ObjPointer value)
+    : Base(ASTKind::Value, tok),
+      value(value) {
+}
+
+// ----------------------------------- //
+
+string_view const& Named::GetName() const {
+  return this->name.str;
+}
+
+Named::Named(ASTKind kind, Token tok, Token name)
+    : Base(kind, tok),
+      name(name) {
+  this->is_named = true;
+}
+
+Named::Named(ASTKind kind, Token tok)
+    : Named(kind, tok, tok) {
+}
+
+// ----------------------------------- //
+
+Identifier* Identifier::GetID() {
+  return this;
+}
+
+Identifier::Identifier(Token tok)
+    : Named(ASTKind::Identifier, tok, tok) {
 }
 
 ASTPtr<Identifier> Identifier::New(Token tok) {
@@ -53,20 +122,120 @@ ASTPtr<ScopeResol> ScopeResol::New(ASTPtr<Identifier> first) {
   return ASTNew<ScopeResol>(first);
 }
 
+ASTPointer ScopeResol::Clone() const {
+  auto x = New(ASTCast<AST::Identifier>(this->first->Clone()));
+
+  for (ASTPtr<Identifier> const& id : this->idlist)
+    x->idlist.emplace_back(ASTCast<Identifier>(id->Clone()));
+
+  return x;
+}
+
+Identifier* ScopeResol::GetID() {
+#if _DBG_DONT_USE_SMART_PTR_
+  return *idlist.rbegin();
+#else
+  return idlist.rbegin()->get();
+#endif
+}
+
+ASTPtr<Identifier> ScopeResol::GetLastID() const {
+  return *idlist.rbegin();
+}
+
+ScopeResol::ScopeResol(ASTPtr<Identifier> first)
+    : Named(ASTKind::ScopeResol, first->token),
+      first(first) {
+}
+
 ASTPtr<Array> Array::New(Token tok) {
   return ASTNew<Array>(tok);
+}
+
+ASTPointer Array::Clone() const {
+  auto x = New(this->token);
+
+  for (ASTPointer const& e : this->elements)
+    x->elements.emplace_back(e->Clone());
+
+  return x;
+}
+
+Array::Array(Token tok)
+    : Base(ASTKind::Array, tok) {
 }
 
 ASTPtr<CallFunc> CallFunc::New(ASTPointer expr, ASTVector args) {
   return ASTNew<CallFunc>(expr, std::move(args));
 }
 
+ASTPointer CallFunc::Clone() const {
+  auto x = New(this->callee);
+
+  for (ASTPointer const& a : this->args)
+    x->args.emplace_back(a->Clone());
+
+  x->callee_ast = this->callee_ast;
+  x->callee_builtin = this->callee_builtin;
+
+  return x;
+}
+
+ASTPtr<Class> CallFunc::get_class_ptr() const {
+  return this->callee->GetID()->ast_class;
+}
+
+CallFunc::CallFunc(ASTPointer callee, ASTVector args)
+    : Base(ASTKind::CallFunc, callee->token, callee->token),
+      callee(callee),
+      args(std::move(args)) {
+}
+
 ASTPtr<Expr> Expr::New(ASTKind kind, Token op, ASTPointer lhs, ASTPointer rhs) {
   return ASTNew<Expr>(kind, op, lhs, rhs);
 }
 
+ASTPointer Expr::Clone() const {
+  return New(this->kind, this->op, this->lhs->Clone(), this->rhs->Clone());
+}
+
+Identifier* Expr::GetID() {
+  return this->rhs->GetID();
+}
+
+Expr::Expr(ASTKind kind, Token optok, ASTPointer lhs, ASTPointer rhs)
+    : Base(kind, optok),
+      op(this->token),
+      lhs(lhs),
+      rhs(rhs) {
+  this->is_expr = true;
+}
+
 ASTPtr<Block> Block::New(Token tok, ASTVector list) {
   return ASTNew<Block>(tok, std::move(list));
+}
+
+ASTPointer Block::Clone() const {
+  auto x = New(this->token);
+
+  for (ASTPointer const& a : this->list)
+    x->list.emplace_back(a->Clone());
+
+  return x;
+}
+
+Block::Block(Token tok, ASTVector list)
+    : Base(ASTKind::Block, tok),
+      list(std::move(list)) {
+}
+
+ASTPtr<TypeName> TypeName::New(Token nametok) {
+  return ASTNew<TypeName>(nametok);
+}
+
+TypeName::TypeName(Token name)
+    : Named(ASTKind::TypeName, name),
+      is_const(false) {
 }
 
 ASTPtr<VarDef> VarDef::New(Token tok, Token name, ASTPtr<TypeName> type,
@@ -74,37 +243,113 @@ ASTPtr<VarDef> VarDef::New(Token tok, Token name, ASTPtr<TypeName> type,
   return ASTNew<VarDef>(tok, name, type, init);
 }
 
+VarDef::VarDef(Token tok, Token name, ASTPtr<TypeName> type, ASTPointer init)
+    : Named(ASTKind::Vardef, tok, name),
+      type(type),
+      init(init) {
+}
+
 ASTPtr<Statement> Statement::NewIf(Token tok, ASTPointer cond, ASTPointer if_true,
                                    ASTPointer if_false) {
-  return ASTNew<Statement>(ASTKind::If, tok, If{cond, if_true, if_false});
+  return ASTNew<Statement>(ASTKind::If, tok, new If{cond, if_true, if_false});
 }
 
 ASTPtr<Statement> Statement::NewSwitch(Token tok, ASTPointer cond,
-                                       std::vector<Switch::Case> cases) {
-  return ASTNew<Statement>(ASTKind::Switch, tok, Switch{cond, std::move(cases)});
+                                       Vec<Switch::Case> cases) {
+  return ASTNew<Statement>(ASTKind::Switch, tok, new Switch{cond, std::move(cases)});
 }
 
 ASTPtr<Statement> Statement::NewWhile(Token tok, ASTPointer cond, ASTPtr<Block> block) {
 
-  return ASTNew<Statement>(ASTKind::While, tok, While{cond, block});
+  return ASTNew<Statement>(ASTKind::While, tok, new While{cond, block});
 }
 
 ASTPtr<Statement> Statement::NewTryCatch(Token tok, ASTPtr<Block> tryblock,
                                          vector<TryCatch::Catcher> catchers) {
   return ASTNew<Statement>(ASTKind::TryCatch, tok,
-                           TryCatch{tryblock, std::move(catchers)});
+                           new TryCatch{tryblock, std::move(catchers)});
 }
 
-ASTPtr<Statement> Statement::New(ASTKind kind, Token tok, std::any data) {
-  return ASTNew<Statement>(kind, tok, std::move(data));
+ASTPtr<Statement> Statement::New(ASTKind kind, Token tok, void* data) {
+  return ASTNew<Statement>(kind, tok, data);
 }
 
-ASTPtr<TypeName> TypeName::New(Token nametok) {
-  return ASTNew<TypeName>(nametok);
+ASTPtr<Statement> Statement::NewExpr(ASTKind kind, Token tok, ASTPointer expr) {
+  return ASTNew<Statement>(kind, tok, expr);
+}
+
+Statement::Statement(ASTKind kind, Token tok, void* data)
+    : Base(kind, tok),
+      _data(data) {
+}
+
+Statement::Statement(ASTKind kind, Token tok, ASTPointer expr)
+    : Base(kind, tok),
+      expr(expr) {
+}
+
+Statement::~Statement() {
+  switch (this->kind) {
+  case ASTKind::If:
+    delete this->data_if;
+    break;
+
+  case ASTKind::Switch:
+    delete this->data_switch;
+    break;
+
+  case ASTKind::While:
+    delete this->data_while;
+    break;
+
+  case ASTKind::TryCatch:
+    delete this->data_try_catch;
+    break;
+  }
+}
+
+ASTPointer Match::Clone() const {
+  auto ast = New(this->token, this->cond->Clone(), {});
+
+  for (auto&& p : this->patterns)
+    ast->patterns.emplace_back(p.type, p.expr->Clone(),
+                               ASTCast<AST::Block>(p.block->Clone()), p.everything,
+                               p.is_eval_expr);
+
+  return ast;
+}
+
+ASTPtr<Match> Match::New(Token tok, ASTPointer cond, Vec<Pattern> patterns) {
+  return ASTNew<Match>(tok, cond, std::move(patterns));
+}
+
+Match::Match(Token tok, ASTPointer cond, Vec<Pattern> patterns)
+    : Base(ASTKind::Match, tok),
+      cond(cond),
+      patterns(std::move(patterns)) {
+}
+
+void Templatable::_Copy(Templatable const* _t) {
+  this->tok_template = _t->tok_template;
+  this->is_templated = _t->is_templated;
+
+  for (auto&& e : _t->template_param_names) {
+    this->template_param_names.emplace_back(e);
+  }
 }
 
 ASTPtr<Argument> Argument::New(Token nametok, ASTPtr<TypeName> type) {
   return ASTNew<Argument>(nametok, type);
+}
+
+ASTPointer Argument::Clone() const {
+  return New(this->name,
+             ASTCast<AST::TypeName>(this->type ? this->type->Clone() : nullptr));
+}
+
+Argument::Argument(Token nametok, ASTPtr<TypeName> type)
+    : Named(ASTKind::Argument, nametok),
+      type(type) {
 }
 
 ASTPtr<Function> Function::New(Token tok, Token name) {
@@ -117,20 +362,100 @@ ASTPtr<Function> Function::New(Token tok, Token name, ASTVec<Argument> args,
   return ASTNew<Function>(tok, name, std::move(args), is_var_arg, rettype, block);
 }
 
+ASTPtr<Argument>& Function::add_arg(Token const& tok, ASTPtr<TypeName> type) {
+  return this->arguments.emplace_back(Argument::New(tok, type));
+}
+
+ASTPtr<Argument> Function::find_arg(std::string const& name) {
+  for (auto&& arg : this->arguments)
+    if (arg->GetName() == name)
+      return arg;
+
+  return nullptr;
+}
+
+ASTPointer Function::Clone() const {
+  auto x = New(this->token, this->name);
+
+  x->_Copy(this);
+
+  for (auto&& arg : this->arguments) {
+    x->arguments.emplace_back(ASTCast<Argument>(arg->Clone()));
+  }
+
+  if (this->return_type)
+    x->return_type = ASTCast<TypeName>(this->return_type->Clone());
+
+  x->block = ASTCast<Block>(this->block->Clone());
+  x->is_var_arg = this->is_var_arg;
+
+  return x;
+}
+
+Function::Function(Token tok, Token name)
+    : Function(tok, name, {}, false, nullptr, nullptr) {
+}
+
+Function::Function(Token tok, Token name, ASTVec<Argument> args, bool is_var_arg,
+                   ASTPtr<TypeName> rettype, ASTPtr<Block> block)
+    : Templatable(ASTKind::Function, tok, name),
+      arguments(args),
+      return_type(rettype),
+      block(block),
+      is_var_arg(is_var_arg) {
+}
+
 ASTPtr<Enum> Enum::New(Token tok, Token name) {
   return ASTNew<Enum>(tok, name);
+}
+
+ASTPointer Enum::Clone() const {
+  auto x = New(this->token, this->name);
+
+  x->_Copy(this);
+
+  for (auto&& e : this->enumerators)
+    x->append(e);
+
+  return x;
+}
+
+Enum::Enum(Token tok, Token name)
+    : Templatable(ASTKind::Enum, tok, name) {
 }
 
 ASTPtr<Class> Class::New(Token tok, Token name) {
   return ASTNew<Class>(tok, name);
 }
 
-ASTPtr<Class> Class::New(Token tok, Token name, ASTPtr<Block> definitions) {
-  auto ast = ASTNew<Class>(tok, name);
+ASTPtr<Class> Class::New(Token tok, Token name, ASTVec<VarDef> member_variables,
+                         ASTVec<Function> member_functions) {
+  return ASTNew<Class>(tok, name, std::move(member_variables),
+                       std::move(member_functions));
+}
 
-  ast->block = definitions;
+ASTPtr<VarDef>& Class::append_var(ASTPtr<VarDef> ast) {
+  return this->member_variables.emplace_back(ast);
+}
 
-  return ast;
+ASTPtr<Function>& Class::append_func(ASTPtr<Function> ast) {
+  return this->member_functions.emplace_back(ast);
+}
+
+ASTPointer Class::Clone() const {
+  auto x = New(this->token, this->name, CloneASTVec<VarDef>(this->member_variables),
+               CloneASTVec<Function>(this->member_functions));
+
+  x->_Copy(this);
+
+  return x;
+}
+
+Class::Class(Token tok, Token name, ASTVec<VarDef> member_variables,
+             ASTVec<Function> member_functions)
+    : Templatable(ASTKind::Class, tok, name),
+      member_variables(std::move(member_variables)),
+      member_functions(std::move(member_functions)) {
 }
 
 ASTPointer Identifier::Clone() const {
@@ -169,24 +494,26 @@ ASTPointer VarDef::Clone() const {
 ASTPointer Statement::Clone() const {
   switch (this->kind) {
   case ASTKind::If:
-    return NewIf(this->token, this->get_data<If>().cond, this->get_data<If>().if_true,
-                 this->get_data<If>().if_false);
+    return NewIf(this->token, this->data_if->cond, this->data_if->if_true,
+                 this->data_if->if_false);
 
   case ASTKind::Switch: {
-    auto d = this->get_data<Switch>();
-    std::vector<Switch::Case> _cases;
+    auto d = this->data_switch;
 
-    for (auto&& c : d.cases)
+    Vec<Switch::Case> _cases;
+
+    for (auto&& c : d->cases)
       _cases.emplace_back(
           Switch::Case{.expr = c.expr->Clone(), .block = c.block->Clone()});
 
-    return NewSwitch(this->token, d.cond->Clone(), std::move(_cases));
+    return NewSwitch(this->token, d->cond->Clone(), std::move(_cases));
   }
 
   case ASTKind::While: {
-    auto d = this->get_data<While>();
+    auto d = this->data_while;
 
-    return NewWhile(this->token, d.cond->Clone(), ASTCast<AST::Block>(d.block->Clone()));
+    return NewWhile(this->token, d->cond->Clone(),
+                    ASTCast<AST::Block>(d->block->Clone()));
   }
 
   case ASTKind::Break:
@@ -201,7 +528,25 @@ ASTPointer Statement::Clone() const {
     todo_impl;
   }
 
-  return New(this->kind, this->token, this->get_expr()->Clone());
+  return NewExpr(this->kind, this->token, this->expr->Clone());
+}
+
+ASTPtr<Signature> Signature::New(Token tok, ASTVec<TypeName> arg_type_list,
+                                 ASTPtr<TypeName> result_type) {
+  return ASTNew<Signature>(tok, std::move(arg_type_list), result_type);
+}
+
+ASTPointer Signature::Clone() const {
+  return New(this->token, CloneASTVec<TypeName>(this->arg_type_list),
+             this->result_type ? ASTCast<AST::TypeName>(this->result_type->Clone())
+                               : nullptr);
+}
+
+Signature::Signature(Token tok, ASTVec<TypeName> arg_type_list,
+                     ASTPtr<TypeName> result_type)
+    : Base(ASTKind::Signature, tok),
+      arg_type_list(std::move(arg_type_list)),
+      result_type(result_type) {
 }
 
 } // namespace fire::AST

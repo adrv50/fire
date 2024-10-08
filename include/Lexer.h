@@ -7,9 +7,9 @@ namespace fire {
 class Lexer {
 
 public:
-  Lexer(SourceStorage const& source);
+  Lexer(SourceStorage& source);
 
-  TokenVector Lex();
+  bool Lex(Vec<Token>& out);
 
 private:
   bool check() const;
@@ -36,13 +36,14 @@ private:
   }
 
   std::string_view trim(i64 len) {
-    return std::string_view(this->source.data.data() + this->position,
-                            len);
+    return std::string_view(this->source.data.data() + this->position, len);
   }
 
-  SourceStorage const& source;
+  SourceStorage& source;
   i64 position;
   i64 length;
+
+  std::string_view src_view;
 };
 
 } // namespace fire

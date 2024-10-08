@@ -9,7 +9,7 @@ namespace fire::parser {
 
 ASTPointer Parser::Stmt() {
 
-  auto tok = *this->cur;
+  auto& tok = *this->cur;
 
   if (this->eat("{")) {
     auto ast = AST::Block::New(tok);
@@ -33,6 +33,32 @@ ASTPointer Parser::Stmt() {
     throw Error(tok, "not terminated block");
   }
 
+  if (this->eat("match")) {
+    auto ast = AST::Match::New(tok, this->Expr(), {});
+
+    this->expect("{");
+
+    do {
+      auto e = this->Expr();
+
+      this->expect("=>");
+
+      this->expect("{", true);
+
+      auto& p = ast->patterns.emplace_back(AST::Match::Pattern::Type::Unknown, e,
+                                           ASTCast<AST::Block>(this->Stmt()));
+
+      if (e->is_id_nonqual() && e->token.str == "_") {
+        p.everything = true;
+      }
+
+    } while (this->eat(","));
+
+    this->expect("}");
+
+    return ast;
+  }
+
   if (this->eat("if")) {
     auto cond = this->Expr();
 
@@ -53,6 +79,11 @@ ASTPointer Parser::Stmt() {
 
   if (this->eat("while")) {
     auto cond = this->Expr();
+
+    this->expect("{", true);
+    auto block = ASTCast<AST::Block>(this->Stmt());
+
+    return AST::Statement::NewWhile(tok, cond, block);
   }
 
   if (this->eat("for")) {
@@ -94,7 +125,7 @@ ASTPointer Parser::Stmt() {
       return AST::Statement::New(ASTKind::Return, tok);
     }
 
-    auto ast = AST::Statement::New(ASTKind::Return, tok, this->Expr());
+    auto ast = AST::Statement::NewExpr(ASTKind::Return, tok, this->Expr());
     this->expect(";");
 
     return ast;
@@ -121,7 +152,7 @@ ASTPointer Parser::Stmt() {
   }
 
   if (this->eat("throw")) {
-    auto ast = AST::Statement::New(ASTKind::Throw, tok, this->Expr());
+    auto ast = AST::Statement::NewExpr(ASTKind::Throw, tok, this->Expr());
 
     this->expect(";");
     return ast;
@@ -185,7 +216,28 @@ ASTPointer Parser::Top() {
     }
 
     do {
-      ast->append(*this->expectIdentifier());
+      auto& e = ast->append(*this->expectIdentifier());
+
+      if (this->eat("(")) {
+        if (this->match(TokenKind::Identifier, ":")) {
+          e.data_type = AST::Enum::Enumerator::DataType::Structure;
+
+          do {
+            auto& name = *this->expectIdentifier();
+
+            this->cur++; // ":"
+            auto type = this->expectTypeName();
+
+            e.types.emplace_back(AST::Argument::New(name, type));
+          } while (this->eat(","));
+        }
+        else {
+          e.data_type = AST::Enum::Enumerator::DataType::Value;
+          e.types.emplace_back(this->expectTypeName());
+        }
+
+        this->expect(")");
+      }
     } while (this->eat(","));
 
     this->expect("}");
@@ -193,7 +245,7 @@ ASTPointer Parser::Top() {
     return ast;
   }
 
-  if (this->eat("class") || this->eat("struct")) {
+  if (this->eat("class")) {
     auto ast = AST::Class::New(tok, *this->expectIdentifier());
 
     this->expect("{");
@@ -208,29 +260,11 @@ ASTPointer Parser::Top() {
 
     // member variables
     while (this->cur->str == "let") {
-      ast->append(ASTCast<AST::VarDef>(this->Stmt()));
-    }
+      auto& var = ast->append_var(ASTCast<AST::VarDef>(this->Stmt()));
 
-    // constructor
-    if (this->eat(ast->GetName())) {
-
-      auto ctor = AST::Function::New(ast->name, ast->name);
-
-      this->expect("(");
-
-      this->expect("self");
-      ctor->add_arg(*this->ate);
-
-      while (this->eat(",")) {
-        ctor->add_arg(*this->expectIdentifier());
+      if (!var->type && !var->init) {
+        throw Error(var->token, "cannot use delay-assignment here");
       }
-
-      this->expect(")");
-
-      this->expect("{", true);
-      ctor->block = ASTCast<AST::Block>(this->Stmt());
-
-      ast->constructor = ASTCast<AST::Function>(ast->append(ctor));
     }
 
     // member functions
@@ -238,7 +272,7 @@ ASTPointer Parser::Top() {
       if (!this->match("fn", TokenKind::Identifier))
         throw Error(*this->cur, "expected definition of member function");
 
-      ast->append(ASTCast<AST::Function>(this->Top()));
+      ast->append_func(ASTCast<AST::Function>(this->Top()));
     }
 
     if (!closed)
@@ -255,6 +289,7 @@ ASTPointer Parser::Top() {
 
     if (this->eat_typeparam_bracket_open()) {
       func->is_templated = true;
+      func->tok_template = *this->ate;
 
       do {
         func->template_param_names.emplace_back(*this->expectIdentifier());
@@ -295,55 +330,25 @@ ASTPointer Parser::Top() {
     return func;
   }
 
-  //
-  // import <name>
-  //   --> convert to " let name = import("name"); "
-  //
-  // replace to variable declaration,
-  //  and assignment result of call "import" func.
-  //
-  if (this->match("import", TokenKind::Identifier) || this->match("import", ".")) {
+  if (this->eat("namespace")) {
+    auto ast = AST::Block::New(*this->expectIdentifier());
 
-    // import a;
-    // import ./b;
-    // import ../c;
+    ast->kind = ASTKind::Namespace;
 
-    this->cur++;
-    std::string name;
+    iter = this->cur;
+    this->expect("{");
 
-    if (this->eat(".")) {
-      name += ".";
+    if (this->eat("}"))
+      return ast;
 
-      if (this->eat("."))
-        name += ".";
+    bool closed = false;
 
-      this->expect("/");
-      name += "/";
-    }
+    do {
+      ast->list.emplace_back(this->Top());
+    } while (this->check() && !(closed = this->eat("}")));
 
-    name = this->expectIdentifier()->str;
-
-    while (this->eat("/")) {
-      name += "/" + this->expectIdentifier()->str;
-    }
-
-    name = name + ".fire";
-
-    this->expect(";");
-
-    auto ast = AST::VarDef::New(tok, utils::get_base_name(name));
-
-    auto call = AST::CallFunc::New(AST::Variable::New("@import"));
-
-    Token mod_name_token = iter[1]; // for argument of @import
-
-    mod_name_token.kind = TokenKind::String;
-    mod_name_token.str = name;
-    mod_name_token.sourceloc.length = name.length();
-
-    call->args.emplace_back(AST::Value::New(mod_name_token, ObjNew<ObjString>(name)));
-
-    ast->init = call;
+    if (!closed)
+      throw Error(*iter, "unterminated namespace block");
 
     return ast;
   }
@@ -352,17 +357,25 @@ ASTPointer Parser::Top() {
 }
 
 ASTPtr<AST::Block> Parser::Parse() {
-  auto ret = AST::Block::New("");
+  auto ret = AST::Block::New(*this->cur);
+
+  while (this->eat("include")) {
+    todo_impl;
+  }
 
   while (this->check()) {
     ret->list.emplace_back(this->Top());
   }
 
+  for (size_t i = 0; i < this->tokens.size(); i++) {
+    this->tokens[i]._index = (i64)i;
+  }
+
   return ret;
 }
 
-Parser::Parser(TokenVector tokens)
-    : tokens(std::move(tokens)),
+Parser::Parser(TokenVector& tokens)
+    : tokens(tokens),
       cur(this->tokens.begin()),
       end(this->tokens.end()) {
 }

@@ -6,7 +6,7 @@
 
 namespace fire::eval {
 
-ObjPtr<ObjNone> _None;
+ObjPtr<ObjNone> Evaluator::_None;
 
 Evaluator::Evaluator() {
   _None = ObjNew<ObjNone>();
@@ -15,12 +15,12 @@ Evaluator::Evaluator() {
 Evaluator::~Evaluator() {
 }
 
-Evaluator::VarStack& Evaluator::push_stack(size_t var_count) {
-  return *this->var_stack.emplace_front(new VarStack(var_count));
+Evaluator::VarStackPtr Evaluator::push_stack(size_t var_count) {
+  return this->var_stack.emplace_front(std::make_shared<VarStack>(var_count));
 }
 
 void Evaluator::pop_stack() {
-  delete *this->var_stack.begin();
+  debug(assert(this->var_stack.size() >= 1));
 
   this->var_stack.pop_front();
 }
@@ -52,7 +52,7 @@ ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
 
   auto x = ast->GetID();
 
-  return this->get_stack(x->depth /*distance*/).var_list[x->index];
+  return this->get_stack(x->distance).var_list[x->index + x->index_add];
 }
 
 ObjPointer& Evaluator::eval_index_ref(ObjPointer array, ObjPointer _index_obj) {
@@ -80,6 +80,11 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
   switch (ast->kind) {
 
+  case Kind::Function:
+  case Kind::Class:
+  case Kind::Enum:
+    break;
+
   case Kind::Identifier:
   case Kind::ScopeResol:
   case Kind::MemberAccess:
@@ -88,20 +93,12 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     debug(Error(ast, "??").emit());
     panic;
 
-  case Kind::Function:
-  case Kind::Class:
-  case Kind::Enum:
-    break;
-
   case Kind::Value: {
     return ast->as_value()->value;
   }
 
-  case Kind::Variable: {
-    auto x = ast->GetID();
-
-    return this->get_stack(x->depth /*distance*/).var_list[x->index];
-  }
+  case Kind::Variable:
+    return this->eval_as_left(ast);
 
   case Kind::Array: {
     CAST(Array);
@@ -115,10 +112,26 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   }
 
   case Kind::IndexRef: {
+    auto ex = ast->as_expr();
 
-    todo_impl;
-    break;
+    return this->eval_index_ref(this->evaluate(ex->lhs), this->evaluate(ex->rhs));
   }
+
+  case Kind::LambdaFunc: {
+    auto func = ASTCast<AST::Function>(ast);
+
+    auto obj = ObjNew<ObjCallable>(func);
+
+    obj->type.params = {this->evaluate(func->return_type)->type};
+
+    for (auto&& arg : func->arguments)
+      obj->type.params.emplace_back(this->evaluate(arg->type)->type);
+
+    return obj;
+  }
+
+  case Kind::OverloadResolutionGuide:
+    ast = ast->as_expr()->lhs;
 
   case Kind::FuncName: {
     auto id = ast->GetID();
@@ -138,6 +151,18 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     obj->type.params.insert(obj->type.params.begin(), id->ft_ret);
 
     return obj;
+  }
+
+  case Kind::Enumerator: {
+    return ObjNew<ObjEnumerator>(ast->GetID()->ast_enum, ast->GetID()->index);
+  }
+
+  case Kind::EnumName: {
+    return ObjNew<ObjType>(ast->GetID()->ast_enum);
+  }
+
+  case Kind::ClassName: {
+    return ObjNew<ObjType>(ast->GetID()->ast_class);
   }
 
   case Kind::MemberVariable: {
@@ -198,15 +223,19 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
       return _builtin->Call(x, std::move(args));
     }
 
-    auto& stack = this->push_stack(x->args.size());
+    auto stack = this->push_stack(x->args.size());
 
-    this->call_stack.push_front(&stack);
+    if (this->var_stack.size() >= 1588) {
+      throw Error(ast->token, "stack overflow");
+    }
 
-    stack.var_list = std::move(args);
+    this->call_stack.push_front(stack);
+
+    stack->var_list = std::move(args);
 
     this->evaluate(_func->block);
 
-    auto result = stack.func_result;
+    auto result = stack->func_result;
 
     this->pop_stack();
     this->call_stack.pop_front();
@@ -217,130 +246,44 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   case Kind::CallFunc_Ctor: {
     CAST(CallFunc);
 
-    auto inst = ObjNew<ObjInstance>(x->get_class_ptr());
+    auto ast_class = x->get_class_ptr();
 
-    for (auto&& arg : x->args) {
-      inst->add_member_var(this->evaluate(arg));
+    auto inst = ObjNew<ObjInstance>(ast_class);
+
+    size_t const argc = x->args.size();
+
+    inst->member_variables.resize(argc);
+
+    for (size_t i = 0; i < argc; i++) {
+      if (auto init = ast_class->member_variables[i]->init; init) {
+        inst->member_variables[i] = this->evaluate(init);
+      }
+
+      inst->member_variables[i] = this->evaluate(x->args[i]);
     }
 
     return inst;
   }
 
-  case Kind::Return: {
-    auto stmt = ast->as_stmt();
+  case Kind::CallFunc_Enumerator: {
+    auto x = ASTCast<AST::CallFunc>(ast);
 
-    auto& stack = *this->call_stack.begin();
+    auto obj = ObjNew<ObjEnumerator>(x->ast_enum, x->enum_index);
 
-    stack->func_result = this->evaluate(stmt->get_expr());
+    if (x->ast_enum->enumerators[x->enum_index].data_type ==
+        AST::Enum::Enumerator::DataType::Value) {
+      obj->data = this->evaluate(x->args[0]);
+    }
+    else {
+      auto list = ObjNew<ObjIterable>(TypeKind::Vector);
 
-    for (auto&& s : this->var_stack) {
-      s->returned = true;
+      for (auto&& arg : x->args)
+        list->Append(this->evaluate(arg));
 
-      if (s == stack)
-        break;
+      obj->data = list;
     }
 
-    break;
-  }
-
-  case Kind::Throw:
-    throw this->evaluate(ast->as_stmt()->get_expr());
-
-  case Kind::Break:
-    (*this->loops.begin())->breaked = true;
-    break;
-
-  case Kind::Continue:
-    (*this->loops.begin())->continued = true;
-    break;
-
-  case Kind::Block: {
-    CAST(Block);
-
-    auto& stack = this->push_stack(x->stack_size);
-
-    for (auto&& y : x->list) {
-      this->evaluate(y);
-
-      if (stack.returned)
-        break;
-    }
-
-    this->pop_stack();
-
-    break;
-  }
-
-  case Kind::If: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::If>();
-
-    auto cond = this->evaluate(d.cond);
-
-    if (cond->get_vb())
-      this->evaluate(d.if_true);
-    else
-      this->evaluate(d.if_false);
-
-    break;
-  }
-
-  case Kind::While: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::While>();
-
-    while (this->evaluate(d.cond)->get_vb()) {
-      this->evaluate(d.block);
-    }
-
-    break;
-  }
-
-  case Kind::TryCatch: {
-    auto d = ast->as_stmt()->get_data<AST::Statement::TryCatch>();
-
-    auto s1 = this->var_stack;
-    auto s2 = this->call_stack;
-    auto s3 = this->loops;
-
-    try {
-      this->evaluate(d.tryblock);
-    }
-    catch (ObjPointer obj) {
-      this->var_stack = s1;
-      this->call_stack = s2;
-      this->loops = s3;
-
-      for (auto&& c : d.catchers) {
-        if (c._type.equals(obj->type)) {
-          auto& s = this->push_stack(1);
-
-          s.var_list = {obj};
-
-          for (auto&& x : c.catched->list) {
-            this->evaluate(x);
-
-            if (s.returned || s.breaked || s.continued)
-              break;
-          }
-
-          this->pop_stack();
-
-          return _None;
-        }
-      }
-
-      throw obj;
-    }
-
-    break;
-  }
-
-  case Kind::Vardef: {
-    CAST(VarDef);
-
-    if (x->init)
-      this->get_cur_stack().var_list[x->index] = this->evaluate(x->init);
-
-    break;
+    return obj;
   }
 
   case Kind::Assign: {
@@ -348,6 +291,20 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     return this->eval_as_left(x->lhs) = this->evaluate(x->rhs);
   }
+
+  case Kind::Return:
+  case Kind::Throw:
+  case Kind::Break:
+  case Kind::Continue:
+  case Kind::Block:
+  case Kind::Namespace:
+  case Kind::If:
+  case Kind::Match:
+  case Kind::While:
+  case Kind::TryCatch:
+  case Kind::Vardef:
+    this->eval_stmt(ast);
+    break;
 
   default:
     if (ast->is_expr)
@@ -358,188 +315,6 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   }
 
   return _None;
-}
-
-static inline ObjPtr<ObjPrimitive> new_int(i64 v) {
-  return ObjNew<ObjPrimitive>(v);
-}
-
-static inline ObjPtr<ObjPrimitive> new_float(double v) {
-  return ObjNew<ObjPrimitive>(v);
-}
-
-static inline ObjPtr<ObjPrimitive> new_bool(bool b) {
-  return ObjNew<ObjPrimitive>(b);
-}
-
-static inline ObjPtr<ObjIterable> multiply_array(ObjPtr<ObjIterable> s, i64 n) {
-  ObjPtr<ObjIterable> ret = PtrCast<ObjIterable>(s->Clone());
-
-  while (--n) {
-    ret->AppendList(s);
-  }
-
-  return ret;
-}
-
-static inline ObjPtr<ObjIterable> add_vec_wrap(ObjPtr<ObjIterable> v, ObjPointer e) {
-  v = PtrCast<ObjIterable>(v->Clone());
-
-  v->Append(e);
-
-  return v;
-}
-
-ObjPointer Evaluator::eval_expr(ASTPtr<AST::Expr> ast) {
-  using Kind = ASTKind;
-
-  ObjPointer lhs = this->evaluate(ast->lhs);
-  ObjPointer rhs = this->evaluate(ast->rhs);
-
-  switch (ast->kind) {
-
-  case Kind::Add: {
-
-    if (lhs->is_vector() && rhs->is_int())
-      return add_vec_wrap(PtrCast<ObjIterable>(lhs), rhs);
-
-    if (rhs->is_vector() && lhs->is_int())
-      return add_vec_wrap(PtrCast<ObjIterable>(rhs), lhs);
-
-    switch (lhs->type.kind) {
-    case TypeKind::Int:
-      return new_int(lhs->get_vi() + rhs->get_vi());
-
-    case TypeKind::Float:
-      return new_float(lhs->get_vf() + rhs->get_vf());
-
-    case TypeKind::String:
-      lhs = lhs->Clone();
-      lhs->As<ObjString>()->AppendList(PtrCast<ObjIterable>(rhs));
-      return lhs;
-
-    default:
-      todo_impl;
-    }
-
-    break;
-  }
-
-  case Kind::Sub: {
-    switch (lhs->type.kind) {
-    case TypeKind::Int:
-      return new_int(lhs->get_vi() - rhs->get_vi());
-
-    case TypeKind::Float:
-      return new_float(lhs->get_vf() - rhs->get_vf());
-    }
-
-    break;
-  }
-
-  case Kind::Mul: {
-    if ((lhs->is_string() || lhs->is_vector()) && rhs->is_int())
-      return multiply_array(PtrCast<ObjIterable>(lhs), rhs->get_vi());
-
-    if ((rhs->is_string() || rhs->is_vector()) && lhs->is_int())
-      return multiply_array(PtrCast<ObjIterable>(rhs), lhs->get_vi());
-
-    switch (lhs->type.kind) {
-    case TypeKind::Int:
-      return new_int(lhs->get_vi() * rhs->get_vi());
-
-    case TypeKind::Float:
-      return new_float(lhs->get_vf() * rhs->get_vf());
-    }
-
-    break;
-  }
-
-  case Kind::Div: {
-    switch (lhs->type.kind) {
-    case TypeKind::Int: {
-      auto vi = rhs->get_vi();
-
-      if (vi == 0)
-        goto _divided_by_zero;
-
-      return new_int(lhs->get_vi() / vi);
-    }
-
-    case TypeKind::Float: {
-      auto vf = rhs->get_vf();
-
-      if (vf == 0)
-        goto _divided_by_zero;
-
-      return new_float(lhs->get_vf() / vf);
-    }
-    }
-
-    break;
-  }
-
-  case Kind::Mod: {
-    auto vi = rhs->get_vi();
-
-    if (vi == 0)
-      goto _divided_by_zero;
-
-    return new_int(lhs->get_vi() % vi);
-  }
-
-  case Kind::LShift:
-    return new_int(lhs->get_vi() << rhs->get_vi());
-
-  case Kind::RShift:
-    return new_int(lhs->get_vi() >> rhs->get_vi());
-
-  case Kind::Bigger: {
-    switch (lhs->type.kind) {
-    case TypeKind::Int:
-      return new_bool(lhs->get_vi() > rhs->get_vi());
-
-    case TypeKind::Float:
-      return new_bool(lhs->get_vf() > rhs->get_vf());
-
-    case TypeKind::Char:
-      return new_bool(lhs->get_vc() > rhs->get_vc());
-    }
-
-    break;
-  }
-
-  case Kind::BiggerOrEqual: {
-    switch (lhs->type.kind) {
-    case TypeKind::Int:
-      return new_bool(lhs->get_vi() >= rhs->get_vi());
-
-    case TypeKind::Float:
-      return new_bool(lhs->get_vf() >= rhs->get_vf());
-
-    case TypeKind::Char:
-      return new_bool(lhs->get_vc() >= rhs->get_vc());
-    }
-
-    break;
-  }
-
-  case Kind::Equal: {
-    return new_bool(lhs->Equals(rhs));
-  }
-
-  case Kind::LogAND:
-
-  default:
-    not_implemented("not implemented operator: " << lhs->type.to_string() << " "
-                                                 << ast->op.str << " "
-                                                 << rhs->type.to_string());
-  }
-
-  return lhs;
-
-_divided_by_zero:
-  throw Error(ast->op, "divided by zero");
 }
 
 } // namespace fire::eval

@@ -133,8 +133,30 @@ ObjString::ObjString(std::string const& str)
 //  ObjEnumerator
 
 std::string ObjEnumerator::ToString() const {
-  return this->ast->GetName() + "." +
-         this->ast->enumerators->list[this->index]->token.str;
+  auto& e = this->ast->enumerators[this->index];
+
+  auto s = this->ast->GetName() + "::" + e.name.str;
+
+  switch (e.data_type) {
+  case AST::Enum::Enumerator::DataType::Value:
+    s += "(" + this->data->ToStringAsMember() + ")";
+    break;
+
+  case AST::Enum::Enumerator::DataType::Structure: {
+    s += "(";
+
+    for (size_t i = 0; i < e.types.size(); i++) {
+      s += e.types[i]->As<AST::Argument>()->name.str + ": " +
+           this->data->As<ObjIterable>()->list[i]->ToStringAsMember() + ", ";
+    }
+
+    s.erase(s.length() - 1);
+    s[s.length() - 1] = ')';
+    break;
+  }
+  }
+
+  return s;
 }
 
 ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)
@@ -160,13 +182,13 @@ ObjPointer ObjInstance::Clone() const {
 string ObjInstance::ToString() const {
   i64 _index = 0;
 
-  auto mvarlist = this->ast->get_member_variables();
+  auto const& mvarlist = this->ast->member_variables;
 
   return this->ast->GetName() + "{" +
          utils::join<ObjPointer>(", ", this->member_variables,
                                  [&mvarlist, &_index](ObjPointer obj) {
                                    return mvarlist[_index++]->GetName() + ": " +
-                                          obj->ToString();
+                                          obj->ToStringAsMember();
                                  }) +
          "}";
 }
@@ -182,7 +204,7 @@ ObjInstance::ObjInstance(ASTPtr<AST::Class> ast)
 
 std::string ObjCallable::GetName() const {
   if (this->is_named) {
-    return this->func ? this->func->GetName() : this->builtin->name;
+    return this->func ? string(this->func->GetName()) : this->builtin->name;
   }
 
   return "";
@@ -231,11 +253,14 @@ std::string ObjModule::ToString() const {
 //  ObjType
 
 std::string ObjType::GetName() const {
-  return this->ast_class ? this->ast_class->GetName() : this->ast_enum->GetName();
+  return string(this->ast_class ? this->ast_class->GetName() : this->ast_enum->GetName());
 }
 
 std::string ObjType::ToString() const {
-  return "(ObjType)";
+  if (this->ast_class)
+    return "<class '" + this->ast_class->GetName() + "'>";
+
+  return "<enum '" + this->ast_enum->GetName() + "'>";
 }
 
 ObjType::ObjType(ASTPtr<AST::Enum> x)

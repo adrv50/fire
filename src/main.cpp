@@ -57,35 +57,31 @@ int parse_command_line(CmdLineArguments& cmd, int argc, char** argv) {
 void execute_file(std::string const& path) {
   using namespace fire;
 
-  SourceStorage source{path};
-
-  if (!source.Open()) {
-    Error::fatal_error("cannot open file '" + path + "'");
-  }
-
   try {
+
+    SourceStorage source{path};
+
+    if (!source.Open()) {
+      Error::fatal_error("cannot open file '" + path + "'");
+    }
+
     Lexer lexer{source};
 
-    auto tokens = lexer.Lex();
+    lexer.Lex(source.token_list);
 
-    if (tokens.empty())
+    if (source.token_list.empty())
       return;
 
-    parser::Parser parser{tokens};
+    parser::Parser parser{source.token_list};
 
-    alert;
     ASTPtr<AST::Block> prg = parser.Parse();
 
-    alert;
     semantics_checker::Sema sema{prg};
 
-    alert;
     sema.check_full();
 
-    alert;
     eval::Evaluator ev;
 
-    alert;
     ev.evaluate(prg);
   }
 
@@ -99,13 +95,7 @@ void execute_file(std::string const& path) {
   }
 }
 
-int test(int argc, char** argv);
-
 int main(int argc, char** argv) {
-
-  // if (test(argc, argv) != 0)
-  //   return 1;
-
   CmdLineArguments args;
 
   parse_command_line(args, argc - 1, argv + 1);

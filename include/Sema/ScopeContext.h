@@ -24,10 +24,11 @@ struct ScopeContext {
     SC_Func,
     SC_Enum,
     SC_Class,
+    SC_Namespace,
   };
 
   struct LocalVar {
-    string name;
+    string_view name;
 
     TypeInfo deducted_type;
     bool is_type_deducted = false;
@@ -39,8 +40,10 @@ struct ScopeContext {
     int depth = 0;
     int index = 0;
 
-    LocalVar(string name = "")
-        : name(std::move(name)) {
+    int index_add = 0;
+
+    LocalVar(string_view name = "")
+        : name(name) {
     }
 
     LocalVar(ASTPtr<AST::VarDef> vardef);
@@ -51,6 +54,10 @@ struct ScopeContext {
 
   int depth = 0;
 
+  bool is_block;
+
+  ScopeContext* _owner = nullptr;
+
   bool Contains(ScopeContext* scope, bool recursive = false) const;
 
   virtual bool IsNamedAs(string const&) const {
@@ -59,19 +66,26 @@ struct ScopeContext {
 
   virtual ASTPointer GetAST() const;
 
-  virtual LocalVar* find_var(string const& name);
+  virtual LocalVar* find_var(string_view const& name);
 
   virtual ScopeContext* find_child_scope(ASTPointer ast);
   virtual ScopeContext* find_child_scope(ScopeContext* ctx);
+
+  virtual bool contains(ScopeContext*) {
+    return false;
+  }
 
   // find a named scope
   virtual vector<ScopeContext*> find_name(string const& name);
 
   virtual ~ScopeContext() = default;
 
+  virtual std::string to_string() const = 0;
+
 protected:
   ScopeContext(Types type)
-      : type(type) {
+      : type(type),
+        is_block(type == SC_Block) {
   }
 };
 
@@ -83,24 +97,34 @@ struct BlockScope : ScopeContext {
 
   vector<LocalVar> variables;
 
+  size_t child_var_count = 0;
+
   vector<ScopeContext*> child_scopes;
 
-  ScopeContext*& AddScope(ScopeContext* s) {
-    return this->child_scopes.emplace_back(s);
-  }
+  ScopeContext*& AddScope(ScopeContext* s);
 
   LocalVar& add_var(ASTPtr<AST::VarDef> def);
 
   ASTPointer GetAST() const override;
 
-  LocalVar* find_var(string const& name) override;
+  LocalVar* find_var(string_view const& name) override;
 
   ScopeContext* find_child_scope(ASTPointer ast) override;
   ScopeContext* find_child_scope(ScopeContext* ctx) override;
 
+  bool contains(ScopeContext* ctx) override {
+    for (auto&& c : this->child_scopes)
+      if (c == ctx)
+        return true;
+
+    return false;
+  }
+
   vector<ScopeContext*> find_name(string const& name) override;
 
-  BlockScope(int depth, ASTPtr<AST::Block> ast);
+  std::string to_string() const override;
+
+  BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add = 0);
   ~BlockScope();
 };
 
@@ -118,12 +142,6 @@ struct FunctionScope : ScopeContext {
 
   ASTVec<AST::Statement> return_stmt_list;
 
-  vector<FunctionScope*> instantiated;
-
-  FunctionScope*& AppendInstantiated(ASTPtr<AST::Function> fn) {
-    return this->instantiated.emplace_back(new FunctionScope(this->depth, fn));
-  }
-
   bool is_templated() const {
     return ast->is_templated;
   }
@@ -136,15 +154,42 @@ struct FunctionScope : ScopeContext {
 
   ASTPointer GetAST() const override;
 
-  LocalVar* find_var(string const& name) override;
+  LocalVar* find_var(string_view const& name) override;
 
   ScopeContext* find_child_scope(ScopeContext* ctx) override;
   ScopeContext* find_child_scope(ASTPointer ast) override;
 
+  bool contains(ScopeContext* ctx) override {
+    return this->block == ctx;
+  }
+
   vector<ScopeContext*> find_name(string const& name) override;
+
+  std::string to_string() const override;
 
   FunctionScope(int depth, ASTPtr<AST::Function> ast);
   ~FunctionScope();
+};
+
+// ------------------------------------
+//  NamespaceScope
+
+struct NamespaceScope : BlockScope {
+  string name;
+
+  ASTVec<AST::Block> _ast;
+
+  ScopeContext* find_child_scope(ASTPointer ast) override {
+    for (auto&& x : this->_ast) {
+      if (x == ast)
+        return this;
+    }
+
+    return BlockScope::find_child_scope(ast);
+  }
+
+  NamespaceScope(int depth, ASTPtr<AST::Block> ast, int index_add);
+  ~NamespaceScope();
 };
 
 } // namespace fire::semantics_checker

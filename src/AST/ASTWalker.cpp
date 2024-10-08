@@ -1,5 +1,6 @@
 #include "alert.h"
 #include "AST.h"
+#include "ASTWalker.h"
 
 namespace fire::AST {
 
@@ -83,11 +84,11 @@ void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)>
   }
 
   case Kind::If: {
-    auto x = ast->As<AST::Statement>()->get_data<AST::Statement::If>();
+    auto x = ast->As<AST::Statement>()->data_if;
 
-    walk_ast(x.cond, fn);
-    walk_ast(x.if_true, fn);
-    walk_ast(x.if_false, fn);
+    walk_ast(x->cond, fn);
+    walk_ast(x->if_true, fn);
+    walk_ast(x->if_false, fn);
 
     break;
   }
@@ -96,10 +97,10 @@ void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)>
     todo_impl;
 
   case Kind::While: {
-    auto d = ast->As<AST::Statement>()->get_data<AST::Statement::While>();
+    auto d = ast->As<AST::Statement>()->data_while;
 
-    walk_ast(d.cond, fn);
-    walk_ast(d.block, fn);
+    walk_ast(d->cond, fn);
+    walk_ast(d->block, fn);
 
     break;
   }
@@ -110,15 +111,15 @@ void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)>
 
   case Kind::Return:
   case Kind::Throw:
-    walk_ast(ast->As<AST::Statement>()->get_data<ASTPointer>(), fn);
+    walk_ast(ast->As<AST::Statement>()->expr, fn);
     break;
 
   case Kind::TryCatch: {
-    auto d = ast->As<AST::Statement>()->get_data<AST::Statement::TryCatch>();
+    auto d = ast->As<AST::Statement>()->data_try_catch;
 
-    walk_ast(d.tryblock, fn);
+    walk_ast(d->tryblock, fn);
 
-    for (auto&& c : d.catchers) {
+    for (auto&& c : d->catchers) {
       walk_ast(c.type, fn);
       walk_ast(c.catched, fn);
     }

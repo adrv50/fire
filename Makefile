@@ -8,7 +8,8 @@ SOURCE		:= 	src	\
 				src/AST \
 				src/Evaluator \
 				src/Parser \
-				src/Sema
+				src/Sema \
+				src/VM
 
 CC			:=	clang
 CXX			:=	clang++
@@ -49,6 +50,7 @@ release: $(BUILD)
 		LDFLAGS="-Wl,--gc-sections,-s" -C $(BUILD) -f $(TOPDIR)/Makefile
 
 run: all
+	@echo -------------------------------------
 	@./fired test.fr
 
 $(BUILD):

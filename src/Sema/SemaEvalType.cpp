@@ -10,9 +10,8 @@
 
 namespace fire::semantics_checker {
 
-TypeInfo Sema::EvalType(ASTPointer ast) {
+TypeInfo Sema::eval_type(ASTPointer ast) {
   using Kind = ASTKind;
-  using TK = TypeKind;
 
   if (!ast)
     return {};
@@ -22,75 +21,11 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   case Kind::Function:
     return {};
 
-  case Kind::TypeName: {
-    // clang-format off
-    static std::map<TypeKind, char const*> kind_name_map {
-      { TypeKind::None,       "none" },
-      { TypeKind::Int,        "int" },
-      { TypeKind::Float,      "float" },
-      { TypeKind::Bool,       "bool" },
-      { TypeKind::Char,       "char" },
-      { TypeKind::String,     "string" },
-      { TypeKind::Vector,     "vector" },
-      { TypeKind::Tuple,      "tuple" },
-      { TypeKind::Dict,       "dict" },
-      { TypeKind::Instance,   "instance" },
-      { TypeKind::Module,     "module" },
-      { TypeKind::Function,   "function" },
-      { TypeKind::Module,     "module" },
-      { TypeKind::TypeName,   "type" },
-    };
-    // clang-format on
+  case Kind::Argument:
+    ast = ast->As<AST::Argument>()->type;
 
-    auto x = ASTCast<AST::TypeName>(ast);
-
-    TypeInfo type;
-
-    for (auto&& [key, val] : kind_name_map) {
-      if (val == x->GetName()) {
-        type = key;
-
-        if (int c = type.needed_param_count();
-            c == 0 && (int)x->type_params.size() >= 1) {
-          throw Error(x->token, "type '" + string(val) + "' cannot have parameters");
-        }
-        else if (c >= 1) {
-          if ((int)x->type_params.size() < c)
-            throw Error(x->token, "too few parameters");
-          else if ((int)x->type_params.size() > c)
-            throw Error(x->token, "too many parameters");
-        }
-
-        for (auto&& param : x->type_params) {
-          type.params.emplace_back(this->EvalType(param));
-        }
-
-        return type;
-      }
-    }
-
-    for (auto&& inst : this->inst_scope) {
-      if (auto p = inst.find_name(x->GetName()); p) {
-        return *p;
-      }
-    }
-
-    auto rs = this->find_name(x->GetName());
-
-    switch (rs.type) {
-    case NameType::Enum:
-      return TypeInfo::from_enum(rs.ast_enum);
-
-    case NameType::Class:
-      return TypeInfo::instance_of(rs.ast_class);
-    }
-
-    // type.name = x->GetName();
-    // type.kind = TypeKind::Unknown;
-    // return type;
-
-    throw Error(x->token, "unknown type name");
-  }
+  case Kind::TypeName:
+    return this->eval_type_name(ASTCast<AST::TypeName>(ast));
 
   case Kind::Value: {
     return ast->as_value()->value->type;
@@ -102,6 +37,17 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     assert(pvar->is_type_deducted);
 
     return pvar->deducted_type;
+  }
+
+  case Kind::FuncName: {
+    auto id = ast->GetID();
+
+    TypeInfo type = TypeKind::Function;
+
+    type.params = id->ft_args;
+    type.params.insert(type.params.begin(), id->ft_ret);
+
+    return type;
   }
 
   case Kind::Array: {
@@ -118,12 +64,12 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
                    "\"array<T>([]...])\")");
     }
 
-    auto const& elemType = type.params.emplace_back(this->EvalType(x->elements[0]));
+    auto const& elemType = type.params.emplace_back(this->eval_type(x->elements[0]));
 
     x->elem_type = elemType;
 
     for (auto it = x->elements.begin() + 1; it != x->elements.end(); it++) {
-      if (!elemType.equals(this->EvalType(*it))) {
+      if (!elemType.equals(this->eval_type(*it))) {
         throw Error(*it, "expected '" + elemType.to_string() +
                              "' type expression as element in array");
       }
@@ -132,10 +78,115 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     return type;
   }
 
+  case Kind::OverloadResolutionGuide: {
+    auto x = ASTCast<AST::Expr>(ast);
+
+    x->lhs->GetID()->sema_must_completed = false;
+
+    auto functor_ast = x->lhs;
+    auto functor = this->eval_type(functor_ast);
+
+    if (functor_ast->kind != Kind::FuncName) {
+      throw Error(functor_ast, "expected function name");
+    }
+
+    auto id = functor_ast->GetID();
+
+    if (id->candidates.size() == 1) {
+      throw Error(x->op, "use operator 'of' to non ambiguous function name is not valid");
+    }
+
+    alert;
+
+    auto sig_ast = ASTCast<AST::Signature>(x->rhs);
+    auto sig = this->eval_type(sig_ast);
+
+    auto const& sig_ret = sig.params[0];
+    auto const sig_args = TypeVec(sig.params.begin() + 1, sig.params.end());
+
+    ASTVec<AST::Function> final_cd;
+
+    for (auto&& cd : id->candidates) {
+      alert;
+
+      if ((sig_ast->arg_type_list.size() < cd->arguments.size()) ||
+          (!cd->is_var_arg && cd->arguments.size() < sig_ast->arg_type_list.size()))
+        continue;
+
+      if (cd->template_param_names.size() < id->template_args.size())
+        continue;
+
+      TemplateTypeApplier app;
+
+      if (cd->is_templated) {
+        if (!this->try_apply_template_function(app, cd, id->template_args, sig_args))
+          continue;
+      }
+
+      for (size_t i = 0; i < sig_args.size(); i++) {
+        if (!sig_args[i].equals(this->eval_type(cd->arguments[i]->type))) {
+          alert;
+          goto _pass_candidate;
+        }
+      }
+
+      if (auto _ret = this->eval_type(cd->return_type); sig_ret.equals(_ret))
+        final_cd.emplace_back(cd);
+
+    _pass_candidate:;
+    }
+
+    if (final_cd.empty()) {
+      throw Error(x->op, "cannot find function '" + id->GetName() +
+                             "' matching to signature '(" +
+                             utils::join<TypeInfo>(", ", sig_args,
+                                                   [](auto t) {
+                                                     return t.to_string();
+                                                   }) +
+                             ") -> " + sig_ret.to_string() + "'");
+    }
+    else if (final_cd.size() >= 2) {
+      Error e{x->op, "function name '" + id->GetName() + "' is still ambiguous"};
+
+      for (auto&& cd : final_cd)
+        e.AddChain(Error(Error::ER_Note, cd, "candidate:"));
+
+      throw e;
+    }
+
+    TypeInfo ret = TypeKind::Function;
+
+    ret.params = sig_args;
+    ret.params.insert(ret.params.begin(), sig_ret);
+
+    id->candidates = std::move(final_cd);
+
+    return ret;
+  }
+
+  case Kind::Signature: {
+    TypeInfo ret = TypeKind::Function;
+
+    auto sig = ASTCast<AST::Signature>(ast);
+
+    ret.params.emplace_back(this->eval_type(sig->result_type));
+
+    for (auto&& t : sig->arg_type_list)
+      ret.params.emplace_back(this->eval_type(t));
+
+    return ret;
+  }
+
   case Kind::Identifier: {
 
     auto id = ASTCast<AST::Identifier>(ast);
-    auto idinfo = this->get_identifier_info(id);
+
+    IdentifierInfo idinfo;
+
+    if (id->sema_use_keeped)
+      idinfo = *this->get_keeped_id_info(id);
+    else
+      idinfo = this->get_identifier_info(id);
 
     auto& res = idinfo.result;
 
@@ -156,10 +207,13 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       if (!res.lvar->is_type_deducted)
         throw Error(ast->token, "cannot use variable before assignment");
 
-      // distance
-      id->depth = this->GetCurScope()->depth - res.lvar->depth;
+      id->distance = this->GetCurScope()->depth - res.lvar->depth;
 
       id->index = res.lvar->index;
+      id->index_add = res.lvar->index_add;
+
+      if (res.lvar->decl)
+        res.lvar->decl->index_add = id->index_add;
 
       return res.lvar->deducted_type;
     }
@@ -177,7 +231,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
         if (!c->is_templated)
           is_all_template = false;
 
-        if (id->must_completed) {
+        if (id->sema_must_completed) {
           if (c->template_param_names.size() != id->id_params.size()) {
             continue;
           }
@@ -190,14 +244,32 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
 
       if (temp.empty() && is_all_template) {
-        throw Error(id->token, "cannot use function name '" + id->GetName() +
-                                   "' without template arguments");
+
+        if (id->candidates.size() == 1) {
+          string msg;
+
+          if (id->id_params.size() < id->candidates[0]->template_param_names.size())
+            msg = "too few template arguments";
+          else
+            msg = "too many template arguments";
+
+          throw Error(id, msg).AddChain(
+              Error(Error::ER_Note, id->candidates[0]->tok_template, "declared here"));
+        }
+
+        if (id->id_params.empty())
+          throw Error(id->token, "cannot use function  '" + id->GetName() +
+                                     "' without template arguments");
+        else
+          throw Error(id->token, "cannot use function '" + id->GetName() + "' with " +
+                                     std::to_string(id->id_params.size()) +
+                                     " template arguments");
       }
 
       id->candidates = std::move(temp);
 
       if (id->candidates.size() >= 2) {
-        if (!id->must_completed)
+        if (!id->sema_must_completed)
           return TypeKind::Function;
 
         auto err =
@@ -222,57 +294,18 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       type.is_free_args = func->is_var_arg;
 
+      TemplateTypeApplier apply;
+
       if (func->is_templated) {
-        auto& inst = this->enter_instantiation_scope();
-
-        for (auto it = idinfo.id_params.begin();
-             auto&& param : func->template_param_names) {
-
-          if (it == idinfo.id_params.end()) {
-            if (id->must_completed) {
-              throw Error(id, "type of template argument '" + param.str + "' is missing");
-            }
-
-            this->leave_instantiation_scope();
-            return TypeKind::Function;
-          }
-
-          inst.add_name(param.str, *it);
+        if (!this->try_apply_template_function(apply, func, id->template_args, {})) {
+          return type;
         }
-
-        this->SaveScopeLocation();
-
-        auto scope = (FunctionScope*)this->GetScopeOf(func);
-
-        this->BackToDepth(scope->depth - 1);
-
-        this->EnterScope(scope);
-
-        for (size_t i = 0; auto&& t : idinfo.id_params) {
-          auto& arg = scope->arguments[i];
-
-          arg.deducted_type = t;
-          arg.is_argument = true;
-          arg.is_type_deducted = true;
-
-          i++;
-        }
-
-        this->check(func->block);
-
-        this->RestoreScopeLocation();
       }
 
-      // if (!func->is_templated) {
-      type.params.emplace_back(id->ft_ret = this->EvalType(func->return_type));
+      type.params.emplace_back(id->ft_ret = this->eval_type(func->return_type));
 
       for (auto&& arg : func->arguments) {
-        id->ft_args.emplace_back(type.params.emplace_back(this->EvalType(arg->type)));
-      }
-      // }
-
-      if (func->is_templated) {
-        this->leave_instantiation_scope();
+        id->ft_args.emplace_back(type.params.emplace_back(this->eval_type(arg->type)));
       }
 
       return type;
@@ -284,7 +317,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       id->candidates_builtin = std::move(idinfo.result.builtin_funcs);
 
       if (id->candidates_builtin.size() >= 2) {
-        if (!id->sema_allow_ambigious)
+        if (!id->sema_allow_ambiguous)
           throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
 
         return TypeKind::Function; // ambigious -> called by case CallFunc
@@ -308,12 +341,14 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       id->kind = ASTKind::ClassName;
       id->ast_class = idinfo.result.ast_class;
 
-      TypeInfo ret = TypeKind::Instance;
+      return TypeInfo::from_class(id->ast_class);
+    }
 
-      ret.type_ast = id->ast_class;
-      ret.name = id->ast_class->GetName();
+    case NameType::Enum: {
+      id->kind = ASTKind::EnumName;
+      id->ast_enum = idinfo.result.ast_enum;
 
-      return ret;
+      return TypeInfo::from_enum(id->ast_enum);
     }
 
     case NameType::TypeName: {
@@ -322,7 +357,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       if (size_t c = type.needed_param_count(); c == 0 && type.params.size() >= 1) {
         throw Error(id, "'" + id->GetName() + "' is not template type");
       }
-      else if (c != type.params.size()) {
+      else if (c >= 1 && c != type.params.size()) {
         throw Error(id, "no match template argument count");
       }
 
@@ -332,7 +367,11 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     case NameType::Unknown:
       throw Error(ast->token, "cannot find name '" + id->GetName() + "'");
 
+    case NameType::Namespace:
+      throw Error(ast, "expected identifier-expression after this token ");
+
     default:
+      alertexpr(static_cast<int>(res.type));
       todo_impl;
     }
 
@@ -343,29 +382,47 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     auto scoperesol = ASTCast<AST::ScopeResol>(ast);
     auto idinfo = this->get_identifier_info(scoperesol);
 
+    auto id = scoperesol->GetLastID();
+
     switch (idinfo.result.type) {
-    case NameType::Var: {
-      todo_impl;
-      ast->kind = ASTKind::Variable;
+    case NameType::Var:
+    case NameType::Func:
       break;
-    }
 
     case NameType::Enumerator: {
       ast->kind = Kind::Enumerator;
 
+      id->ast_enum = idinfo.result.ast_enum;
+      id->index = idinfo.result.enumerator_index;
+
+      if (id->sema_must_completed) {
+        auto& e = id->ast_enum->enumerators[id->index];
+
+        if (e.data_type != Enum::Enumerator::DataType::NoData) {
+          throw Error(id, "cannot use enumerator '" + AST::ToString(ast) +
+                              "' without arguments");
+        }
+      }
+
       TypeInfo type = TypeKind::Enumerator;
-      type.name = scoperesol->first->GetName();
+
+      // type.name = id->ast_enum->GetName();
+      type.name = AST::ToString(ast);
+
+      type.type_ast = id->ast_enum;
+      type.enum_index = id->index;
+
       return type;
     }
 
     case NameType::MemberFunc: {
-      auto id = ast->GetID();
+      todo_impl;
 
       ast->kind = ASTKind::FuncName;
 
       id->candidates = idinfo.result.functions;
 
-      if (!id->sema_allow_ambigious) {
+      if (!id->sema_allow_ambiguous) {
         if (id->candidates.size() >= 2) {
           throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
         }
@@ -373,11 +430,11 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
         TypeInfo type{TypeKind::Function};
 
         alert;
-        type.params = {this->EvalType(id->candidates[0]->return_type)};
+        type.params = {this->eval_type(id->candidates[0]->return_type)};
 
         for (auto&& arg : id->candidates[0]->arguments) {
           alert;
-          type.params.emplace_back(this->EvalType(arg->type));
+          type.params.emplace_back(this->eval_type(arg->type));
         }
 
         alert;
@@ -387,25 +444,42 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       return TypeKind::Function;
     }
 
-    case NameType::Unknown:
-      todo_impl;
-      break;
+    case NameType::Namespace: {
+      throw Error(ast, "expected identifier-expression after this token ");
     }
 
-    todo_impl;
+    case NameType::Unknown:
+      throw Error(ast, "cannot find name '" + AST::ToString(ast) + "'");
+    }
 
-    break;
+    this->keep_id(idinfo);
+
+    id->sema_use_keeped = true;
+
+    auto type = this->eval_type(id);
+
+    ast->kind = id->kind;
+
+    return type;
   }
 
-  case Kind::Enumerator:
-    todo_impl;
+  case Kind::Enumerator: {
+    TypeInfo type = TypeKind::Enumerator;
+
+    auto id = ast->GetID();
+
+    type.type_ast = id->ast_enum;
+    type.name = id->ast_enum->GetName();
+    type.enum_index = id->index;
+
+    return type;
+  }
 
   case Kind::EnumName:
-    todo_impl;
+    return TypeInfo::from_enum(ast->GetID()->ast_enum);
 
-  case Kind::ClassName: {
+  case Kind::ClassName:
     return TypeInfo::from_class(ast->GetID()->ast_class);
-  }
 
   case Kind::CallFunc: {
     auto call = ASTCast<AST::CallFunc>(ast);
@@ -417,13 +491,11 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     if (functor->is_ident_or_scoperesol() || functor->kind == ASTKind::MemberAccess) {
       id = Sema::GetID(functor);
 
-      id->sema_allow_ambigious = true;
-      id->sema_guess_parameter = true;
-
-      id->must_completed = false;
+      id->sema_allow_ambiguous = true;
+      id->sema_must_completed = false;
     }
 
-    TypeInfo functor_type = this->EvalType(functor);
+    TypeInfo functor_type = this->eval_type(functor);
 
     TypeVec arg_types;
 
@@ -433,7 +505,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
     }
 
     for (ASTPointer arg : call->args) {
-      arg_types.emplace_back(this->EvalType(arg));
+      arg_types.emplace_back(this->eval_type(arg));
     }
 
     switch (functor->kind) {
@@ -445,26 +517,53 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       ASTVec<AST::Function> final_candidates;
 
       for (ASTPtr<AST::Function> candidate : id->candidates) {
-        if (id->id_params.size() > candidate->template_param_names.size())
-          continue;
-        if (candidate->is_templated) {
-          auto instantiated = this->instantiate_template_func(
-              candidate, call, id, call->args, arg_types, false);
+        // if (id->id_params.size() > candidate->template_param_names.size())
+        //   continue;
 
-          if (instantiated != nullptr)
-            final_candidates.emplace_back(instantiated);
+        TemplateTypeApplier apply;
+
+        if (candidate->is_templated) {
+
+          if (this->try_apply_template_function(apply, candidate, id->template_args,
+                                                arg_types)) {
+            final_candidates.emplace_back(candidate);
+          }
+          else if (id->candidates.size() == 1) {
+            todo_impl;
+          }
+
+          continue;
         }
         else {
           TypeVec formal_arg_types;
 
           for (ASTPtr<AST::Argument> arg : candidate->arguments)
-            formal_arg_types.emplace_back(this->EvalType(arg->type));
+            formal_arg_types.emplace_back(this->eval_type(arg->type));
 
           auto res = this->check_function_call_parameters(
               call->args, candidate->is_var_arg, formal_arg_types, arg_types, false);
 
           if (res.result == ArgumentCheckResult::Ok) {
             final_candidates.emplace_back(candidate);
+          }
+
+          else if (id->candidates.size() == 1) {
+            switch (res.result) {
+            case ArgumentCheckResult::TypeMismatch:
+              throw Error(call->token, "expected '" +
+                                           formal_arg_types[res.index].to_string() +
+                                           "' type expression, but found '" +
+                                           arg_types[res.index].to_string() + "'")
+                  .AddChain(Error(Error::ER_Note, candidate->arguments[res.index]->type,
+                                  "defined here"));
+
+            case ArgumentCheckResult::TooFewArguments:
+            case ArgumentCheckResult::TooManyArguments:
+              throw Error(call->token, res.result == ArgumentCheckResult::TooFewArguments
+                                           ? "too few arguments"
+                                           : "too many arguments")
+                  .AddChain(Error(Error::ER_Note, candidate, "defined here"));
+            }
           }
         }
       }
@@ -484,7 +583,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       call->callee_ast = final_candidates[0];
 
-      return this->EvalType(final_candidates[0]->return_type);
+      return this->eval_type(final_candidates[0]->return_type);
     }
 
     case ASTKind::BuiltinMemberFunction:
@@ -507,15 +606,23 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       break;
     }
 
+      //
+      // class-name:
+      //   --> create instance
+      //
     case ASTKind::ClassName: {
-      auto xmv = id->ast_class->get_member_variables();
+      auto const& xmv = id->ast_class->member_variables;
 
-      if (arg_types.size() != xmv.size()) {
-        throw Error(functor, "no match count of initializers");
+      if (arg_types.size() < xmv.size()) {
+        throw Error(functor, "too few constructor arguments");
+      }
+      else if (arg_types.size() > xmv.size()) {
+        throw Error(functor, "too many constructor arguments");
       }
 
       for (i64 i = 0; i < (i64)xmv.size(); i++) {
-        if (auto ttt = this->EvalType(xmv[i]->type); !arg_types[i].equals(ttt)) {
+        if (auto ttt = this->eval_type(xmv[i]->type ? xmv[i]->type : xmv[i]->init);
+            !arg_types[i].equals(ttt)) {
           throw Error(call->args[i], "expected '" + ttt.to_string() +
                                          "' type expression, but found '" +
                                          arg_types[i].to_string() + "'");
@@ -524,7 +631,34 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
       ast->kind = ASTKind::CallFunc_Ctor;
 
-      return TypeInfo::instance_of(id->ast_class);
+      return TypeInfo::make_instance_type(id->ast_class);
+    }
+
+    case ASTKind::Enumerator: {
+
+      call->ast_enum = id->ast_enum;
+      call->enum_index = id->index;
+
+      auto& e = id->ast_enum->enumerators[id->index];
+
+      if (arg_types.size() != e.types.size()) {
+        throw Error(call, "too " +
+                              string(arg_types.size() < e.types.size() ? "few" : "many") +
+                              " arguments to construct enumerator '" +
+                              AST::ToString(functor) + "'");
+      }
+
+      for (size_t i = 0; i < e.types.size(); i++) {
+        if (auto et = this->eval_type(e.types[i]); !et.equals(arg_types[i])) {
+          throw Error(call->args[i], "expected '" + et.to_string() +
+                                         "' type expression, but found '" +
+                                         arg_types[i].to_string() + "'");
+        }
+      }
+
+      ast->kind = ASTKind::CallFunc_Enumerator;
+
+      return functor_type;
     }
 
     default: {
@@ -549,9 +683,17 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       auto res = this->check_function_call_parameters(
           call->args, functor_type.is_free_args, formal, arg_types, false);
 
-      if (res.result != ArgumentCheckResult::Ok) {
-        throw Error(call->token, "arguments are not matching to signature '" +
-                                     functor_type.to_string() + "'");
+      switch (res.result) {
+      case ArgumentCheckResult::TooFewArguments:
+        throw Error(call->token, "too few arguments");
+
+      case ArgumentCheckResult::TooManyArguments:
+        throw Error(call->token, "too many arguments");
+
+      case ArgumentCheckResult::TypeMismatch:
+        throw Error(call->args[res.index], "expected '" + formal[res.index].to_string() +
+                                               "' type expression, but found '" +
+                                               arg_types[res.index].to_string() + "'");
       }
 
       call->call_functor = true;
@@ -565,16 +707,16 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   }
 
   case Kind::CallFunc_Ctor: {
-    return TypeInfo::instance_of(ast->As<CallFunc>()->get_class_ptr());
+    return TypeInfo::from_class(ast->As<CallFunc>()->get_class_ptr());
   }
 
   case Kind::SpecifyArgumentName:
-    return this->EvalType(ast->as_expr()->rhs);
+    return this->eval_type(ast->as_expr()->rhs);
 
   case Kind::IndexRef: {
     auto x = ASTCast<AST::Expr>(ast);
 
-    auto arr = this->EvalType(x->lhs);
+    auto arr = this->eval_type(x->lhs);
 
     switch (arr.kind) {
     case TypeKind::Vector:
@@ -588,13 +730,13 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     ASTPtr<AST::Expr> expr = ASTCast<AST::Expr>(ast);
 
-    TypeInfo left_type = this->EvalType(expr->lhs);
+    TypeInfo left_type = this->eval_type(expr->lhs);
 
     ASTPtr<AST::Identifier> rhs_id = Sema::GetID(expr);
 
-    string name = rhs_id->GetName();
+    string_view name = rhs_id->GetName();
 
-    alertexpr(rhs_id->sema_allow_ambigious);
+    alertexpr(rhs_id->sema_allow_ambiguous);
 
     switch (left_type.kind) {
     case TypeKind::Instance: {
@@ -604,19 +746,19 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
         alertexpr(x);
 
-        for (i64 index = 0; auto&& mv : x->get_member_variables()) {
+        for (i64 index = 0; auto&& mv : x->member_variables) {
           if (name == mv->GetName()) {
             expr->kind = ASTKind::MemberVariable;
             rhs_id->index = index;
             rhs_id->ast_class = x;
 
-            return this->EvalType(mv->type);
+            return this->eval_type(mv->type);
           }
 
           index++;
         }
 
-        for (auto&& mf : x->get_member_functions()) {
+        for (auto&& mf : x->member_functions) {
           if (mf->member_of && mf->GetName() == name) {
             rhs_id->candidates.emplace_back(mf);
           }
@@ -627,24 +769,9 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
       break;
     }
-
-    case TypeKind::Enumerator: {
-      //
-      // TODO:
-      //   列挙型で、構造体のメンバ定義されてる場合、そのメンバを探す
-      //
-      // enum Kind {
-      //   A(a: int, b: string)
-      // }
-      //
-      //   ^ 左辺の値が Kind::A のとき、右辺が a であればその値を返す
-      // (Evaluator での実装も必要)
-      //
-      todo_impl;
-    }
     }
 
-    if (!rhs_id->sema_allow_ambigious && rhs_id->candidates.size() >= 2) {
+    if (!rhs_id->sema_allow_ambiguous && rhs_id->candidates.size() >= 2) {
       goto _ambiguous_err;
     }
 
@@ -652,7 +779,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       expr->kind = ASTKind::MemberFunction;
       rhs_id->self_type = left_type;
 
-      return this->EvalType(rhs_id->candidates[0]->return_type);
+      return this->eval_type(rhs_id->candidates[0]->return_type);
     }
 
     for (auto const& [self_type, func] : builtins::get_builtin_member_functions()) {
@@ -661,7 +788,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
     }
 
-    if (!rhs_id->sema_allow_ambigious && rhs_id->candidates_builtin.size() >= 2) {
+    if (!rhs_id->sema_allow_ambiguous && rhs_id->candidates_builtin.size() >= 2) {
     _ambiguous_err:
       throw Error(rhs_id, "member function '" + left_type.to_string() + "::" + name +
                               "' is ambiguous");
@@ -690,8 +817,8 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   }
 
   case Kind::MemberVariable: {
-    return this->EvalType(
-        ast->GetID()->ast_class->get_member_variables()[ast->GetID()->index]->type);
+    return this->eval_type(
+        ast->GetID()->ast_class->member_variables[ast->GetID()->index]->type);
   }
 
   case Kind::MemberFunction: {
@@ -707,7 +834,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   case Kind::Not: {
     auto x = ASTCast<AST::Expr>(ast);
 
-    auto type = this->EvalType(x->lhs);
+    auto type = this->eval_type(x->lhs);
 
     if (type.kind != TypeKind::Bool)
       throw Error(x->lhs, "expected boolean expression");
@@ -718,7 +845,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
   case Kind::Assign: {
     auto x = ASTCast<AST::Expr>(ast);
 
-    auto src = this->EvalType(x->rhs);
+    auto src = this->eval_type(x->rhs);
 
     if (x->lhs->kind == ASTKind::Identifier || x->lhs->kind == ASTKind::ScopeResol) {
       auto idinfo = this->get_identifier_info(x->lhs);
@@ -730,7 +857,7 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
       }
     }
 
-    auto dest = this->EvalType(x->lhs);
+    auto dest = this->eval_type(x->lhs);
 
     if (!dest.equals(src)) {
       throw Error(x->rhs, "expected '" + dest.to_string() + "' type expression");
@@ -742,107 +869,18 @@ TypeInfo Sema::EvalType(ASTPointer ast) {
 
     return dest;
   }
-  }
 
-  if (ast->is_expr) {
-    auto x = ast->as_expr();
-    auto lhs = this->EvalType(x->lhs);
-    auto rhs = this->EvalType(x->rhs);
-
-    bool is_same = lhs.equals(rhs);
-
-    // 基本的な数値演算を除外
-    switch (ast->kind) {
-    case Kind::Add:
-    case Kind::Sub:
-    case Kind::Mul:
-    case Kind::Div:
-      if (is_same && lhs.is_numeric()) {
-        return lhs;
-      }
-
-      break;
-
-    case Kind::Mod:
-    case Kind::LShift:
-    case Kind::RShift:
-      if (lhs.kind == TK::Int && rhs.kind == TK::Int)
-        return TK::Int;
-
-      break;
-
-    case Kind::Bigger:
-    case Kind::BiggerOrEqual:
-      if (is_same && lhs.is_numeric_or_char() && rhs.is_numeric_or_char())
-        return TK::Bool;
-
-      break;
-
-    case Kind::LogAND:
-    case Kind::LogOR:
-      if (lhs.kind != TypeKind::Bool || rhs.kind != TypeKind::Bool)
-        break;
-
-    case Kind::Equal:
-      if (!is_same) {
-        break;
-      }
-
-      return TK::Bool;
-
-    case Kind::BitAND:
-    case Kind::BitXOR:
-    case Kind::BitOR:
-      if (lhs.kind == TK::Int && rhs.kind == TK::Int)
-        return TK::Int;
-
-      break;
+  default:
+    if (ast->is_expr) {
+      return this->EvalExpr(ASTCast<AST::Expr>(ast));
     }
 
-    switch (ast->kind) {
-    case Kind::Add:
-      //
-      // vector + T
-      // T + vector
-      //  --> append element to vector
-      if (lhs.kind == TK::Vector || rhs.kind == TK::Vector)
-        return TK::Vector;
-
-      //
-      // char + char  <--  Invalid
-      // char + str
-      // str  + char
-      // str  + str
-      if (lhs.is_char_or_str() && rhs.is_char_or_str())
-        return TK::String;
-
-      break;
-
-    case Kind::Mul:
-      //
-      // int * str
-      // str * int
-      //  => str
-      if (!is_same && lhs.is_hit_kind({TK::Int, TK::String}) &&
-          rhs.is_hit_kind({TK::Int, TK::String}))
-        return TK::String;
-
-      // vector * int
-      // int * vector
-      //  => vector
-      if (!is_same && lhs.is_hit_kind({TK::Int, TK::Vector}) &&
-          rhs.is_hit_kind({TK::Int, TK::Vector}))
-        return TK::Vector;
-
-      break;
-    }
-
-    throw Error(x->op, "invalid operator '" + x->op.str + "' for '" + lhs.to_string() +
-                           "' and '" + rhs.to_string() + "'");
+    Error(ast, "").emit();
+    alertmsg(static_cast<int>(ast->kind));
+    todo_impl;
   }
 
-  alertmsg(static_cast<int>(ast->kind));
-  todo_impl;
+  return TypeKind::None;
 }
 
 } // namespace fire::semantics_checker

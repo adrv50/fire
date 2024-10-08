@@ -1,7 +1,8 @@
 class MyClass {
     let num;
 
-    MyClass(self, n) {
+    fn new(n: int) -> MyClass {
         self.num = n;
     }
 }
+
