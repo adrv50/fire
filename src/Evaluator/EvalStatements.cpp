@@ -85,7 +85,96 @@ void Evaluator::eval_stmt(ASTPointer ast) {
   }
 
   case Kind::Match: {
-    todo_impl;
+    auto x = ASTCast<AST::Match>(ast);
+
+    auto cond = this->evaluate(x->cond);
+
+    for (auto&& P : x->patterns) {
+      switch (P.type) {
+      case AST::Match::Pattern::Type::ExprEval: {
+        if (cond->Equals(this->evaluate(P.expr)))
+          this->push_stack(0);
+        else
+          goto _match_failure;
+
+        break;
+      }
+
+      case AST::Match::Pattern::Type::Variable: {
+        auto S = this->push_stack(1);
+
+        S->var_list.emplace_back(cond);
+
+        // this->eval_stmt(P.block);
+
+        // this->pop_stack();
+        break;
+      }
+
+      case AST::Match::Pattern::Type::Enumerator: {
+
+        // this is Type::ExprEval ... ?
+
+        todo_impl;
+
+        break;
+      }
+
+      case AST::Match::Pattern::Type::EnumeratorWithArguments: {
+
+        auto iter = P.vardef_list.begin();
+
+        auto cf = P.expr->As<AST::CallFunc>();
+
+        auto eor_id = cf->callee->GetID();
+
+        auto ep = eor_id->ast_enum;
+        auto ei = eor_id->index;
+
+        auto e_ref = ep->enumerators[ei];
+
+        auto stack = this->push_stack(P.vardef_list.size());
+
+        auto obj_to_cmp = PtrCast<ObjEnumerator>(cond->Clone());
+
+        if (e_ref.data_type == AST::Enum::Enumerator::DataType::Value) {
+          stack->var_list[0] = obj_to_cmp->data;
+        }
+        else {
+          auto& list = obj_to_cmp->data->As<ObjIterable>()->list;
+
+          for (size_t i = 0, j = 0; i < cf->args.size(); i++) {
+            if (iter != P.vardef_list.end() && iter->first == i) {
+              stack->var_list[j++] = list[i];
+              iter++;
+            }
+            else {
+              if (!this->evaluate(cf->args[i])->Equals(list[i])) {
+                goto _match_failure;
+              }
+            }
+          }
+        }
+
+        break;
+      }
+
+      case AST::Match::Pattern::Type::AllCases: {
+        this->push_stack(0);
+        break;
+      }
+      }
+
+      this->eval_stmt(P.block);
+
+      this->pop_stack();
+      break;
+
+    _match_failure:;
+      this->pop_stack();
+    }
+
+    break;
   }
 
   case Kind::While: {

@@ -235,15 +235,32 @@ struct ObjEnumerator : Object {
   ObjPointer data = nullptr;
 
   ObjPointer Clone() const override {
-    return ObjNew<ObjEnumerator>(*this);
+    auto x = ObjNew<ObjEnumerator>(this->ast, this->index);
+
+    if (this->data)
+      x->data = this->data->Clone();
+
+    return x;
   }
 
   std::string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
-    return obj->type.kind == TypeKind::Enumerator &&
-           this->ast == obj->As<ObjEnumerator>()->ast &&
-           this->index == obj->As<ObjEnumerator>()->index;
+    if (obj->type.kind != TypeKind::Enumerator)
+      return false;
+
+    if (auto x = obj->As<ObjEnumerator>(); this->ast != x->ast)
+      return false;
+
+    else if (this->index != x->index)
+      return false;
+
+    else if (this->data) {
+      if (!x->data || !this->data->Equals(x->data))
+        return false;
+    }
+
+    return true;
   }
 
   ObjEnumerator(ASTPtr<AST::Enum> ast, int index);

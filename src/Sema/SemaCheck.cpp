@@ -206,11 +206,31 @@ void Sema::check(ASTPointer ast) {
     for (auto&& pattern : x->patterns) {
       auto px = pattern.expr;
 
-      alertexpr(pattern.block);
-      alertexpr(this->GetCurScope());
+      if (pattern.everything) {
+        pattern.type = Match::Pattern::Type::AllCases;
 
-      alert;
+        this->EnterScope(pattern.block);
+
+        this->check(pattern.block);
+
+        this->LeaveScope();
+
+        continue;
+      }
+
       auto var_scope = (BlockScope*)this->EnterScope(pattern.block);
+
+      if (var_scope->variables.empty()) {
+        alert;
+
+        this->ExpectType(cond, px);
+        this->check(pattern.block);
+
+        pattern.type = Match::Pattern::Type::ExprEval;
+        pattern.is_eval_expr = true;
+
+        continue;
+      }
 
       alertexpr(var_scope);
 
@@ -222,6 +242,8 @@ void Sema::check(ASTPointer ast) {
 
         this->eval_type(px);
         this->check(pattern.block);
+
+        pattern.type = Match::Pattern::Type::Variable;
       }
       else {
         ASTPtr<AST::ScopeResol> enumerator = nullptr;
@@ -230,9 +252,12 @@ void Sema::check(ASTPointer ast) {
         switch (px->kind) {
         case ASTKind::ScopeResol:
           enumerator = ASTCast<AST::ScopeResol>(px);
+          pattern.type = Match::Pattern::Type::Enumerator;
           break;
 
         case ASTKind::CallFunc: {
+          pattern.type = Match::Pattern::Type::EnumeratorWithArguments;
+
           auto cf = ASTCast<AST::CallFunc>(px);
 
           enumerator = ASTCast<AST::ScopeResol>(cf->callee);
@@ -254,7 +279,7 @@ void Sema::check(ASTPointer ast) {
 
           switch (e.data_type) {
           case Enum::Enumerator::DataType::NoData:
-            todo_impl;
+            throw Error(id->token, "unexpected token '(' after this token");
             break;
 
           case Enum::Enumerator::DataType::Value: {
@@ -266,7 +291,7 @@ void Sema::check(ASTPointer ast) {
             }
 
             if (var_scope->variables.size() >= 2) {
-              throw Error(*id->token.get_forword(),
+              throw Error(*id->token.get_next(),
                           "too many arguments for catch data of enumerator");
             }
             else if (var_scope->variables.size() == 1) {
@@ -275,16 +300,19 @@ void Sema::check(ASTPointer ast) {
               var.deducted_type = this->eval_type(e.types[0]);
               var.is_type_deducted = true;
             }
-            else {
-              this->ExpectType(this->eval_type(e.types[0]), args[0]);
-            }
+            // else {
+            //   this->ExpectType(this->eval_type(e.types[0]), args[0]);
+            // }
 
             break;
           }
 
           case Enum::Enumerator::DataType::Structure: {
             if (args.size() != e.types.size()) {
-              todo_impl
+              throw Error(enumerator,
+                          "too " + string(args.size() < e.types.size() ? "few" : "many") +
+                              " arguments to check matching of '" +
+                              AST::ToString(enumerator) + "'");
             }
 
             for (size_t i = 0, j = 0; i < args.size(); i++) {

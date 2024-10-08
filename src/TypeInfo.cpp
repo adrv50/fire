@@ -135,12 +135,16 @@ string TypeInfo::to_string() const {
   switch (this->kind) {
   case TypeKind::TypeName:
     if (this->params.size() == 1) {
+      alert;
       ret = this->params[0].to_string();
       break;
     }
 
-  case TypeKind::Instance:
   case TypeKind::Enumerator:
+    return this->type_ast->As<AST::Enum>()->GetName() +
+           "::" + this->type_ast->As<AST::Enum>()->enumerators[this->enum_index].name.str;
+
+  case TypeKind::Instance:
   case TypeKind::Unknown:
     ret = this->name;
     break;

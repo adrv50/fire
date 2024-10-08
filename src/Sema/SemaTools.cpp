@@ -20,6 +20,10 @@ TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
 
   switch (type.kind) {
   case TypeKind::Function: {
+    todo_impl;
+    // add signature
+
+    break;
   }
 
   case TypeKind::Unknown:

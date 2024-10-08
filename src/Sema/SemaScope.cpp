@@ -123,7 +123,8 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
     }
 
     case ASTKind::Match: {
-      auto& ep = ASTCast<AST::Match>(e)->patterns;
+      auto _match = ASTCast<AST::Match>(e);
+      auto& ep = _match->patterns;
 
       for (auto&& eb : ep) {
 
@@ -132,32 +133,39 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
 
         eb_var_scope->ast = eb.block;
 
-        {
+        if (!eb.everything) {
           ASTVec<Identifier> v;
 
           if (eb.expr->is_id_nonqual()) {
             v.emplace_back(ASTCast<AST::Identifier>(eb.expr));
+
+            // eb.vardef_list.emplace_back(0, eb.expr->token.str);
           }
           else if (eb.expr->is(ASTKind::CallFunc)) {
-            for (auto&& arg : eb.expr->As<CallFunc>()->args)
-              if (arg->is(ASTKind::Identifier) && !arg->is_qual_id())
+            for (size_t i = 0; auto&& arg : eb.expr->As<CallFunc>()->args) {
+              if (arg->is(ASTKind::Identifier) && !arg->is_qual_id()) {
                 v.emplace_back(ASTCast<AST::Identifier>(arg));
+
+                eb.vardef_list.emplace_back(i, arg->token.str);
+              }
+
+              i++;
+            }
           }
 
-          for (auto&& e : v) {
+          for (size_t i = 0; auto&& e : v) {
             auto& var = eb_var_scope->variables.emplace_back();
 
             var.name = e->GetName();
 
             var.depth = eb_var_scope->depth;
-            var.index = eb_var_scope->variables.size();
+            var.index = i++;
           }
         }
 
-        // scope of pattern block
-        auto eb_scope = new BlockScope(this->depth + 2, eb.block);
+        // auto eb_scope = new BlockScope(this->depth + 2, eb.block);
 
-        eb_var_scope->AddScope(eb_scope);
+        eb_var_scope->AddScope(new BlockScope(this->depth + 2, eb.block));
 
         this->AddScope(eb_var_scope);
 

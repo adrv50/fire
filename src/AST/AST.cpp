@@ -312,8 +312,9 @@ ASTPointer Match::Clone() const {
   auto ast = New(this->token, this->cond->Clone(), {});
 
   for (auto&& p : this->patterns)
-    ast->patterns.emplace_back(p.expr->Clone(), ASTCast<AST::Block>(p.block->Clone()),
-                               p.everything);
+    ast->patterns.emplace_back(p.type, p.expr->Clone(),
+                               ASTCast<AST::Block>(p.block->Clone()), p.everything,
+                               p.is_eval_expr);
 
   return ast;
 }

@@ -38,8 +38,6 @@ ASTPointer Parser::Stmt() {
 
     this->expect("{");
 
-    bool b = false;
-
     do {
       auto e = this->Expr();
 
@@ -47,12 +45,16 @@ ASTPointer Parser::Stmt() {
 
       this->expect("{", true);
 
-      ast->patterns.emplace_back(e, ASTCast<AST::Block>(this->Stmt()));
+      auto& p = ast->patterns.emplace_back(AST::Match::Pattern::Type::Unknown, e,
+                                           ASTCast<AST::Block>(this->Stmt()));
 
-    } while (this->check() && !(b = this->eat("}")));
+      if (e->is_id_nonqual() && e->token.str == "_") {
+        p.everything = true;
+      }
 
-    if (!b)
-      throw Error(tok, "not terminated block of match-statement");
+    } while (this->eat(","));
+
+    this->expect("}");
 
     return ast;
   }
@@ -358,6 +360,7 @@ ASTPtr<AST::Block> Parser::Parse() {
   auto ret = AST::Block::New(*this->cur);
 
   while (this->eat("include")) {
+    todo_impl;
   }
 
   while (this->check()) {

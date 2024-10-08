@@ -30,8 +30,8 @@ struct Token {
   std::string_view str;
   SourceLocation sourceloc;
 
-  Token const* get_backword(int step = 1);
-  Token const* get_forword(int step = 1);
+  Token const* get_prev(int step = 1);
+  Token const* get_next(int step = 1);
 
   string& get_src_data() {
     return this->sourceloc.ref->data;

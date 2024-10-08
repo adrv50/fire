@@ -101,15 +101,45 @@ struct Statement : Base {
 
 struct Match : Base {
   struct Pattern {
+
+    enum class Type {
+      // just after parsed.
+      Unknown,
+
+      // compare to constant-expression
+      ExprEval,
+
+      // catch as one variable
+      Variable,
+
+      // enumerator
+      Enumerator,
+
+      // enumerator, but have some data
+      EnumeratorWithArguments,
+
+      // underscore "_"
+      AllCases,
+    };
+
+    Type type;
+
     ASTPointer expr;
     ASTPtr<Block> block;
 
     bool everything; // _ => { }
 
-    Pattern(ASTPointer expr, ASTPtr<Block> block, bool everything = false)
-        : expr(expr),
+    bool is_eval_expr = false;
+
+    Vec<std::pair<size_t, string_view>> vardef_list;
+
+    Pattern(Type type, ASTPointer expr, ASTPtr<Block> block, bool everything = false,
+            bool is_eval_expr = false)
+        : type(type),
+          expr(expr),
           block(block),
-          everything(everything) {
+          everything(everything),
+          is_eval_expr(is_eval_expr) {
     }
   };
 

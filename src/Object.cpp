@@ -150,7 +150,8 @@ std::string ObjEnumerator::ToString() const {
            this->data->As<ObjIterable>()->list[i]->ToStringAsMember() + ", ";
     }
 
-    s.insert(s.length() - 2, ")\0");
+    s.erase(s.length() - 1);
+    s[s.length() - 1] = ')';
     break;
   }
   }
@@ -187,7 +188,7 @@ string ObjInstance::ToString() const {
          utils::join<ObjPointer>(", ", this->member_variables,
                                  [&mvarlist, &_index](ObjPointer obj) {
                                    return mvarlist[_index++]->GetName() + ": " +
-                                          obj->ToString();
+                                          obj->ToStringAsMember();
                                  }) +
          "}";
 }

@@ -406,7 +406,8 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
       TypeInfo type = TypeKind::Enumerator;
 
-      type.name = id->ast_enum->GetName();
+      // type.name = id->ast_enum->GetName();
+      type.name = AST::ToString(ast);
 
       type.type_ast = id->ast_enum;
       type.enum_index = id->index;
