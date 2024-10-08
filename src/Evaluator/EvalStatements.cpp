@@ -92,12 +92,12 @@ void Evaluator::eval_stmt(ASTPointer ast) {
     for (auto&& P : x->patterns) {
       switch (P.type) {
       case AST::Match::Pattern::Type::ExprEval: {
-        if (cond->Equals(this->evaluate(P.expr)))
+        if (cond->Equals(this->evaluate(P.expr))) {
           this->push_stack(0);
-        else
-          goto _match_failure;
+          break;
+        }
 
-        break;
+        continue;
       }
 
       case AST::Match::Pattern::Type::Variable: {

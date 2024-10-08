@@ -214,7 +214,6 @@ void Sema::check(ASTPointer ast) {
         this->check(pattern.block);
 
         this->LeaveScope();
-
         continue;
       }
 
@@ -229,6 +228,7 @@ void Sema::check(ASTPointer ast) {
         pattern.type = Match::Pattern::Type::ExprEval;
         pattern.is_eval_expr = true;
 
+        this->LeaveScope();
         continue;
       }
 

@@ -20,6 +20,8 @@ Evaluator::VarStackPtr Evaluator::push_stack(size_t var_count) {
 }
 
 void Evaluator::pop_stack() {
+  debug(assert(this->var_stack.size() >= 1));
+
   this->var_stack.pop_front();
 }
 
