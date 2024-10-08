@@ -218,6 +218,8 @@ ASTPointer Parser::Top() {
 
       if (this->eat("(")) {
         if (this->match(TokenKind::Identifier, ":")) {
+          e.data_type = AST::Enum::Enumerator::DataType::Structure;
+
           do {
             auto& name = *this->expectIdentifier();
 
@@ -228,6 +230,7 @@ ASTPointer Parser::Top() {
           } while (this->eat(","));
         }
         else {
+          e.data_type = AST::Enum::Enumerator::DataType::Value;
           e.types.emplace_back(this->expectTypeName());
         }
 

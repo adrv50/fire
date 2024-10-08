@@ -84,6 +84,10 @@ void Evaluator::eval_stmt(ASTPointer ast) {
     break;
   }
 
+  case Kind::Match: {
+    todo_impl;
+  }
+
   case Kind::While: {
     auto d = ast->as_stmt()->data_while;
 

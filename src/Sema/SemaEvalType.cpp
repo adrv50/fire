@@ -209,7 +209,8 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       id->index = res.lvar->index;
       id->index_add = res.lvar->index_add;
 
-      res.lvar->decl->index_add = id->index_add;
+      if (res.lvar->decl)
+        res.lvar->decl->index_add = id->index_add;
 
       return res.lvar->deducted_type;
     }
@@ -391,9 +392,20 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       id->ast_enum = idinfo.result.ast_enum;
       id->index = idinfo.result.enumerator_index;
 
+      if (id->sema_must_completed) {
+        auto& e = id->ast_enum->enumerators[id->index];
+
+        if (e.data_type != Enum::Enumerator::DataType::NoData) {
+          throw Error(id, "cannot use enumerator '" + AST::ToString(ast) +
+                              "' without arguments");
+        }
+      }
+
       TypeInfo type = TypeKind::Enumerator;
 
       type.name = id->ast_enum->GetName();
+
+      type.type_ast = id->ast_enum;
       type.enum_index = id->index;
 
       return type;
@@ -616,6 +628,11 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
       ast->kind = ASTKind::CallFunc_Ctor;
 
       return TypeInfo::make_instance_type(id->ast_class);
+    }
+
+    case ASTKind::Enumerator: {
+
+      todo_impl;
     }
 
     default: {

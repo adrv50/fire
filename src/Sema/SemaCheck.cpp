@@ -1,3 +1,5 @@
+#include <span>
+
 #include "alert.h"
 #include "Error.h"
 #include "Sema/Sema.h"
@@ -212,12 +214,88 @@ void Sema::check(ASTPointer ast) {
 
       alertexpr(var_scope);
 
-      alert;
-      auto scope = (BlockScope*)this->EnterScope(pattern.block);
+      if (px->is_id_nonqual()) {
+        auto& var = var_scope->variables[0];
 
-      todo_impl;
+        var.deducted_type = cond;
+        var.is_type_deducted = true;
 
-      this->LeaveScope();
+        this->eval_type(px);
+        this->check(pattern.block);
+      }
+      else {
+        ASTPtr<AST::ScopeResol> enumerator = nullptr;
+        std::span<ASTPointer> args;
+
+        switch (px->kind) {
+        case ASTKind::ScopeResol:
+          enumerator = ASTCast<AST::ScopeResol>(px);
+          break;
+
+        case ASTKind::CallFunc: {
+          auto cf = ASTCast<AST::CallFunc>(px);
+
+          enumerator = ASTCast<AST::ScopeResol>(cf->callee);
+          args = cf->args;
+
+          auto e_type = this->eval_type(enumerator);
+
+          alertexpr(static_cast<int>(e_type.kind));
+
+          if (e_type.kind != TypeKind::Enumerator || e_type.type_ast != cond.type_ast) {
+            todo_impl;
+          }
+
+          auto id = enumerator->GetID();
+          auto& e = id->ast_enum->enumerators[id->index];
+
+          switch (e.data_type) {
+          case Enum::Enumerator::DataType::NoData:
+            todo_impl;
+            break;
+
+          case Enum::Enumerator::DataType::Value: {
+            if (args.empty()) {
+              todo_impl;
+            }
+            else if (args.size() >= 2) {
+              todo_impl;
+            }
+
+            auto& var = var_scope->variables[0];
+
+            var.deducted_type = this->eval_type(e.types[0]);
+            var.is_type_deducted = true;
+
+            break;
+          }
+
+          case Enum::Enumerator::DataType::Structure: {
+            if (args.size() != e.types.size()) {
+              todo_impl;
+            }
+
+            for (size_t i = 0; i < args.size(); i++) {
+              auto& v = var_scope->variables[i];
+
+              v.deducted_type = this->eval_type(e.types[i]);
+              v.is_type_deducted = true;
+            }
+
+            break;
+          }
+          }
+
+          this->check(pattern.block);
+
+          break;
+        }
+
+        default:
+          todo_impl; // invalid syntax
+        }
+      }
+
       this->LeaveScope();
     }
 
