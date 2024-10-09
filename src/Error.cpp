@@ -62,6 +62,11 @@ struct line_data_wrapper_t {
   }
 
   std::string to_print_str(bool is_main) const {
+    alertexpr(src);
+    alertexpr(index);
+    alertexpr(pos);
+    alertexpr(linenum);
+
     if (this->src) {
       std::stringstream ss;
 

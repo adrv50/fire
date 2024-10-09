@@ -64,7 +64,7 @@ struct SourceStorage {
   ~SourceStorage();
 
 private:
-  std::vector<SourceStorage> _included;
+  std::vector<std::shared_ptr<SourceStorage>> _included;
 };
 
 struct SourceLocation {

@@ -11,7 +11,7 @@ SourceStorage& SourceStorage::GetInstance() {
 }
 
 SourceStorage& SourceStorage::AddIncluded(SourceStorage&& SS) {
-  return this->_included.emplace_back(std::move(SS));
+  return *this->_included.emplace_back(std::make_shared<SourceStorage>(std::move(SS)));
 }
 
 SourceStorage::LineRange SourceStorage::GetLineRange(i64 position) const {
@@ -37,7 +37,7 @@ std::vector<SourceStorage::LineRange> SourceStorage::GetLinesOfAST(ASTPointer as
 }
 
 bool SourceStorage::Open() {
-  this->file = std::make_unique<std::ifstream>(this->path);
+  this->file = std::make_shared<std::ifstream>(this->path);
 
   if (this->file->fail())
     return false;
@@ -57,6 +57,8 @@ bool SourceStorage::Open() {
   if (this->line_range_list.empty()) {
     this->line_range_list.emplace_back(0, 0, 0);
   }
+
+  this->file->close();
 
   return true;
 }

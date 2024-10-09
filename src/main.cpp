@@ -57,9 +57,9 @@ int parse_command_line(CmdLineArguments& cmd, int argc, char** argv) {
 void execute_file(std::string const& path) {
   using namespace fire;
 
-  try {
+  SourceStorage source{path};
 
-    SourceStorage source{path};
+  try {
 
     if (!source.Open()) {
       Error::fatal_error("cannot open file '" + path + "'");
