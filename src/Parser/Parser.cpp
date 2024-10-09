@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "alert.h"
+#include "Lexer.h"
 #include "Parser.h"
 #include "Error.h"
 #include "Utils.h"
@@ -360,7 +361,37 @@ ASTPtr<AST::Block> Parser::Parse() {
   auto ret = AST::Block::New(*this->cur);
 
   while (this->eat("include")) {
-    todo_impl;
+    auto tok = this->ate;
+
+    if (!this->check() || this->cur->kind != TokenKind::String) {
+      throw Error(*tok, "expected string literal after this token");
+    }
+
+    auto path = string(this->cur->str);
+
+    this->cur++;
+
+    path.erase(path.begin());
+    path.pop_back();
+
+    auto& src = tok->sourceloc.ref->AddIncluded(path);
+
+    if (!src.Open()) {
+      throw Error(*tok, "cannot open file '" + src.path + "'");
+    }
+
+    Lexer lexer{src};
+
+    lexer.Lex(src.token_list);
+
+    Parser parser{src.token_list};
+
+    auto parsed = parser.Parse();
+
+    for (auto&& e : parsed->list)
+      ret->list.emplace_back(e);
+
+    this->expect(";");
   }
 
   while (this->check()) {

@@ -31,11 +31,15 @@ struct SourceStorage {
   std::string path;
   std::string data;
 
-  std::unique_ptr<std::ifstream> file;
+  std::shared_ptr<std::ifstream> file;
 
   std::vector<LineRange> line_range_list;
 
   std::vector<Token> token_list;
+
+  static SourceStorage& GetInstance();
+
+  SourceStorage& AddIncluded(SourceStorage&& SS);
 
   bool Open();
   bool IsOpen() const;
@@ -57,6 +61,10 @@ struct SourceStorage {
   }
 
   SourceStorage(std::string path);
+  ~SourceStorage();
+
+private:
+  std::vector<SourceStorage> _included;
 };
 
 struct SourceLocation {

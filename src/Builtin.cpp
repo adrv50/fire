@@ -1,17 +1,11 @@
 #include <iostream>
 #include <sstream>
 
-#include "Lexer.h"
-#include "Parser.h"
-#include "Evaluator.h"
-
+#include "alert.h"
 #include "AST.h"
 #include "Builtin.h"
 #include "Object.h"
-
 #include "Error.h"
-
-#include "alert.h"
 
 #define define_builtin_func(_Name_)                                                      \
   ObjPointer _Name_([[maybe_unused]] ASTPtr<AST::CallFunc> ast,                          \

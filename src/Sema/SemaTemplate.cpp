@@ -36,6 +36,10 @@ Sema::TemplateTypeApplier::~TemplateTypeApplier() {
 }
 
 Error Sema::TemplateTypeApplier::make_error(ASTPointer ast) {
+  (void)ast;
+
+  todo_impl;
+
   switch (this->result) {
   case Result::TooManyParams:
     return Error(this->ast, "too many template arguments to instantiation of '" +
