@@ -138,6 +138,32 @@ Error const& Error::emit() const {
 
     auto cursorpos = line_err.pos + LINENUM_WIDTH + 3 + utils::get_color_length_in_str(s);
 
+    for (size_t i = 0; i < line_err.view.length();) {
+      //
+      // find a char be printed as two char width,
+      // and adjustment cursorpos if contains that.
+      //
+
+      u8 c = line_err.view[i];
+
+      if (0xC2 <= c && c <= 0xDF) {
+        cursorpos--;
+        i += 2;
+      }
+      else if (0xE0 <= c && c <= 0xEF) {
+        cursorpos--;
+        i += 3;
+      }
+      else if (0xF0 <= c && c <= 0xF5) {
+        // is this two-char width ?? who known this ??
+        cursorpos--;
+        i += 4;
+      }
+      else {
+        i++;
+      }
+    }
+
     if ((int)s.length() <= cursorpos)
       s += std::string(cursorpos - s.length() + 10, ' ');
 
