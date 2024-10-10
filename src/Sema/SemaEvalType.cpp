@@ -48,6 +48,21 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
     return type;
   }
 
+  case Kind::BuiltinFuncName: {
+    auto id = ast->GetID();
+
+    TypeInfo type = TypeKind::Function;
+
+    builtins::Function const* func = id->candidates_builtin[0];
+
+    type.is_free_args = func->is_variable_args;
+
+    type.params = id->ft_args = func->arg_types;
+    type.params.insert(type.params.begin(), id->ft_ret = func->result_type);
+
+    return type;
+  }
+
   case Kind::Array: {
     auto x = ast->As<AST::Array>();
     TypeInfo type = TypeKind::Vector;
@@ -117,7 +132,8 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
       TemplateTypeApplier app;
 
       if (cd->is_templated) {
-        if (!this->try_apply_template_function(app, cd, id->template_args, sig_args))
+        if (!this->try_apply_template_function(nullptr, app, cd, id->template_args,
+                                               sig_args))
           continue;
       }
 
@@ -181,10 +197,11 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
     IdentifierInfo idinfo;
 
-    if (id->sema_use_keeped)
-      idinfo = *this->get_keeped_id_info(id);
-    else
-      idinfo = this->get_identifier_info(id);
+    // if (id->sema_use_keeped)
+    //   idinfo = *this->get_keeped_id_info(id);
+    // else
+
+    idinfo = this->get_identifier_info(id);
 
     auto& res = idinfo.result;
 
@@ -224,217 +241,12 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
     case NameType::Func: {
       id->kind = ASTKind::FuncName;
 
-      id->candidates = std::move(idinfo.result.functions);
+      auto count = this->GetMatchedFunctions(id->candidates, idinfo.result.functions,
+                                             &idinfo, &Ctx);
 
-      ASTVec<AST::Function> temp;
+      alertexpr(count);
 
-      bool is_all_template = true;
-
-      for (auto&& c : id->candidates) {
-        if (!c->is_templated)
-          is_all_template = false;
-
-        if (id->sema_must_completed) {
-          if (c->template_param_names.size() != id->id_params.size()) {
-            continue;
-          }
-        }
-        else if (c->is_templated &&
-                 c->template_param_names.size() < id->id_params.size()) {
-          continue;
-        }
-
-        temp.emplace_back(c);
-      }
-
-      if (temp.empty() && is_all_template) {
-
-        if (id->candidates.size() == 1) {
-          string msg;
-
-          if (id->id_params.size() < id->candidates[0]->template_param_names.size())
-            msg = "too few template arguments";
-          else
-            msg = "too many template arguments";
-
-          throw Error(id, msg).AddChain(
-              Error(Error::ER_Note, id->candidates[0]->tok_template, "declared here"));
-        }
-
-        if (id->id_params.empty())
-          throw Error(id->token, "cannot use function  '" + id->GetName() +
-                                     "' without template arguments");
-        else
-          throw Error(id->token, "cannot use function '" + id->GetName() + "' with " +
-                                     std::to_string(id->id_params.size()) +
-                                     " template arguments");
-      }
-
-      id->candidates = std::move(temp);
-
-      if (id->candidates.size() >= 2) {
-        if (!id->sema_must_completed)
-          return TypeKind::Function;
-
-        auto err =
-            Error(id->token, "function name '" + idinfo.to_string() + "' is ambigous.");
-
-        err.AddChain(Error(Error::ER_Note, id->candidates[0], "candidate 0:"))
-            .AddChain(Error(Error::ER_Note, id->candidates[1], "candidate 1:"));
-
-        if (id->candidates.size() >= 3) {
-          err.AddNote(
-              utils::Format("and found %zu candidates ...", id->candidates.size() - 2));
-        }
-
-        throw err;
-      }
-
-      assert(id->candidates.size() == 1);
-
-      TypeInfo type = TypeKind::Function;
-
-      auto& func = id->candidates[0];
-
-      auto originalptr = func;
-
-      type.is_free_args = func->is_var_arg;
-
-      TemplateTypeApplier apply;
-
-      if (func->is_templated) {
-        alert;
-
-        if (!this->try_apply_template_function(apply, func, id->template_args, {})) {
-          todo_impl;
-          return type;
-        }
-
-        alert;
-
-        ASTPtr<AST::Function> instantiated = nullptr;
-
-        if (auto fp = this->_find_applied(apply); fp && fp != &apply) {
-          alert;
-          alertexpr(fp);
-          alertexpr(&apply);
-
-          instantiated = ASTCast<AST::Function>(fp->Instantiated);
-        }
-        else {
-          this->_applied_ptr_stack.push_front(&apply);
-
-          alert;
-          instantiated = ASTCast<AST::Function>(func->Clone());
-
-          alertexpr(func);
-          alertexpr(instantiated);
-
-          apply.Instantiated = instantiated;
-
-          AST::walk_ast(instantiated,
-                        [&apply](ASTWalkerLocation w, ASTPointer xx) -> bool {
-                          if (w != AW_Begin)
-                            return false;
-
-                          switch (xx->kind) {
-                          case Kind::TypeName: {
-
-                            for (auto&& P : apply.parameter_list) {
-                              if (P.name == xx->As<AST::TypeName>()->name.str) {
-
-                                // *ASTCast<AST::TypeName>(xx) =
-                                //     *Sema::CreateTypeNameAST_From_TypeInfo(P.type);
-
-                                auto T = xx->As<AST::TypeName>();
-
-                                if (P.type.IsPrimitiveType()) {
-                                  T->name.str = P.type.GetSV();
-                                }
-                                else {
-                                  switch (P.type.kind) {
-                                  case TypeKind::Function:
-                                    T->name.str = "function";
-
-                                  default:
-                                    todo_impl;
-                                  }
-                                }
-
-                                alert;
-                                break;
-                              }
-                            }
-
-                            break;
-                          }
-                          }
-
-                          return true;
-                        });
-
-          instantiated->is_templated = false;
-          instantiated->template_param_names.clear();
-
-          instantiated->is_instantiated = true;
-
-          auto fScope = (FunctionScope*)originalptr->scope_ctx_ptr;
-
-          assert(fScope);
-
-          this->SaveScopeLocation();
-
-          this->BackTo(fScope->_owner);
-
-          try {
-
-            this->check(instantiated, {.original_template_func = fScope});
-          }
-          catch (Error e) {
-
-            throw e
-                .InLocation("in instantiation of '" + instantiated->GetName() + "<" +
-                            utils::join(", ", originalptr->template_param_names,
-                                        [](auto const& T) -> string_view {
-                                          return T.str;
-                                        }) +
-                            "> (" +
-                            utils::join(", ", originalptr->arguments,
-                                        [](auto const& A) -> string {
-                                          return AST::ToString(A->type);
-                                        }) +
-                            ")' [" +
-                            utils::join(", ", apply.parameter_list,
-                                        [](auto const& P) -> string {
-                                          return P.name + "=" + P.type.to_string();
-                                        }) +
-                            "]")
-                .AddChain(Error(Error::ER_Note, id->token, "requested here"));
-          }
-
-          this->RestoreScopeLocation();
-
-          alertexpr(AST::ToString(instantiated));
-        }
-
-        // func->InsertInstantiated(instantiated);
-
-        func = instantiated;
-
-        id->template_func_decided = true;
-        id->template_original = originalptr;
-      }
-      else if (id->id_params.size() >= 1) {
-        throw Error(id, "function '" + func->GetName() + "' is not a template");
-      }
-
-      type.params.emplace_back(id->ft_ret = this->eval_type(func->return_type));
-
-      for (auto&& arg : func->arguments) {
-        id->ft_args.emplace_back(type.params.emplace_back(this->eval_type(arg->type)));
-      }
-
-      return type;
+      todo_impl;
     }
 
     case NameType::BuiltinFunc: {
@@ -623,17 +435,18 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
       id->sema_must_completed = false;
     }
 
-    TypeInfo functor_type = this->eval_type(functor);
-
     TypeVec arg_types;
+
+    for (ASTPointer arg : call->args) {
+      arg_types.emplace_back(this->eval_type(arg));
+    }
+
+    TypeInfo functor_type =
+        this->eval_type(functor, {.FuncName = {.CF = call, .ArgTypes = &arg_types}});
 
     if (functor->kind == ASTKind::MemberFunction) {
       call->args.insert(call->args.begin(), functor->as_expr()->lhs);
       functor->kind = ASTKind::FuncName;
-    }
-
-    for (ASTPointer arg : call->args) {
-      arg_types.emplace_back(this->eval_type(arg));
     }
 
     switch (functor->kind) {
@@ -652,7 +465,9 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
         if (candidate->is_templated) {
 
-          if (this->try_apply_template_function(apply, candidate, id->template_args,
+          todo_impl;
+
+          if (this->try_apply_template_function(&Ctx, apply, candidate, id->template_args,
                                                 arg_types)) {
             final_candidates.emplace_back(candidate);
           }

@@ -315,10 +315,10 @@ ASTPointer Parser::Top() {
 
     if (this->eat_typeparam_bracket_open()) {
       func->is_templated = true;
-      func->tok_template = *this->ate;
+      func->tok_template = *this->cur;
 
       do {
-        func->template_param_names.emplace_back(*this->expectIdentifier());
+        func->template_param_names.emplace_back(this->parse_template_param_decl());
       } while (this->eat(","));
 
       this->expect_typeparam_bracket_close();

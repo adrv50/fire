@@ -89,9 +89,22 @@ struct Templatable : Named {
 
   bool is_instantiated = false;
 
-  TokenVector template_param_names;
+  struct ParameterName {
+    Token* token;
+    Vec<ParameterName> params;
+  };
 
-  // インスタンス化した場合、親ブロックの自分の１個前の位置に挿入する。
+  Vec<ParameterName> template_param_names;
+
+  //
+  // 可変長パラメータ引数
+  bool IsVariableParameters = false;
+  Token VariableParams_Name;
+
+  size_t ParameterCount() const {
+    return template_param_names.size();
+  }
+
   ASTPtr<Block> owner_block_ptr = nullptr;
   size_t index_of_self_in_owner_block_list = 0;
 

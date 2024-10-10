@@ -92,6 +92,8 @@ struct TypeInfo {
 
   string_view GetSV() const;
 
+  string GetName() const;
+
   static TypeInfo from_enum(ASTPtr<AST::Enum> ast);
   static TypeInfo from_class(ASTPtr<AST::Class> ast);
 

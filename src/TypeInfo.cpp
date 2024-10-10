@@ -60,6 +60,13 @@ string_view TypeInfo::GetSV() const {
   return g_names[static_cast<u8>(this->kind)];
 }
 
+string TypeInfo::GetName() const {
+  if (this->IsPrimitiveType())
+    return string(this->GetSV());
+
+  return this->name;
+}
+
 bool TypeInfo::is_numeric() const {
   switch (this->kind) {
   case TypeKind::Int:
@@ -214,7 +221,8 @@ int TypeInfo::needed_param_count() const {
     return 2; // key, value
 
   case TypeKind::TypeName: {
-    if (auto x = ASTCast<AST::Templatable>(this->type_ast); x->is_templated) {
+    if (auto x = ASTCast<AST::Templatable>(this->type_ast);
+        this->type_ast->IsTemplateAST() && x->is_templated) {
       return x->template_param_names.size();
     }
 

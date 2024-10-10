@@ -74,6 +74,8 @@ private:
   }
 
   TokenIterator insert_token(Token tok) {
+    tok.sourceloc = this->cur->sourceloc;
+
     this->cur = this->tokens.insert(this->cur, tok);
     this->end = this->tokens.end();
 
@@ -105,6 +107,30 @@ private:
   bool _in_loop = false;
 
   int _typeparam_bracket_depth = 0;
+
+  //
+  // fn func <...>
+  // class C <...>
+  AST::Templatable::ParameterName parse_template_param_decl() {
+    AST::Templatable::ParameterName pn = {&*this->expectIdentifier()};
+
+    if (this->eat_typeparam_bracket_open()) {
+      do {
+        pn.params.emplace_back(parse_template_param_decl());
+      } while (this->eat(","));
+
+      this->expect_typeparam_bracket_close();
+    }
+
+    return pn;
+  }
+
+  void check_match_of_template_arg_type(AST::Templatable::ParameterName const& P,
+                                        ASTPtr<AST::TypeName> T) {
+
+    if (P.token->str != T->GetName())
+      return;
+  }
 };
 
 } // namespace fire::parser

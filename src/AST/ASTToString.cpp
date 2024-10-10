@@ -15,6 +15,17 @@ static string join(string const& s, std::vector<ASTPtr<T>> const& v) {
   return utils::join(s, v, ToString);
 }
 
+string tpn2str_fn(AST::Templatable::ParameterName const& P) {
+
+  string s = string(P.token->str);
+
+  if (P.params.size() >= 1) {
+    s += "<" + utils::join(", ", P.params, tpn2str_fn) + ">";
+  }
+
+  return s;
+}
+
 string ToString(ASTPointer ast) {
   if (!ast)
     return "(null)";
@@ -28,18 +39,13 @@ string ToString(ASTPointer ast) {
     if (x->is_virtualized)
       s = "virtual ";
 
-    s += "fn ";
+    s += "fn " + x->GetName();
 
     if (x->is_templated) {
-      s += "<" +
-           utils::join(", ", x->template_param_names,
-                       [](Token const& t) -> string {
-                         return string(t.str);
-                       }) +
-           ">";
+      s += " <" + utils::join(", ", x->template_param_names, tpn2str_fn) + ">";
     }
 
-    s += "(" + join(", ", x->arguments) + ") ";
+    s += " (" + join(", ", x->arguments) + ") ";
 
     if (x->return_type) {
       s += "-> " + ToString(x->return_type) + " ";

@@ -50,7 +50,7 @@
     alertfmt("%s", ss.str().c_str());                                                    \
   })
 
-#define alertexpr(expr) alertmsg("\"" #expr "\" = " << (expr))
+#define alertexpr(expr) alertmsg("\"" #expr "\" = " << expr)
 
 #define todo_impl (alertmsg("not implemented"), exit(1))
 #define panic (alertmsg("panic !"), exit(1))

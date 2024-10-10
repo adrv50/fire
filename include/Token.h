@@ -41,18 +41,18 @@ struct Token {
     return this->kind == tok.kind && this->str == tok.str;
   }
 
-  Token(TokenKind kind, std::string const& str, SourceLocation sourceloc = {})
+  Token(TokenKind kind, string_view str, SourceLocation sourceloc = {})
       : kind(kind),
         str(str),
         sourceloc(sourceloc) {
   }
 
-  Token(std::string str)
+  Token(string_view str)
       : Token(TokenKind::Unknown, str) {
   }
 
   Token(char const* str = "")
-      : Token(std::string(str)) {
+      : Token(string_view(str)) {
   }
 
   Token(TokenKind kind)

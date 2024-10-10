@@ -94,6 +94,7 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
     // SemaFunction* func = nullptr;
 
     if (x->is_templated) {
+
       break;
     }
 
@@ -105,8 +106,6 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
         break;
       }
     }
-
-    auto& cur = this->GetCurScope();
 
     if (!func) {
       if (Ctx.original_template_func) {
