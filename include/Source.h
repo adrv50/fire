@@ -64,6 +64,8 @@ struct SourceStorage {
   ~SourceStorage();
 
 private:
+  // use pointer for keep location element in memory
+  // because referenced by tokens. (SourceLocation)
   std::vector<std::shared_ptr<SourceStorage>> _included;
 };
 

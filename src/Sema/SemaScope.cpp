@@ -458,12 +458,18 @@ ScopeContext* FunctionScope::find_child_scope(ASTPointer ast) {
   if (this->ast == ast)
     return this;
 
+  if (this->block->ast == ast)
+    return this->block;
+
   return this->block->find_child_scope(ast);
 }
 
 ScopeContext* FunctionScope::find_child_scope(ScopeContext* ctx) {
   if (this == ctx)
     return this;
+
+  if (ctx == this->block)
+    return this->block;
 
   return this->block->find_child_scope(ctx);
 }

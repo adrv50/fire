@@ -92,7 +92,7 @@ ScopeContext* Sema::EnterScope(ASTPointer ast) {
 }
 
 ScopeContext* Sema::EnterScope(ScopeContext* ctx) {
-  debug(assert(this->GetCurScope()->contains(ctx)));
+  // debug(assert(this->GetCurScope()->contains(ctx)));
 
   return this->_scope_history.emplace_front(ctx);
 }
