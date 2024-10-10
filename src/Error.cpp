@@ -162,7 +162,7 @@ Error const& Error::emit() const {
 
   cout << COL_DEFAULT << COL_BOLD << "     " COL_BORDER_LINE " | ";
 
-  cout << cursor_space << COL_WHITE COL_BOLD "^" << COL_DEFAULT << endl;
+  cout << cursor_space << COL_WHITE COL_BOLD "^" << COL_DEFAULT << endl << endl;
 
   _err_emitted_count++;
 

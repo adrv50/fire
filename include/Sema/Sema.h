@@ -133,7 +133,11 @@ class Sema {
 
   struct SemaContext {
 
-    FunctionScope* swap_func_scope;
+    FunctionScope* original_template_func = nullptr;
+
+    bool create_new_scope = false;
+
+    static SemaContext NullCtx;
   };
 
 public:
@@ -142,9 +146,9 @@ public:
 
   void check_full();
 
-  void check(ASTPointer ast, SemaContext Ctx = {0});
+  void check(ASTPointer ast, SemaContext Ctx = SemaContext::NullCtx);
 
-  TypeInfo eval_type(ASTPointer ast, SemaContext Ctx = {0});
+  TypeInfo eval_type(ASTPointer ast, SemaContext Ctx = SemaContext::NullCtx);
 
   TypeInfo eval_type_name(ASTPtr<AST::TypeName> ast);
 

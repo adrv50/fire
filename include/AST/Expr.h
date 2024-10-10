@@ -27,6 +27,9 @@ struct Identifier : Named {
   ASTVec<Function> candidates;
   vector<builtins::Function const*> candidates_builtin;
 
+  bool template_func_decided = false;
+  ASTPtr<Function> template_original;
+
   TypeInfo ft_ret;
   vector<TypeInfo> ft_args;
 

@@ -379,20 +379,50 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
           auto fScope = (FunctionScope*)this->GetScopeOf(originalptr);
 
+          assert(fScope);
+
           this->SaveScopeLocation();
 
           this->BackTo(fScope->_owner);
 
-          this->check(instantiated, {.swap_func_scope = fScope});
+          try {
+
+            this->check(instantiated,
+                        {.original_template_func = fScope, .create_new_scope = true});
+          }
+          catch (Error e) {
+
+            throw e
+                .InLocation("in instantiation of '" + instantiated->GetName() + "<" +
+                            utils::join(", ", originalptr->template_param_names,
+                                        [](auto const& T) -> string_view {
+                                          return T.str;
+                                        }) +
+                            "> (" +
+                            utils::join(", ", originalptr->arguments,
+                                        [](auto const& A) -> string {
+                                          return AST::ToString(A->type);
+                                        }) +
+                            ")' [" +
+                            utils::join(", ", apply.parameter_list,
+                                        [](auto const& P) -> string {
+                                          return P.name + "=" + P.type.to_string();
+                                        }) +
+                            "]")
+                .AddChain(Error(Error::ER_Note, id->token, "requested here"));
+          }
 
           this->RestoreScopeLocation();
 
-          // alertexpr(AST::ToString(instantiated));
+          alertexpr(AST::ToString(instantiated));
         }
 
         // func->InsertInstantiated(instantiated);
 
         func = instantiated;
+
+        id->template_func_decided = true;
+        id->template_original = originalptr;
       }
       else if (id->id_params.size() >= 1) {
         throw Error(id, "function '" + func->GetName() + "' is not a template");

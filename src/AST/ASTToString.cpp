@@ -64,7 +64,7 @@ string ToString(ASTPointer ast) {
     string s = string(x->GetName());
 
     if (!x->type_params.empty()) {
-      s += "@<" + utils::join<ASTPtr<TypeName>>(", ", x->type_params, ToString) + ">";
+      s += "<" + utils::join<ASTPtr<TypeName>>(", ", x->type_params, ToString) + ">";
     }
 
     if (x->is_const)

@@ -33,6 +33,16 @@ TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
     for (auto&& p : ast->type_params)
       type.params.emplace_back(this->eval_type_name(p));
 
+    if (auto c = type.needed_param_count(); c == 0 && type.params.size() >= 1) {
+      throw Error(ast->token, "'" + ast->GetName() + "' type is not a template");
+    }
+    else if (1 <= c && c > type.params.size()) {
+      throw Error(ast->token, "too few template arguments");
+    }
+    else if (1 <= c && c < type.params.size()) {
+      throw Error(ast->token, "too many template arguments");
+    }
+
     return type;
   }
   }
@@ -92,11 +102,17 @@ ScopeContext* Sema::EnterScope(ASTPointer ast) {
     }
   }
 
+  if (!scope) {
+    Error(ast->token, "scope is nullptr").emit();
+
+    panic;
+  }
+
   return this->EnterScope(scope);
 }
 
 ScopeContext* Sema::EnterScope(ScopeContext* ctx) {
-  debug(assert(this->GetCurScope()->contains(ctx)));
+  // debug(assert(this->GetCurScope()->contains(ctx)));
 
   return this->_scope_history.emplace_front(ctx);
 }

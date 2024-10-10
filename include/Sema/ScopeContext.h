@@ -142,6 +142,8 @@ struct FunctionScope : ScopeContext {
 
   ASTVec<AST::Statement> return_stmt_list;
 
+  Vec<FunctionScope*> InstantiatedTemplateFunctions;
+
   bool is_templated() const {
     return ast->is_templated;
   }

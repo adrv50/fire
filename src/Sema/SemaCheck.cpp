@@ -102,9 +102,13 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
       }
     }
 
+    auto& cur = this->GetCurScope();
+
     if (!func) {
-      if (!(func = Ctx.swap_func_scope)) {
-        panic;
+      if (Ctx.create_new_scope) {
+        func = new FunctionScope(cur->depth + 1, x);
+
+        Ctx.original_template_func->InstantiatedTemplateFunctions.emplace_back(func);
       }
     }
 
@@ -118,6 +122,9 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
     this->cur_function = func;
 
     for (auto&& arg : func->arguments) {
+
+      alertexpr(AST::ToString(arg.arg->type));
+
       arg.deducted_type = this->eval_type(arg.arg->type);
       arg.is_type_deducted = true;
     }

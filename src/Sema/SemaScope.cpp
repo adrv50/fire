@@ -343,6 +343,8 @@ ScopeContext::LocalVar* BlockScope::find_var(string_view const& name) {
 }
 
 ScopeContext* BlockScope::find_child_scope(ASTPointer ast) {
+  alert;
+
   for (auto&& c : this->child_scopes) {
     if (c->GetAST() == ast)
       return c;
@@ -455,6 +457,8 @@ ScopeContext::LocalVar* FunctionScope::find_var(string_view const& name) {
 }
 
 ScopeContext* FunctionScope::find_child_scope(ASTPointer ast) {
+  alert;
+
   if (this->ast == ast)
     return this;
 
@@ -465,6 +469,8 @@ ScopeContext* FunctionScope::find_child_scope(ASTPointer ast) {
 }
 
 ScopeContext* FunctionScope::find_child_scope(ScopeContext* ctx) {
+  alert;
+
   if (this == ctx)
     return this;
 
