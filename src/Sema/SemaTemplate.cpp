@@ -57,7 +57,7 @@ Sema::TemplateTypeApplier Sema::apply_template_params(ASTPtr<AST::Templatable> a
   TemplateTypeApplier apply{ast};
 
   for (size_t i = 0; i < args.size(); i++) {
-    apply.add_parameter(ast->template_param_names[i].token->str, args[i]);
+    apply.add_parameter(ast->template_param_names[i].token.str, args[i]);
   }
 
   apply.result = TemplateTypeApplier::Result::NotChecked;

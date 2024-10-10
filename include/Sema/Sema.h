@@ -188,40 +188,65 @@ class Sema {
       string Name;
       TypeInfo Type;
 
-      Token* Tok = nullptr;
+      Token Tok;
 
       bool IsAssignmented = false;
 
-      bool IsDeducted = false;
-
-      //
-      // テンプレート引数の指定部分 "@< ... >" で渡されたものは IsAssignmented = true
-      // となる
-      //
-      // 指定されずに、引数から型推論した場合は、IsDeducted = true になる。
-      //
-      // IsAssignmented = true
-      // のときは、引数の型と完全一致ではなく、構文に当てはめて正しい意味になるかどうかを確認する。
-      //
-
-      ASTPointer Given = nullptr;
+      ASTPtr<AST::Identifier> TemplateArg = nullptr;
 
       Vec<ParameterInfo> Params;
+
+      void CheckParameterMatchings() {
+        if (Params.empty()) {
+          if (Type.params.size() >= 1) {
+            throw Error(TemplateArg, "'" + Name + "' is not a template");
+          }
+        }
+        else if (Params.size() < Type.params.size()) {
+          throw Error(TemplateArg,
+                      "too many template arguments for parameter '" + Name + "'");
+        }
+        else if (Params.size() > Type.params.size()) {
+          if (Type.needed_param_count() == 0) {
+            throw Error(TemplateArg,
+                        "expected template type, but found '" + Type.to_string() + "'");
+          }
+
+          throw Error(TemplateArg,
+                      "too few template arguments for parameter '" + Name + "'");
+        }
+
+        if (this->TemplateArg) {
+          for (size_t i = 0; i < Params.size(); i++) {
+            Params[i].TemplateArg = Sema::GetID(this->TemplateArg->id_params[i]);
+          }
+        }
+      }
 
       ParameterInfo(string const& Name, TypeInfo const& T = {})
           : Name(Name),
             Type(T) {
       }
 
-      ParameterInfo(Token* token)
-          : Name(string(token->str)),
+      ParameterInfo(Token const& token)
+          : Name(string(token.str)),
             Tok(token) {
+        alert;
+        alertexpr(token.str);
+        alertexpr(Name);
       }
 
       ParameterInfo(AST::Templatable::ParameterName const& P)
           : ParameterInfo(P.token) {
-        for (auto&& pp : P.params) {
-          this->Params.emplace_back(pp);
+        for (size_t i = 0; auto&& pp : P.params) {
+          auto& e = this->Params.emplace_back(pp);
+
+          if (this->TemplateArg) {
+            alert;
+            e.TemplateArg = Sema::GetID(this->TemplateArg->id_params[i]);
+          }
+
+          i++;
         }
       }
     };
@@ -243,6 +268,8 @@ class Sema {
       PseudoTypeInfo(ASTPtr<AST::TypeName> ast)
           : PseudoTypeInfo(string(ast->GetName()), &ast->token) {
 
+        alertexpr(this->name);
+
         for (auto&& p : ast->type_params)
           this->params.emplace_back(p);
       }
@@ -253,7 +280,7 @@ class Sema {
 
       REPL_Succeed,
 
-      REPL_InvalidName,
+      REPL_InvalidName, // unknown
 
       REPL_NotTemplate, // but given params
 
@@ -305,27 +332,33 @@ class Sema {
       return nullptr;
     }
 
-    void CheckParameterMatchingToTypeDecl(ParameterInfo const& P,
+    bool CheckParameterMatchingToTypeDecl(ParameterInfo const& P, TypeInfo const& ArgType,
                                           ASTPtr<AST::TypeName> T) {
 
-      if (P.Name != T->GetName())
-        return;
-
-      if (P.Params.empty()) {
-        if (T->type_params.size() >= 1) {
-          throw Error(T->token, "'" + P.Name + "' is not a templated");
-        }
+      if (P.Name != T->GetName()) {
+        return true;
       }
-      else if (P.Params.size() < T->type_params.size()) {
-        throw Error(T->token, "too many template arguments");
+
+      if (P.Params.size() < T->type_params.size()) {
+        alert;
+        this->TryiedResult.Type = TI_TooManyParameters;
+        return false;
       }
       else if (P.Params.size() > T->type_params.size()) {
-        throw Error(T->token, "too few template arguments");
+        alert;
+        this->TryiedResult.Type = TI_CannotDeductType;
+        return false;
       }
 
       for (size_t i = 0; i < P.Params.size(); i++) {
-        CheckParameterMatchingToTypeDecl(P.Params[i], T->type_params[i]);
+        if (!CheckParameterMatchingToTypeDecl(P.Params[i], ArgType.params[i],
+                                              T->type_params[i])) {
+          alert;
+          return false;
+        }
       }
+
+      return true;
     }
 
     TIReplacementResult ReplacePseudoTI(PseudoTypeInfo& P) {
@@ -349,6 +382,11 @@ class Sema {
         }
         else if (auto _C = S._find_class(P.name); _C) {
           R.Replaced = TypeInfo::from_class(_C);
+        }
+        else {
+          R.Result = REPL_InvalidName;
+          alert;
+          return R;
         }
       }
 
@@ -384,10 +422,12 @@ class Sema {
         auto pr = ReplacePseudoTI(Param);
 
         if (pr.Result == REPL_Succeed) {
+          alert;
           R.Replaced.params.emplace_back(pr.Replaced);
         }
 
         else {
+          alert;
           return pr;
         }
       }
@@ -395,6 +435,54 @@ class Sema {
       R.Result = REPL_Succeed;
 
       return R;
+    }
+
+    bool AssignmentTypeToParam(ParameterInfo* P, ASTPtr<AST::TypeName> TypeAST,
+                               TypeInfo const& type) {
+
+      alertexpr(TypeAST->GetName());
+
+      if (P->Name == TypeAST->GetName() && !P->IsAssignmented) {
+        P->Name = type.GetName();
+        P->Type = type;
+        P->IsAssignmented = true;
+        alert;
+      }
+
+      else if (TypeAST->GetName() != type.GetName()) {
+        this->TryiedResult.Type = TI_Arg_TypeMismatch;
+        this->TryiedResult.ErrParam = P;
+
+        alert;
+        return false;
+      }
+
+      if (P->Params.empty()) {
+        if (type.params.size() >= 1) {
+        }
+      }
+      else if (P->Params.size() > type.params.size()) {
+        this->TryiedResult.Type = TI_Arg_TooFew;
+        this->TryiedResult.ErrParam = P;
+        alert;
+        return false;
+      }
+      else if (P->Params.size() < type.params.size()) {
+        this->TryiedResult.Type = TI_Arg_TooMany;
+        this->TryiedResult.ErrParam = P;
+        alert;
+        return false;
+      }
+
+      for (size_t i = 0; i < P->Params.size(); i++) {
+        if (!AssignmentTypeToParam(&P->Params[i], TypeAST->type_params[i],
+                                   type.params[i])) {
+          alert;
+          return false;
+        }
+      }
+
+      return true;
     }
 
     ASTPtr<AST::Function>
@@ -420,11 +508,15 @@ class Sema {
       if (Ctx && Ctx->ArgTypes) {
         alert;
 
-        if (Ctx->GetArgumentsCount() < Func->arguments.size())
+        if (Ctx->GetArgumentsCount() < Func->arguments.size()) {
+          alert;
           return nullptr;
+        }
 
-        if (!Func->is_var_arg && Func->arguments.size() < Ctx->GetArgumentsCount())
+        if (!Func->is_var_arg && Func->arguments.size() < Ctx->GetArgumentsCount()) {
+          alert;
           return nullptr;
+        }
 
         for (size_t i = 0; auto&& ArgType : *Ctx->ArgTypes) {
           ASTPtr<AST::Argument>& Formal = Func->arguments[i];
@@ -433,49 +525,47 @@ class Sema {
 
           if (!P) {
             alert;
-
             continue;
           }
 
-          CheckParameterMatchingToTypeDecl(*P, Formal->type);
-
-          if (P->IsDeducted && !P->Type.equals(ArgType)) {
-            alert;
-
-            TryiedResult.Type = TI_Arg_TypeMismatch;
-
-            TryiedResult.ErrParam = P;
-
-            TryiedResult.ErrArgument =
-                Ctx->CF ? Ctx->CF->args[i] : Ctx->Sig->arg_type_list[i];
-
-            TryiedResult.ErrArgIndex = i;
-
+          alert;
+          if (!CheckParameterMatchingToTypeDecl(*P, ArgType, Formal->type)) {
             return nullptr;
           }
 
           if (P->IsAssignmented) {
-            alert;
-            PseudoTypeInfo psuedo_ti{Formal->type};
 
-            if (P->Type.params.size() >= 1 && Formal->type->type_params.size() >= 1) {
-              todo_impl;
-            }
+            PseudoTypeInfo pseudo{Formal->type};
 
-            auto result = ReplacePseudoTI(psuedo_ti);
+            auto R = ReplacePseudoTI(pseudo);
 
-            if (result.Result == REPL_Succeed) {
+            assert(R.Result == REPL_Succeed);
+
+            if (!R.Replaced.equals(ArgType)) {
+
+              TryiedResult.Type = TI_Arg_TypeMismatch;
+
+              TryiedResult.ErrParam = P;
+
+              TryiedResult.ErrArgument =
+                  Ctx->CF ? Ctx->CF->args[i] : Ctx->Sig->arg_type_list[i];
+
+              TryiedResult.ErrArgIndex = i;
+
               alert;
-            }
-            else {
-              todo_impl;
+              return nullptr;
             }
           }
 
           else {
+            alert;
 
-            alertexpr(ArgType.GetName());
+            if (!AssignmentTypeToParam(P, Formal->type, ArgType)) {
+              return nullptr;
+            }
           }
+
+          i++;
         }
       }
 
@@ -499,9 +589,14 @@ class Sema {
 
       alert;
       for (size_t i = 0; auto&& ParamType : ParamsII->id_params) {
-        this->Params[i].Type = ParamType;
-        this->Params[i].Given = ParamsII->template_args[i].ast;
-        this->Params[i].IsAssignmented = true;
+        auto& P = this->Params[i];
+
+        P.Type = ParamType;
+        P.TemplateArg = ParamsII->template_args[i].ast;
+
+        P.CheckParameterMatchings();
+
+        P.IsAssignmented = true;
 
         i++;
       }

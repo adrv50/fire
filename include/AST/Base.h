@@ -90,7 +90,7 @@ struct Templatable : Named {
   bool is_instantiated = false;
 
   struct ParameterName {
-    Token* token;
+    Token token;
     Vec<ParameterName> params;
   };
 

@@ -17,7 +17,7 @@ static string join(string const& s, std::vector<ASTPtr<T>> const& v) {
 
 string tpn2str_fn(AST::Templatable::ParameterName const& P) {
 
-  string s = string(P.token->str);
+  string s = string(P.token.str);
 
   if (P.params.size() >= 1) {
     s += "<" + utils::join(", ", P.params, tpn2str_fn) + ">";

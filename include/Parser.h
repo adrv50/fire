@@ -112,7 +112,8 @@ private:
   // fn func <...>
   // class C <...>
   AST::Templatable::ParameterName parse_template_param_decl() {
-    AST::Templatable::ParameterName pn = {&*this->expectIdentifier()};
+    AST::Templatable::ParameterName pn = {.token = *this->expectIdentifier(),
+                                          .params = {}};
 
     if (this->eat_typeparam_bracket_open()) {
       do {
@@ -128,7 +129,7 @@ private:
   void check_match_of_template_arg_type(AST::Templatable::ParameterName const& P,
                                         ASTPtr<AST::TypeName> T) {
 
-    if (P.token->str != T->GetName())
+    if (P.token.str != T->GetName())
       return;
   }
 };
