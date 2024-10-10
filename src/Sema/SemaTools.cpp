@@ -181,7 +181,7 @@ int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth)
   return (int)out.size();
 }
 
-LocalVar* Sema::_find_variable(string_view const& name) {
+LocalVar* Sema::_find_variable(string const& name) {
 
   for (auto&& scope : this->GetHistory()) {
     auto lvar = scope->find_var(name);
@@ -193,7 +193,7 @@ LocalVar* Sema::_find_variable(string_view const& name) {
   return nullptr;
 }
 
-ASTVec<Function> Sema::_find_func(string_view const& name) {
+ASTVec<Function> Sema::_find_func(string const& name) {
   ASTVec<AST::Function> v;
 
   for (auto&& scope : this->GetHistory()) {
@@ -210,19 +210,19 @@ ASTVec<Function> Sema::_find_func(string_view const& name) {
   return v;
 }
 
-ASTPtr<Enum> Sema::_find_enum(string_view const& name) {
+ASTPtr<Enum> Sema::_find_enum(string const& name) {
   return ASTCast<AST::Enum>(this->context_reverse_search([&name](ASTPointer p) {
     return p->kind == ASTKind::Enum && p->As<AST::Named>()->GetName() == name;
   }));
 }
 
-ASTPtr<Class> Sema::_find_class(string_view const& name) {
+ASTPtr<Class> Sema::_find_class(string const& name) {
   return ASTCast<AST::Class>(this->context_reverse_search([&name](ASTPointer p) {
     return p->kind == ASTKind::Class && p->As<AST::Named>()->GetName() == name;
   }));
 }
 
-ASTPtr<Block> Sema::_find_namespace(string_view const& name) {
+ASTPtr<Block> Sema::_find_namespace(string const& name) {
   return ASTCast<AST::Block>(this->context_reverse_search([&name](ASTPointer p) {
     return p->kind == ASTKind::Namespace && p->token.str == name;
   }));
@@ -242,7 +242,7 @@ ASTPointer Sema::context_reverse_search(std::function<bool(ASTPointer)> func) {
   return nullptr;
 }
 
-NameFindResult Sema::find_name(string_view const& name, bool const only_cur_scope) {
+NameFindResult Sema::find_name(string const& name, bool const only_cur_scope) {
 
   NameFindResult result = {};
 
@@ -325,7 +325,7 @@ IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast,
   IdentifierInfo id_info{};
 
   id_info.ast = ast;
-  id_info.result = this->find_name(ast->GetName(), only_cur_scope);
+  id_info.result = this->find_name(string(ast->GetName()), only_cur_scope);
 
   for (auto&& x : ast->id_params) {
     assert(x->is_ident_or_scoperesol());
@@ -360,7 +360,7 @@ IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
   auto info = this->get_identifier_info(ast->first);
 
   // string idname = string(ast->first->GetName());
-  string_view idname = ast->first->GetName();
+  string idname = ast->first->GetName();
 
   this->SaveScopeLocation();
 
@@ -371,7 +371,7 @@ IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
   }
 
   for (auto&& id : ast->idlist) {
-    string_view name = id->GetName();
+    string name = id->GetName();
 
     switch (info.result.type) {
     case NameType::Enum: {

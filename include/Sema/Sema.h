@@ -9,10 +9,14 @@
 #include "Error.h"
 
 #include "AST.h"
+#include "ASTWalker.h"
 #include "Builtin.h"
 #include "ScopeContext.h"
 
 namespace fire::semantics_checker {
+
+struct SemaContext;
+struct SemaFunctionNameContext;
 
 using namespace AST;
 using TypeVec = vector<TypeInfo>;
@@ -99,25 +103,158 @@ struct IdentifierInfo {
   string to_string() const;
 };
 
+struct SemaFunctionNameContext {
+  ASTPtr<AST::CallFunc> CF;
+  ASTPtr<AST::Signature> Sig;
+
+  TypeVec const* ArgTypes = nullptr;
+  TypeInfo const* ExpectedResultType = nullptr;
+
+  bool MustDecideOneCandidate = true;
+
+  bool IsValid() {
+    return CF || Sig;
+  }
+
+  size_t GetArgumentsCount() {
+    return ArgTypes ? ArgTypes->size() : 0;
+  }
+};
+
+struct SemaContext {
+
+  FunctionScope* original_template_func = nullptr;
+
+  bool create_new_scope = false;
+
+  SemaFunctionNameContext FuncName;
+
+  bool InCallFunc() {
+    return FuncName.CF != nullptr;
+  }
+
+  bool InOverloadResolGuide() {
+    return FuncName.Sig != nullptr;
+  }
+
+  static SemaContext NullCtx;
+};
+
+struct TemplateInstantiationContext {
+
+  enum ResultTypes {
+    TI_NotTryied,
+
+    TI_Succeed,
+
+    TI_TooManyParameters,
+
+    TI_CannotDeductType,
+
+    TI_Arg_TypeMismatch,
+
+    TI_Arg_ParamError, // in formal define
+
+    TI_Arg_TooFew,
+
+    TI_Arg_TooMany,
+  };
+
+  struct ParameterInfo {
+    string Name;
+    TypeInfo Type;
+
+    Token Tok;
+
+    bool IsAssignmented = false;
+
+    ASTPtr<AST::Identifier> TemplateArg = nullptr;
+
+    Vec<ParameterInfo> Params;
+
+    bool IsTypeDeductionCompleted();
+
+    ParameterInfo* GetNotTypeDeducted();
+
+    ParameterInfo(string const& Name, TypeInfo const& T = {});
+    ParameterInfo(Token const& token);
+    ParameterInfo(AST::Templatable::ParameterName const& P);
+  };
+
+  struct InstantiationResult {
+    ResultTypes Type = TI_NotTryied;
+
+    ParameterInfo* ErrParam = nullptr;
+
+    TypeInfo Given;
+
+    ASTPointer ErrArgument = nullptr; // or type-ast
+
+    size_t ErrArgIndex = 0;
+  };
+
+  Sema& S;
+
+  IdentifierInfo* ParamsII;
+
+  ASTPtr<AST::Templatable> Item; // Templated (original)
+
+  InstantiationResult TryiedResult;
+
+  Vec<ParameterInfo> Params;
+
+  bool Failed = false;
+
+  TemplateInstantiationContext* _Previous = nullptr;
+
+  Error CreateError();
+
+  ParameterInfo* _GetParam_in(Vec<ParameterInfo>& vp, string const& name);
+
+  ParameterInfo* GetParam(string const& name);
+
+  size_t GetAllParameters(Vec<ParameterInfo*>& Opv, ParameterInfo& Iv);
+
+  bool CheckParameterMatchings(ParameterInfo& P);
+
+  bool CheckParameterMatchingToTypeDecl(ParameterInfo& P, TypeInfo const& ArgType,
+                                        ASTPtr<AST::TypeName> T);
+
+  bool AssignmentTypeToParam(ParameterInfo* P, ASTPtr<AST::TypeName> TypeAST,
+                             TypeInfo const& type);
+
+  ASTPtr<AST::Function> TryInstantiate_Of_Function(SemaFunctionNameContext* Ctx);
+
+  ASTPtr<AST::Class> TryInstantiate_Of_Class();
+
+  TemplateInstantiationContext(Sema& S, IdentifierInfo* ParamsII,
+                               ASTPtr<AST::Templatable> Item);
+};
+
 class Sema {
 
   friend struct BlockScope;
   friend struct FunctionScope;
+
+  friend struct TemplateInstantiationContext;
+
+  friend struct SemaContext;
+  friend struct SemaFunctionNameContext;
 
   ArgumentCheckResult check_function_call_parameters(ASTVector args, bool isVariableArg,
                                                      TypeVec const& formal,
                                                      TypeVec const& actual,
                                                      bool ignore_mismatch);
 
-  LocalVar* _find_variable(string_view const& name);
-  ASTVec<Function> _find_func(string_view const& name);
-  ASTPtr<Enum> _find_enum(string_view const& name);
-  ASTPtr<Class> _find_class(string_view const& name);
-  ASTPtr<Block> _find_namespace(string_view const& name);
+  LocalVar* _find_variable(string const& name);
+  ASTVec<Function> _find_func(string const& name);
+  ASTPtr<Enum> _find_enum(string const& name);
+  ASTPtr<Class> _find_class(string const& name);
+  ASTPtr<Block> _find_namespace(string const& name);
 
   ASTPointer context_reverse_search(std::function<bool(ASTPointer)> func);
 
-  NameFindResult find_name(string_view const& name, bool const only_cur_scope = false);
+  NameFindResult find_name(string const& name, bool const only_cur_scope = false);
 
   IdentifierInfo get_identifier_info(ASTPtr<AST::Identifier> ast,
                                      bool only_cur_scope = false);
@@ -131,502 +268,12 @@ class Sema {
     return this->get_identifier_info(Sema::GetID(ast));
   }
 
-  struct SemaContext {
-
-    FunctionScope* original_template_func = nullptr;
-
-    bool create_new_scope = false;
-
-    struct FunctionNameContext {
-      ASTPtr<AST::CallFunc> CF;
-      ASTPtr<AST::Signature> Sig;
-
-      TypeVec const* ArgTypes;
-      TypeInfo const* ExpectedResultType;
-
-      bool IsValid() {
-        return CF || Sig;
-      }
-
-      size_t GetArgumentsCount() {
-        return ArgTypes ? ArgTypes->size() : 0;
-      }
-    };
-
-    FunctionNameContext FuncName;
-
-    bool InCallFunc() {
-      return FuncName.CF != nullptr;
-    }
-
-    bool InOverloadResolGuide() {
-      return FuncName.Sig != nullptr;
-    }
-
-    static SemaContext NullCtx;
-  };
-
-  struct TemplateInstantiationContext {
-
-    enum ResultTypes {
-      TI_NotTryied,
-
-      TI_Succeed,
-
-      TI_TooManyParameters,
-
-      TI_CannotDeductType,
-
-      TI_Arg_TypeMismatch,
-
-      TI_Arg_TooFew,
-
-      TI_Arg_TooMany,
-    };
-
-    struct ParameterInfo {
-      string Name;
-      TypeInfo Type;
-
-      Token Tok;
-
-      bool IsAssignmented = false;
-
-      ASTPtr<AST::Identifier> TemplateArg = nullptr;
-
-      Vec<ParameterInfo> Params;
-
-      void CheckParameterMatchings() {
-        if (Params.empty()) {
-          if (Type.params.size() >= 1) {
-            throw Error(TemplateArg, "'" + Name + "' is not a template");
-          }
-        }
-        else if (Params.size() < Type.params.size()) {
-          throw Error(TemplateArg,
-                      "too many template arguments for parameter '" + Name + "'");
-        }
-        else if (Params.size() > Type.params.size()) {
-          if (Type.needed_param_count() == 0) {
-            throw Error(TemplateArg,
-                        "expected template type, but found '" + Type.to_string() + "'");
-          }
-
-          throw Error(TemplateArg,
-                      "too few template arguments for parameter '" + Name + "'");
-        }
-
-        if (this->TemplateArg) {
-          for (size_t i = 0; i < Params.size(); i++) {
-            Params[i].TemplateArg = Sema::GetID(this->TemplateArg->id_params[i]);
-          }
-        }
-      }
-
-      ParameterInfo(string const& Name, TypeInfo const& T = {})
-          : Name(Name),
-            Type(T) {
-      }
-
-      ParameterInfo(Token const& token)
-          : Name(string(token.str)),
-            Tok(token) {
-        alert;
-        alertexpr(token.str);
-        alertexpr(Name);
-      }
-
-      ParameterInfo(AST::Templatable::ParameterName const& P)
-          : ParameterInfo(P.token) {
-        for (size_t i = 0; auto&& pp : P.params) {
-          auto& e = this->Params.emplace_back(pp);
-
-          if (this->TemplateArg) {
-            alert;
-            e.TemplateArg = Sema::GetID(this->TemplateArg->id_params[i]);
-          }
-
-          i++;
-        }
-      }
-    };
-
-    struct PseudoTypeInfo {
-      string name;
-
-      Token* token;
-
-      Vec<PseudoTypeInfo> params;
-
-      PseudoTypeInfo(string const& name, Token* tok = nullptr,
-                     Vec<PseudoTypeInfo> pp = {})
-          : name(name),
-            token(tok),
-            params(std::move(pp)) {
-      }
-
-      PseudoTypeInfo(ASTPtr<AST::TypeName> ast)
-          : PseudoTypeInfo(string(ast->GetName()), &ast->token) {
-
-        alertexpr(this->name);
-
-        for (auto&& p : ast->type_params)
-          this->params.emplace_back(p);
-      }
-    };
-
-    enum PseudoTypeReplacedResult {
-      REPL_Didnt,
-
-      REPL_Succeed,
-
-      REPL_InvalidName, // unknown
-
-      REPL_NotTemplate, // but given params
-
-      REPL_TooFewParam,
-
-      REPL_TooManyParam,
-    };
-
-    struct TIReplacementResult {
-      PseudoTypeReplacedResult Result;
-
-      PseudoTypeInfo* Type;
-
-      TypeInfo Replaced;
-
-      TIReplacementResult(PseudoTypeReplacedResult R, PseudoTypeInfo* T)
-          : Result(R),
-            Type(T) {
-      }
-    };
-
-    struct InstantiationResult {
-      ResultTypes Type = TI_NotTryied;
-
-      ParameterInfo* ErrParam = nullptr;
-
-      ASTPointer ErrArgument = nullptr;
-
-      size_t ErrArgIndex = 0;
-    };
-
-    Sema& S;
-
-    IdentifierInfo* ParamsII;
-
-    ASTPtr<AST::Templatable> Item; // Templated (original)
-
-    InstantiationResult TryiedResult;
-
-    Vec<ParameterInfo> Params;
-
-    TemplateInstantiationContext* _Previous = nullptr;
-
-    ParameterInfo* GetParam(string const& name) {
-      for (auto&& P : this->Params)
-        if (P.Name == name)
-          return &P;
-
-      return nullptr;
-    }
-
-    bool CheckParameterMatchingToTypeDecl(ParameterInfo const& P, TypeInfo const& ArgType,
-                                          ASTPtr<AST::TypeName> T) {
-
-      if (P.Name != T->GetName()) {
-        return true;
-      }
-
-      if (P.Params.size() < T->type_params.size()) {
-        alert;
-        this->TryiedResult.Type = TI_TooManyParameters;
-        return false;
-      }
-      else if (P.Params.size() > T->type_params.size()) {
-        alert;
-        this->TryiedResult.Type = TI_CannotDeductType;
-        return false;
-      }
-
-      for (size_t i = 0; i < P.Params.size(); i++) {
-        if (!CheckParameterMatchingToTypeDecl(P.Params[i], ArgType.params[i],
-                                              T->type_params[i])) {
-          alert;
-          return false;
-        }
-      }
-
-      return true;
-    }
-
-    TIReplacementResult ReplacePseudoTI(PseudoTypeInfo& P) {
-
-      TIReplacementResult R{REPL_Didnt, &P};
-
-      alertexpr(P.name);
-
-      R.Replaced = TypeInfo::from_name(P.name);
-
-      int expected_param_count = 0;
-
-      switch (R.Replaced.kind) {
-      case TypeKind::Unknown: {
-        if (auto PI = this->GetParam(P.name); PI && PI->IsAssignmented) {
-          alert;
-          R.Replaced.kind = PI->Type.kind;
-        }
-        else if (auto _E = S._find_enum(P.name); _E) {
-          R.Replaced = TypeInfo::from_enum(_E);
-        }
-        else if (auto _C = S._find_class(P.name); _C) {
-          R.Replaced = TypeInfo::from_class(_C);
-        }
-        else {
-          R.Result = REPL_InvalidName;
-          alert;
-          return R;
-        }
-      }
-
-      case TypeKind::Vector:
-      case TypeKind::Tuple:
-      case TypeKind::Dict:
-        alert;
-        expected_param_count = R.Replaced.needed_param_count();
-        break;
-
-      case TypeKind::Function:
-        todo_impl;
-
-      default:
-        alert;
-      }
-
-      alertexpr(expected_param_count);
-
-      if (expected_param_count != -1) {
-        if (expected_param_count < (int)P.params.size()) {
-          R.Result = REPL_TooFewParam;
-          return R;
-        }
-        else if ((int)P.params.size() < expected_param_count) {
-          R.Result = REPL_TooManyParam;
-          return R;
-        }
-      }
-
-      for (auto&& Param : P.params) {
-
-        auto pr = ReplacePseudoTI(Param);
-
-        if (pr.Result == REPL_Succeed) {
-          alert;
-          R.Replaced.params.emplace_back(pr.Replaced);
-        }
-
-        else {
-          alert;
-          return pr;
-        }
-      }
-
-      R.Result = REPL_Succeed;
-
-      return R;
-    }
-
-    bool AssignmentTypeToParam(ParameterInfo* P, ASTPtr<AST::TypeName> TypeAST,
-                               TypeInfo const& type) {
-
-      alertexpr(TypeAST->GetName());
-
-      if (P->Name == TypeAST->GetName() && !P->IsAssignmented) {
-        P->Name = type.GetName();
-        P->Type = type;
-        P->IsAssignmented = true;
-        alert;
-      }
-
-      else if (TypeAST->GetName() != type.GetName()) {
-        this->TryiedResult.Type = TI_Arg_TypeMismatch;
-        this->TryiedResult.ErrParam = P;
-
-        alert;
-        return false;
-      }
-
-      if (P->Params.empty()) {
-        if (type.params.size() >= 1) {
-        }
-      }
-      else if (P->Params.size() > type.params.size()) {
-        this->TryiedResult.Type = TI_Arg_TooFew;
-        this->TryiedResult.ErrParam = P;
-        alert;
-        return false;
-      }
-      else if (P->Params.size() < type.params.size()) {
-        this->TryiedResult.Type = TI_Arg_TooMany;
-        this->TryiedResult.ErrParam = P;
-        alert;
-        return false;
-      }
-
-      for (size_t i = 0; i < P->Params.size(); i++) {
-        if (!AssignmentTypeToParam(&P->Params[i], TypeAST->type_params[i],
-                                   type.params[i])) {
-          alert;
-          return false;
-        }
-      }
-
-      return true;
-    }
-
-    ASTPtr<AST::Function>
-    TryInstantiate_Of_Function(SemaContext::FunctionNameContext* Ctx) {
-
-      alert;
-
-      if (Item->kind != ASTKind::Function)
-        return nullptr;
-
-      auto Func = ASTCast<AST::Function>(Item);
-
-      alert;
-
-      // 可変長じゃないのにテンプレート引数が多い
-      if (!Func->IsVariableParameters &&
-          Func->ParameterCount() < ParamsII->id_params.size()) {
-        TryiedResult.Type = TI_TooManyParameters;
-        return nullptr;
-      }
-
-      // 引数が与えられている文脈
-      if (Ctx && Ctx->ArgTypes) {
-        alert;
-
-        if (Ctx->GetArgumentsCount() < Func->arguments.size()) {
-          alert;
-          return nullptr;
-        }
-
-        if (!Func->is_var_arg && Func->arguments.size() < Ctx->GetArgumentsCount()) {
-          alert;
-          return nullptr;
-        }
-
-        for (size_t i = 0; auto&& ArgType : *Ctx->ArgTypes) {
-          ASTPtr<AST::Argument>& Formal = Func->arguments[i];
-
-          auto P = this->GetParam(string(Formal->type->GetName()));
-
-          if (!P) {
-            alert;
-            continue;
-          }
-
-          alert;
-          if (!CheckParameterMatchingToTypeDecl(*P, ArgType, Formal->type)) {
-            return nullptr;
-          }
-
-          if (P->IsAssignmented) {
-
-            PseudoTypeInfo pseudo{Formal->type};
-
-            auto R = ReplacePseudoTI(pseudo);
-
-            assert(R.Result == REPL_Succeed);
-
-            if (!R.Replaced.equals(ArgType)) {
-
-              TryiedResult.Type = TI_Arg_TypeMismatch;
-
-              TryiedResult.ErrParam = P;
-
-              TryiedResult.ErrArgument =
-                  Ctx->CF ? Ctx->CF->args[i] : Ctx->Sig->arg_type_list[i];
-
-              TryiedResult.ErrArgIndex = i;
-
-              alert;
-              return nullptr;
-            }
-          }
-
-          else {
-            alert;
-
-            if (!AssignmentTypeToParam(P, Formal->type, ArgType)) {
-              return nullptr;
-            }
-          }
-
-          i++;
-        }
-      }
-
-      alert;
-      return nullptr;
-    }
-
-    ASTPtr<AST::Class> TryInstantiate_Of_Class() {
-
-      todo_impl;
-    }
-
-    TemplateInstantiationContext(Sema& S, IdentifierInfo* ParamsII,
-                                 ASTPtr<AST::Templatable> Item)
-        : S(S),
-          ParamsII(ParamsII),
-          Item(Item) {
-      for (auto&& P : Item->template_param_names) {
-        this->Params.emplace_back(P);
-      }
-
-      alert;
-      for (size_t i = 0; auto&& ParamType : ParamsII->id_params) {
-        auto& P = this->Params[i];
-
-        P.Type = ParamType;
-        P.TemplateArg = ParamsII->template_args[i].ast;
-
-        P.CheckParameterMatchings();
-
-        P.IsAssignmented = true;
-
-        i++;
-      }
-    }
-  };
-
-  friend struct TemplateInstantiationContext;
-
   // -----------------
   // -----------------
   size_t GetMatchedFunctions(ASTVec<AST::Function>& Matched,
                              ASTVec<AST::Function> const& Candidates,
-                             IdentifierInfo* ParamsII, SemaContext* Ctx) {
-
-    for (auto&& C : Candidates) {
-
-      // テンプレート関数の場合、いったんインスタンス化してみる
-      // 成功したら候補に追加する
-      if (C->is_templated) {
-        TemplateInstantiationContext TI{*this, ParamsII, C};
-
-        if (auto f = TI.TryInstantiate_Of_Function(Ctx ? &Ctx->FuncName : nullptr); f) {
-          Matched.emplace_back(f);
-          continue;
-        }
-      }
-    }
-
-    return Matched.size();
-  }
+                             IdentifierInfo* ParamsII, SemaContext* Ctx,
+                             bool ThrowError = false);
 
 public:
   Sema(ASTPtr<AST::Block> prg);
@@ -666,10 +313,10 @@ private:
     };
 
     struct Parameter {
-      string_view name;
+      string name;
       TypeInfo type;
 
-      Parameter(string_view name, TypeInfo type)
+      Parameter(string const& name, TypeInfo type)
           : name(name),
             type(type) {
         alertexpr(name);
@@ -692,8 +339,8 @@ private:
     // index of error item
     size_t index = 0;
 
-    Parameter& add_parameter(string_view name, TypeInfo type);
-    Parameter* find_parameter(string_view name);
+    Parameter& add_parameter(string const& name, TypeInfo type);
+    Parameter* find_parameter(string const& name);
 
     //
     // ast = error location
@@ -713,7 +360,7 @@ private:
 
   Vec<ASTPtr<AST::Templatable>> InstantiatedTemplates; // to check
 
-  TypeInfo* find_template_parameter_name(string_view const& name);
+  TypeInfo* find_template_parameter_name(string const& name);
 
   //
   // args = template arguments (parameter)

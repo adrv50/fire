@@ -100,7 +100,7 @@ Value::Value(Token tok, ObjPointer value)
 
 // ----------------------------------- //
 
-string_view const& Named::GetName() const {
+string const& Named::GetName() const {
   return this->name.str;
 }
 

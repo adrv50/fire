@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Utils.h"
+
 namespace fire::semantics_checker {
 
 struct ScopeContext;
@@ -74,7 +76,7 @@ protected:
 struct Named : Base {
   Token name;
 
-  string_view const& GetName() const;
+  string const& GetName() const;
 
 protected:
   Named(ASTKind kind, Token tok, Token name);
@@ -92,6 +94,21 @@ struct Templatable : Named {
   struct ParameterName {
     Token token;
     Vec<ParameterName> params;
+
+    string to_string() const {
+      string s = token.str;
+
+      if (params.size() >= 1) {
+        s += "<" +
+             utils::join(", ", params,
+                         [](auto const& P) -> string {
+                           return P.to_string();
+                         }) +
+             ">";
+      }
+
+      return s;
+    }
   };
 
   Vec<ParameterName> template_param_names;

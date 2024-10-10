@@ -101,10 +101,6 @@ struct TypeInfo {
 
   static TypeKind from_name(string const& name);
 
-  static TypeKind from_name(string_view const& name) {
-    return from_name(string(name));
-  }
-
   static bool is_primitive_name(std::string_view);
 
   bool equals(TypeInfo const& type) const;

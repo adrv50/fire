@@ -242,7 +242,13 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
       id->kind = ASTKind::FuncName;
 
       auto count = this->GetMatchedFunctions(id->candidates, idinfo.result.functions,
-                                             &idinfo, &Ctx);
+                                             &idinfo, &Ctx, true);
+
+      if (count >= 2) {
+        if (Ctx.FuncName.IsValid() && Ctx.FuncName.MustDecideOneCandidate) {
+          todo_impl;
+        }
+      }
 
       alertexpr(count);
 
@@ -442,7 +448,9 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
     }
 
     TypeInfo functor_type =
-        this->eval_type(functor, {.FuncName = {.CF = call, .ArgTypes = &arg_types}});
+        this->eval_type(functor, {.FuncName = {.CF = call,
+                                               .ArgTypes = &arg_types,
+                                               .MustDecideOneCandidate = false}});
 
     if (functor->kind == ASTKind::MemberFunction) {
       call->args.insert(call->args.begin(), functor->as_expr()->lhs);

@@ -24,7 +24,7 @@ void Sema::check_full() {
   // }
 }
 
-void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
+void Sema::check(ASTPointer ast, SemaContext Ctx) {
 
   if (!ast)
     return;
@@ -32,7 +32,7 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
   switch (ast->kind) {
 
   case ASTKind::Enum: {
-    Vec<string_view> v;
+    Vec<string> v;
 
     auto x = ASTCast<AST::Enum>(ast);
 
@@ -46,7 +46,7 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
         this->eval_type(e.types[0]);
       }
       else {
-        Vec<string_view> v2;
+        Vec<string> v2;
 
         for (auto&& t : e.types) {
           auto arg = ASTCast<AST::Argument>(t);
@@ -66,7 +66,7 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
 
   case ASTKind::Class: {
 
-    Vec<string_view> v;
+    Vec<string> v;
 
     auto x = ASTCast<AST::Class>(ast);
 
@@ -172,12 +172,6 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
 
       if (y->_s_pass_this)
         continue;
-
-      alertexpr(static_cast<int>(y->kind));
-
-      if (y->token.sourceloc.ref) {
-        Error(y->token).format("element in block %p", x.get()).emit();
-      }
 
       this->check(y);
     }

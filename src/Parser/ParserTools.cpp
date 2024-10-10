@@ -55,8 +55,6 @@ bool Parser::eat_typeparam_bracket_close() {
     this->cur = this->insert_token(">");
   }
 
-  alertexpr(this->cur->str);
-
   if (this->eat(">")) {
     _typeparam_bracket_depth--;
     return true;
