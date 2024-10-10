@@ -121,12 +121,39 @@ Error const& Error::emit() const {
     cout << COL_BOLD << loc.ref->path << ": " << _loc << ":" << endl;
   }
 
+  int cursorpos = line_err.pos;
+  string cursor_space;
+
+  for (int i = 0; i < line_err.pos;) {
+    u8 c = line_err.view[i];
+
+    if (c <= 0x80) {
+      cursor_space += ' ';
+      i += 1;
+    }
+    else if (0xC2 <= c && c < 0xE0) {
+      cursor_space.append("\xe3\x80\x80");
+      cursorpos -= 1;
+      i += 2;
+    }
+    else if (0xE0 <= c && c < 0xF0) {
+      cursor_space.append("\xe3\x80\x80");
+      cursorpos -= 2;
+      i += 3;
+    }
+    else if (0xF0 <= c && c < 0xF5) {
+      cursor_space.append("\xe3\x80\x80");
+      cursorpos -= 3;
+      i += 4;
+    }
+  }
+
   // message
   cout << COL_BOLD << get_err_level_str(this->kind) << COL_WHITE << this->msg << endl;
 
   // path and location
   cout << "     " << COL_BOLD COL_UNDERLINE COL_BORDER_LINE << "--> " << loc.ref->path
-       << ":" << line_err.linenum << ":" << line_err.pos << COL_DEFAULT << endl;
+       << ":" << line_err.linenum << ":" << (cursorpos + 1) << COL_DEFAULT << endl;
 
   cout << COL_DEFAULT << COL_BOLD << "     " COL_BORDER_LINE " |" << endl;
 
@@ -135,28 +162,7 @@ Error const& Error::emit() const {
 
   cout << COL_DEFAULT << COL_BOLD << "     " COL_BORDER_LINE " | ";
 
-  for (int i = 0; i < line_err.pos;) {
-    u8 c = line_err.view[i];
-
-    if (c <= 0x80) {
-      cout << ' ';
-      i += 1;
-    }
-    else if (0xC2 <= c && c < 0xE0) {
-      cout << "\xe3\x80\x80";
-      i += 2;
-    }
-    else if (0xE0 <= c && c < 0xF0) {
-      cout << "\xe3\x80\x80";
-      i += 3;
-    }
-    else if (0xF0 <= c && c < 0xF5) {
-      cout << "\xe3\x80\x80";
-      i += 4;
-    }
-  }
-
-  cout << COL_WHITE COL_BOLD "^" << COL_DEFAULT << endl;
+  cout << cursor_space << COL_WHITE COL_BOLD "^" << COL_DEFAULT << endl;
 
   _err_emitted_count++;
 
