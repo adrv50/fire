@@ -94,88 +94,7 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
   case Kind::OverloadResolutionGuide: {
     auto x = ASTCast<AST::Expr>(ast);
 
-    x->lhs->GetID()->sema_must_completed = false;
-
-    auto functor_ast = x->lhs;
-    auto functor = this->eval_type(functor_ast);
-
-    if (functor_ast->kind != Kind::FuncName) {
-      throw Error(functor_ast, "expected function name");
-    }
-
-    auto id = functor_ast->GetID();
-
-    if (id->candidates.size() == 1) {
-      throw Error(x->op, "use operator 'of' to non ambiguous function name is not valid");
-    }
-
-    alert;
-
-    auto sig_ast = ASTCast<AST::Signature>(x->rhs);
-    auto sig = this->eval_type(sig_ast);
-
-    auto const& sig_ret = sig.params[0];
-    auto const sig_args = TypeVec(sig.params.begin() + 1, sig.params.end());
-
-    ASTVec<AST::Function> final_cd;
-
-    for (auto&& cd : id->candidates) {
-      alert;
-
-      if ((sig_ast->arg_type_list.size() < cd->arguments.size()) ||
-          (!cd->is_var_arg && cd->arguments.size() < sig_ast->arg_type_list.size()))
-        continue;
-
-      if (cd->template_param_names.size() < id->template_args.size())
-        continue;
-
-      TemplateTypeApplier app;
-
-      if (cd->is_templated) {
-        if (!this->try_apply_template_function(nullptr, app, cd, id->template_args,
-                                               sig_args))
-          continue;
-      }
-
-      for (size_t i = 0; i < sig_args.size(); i++) {
-        if (!sig_args[i].equals(this->eval_type(cd->arguments[i]->type))) {
-          alert;
-          goto _pass_candidate;
-        }
-      }
-
-      if (auto _ret = this->eval_type(cd->return_type); sig_ret.equals(_ret))
-        final_cd.emplace_back(cd);
-
-    _pass_candidate:;
-    }
-
-    if (final_cd.empty()) {
-      throw Error(x->op, "cannot find function '" + id->GetName() +
-                             "' matching to signature '(" +
-                             utils::join<TypeInfo>(", ", sig_args,
-                                                   [](auto t) {
-                                                     return t.to_string();
-                                                   }) +
-                             ") -> " + sig_ret.to_string() + "'");
-    }
-    else if (final_cd.size() >= 2) {
-      Error e{x->op, "function name '" + id->GetName() + "' is still ambiguous"};
-
-      for (auto&& cd : final_cd)
-        e.AddChain(Error(Error::ER_Note, cd, "candidate:"));
-
-      throw e;
-    }
-
-    TypeInfo ret = TypeKind::Function;
-
-    ret.params = sig_args;
-    ret.params.insert(ret.params.begin(), sig_ret);
-
-    id->candidates = std::move(final_cd);
-
-    return ret;
+    todo_impl;
   }
 
   case Kind::Signature: {
@@ -252,9 +171,38 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
         }
       }
 
-      alertexpr(count);
+      else if (count == 0 && Ctx.FuncName.MustDecideOneCandidate) {
+        throw Error(id->token, "no found function name '" + id->GetName() +
+                                   "' matched template parameter <" +
+                                   utils::join(", ", id->template_args,
+                                               [](TypeInfo const& t) -> string {
+                                                 return t.to_string();
+                                               }) +
+                                   ">");
+      }
 
-      todo_impl;
+      TypeInfo type = TypeKind::Function;
+
+      auto func = id->candidates[0];
+
+      type.params.emplace_back(this->eval_type(func->return_type));
+
+      for (auto&& arg : func->arguments)
+        type.params.emplace_back(this->eval_type(arg->type));
+
+      auto& _Record = this->InstantiatedRecords.emplace_back();
+
+      _Record.Instantiated = func;
+
+      auto& _Scope = _Record.Scope.emplace_back(func->scope_ctx_ptr);
+
+      while (_Scope->_owner) {
+        _Record.Scope.emplace_back(_Scope->_owner);
+
+        _Scope = _Scope->_owner;
+      }
+
+      return type;
     }
 
     case NameType::BuiltinFunc: {
@@ -465,84 +413,11 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
       //
     case ASTKind::FuncName: {
 
-      ASTVec<AST::Function> final_candidates;
+      assert(id->candidates.size() == 1);
 
-      for (ASTPtr<AST::Function> candidate : id->candidates) {
-        // if (id->id_params.size() > candidate->template_param_names.size())
-        //   continue;
+      call->callee_ast = id->candidates[0];
 
-        TemplateTypeApplier apply;
-
-        if (candidate->is_templated) {
-
-          todo_impl;
-
-          if (this->try_apply_template_function(&Ctx, apply, candidate, id->template_args,
-                                                arg_types)) {
-            final_candidates.emplace_back(candidate);
-          }
-          else if (id->candidates.size() == 1) {
-            todo_impl;
-          }
-
-          continue;
-        }
-        else {
-          TypeVec formal_arg_types;
-
-          for (auto&& arg : candidate->arguments) {
-            auto& T = formal_arg_types.emplace_back(this->eval_type(arg->type));
-
-            alertexpr(T.to_string());
-          }
-
-          auto res = this->check_function_call_parameters(
-              call->args, candidate->is_var_arg, formal_arg_types, arg_types, false);
-
-          if (res.result == ArgumentCheckResult::Ok) {
-            final_candidates.emplace_back(candidate);
-          }
-
-          else if (id->candidates.size() == 1) {
-            switch (res.result) {
-            case ArgumentCheckResult::TypeMismatch: {
-              alert;
-
-              throw Error(call->args[res.index],
-                          "expected '" + formal_arg_types[res.index].to_string() +
-                              "' type expression, but found '" +
-                              arg_types[res.index].to_string() + "'")
-                  .AddChain(Error(Error::ER_Note, candidate->arguments[res.index]->type,
-                                  "defined here"));
-            }
-
-            case ArgumentCheckResult::TooFewArguments:
-            case ArgumentCheckResult::TooManyArguments:
-              throw Error(call->token, res.result == ArgumentCheckResult::TooFewArguments
-                                           ? "too few arguments"
-                                           : "too many arguments")
-                  .AddChain(Error(Error::ER_Note, candidate, "defined here"));
-            }
-          }
-        }
-      }
-
-      if (final_candidates.empty()) {
-        throw Error(functor, "a function '" + AST::ToString(id) + "(" +
-                                 utils::join<TypeInfo>(", ", arg_types,
-                                                       [](TypeInfo t) {
-                                                         return t.to_string();
-                                                       }) +
-                                 ")" + "' is not defined");
-      }
-
-      else if (final_candidates.size() >= 2) {
-        throw Error(functor, "function name '" + AST::ToString(id) + "' is ambigious");
-      }
-
-      call->callee_ast = final_candidates[0];
-
-      return this->eval_type(final_candidates[0]->return_type);
+      return functor_type.params[0];
     }
 
     case ASTKind::BuiltinMemberFunction:

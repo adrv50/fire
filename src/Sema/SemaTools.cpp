@@ -47,9 +47,6 @@ TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
   }
   }
 
-  if (auto tp = this->find_template_parameter_name(name); tp)
-    return *tp;
-
   auto rs = this->find_name(name);
 
   switch (rs.type) {

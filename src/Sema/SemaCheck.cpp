@@ -16,7 +16,13 @@ namespace fire::semantics_checker {
 void Sema::check_full() {
   this->check(this->root);
 
-  alertexpr(AST::ToString(this->root));
+  for (auto&& TI_Record : this->InstantiatedRecords) {
+    this->GetHistory() = TI_Record.Scope;
+
+    this->check(TI_Record.Instantiated);
+  }
+
+  // alertexpr(AST::ToString(this->root));
 
   // for (auto&& I : this->InstantiatedTemplates) {
 
@@ -98,22 +104,24 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
       break;
     }
 
-    FunctionScope* func = nullptr;
+    // FunctionScope* func = nullptr;
 
-    for (auto&& [_Key, _Val] : this->function_scope_map) {
-      if (_Key == x) {
-        func = _Val;
-        break;
-      }
-    }
+    FunctionScope* func = (FunctionScope*)ast->scope_ctx_ptr;
 
-    if (!func) {
-      if (Ctx.original_template_func) {
-        func = Ctx.original_template_func;
-      }
-    }
+    // for (auto&& [_Key, _Val] : this->function_scope_map) {
+    //   if (_Key == x) {
+    //     func = _Val;
+    //     break;
+    //   }
+    // }
 
-    // assert(func);
+    // if (!func) {
+    //   if (Ctx.original_template_func) {
+    //     func = Ctx.original_template_func;
+    //   }
+    // }
+
+    assert(func);
 
     auto pfunc = this->cur_function;
     this->cur_function = func;

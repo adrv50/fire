@@ -296,88 +296,12 @@ public:
   static Sema* GetInstance();
 
 private:
-  struct TemplateTypeApplier {
-
-    enum class Result {
-      //
-      // just after created instance
-      NotApplied,
-
-      //
-      // applied parameter types, but not checked.
-      NotChecked,
-
-      TooManyParams,
-
-      CannotDeductType,
-
-      ArgumentError,
-    };
-
-    struct Parameter {
-      string name;
-      TypeInfo type;
-
-      Parameter(string const& name, TypeInfo type)
-          : name(name),
-            type(type) {
-        alertexpr(name);
-      }
-    };
-
-    Sema* S;
-
-    ASTPtr<AST::Templatable> ast;
-
-    ASTPointer Instantiated = nullptr;
-
-    vector<Parameter> parameter_list;
-
-    Result result = Result::NotApplied;
-    size_t err_param_index = 0;
-
-    ArgumentCheckResult arg_result = ArgumentCheckResult::None;
-
-    // index of error item
-    size_t index = 0;
-
-    Parameter& add_parameter(string const& name, TypeInfo type);
-    Parameter* find_parameter(string const& name);
-
-    //
-    // ast = error location
-    Error make_error(ASTPointer ast);
-
-    TemplateTypeApplier();
-    TemplateTypeApplier(ASTPtr<AST::Templatable> ast,
-                        vector<Parameter> parameter_list = {});
-    ~TemplateTypeApplier();
+  struct TemplateInstantiatedRecord {
+    ASTPtr<AST::Templatable> Instantiated;
+    std::list<ScopeContext*> Scope;
   };
 
-  friend struct TemplateTypeApplier;
-
-  std::vector<TemplateTypeApplier> _applied_templates;
-
-  std::list<TemplateTypeApplier*> _applied_ptr_stack;
-
-  Vec<ASTPtr<AST::Templatable>> InstantiatedTemplates; // to check
-
-  TypeInfo* find_template_parameter_name(string const& name);
-
-  //
-  // args = template arguments (parameter)
-  //
-  TemplateTypeApplier apply_template_params(ASTPtr<AST::Templatable> ast,
-                                            TypeVec const& args);
-
-  bool try_apply_template_function(SemaContext*, TemplateTypeApplier&,
-                                   ASTPtr<AST::Function>, TypeVec const&,
-                                   TypeVec const&) {
-
-    return true;
-  }
-
-  TemplateTypeApplier* _find_applied(TemplateTypeApplier const& t);
+  Vec<TemplateInstantiatedRecord> InstantiatedRecords;
 
   ASTPtr<Block> root;
 
