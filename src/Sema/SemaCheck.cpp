@@ -143,23 +143,9 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
           return true;
         });
 
-    // if (!func->result_type.equals(TypeKind::None)) {
-    //   if (func->return_stmt_list.empty()) {
-    //     Error(func->ast->token, "function must return value of type '" +
-    //                                 func->result_type.to_string() +
-    //                                 "', but don't return "
-    //                                 "anything.")
-    //         .emit();
-
-    //     throw Error(Error::ER_Note, func->ast->return_type, "specified here");
-    //   }
-    //   else if (auto block = func->block;
-    //            (*block->ast->list.rbegin())->kind != ASTKind::Return) {
-    //     throw Error(block->ast->endtok, "expected return-statement before this token");
-    //   }
-    // }
-
     this->check(x->block);
+
+    this->LeaveScope();
 
     for (auto&& rs : return_stmt_list) {
       if (rs->expr) {
@@ -170,8 +156,6 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
                                    "' type expression after this token");
       }
     }
-
-    this->LeaveScope();
 
     this->cur_function = pfunc;
 
@@ -209,7 +193,7 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
     auto x = ASTCast<AST::VarDef>(ast);
     auto& curScope = this->GetCurScope();
 
-    ScopeContext::LocalVar& var = ((BlockScope*)curScope)->variables[x->index];
+    LocalVar& var = ((BlockScope*)curScope)->variables[x->index];
 
     if (x->type) {
       var.deducted_type = this->eval_type(x->type);

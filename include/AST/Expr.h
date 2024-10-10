@@ -44,6 +44,7 @@ struct Identifier : Named {
   int distance = 0;
   int index = 0; // (=> or member variable, enumerator)
   int index_add = 0;
+  semantics_checker::LocalVar* lvar_ptr = nullptr;
 
   ASTPtr<Class> ast_class = nullptr;
   ASTPtr<Enum> ast_enum = nullptr;

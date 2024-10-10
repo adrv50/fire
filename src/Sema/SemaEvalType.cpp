@@ -34,11 +34,7 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
   }
 
   case Kind::Variable: {
-    auto pvar = this->_find_variable(ast->GetID()->GetName());
-
-    assert(pvar->is_type_deducted);
-
-    return pvar->deducted_type;
+    return ast->GetID()->lvar_ptr->deducted_type;
   }
 
   case Kind::FuncName: {
@@ -216,6 +212,8 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
       id->index = res.lvar->index;
       id->index_add = res.lvar->index_add;
+
+      id->lvar_ptr = res.lvar;
 
       if (res.lvar->decl)
         res.lvar->decl->index_add = id->index_add;

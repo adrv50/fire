@@ -3,8 +3,10 @@
 namespace fire::semantics_checker {
 
 struct ScopeContext;
+struct IdentifierInfo;
+struct LocalVar;
 
-}
+} // namespace fire::semantics_checker
 
 namespace fire::AST {
 

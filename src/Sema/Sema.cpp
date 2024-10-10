@@ -11,8 +11,7 @@ Sema* Sema::GetInstance() {
 }
 
 [[maybe_unused]]
-static string scope2s_var(string indent, string ns,
-                          std::vector<ScopeContext::LocalVar> lvar) {
+static string scope2s_var(string indent, string ns, Vec<LocalVar> const& lvar) {
   string ret;
 
   indent += "  ";

@@ -19,97 +19,97 @@ using TypeVec = vector<TypeInfo>;
 
 class Sema;
 
+enum class NameType {
+  Unknown,
+
+  // variable
+  Var,
+
+  Func,
+  BuiltinFunc,
+
+  MemberFunc,
+
+  Enum,
+  Enumerator,
+
+  Class,
+  Namespace,
+
+  TypeName, // builtin type name
+};
+
+struct NameFindResult {
+  NameType type = NameType::Unknown;
+
+  string name;
+  LocalVar* lvar = nullptr; // if variable
+
+  ASTVec<Function> functions;
+  vector<builtins::Function const*> builtin_funcs;
+
+  ASTPtr<Enum> ast_enum = nullptr; // NameType::Enum
+  int enumerator_index = 0;        // NameType::Enumerator
+
+  ASTPtr<Class> ast_class = nullptr;
+
+  ASTPtr<AST::Block> ast_namespace = nullptr;
+
+  TypeKind kind = TypeKind::Unknown;
+
+  bool is_type_name() const {
+    switch (this->type) {
+    case NameType::Enum:
+    case NameType::Class:
+    case NameType::TypeName:
+      return true;
+    }
+
+    return false;
+  }
+};
+
+struct ArgumentCheckResult {
+  enum Result {
+    None,
+    Ok,
+    TooFewArguments,
+    TooManyArguments,
+    TypeMismatch,
+  };
+
+  Result result;
+  int index;
+
+  ArgumentCheckResult(Result r, int i = 0)
+      : result(r),
+        index(i) {
+  }
+};
+
+struct IdentifierInfo {
+  ASTPtr<AST::Identifier> ast;
+
+  TypeVec id_params;
+
+  vector<IdentifierInfo> template_args;
+
+  NameFindResult result;
+
+  string to_string() const;
+};
+
 class Sema {
 
   friend struct BlockScope;
   friend struct FunctionScope;
-
-  enum class NameType {
-    Unknown,
-
-    // variable
-    Var,
-
-    Func,
-    BuiltinFunc,
-
-    MemberFunc,
-
-    Enum,
-    Enumerator,
-
-    Class,
-    Namespace,
-
-    TypeName, // builtin type name
-  };
-
-  struct NameFindResult {
-    NameType type = NameType::Unknown;
-
-    string name;
-    ScopeContext::LocalVar* lvar = nullptr; // if variable
-
-    ASTVec<Function> functions;
-    vector<builtins::Function const*> builtin_funcs;
-
-    ASTPtr<Enum> ast_enum = nullptr; // NameType::Enum
-    int enumerator_index = 0;        // NameType::Enumerator
-
-    ASTPtr<Class> ast_class = nullptr;
-
-    ASTPtr<AST::Block> ast_namespace = nullptr;
-
-    TypeKind kind = TypeKind::Unknown;
-
-    bool is_type_name() const {
-      switch (this->type) {
-      case NameType::Enum:
-      case NameType::Class:
-      case NameType::TypeName:
-        return true;
-      }
-
-      return false;
-    }
-  };
-
-  struct ArgumentCheckResult {
-    enum Result {
-      None,
-      Ok,
-      TooFewArguments,
-      TooManyArguments,
-      TypeMismatch,
-    };
-
-    Result result;
-    int index;
-
-    ArgumentCheckResult(Result r, int i = 0)
-        : result(r),
-          index(i) {
-    }
-  };
-
-  struct IdentifierInfo {
-    ASTPtr<AST::Identifier> ast;
-
-    TypeVec id_params;
-
-    vector<IdentifierInfo> template_args;
-
-    NameFindResult result;
-
-    string to_string() const;
-  };
 
   ArgumentCheckResult check_function_call_parameters(ASTVector args, bool isVariableArg,
                                                      TypeVec const& formal,
                                                      TypeVec const& actual,
                                                      bool ignore_mismatch);
 
-  ScopeContext::LocalVar* _find_variable(string_view const& name);
+  LocalVar* _find_variable(string_view const& name);
   ASTVec<Function> _find_func(string_view const& name);
   ASTPtr<Enum> _find_enum(string_view const& name);
   ASTPtr<Class> _find_class(string_view const& name);

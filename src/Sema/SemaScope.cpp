@@ -6,13 +6,13 @@
 
 namespace fire::semantics_checker {
 
-ScopeContext::LocalVar::LocalVar(ASTPtr<AST::VarDef> vardef) {
+LocalVar::LocalVar(ASTPtr<AST::VarDef> vardef) {
 
   this->name = vardef->GetName();
   this->decl = vardef;
 }
 
-ScopeContext::LocalVar::LocalVar(ASTPtr<AST::Argument> arg) {
+LocalVar::LocalVar(ASTPtr<AST::Argument> arg) {
   // Don't use this ctor if arg is template.
 
   this->name = arg->GetName();
@@ -57,7 +57,7 @@ ASTPointer ScopeContext::GetAST() const {
   return nullptr;
 }
 
-ScopeContext::LocalVar* ScopeContext::find_var(string_view const&) {
+LocalVar* ScopeContext::find_var(string_view const&) {
   alert;
   return nullptr;
 }
@@ -311,7 +311,7 @@ ScopeContext*& BlockScope::AddScope(ScopeContext* scope) {
   return this->child_scopes.emplace_back(scope);
 }
 
-ScopeContext::LocalVar& BlockScope::add_var(ASTPtr<AST::VarDef> def) {
+LocalVar& BlockScope::add_var(ASTPtr<AST::VarDef> def) {
   LocalVar* pvar = this->find_var(def->GetName());
 
   if (!pvar) {
@@ -337,7 +337,7 @@ ASTPointer BlockScope::GetAST() const {
   return this->ast;
 }
 
-ScopeContext::LocalVar* BlockScope::find_var(string_view const& name) {
+LocalVar* BlockScope::find_var(string_view const& name) {
   for (auto&& var : this->variables) {
     if (var.name == name)
       return &var;
@@ -437,7 +437,7 @@ FunctionScope::~FunctionScope() {
   delete this->block;
 }
 
-ScopeContext::LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
+LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
   LocalVar& arg = this->arguments.emplace_back(def->GetName());
 
   arg.arg = def;
@@ -453,7 +453,7 @@ ASTPointer FunctionScope::GetAST() const {
   return this->ast;
 }
 
-ScopeContext::LocalVar* FunctionScope::find_var(string_view const& name) {
+LocalVar* FunctionScope::find_var(string_view const& name) {
   for (auto&& arg : this->arguments) {
     if (arg.name == name)
       return &arg;

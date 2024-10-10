@@ -181,7 +181,7 @@ int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth)
   return (int)out.size();
 }
 
-ScopeContext::LocalVar* Sema::_find_variable(string_view const& name) {
+LocalVar* Sema::_find_variable(string_view const& name) {
 
   for (auto&& scope : this->GetHistory()) {
     auto lvar = scope->find_var(name);
@@ -242,7 +242,7 @@ ASTPointer Sema::context_reverse_search(std::function<bool(ASTPointer)> func) {
   return nullptr;
 }
 
-Sema::NameFindResult Sema::find_name(string_view const& name, bool const only_cur_scope) {
+NameFindResult Sema::find_name(string_view const& name, bool const only_cur_scope) {
 
   NameFindResult result = {};
 
@@ -301,7 +301,7 @@ Sema::NameFindResult Sema::find_name(string_view const& name, bool const only_cu
   return result;
 }
 
-string Sema::IdentifierInfo::to_string() const {
+string IdentifierInfo::to_string() const {
   string s = string(this->ast->GetName());
 
   if (!this->id_params.empty()) {
@@ -320,8 +320,8 @@ string Sema::IdentifierInfo::to_string() const {
   return s;
 }
 
-Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast,
-                                               bool only_cur_scope) {
+IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast,
+                                         bool only_cur_scope) {
   IdentifierInfo id_info{};
 
   id_info.ast = ast;
@@ -356,7 +356,7 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast,
 }
 
 // scope-resolution
-Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
+IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
   auto info = this->get_identifier_info(ast->first);
 
   // string idname = string(ast->first->GetName());
