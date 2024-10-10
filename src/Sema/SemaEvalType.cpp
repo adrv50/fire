@@ -236,7 +236,8 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
             continue;
           }
         }
-        else if (c->template_param_names.size() < id->id_params.size()) {
+        else if (c->is_templated &&
+                 c->template_param_names.size() < id->id_params.size()) {
           continue;
         }
 
@@ -300,6 +301,9 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
         if (!this->try_apply_template_function(apply, func, id->template_args, {})) {
           return type;
         }
+      }
+      else if (id->id_params.size() >= 1) {
+        throw Error(id, "function '" + func->GetName() + "' is not a template");
       }
 
       type.params.emplace_back(id->ft_ret = this->eval_type(func->return_type));
