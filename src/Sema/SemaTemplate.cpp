@@ -6,14 +6,11 @@ namespace fire::semantics_checker {
 using TIContext = TemplateInstantiationContext;
 
 bool TIContext::ParameterInfo::IsTypeDeductionCompleted() {
-  if (!this->IsAssignmented)
-    return false;
-
   for (auto&& p : this->Params)
     if (!p.IsTypeDeductionCompleted())
       return false;
 
-  return true;
+  return this->IsAssignmented;
 }
 
 TIContext::ParameterInfo* TIContext::ParameterInfo::GetNotTypeDeducted() {
@@ -58,14 +55,32 @@ Error TIContext::CreateError() {
   case TI_Succeed:
     break;
 
+  case TI_Arg_ParamError:
   case TI_TooManyParameters:
-    return Error(ParamsII->ast->token, "too many template arguments");
+    if (TryiedResult.ErrParam->Params.empty()) {
+      this->RequestedBy = TryiedResult.ErrArgument;
+
+      return Error(TryiedResult.ErrParam->Tok, "template parameter '" +
+                                                   TryiedResult.ErrParam->Name +
+                                                   "' is not template");
+    }
+
+    return Error(TryiedResult.ErrArgument,
+                 "too many template arguments for template parameter '" +
+                     TryiedResult.ErrParam->Name + "'");
 
   case TI_CannotDeductType:
     return Error(TryiedResult.ErrParam->Tok, "cannot deduction the type of parameter '" +
                                                  TryiedResult.ErrParam->Name + "'");
 
   case TI_Arg_TypeMismatch:
+    if (auto EP = this->TryiedResult.ErrParam; EP->IsTypeDeductionCompleted()) {
+      return Error(TryiedResult.ErrArgument, "expected '" + EP->Type.to_string() +
+                                                 "' type expression, but found '" +
+                                                 this->TryiedResult.Given.to_string() +
+                                                 "'");
+    }
+
     return Error(TryiedResult.ErrArgument,
                  "no match count of template-arguments to template parameter '" +
                      TryiedResult.ErrParam->Name + "'");
@@ -117,6 +132,7 @@ bool TIContext::CheckParameterMatchings(ParameterInfo& P) {
   if (P.Params.size() < P.Type.params.size()) {
     this->TryiedResult.Type = TI_TooManyParameters;
     this->TryiedResult.ErrParam = &P;
+    this->TryiedResult.ErrArgument = P.TemplateArg;
     return false;
   }
   else if (P.Params.size() > P.Type.params.size()) {
@@ -135,6 +151,8 @@ bool TIContext::CheckParameterMatchings(ParameterInfo& P) {
   for (auto&& p : P.Params) {
     if (!CheckParameterMatchings(p))
       return false;
+
+    p.IsAssignmented = true;
   }
 
   return true;
@@ -166,7 +184,7 @@ bool TIContext::CheckParameterMatchingToTypeDecl(ParameterInfo& P,
 }
 
 bool TIContext::AssignmentTypeToParam(ParameterInfo* P, ASTPtr<AST::TypeName> TypeAST,
-                                      TypeInfo const& type) {
+                                      ASTPointer Arg, TypeInfo const& type) {
 
   if (P->Name == TypeAST->GetName() && !P->IsAssignmented) {
     // P->Name = type.GetName();
@@ -177,6 +195,7 @@ bool TIContext::AssignmentTypeToParam(ParameterInfo* P, ASTPtr<AST::TypeName> Ty
   else if (!P->Type.equals(type)) {
     this->TryiedResult.Type = TI_Arg_TypeMismatch;
     this->TryiedResult.ErrParam = P;
+    this->TryiedResult.ErrArgument = Arg;
     this->TryiedResult.Given = type;
 
     alertmsg("type mismatch");
@@ -186,13 +205,17 @@ bool TIContext::AssignmentTypeToParam(ParameterInfo* P, ASTPtr<AST::TypeName> Ty
   if (P->Params.size() != type.params.size()) {
     this->TryiedResult.Type = TI_Arg_ParamError;
     this->TryiedResult.ErrParam = P;
+    this->TryiedResult.ErrArgument = Arg;
     this->TryiedResult.Given = type;
+
     alertmsg("no match param count of arg type");
+
     return false;
   }
 
   for (size_t i = 0; i < P->Params.size(); i++) {
-    if (!AssignmentTypeToParam(&P->Params[i], TypeAST->type_params[i], type.params[i])) {
+    if (!AssignmentTypeToParam(&P->Params[i], TypeAST->type_params[i], Arg,
+                               type.params[i])) {
       alert;
       return false;
     }
@@ -239,12 +262,16 @@ TIContext::TryInstantiate_Of_Function(SemaFunctionNameContext* Ctx) {
         continue;
       }
 
+      alertexpr(P->Name);
+
       if (!CheckParameterMatchingToTypeDecl(*P, ArgType, Formal->type)) {
         this->Failed = true;
         return nullptr;
       }
 
-      if (!AssignmentTypeToParam(P, Formal->type, ArgType)) {
+      if (!AssignmentTypeToParam(P, Formal->type,
+                                 Ctx->CF ? Ctx->CF->args[i] : Ctx->Sig->arg_type_list[i],
+                                 ArgType)) {
         this->Failed = true;
         return nullptr;
       }
@@ -334,16 +361,21 @@ size_t Sema::GetMatchedFunctions(ASTVec<AST::Function>& Matched,
         Instantiated = TI.TryInstantiate_Of_Function(Ctx ? &Ctx->FuncName : nullptr);
       }
 
-      if (TI.Failed) {
+      if (Instantiated) {
+        Matched.emplace_back(Instantiated);
+        continue;
+      }
 
-        if (Candidates.size() == 1 && ThrowError) {
+      if (TI.Failed && Candidates.size() == 1 && ThrowError) {
 
-          Vec<TemplateInstantiationContext::ParameterInfo*> PP;
+        Vec<TemplateInstantiationContext::ParameterInfo*> PP;
 
-          for (auto&& P : TI.Params)
-            TI.GetAllParameters(PP, P);
+        for (auto&& P : TI.Params)
+          TI.GetAllParameters(PP, P);
 
-          throw TI.CreateError()
+        TI.RequestedBy = ParamsII->ast;
+
+        throw TI.CreateError()
                 .InLocation(
                     "in instantiation '" + C->GetName() + "<" +
                     utils::join(", ", C->template_param_names,
@@ -364,17 +396,7 @@ size_t Sema::GetMatchedFunctions(ASTVec<AST::Function>& Matched,
                                                      : "(unknown)");
                         }) +
                     "]"*/  )
-                .AddChain(Error(Error::ER_Note, ParamsII->ast->token, "requested here"));
-        }
-
-        continue;
-      }
-
-      if (Instantiated) {
-
-        Matched.emplace_back(Instantiated);
-
-        continue;
+                .AddChain(Error(Error::ER_Note, TI.RequestedBy->token, "requested here"));
       }
     }
 

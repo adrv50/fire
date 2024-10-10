@@ -244,6 +244,8 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
       auto count = this->GetMatchedFunctions(id->candidates, idinfo.result.functions,
                                              &idinfo, &Ctx, true);
 
+      alertexpr(idinfo.result.functions.size());
+
       if (count >= 2) {
         if (Ctx.FuncName.IsValid() && Ctx.FuncName.MustDecideOneCandidate) {
           todo_impl;

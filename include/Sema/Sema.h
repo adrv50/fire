@@ -205,6 +205,8 @@ struct TemplateInstantiationContext {
 
   bool Failed = false;
 
+  ASTPointer RequestedBy;
+
   TemplateInstantiationContext* _Previous = nullptr;
 
   Error CreateError();
@@ -221,7 +223,7 @@ struct TemplateInstantiationContext {
                                         ASTPtr<AST::TypeName> T);
 
   bool AssignmentTypeToParam(ParameterInfo* P, ASTPtr<AST::TypeName> TypeAST,
-                             TypeInfo const& type);
+                             ASTPointer Arg, TypeInfo const& type);
 
   ASTPtr<AST::Function> TryInstantiate_Of_Function(SemaFunctionNameContext* Ctx);
 
