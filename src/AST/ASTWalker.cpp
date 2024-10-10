@@ -4,14 +4,15 @@
 
 namespace fire::AST {
 
-void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)> fn) {
+void walk_ast(ASTPointer ast, std::function<bool(ASTWalkerLocation, ASTPointer)> fn) {
 
   using Kind = ASTKind;
 
   if (!ast)
     return;
 
-  fn(AW_Begin, ast);
+  if (!fn(AW_Begin, ast))
+    return;
 
   if (ast->is_expr) {
     walk_ast(ASTCast<AST::Expr>(ast)->lhs, fn);

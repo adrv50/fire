@@ -21,6 +21,9 @@ struct Function : Templatable {
 
   ASTPtr<Class> member_of = nullptr;
 
+  bool is_virtualized = false;
+  bool is_overrided = false;
+
   static ASTPtr<Function> New(Token tok, Token name);
 
   static ASTPtr<Function> New(Token tok, Token name, ASTVec<Argument> args,
@@ -38,4 +41,4 @@ struct Function : Templatable {
            ASTPtr<TypeName> rettype, ASTPtr<Block> block);
 };
 
-}
+} // namespace fire::AST

@@ -135,36 +135,44 @@ bool Sema::try_apply_template_function(TemplateTypeApplier& out,
   }
 
   out.S = this;
-  this->_applied_ptr_stack.push_front(&out);
 
-  if (!this->_find_applied(out)) {
-    debug(auto ii = this->_applied_ptr_stack.size());
+  alert;
 
-    this->_applied_templates.emplace_back(out).S = nullptr;
+  // if (auto xx = this->_find_applied(out); !xx) {
+  //   this->_applied_ptr_stack.push_front(&out);
 
-    ast->is_templated = false;
+  //   debug(auto ii = this->_applied_ptr_stack.size());
 
-    this->SaveScopeLocation();
+  //   this->_applied_templates.emplace_back(out).S = nullptr;
 
-    auto scope = this->GetScopeOf(ast);
+  //   ast->is_templated = false;
 
-    this->BackToDepth(scope->_owner->depth);
+  //   this->SaveScopeLocation();
 
-    this->check(ast);
+  //   auto scope = this->GetScopeOf(ast);
 
-    this->RestoreScopeLocation();
+  //   this->BackToDepth(scope->_owner->depth);
 
-    ast->is_templated = true;
+  //   alert;
+  //   alertmsg("ｆどいうｓづいおｆｓｄこｊｄｆｓｋｊｌ");
+  //   this->check(ast);
 
-    debug(assert(this->_applied_ptr_stack.size() == ii));
-  }
+  //   this->RestoreScopeLocation();
+
+  //   ast->is_templated = true;
+
+  //   debug(assert(this->_applied_ptr_stack.size() == ii));
+  // }
 
   return true;
 }
 
 Sema::TemplateTypeApplier* Sema::_find_applied(TemplateTypeApplier const& t) {
   for (auto&& x : this->_applied_templates) {
-    if (x.ast != t.ast || x.parameter_list.size() != t.parameter_list.size())
+    if (x.ast != t.ast)
+      continue;
+
+    if (x.parameter_list.size() != t.parameter_list.size())
       continue;
 
     for (size_t i = 0; i < t.parameter_list.size(); i++) {

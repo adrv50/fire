@@ -12,6 +12,16 @@ ASTPtr<T> ASTNew(Args&&... args) {
 #endif
 }
 
+ASTPointer& Templatable::InsertInstantiated(ASTPtr<Templatable> ast) {
+  auto& A = *this->owner_block_ptr->list.insert(
+      this->owner_block_ptr->list.begin() + this->index_of_self_in_owner_block_list + 1,
+      ast);
+
+  this->index_of_self_in_owner_block_list++;
+
+  return A;
+}
+
 bool Base::is(ASTKind k) {
   return this->kind == k;
 }
@@ -332,6 +342,9 @@ Match::Match(Token tok, ASTPointer cond, Vec<Pattern> patterns)
 void Templatable::_Copy(Templatable const* _t) {
   this->tok_template = _t->tok_template;
   this->is_templated = _t->is_templated;
+
+  this->owner_block_ptr = _t->owner_block_ptr;
+  this->index_of_self_in_owner_block_list = _t->index_of_self_in_owner_block_list;
 
   for (auto&& e : _t->template_param_names) {
     this->template_param_names.emplace_back(e);

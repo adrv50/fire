@@ -12,6 +12,12 @@ struct Base {
 
   ASTKind _constructed_as;
 
+  bool _s_pass_this = false;
+
+  bool IsTemplateAST() const {
+    return this->_is_template_ast;
+  }
+
   bool is_ident_or_scoperesol() const {
     return this->_constructed_as == ASTKind::Identifier ||
            this->_constructed_as == ASTKind::ScopeResol;
@@ -50,6 +56,8 @@ struct Base {
 protected:
   Base(ASTKind kind, Token token);
   Base(ASTKind kind, Token token, Token endtok);
+
+  bool _is_template_ast = false;
 };
 
 struct Named : Base {
@@ -68,10 +76,25 @@ struct Templatable : Named {
 
   bool is_templated = false;
 
+  bool is_instantiated = false;
+
   TokenVector template_param_names;
 
+  // インスタンス化した場合、親ブロックの自分の１個前の位置に挿入する。
+  ASTPtr<Block> owner_block_ptr = nullptr;
+  size_t index_of_self_in_owner_block_list = 0;
+
+  ASTPointer& InsertInstantiated(ASTPtr<Templatable> ast);
+
 protected:
-  using Named::Named;
+  Templatable(ASTKind kind, Token tok, Token name)
+      : Named(kind, tok, name) {
+    this->_is_template_ast = true;
+  }
+
+  Templatable(ASTKind k, Token t)
+      : Templatable(k, t, t) {
+  }
 
   void _Copy(Templatable const* _t);
 };

@@ -54,6 +54,12 @@ static std::map<TypeKind, char const*> kind_name_map {
 );
 // clang-format on
 
+string_view TypeInfo::GetSV() const {
+  assert(this->IsPrimitiveType());
+
+  return g_names[static_cast<u8>(this->kind)];
+}
+
 bool TypeInfo::is_numeric() const {
   switch (this->kind) {
   case TypeKind::Int:

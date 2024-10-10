@@ -3,6 +3,8 @@
 #include "Error.h"
 #include "Builtin.h"
 
+#include "ASTWalker.h"
+
 #define foreach(_Name, _Content) for (auto&& _Name : _Content)
 
 #define printkind alertmsg(static_cast<int>(ast->kind))
@@ -10,7 +12,7 @@
 
 namespace fire::semantics_checker {
 
-TypeInfo Sema::eval_type(ASTPointer ast) {
+TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
   using Kind = ASTKind;
 
   if (!ast)
@@ -291,16 +293,106 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
       TypeInfo type = TypeKind::Function;
 
-      ASTPtr<AST::Function> func = id->candidates[0];
+      auto& func = id->candidates[0];
+
+      auto originalptr = func;
 
       type.is_free_args = func->is_var_arg;
 
       TemplateTypeApplier apply;
 
       if (func->is_templated) {
+        alert;
+
         if (!this->try_apply_template_function(apply, func, id->template_args, {})) {
+          todo_impl;
           return type;
         }
+
+        alert;
+
+        ASTPtr<AST::Function> instantiated = nullptr;
+
+        if (auto fp = this->_find_applied(apply); fp && fp != &apply) {
+          alert;
+          alertexpr(fp);
+          alertexpr(&apply);
+
+          instantiated = ASTCast<AST::Function>(fp->Instantiated);
+        }
+        else {
+          this->_applied_ptr_stack.push_front(&apply);
+
+          alert;
+          instantiated = ASTCast<AST::Function>(func->Clone());
+
+          alertexpr(func);
+          alertexpr(instantiated);
+
+          apply.Instantiated = instantiated;
+
+          AST::walk_ast(instantiated,
+                        [&apply](ASTWalkerLocation w, ASTPointer xx) -> bool {
+                          if (w != AW_Begin)
+                            return false;
+
+                          switch (xx->kind) {
+                          case Kind::TypeName: {
+
+                            for (auto&& P : apply.parameter_list) {
+                              if (P.name == xx->As<AST::TypeName>()->name.str) {
+
+                                // *ASTCast<AST::TypeName>(xx) =
+                                //     *Sema::CreateTypeNameAST_From_TypeInfo(P.type);
+
+                                auto T = xx->As<AST::TypeName>();
+
+                                if (P.type.IsPrimitiveType()) {
+                                  T->name.str = P.type.GetSV();
+                                }
+                                else {
+                                  switch (P.type.kind) {
+                                  case TypeKind::Function:
+                                    T->name.str = "function";
+
+                                  default:
+                                    todo_impl;
+                                  }
+                                }
+
+                                alert;
+                                break;
+                              }
+                            }
+
+                            break;
+                          }
+                          }
+
+                          return true;
+                        });
+
+          instantiated->is_templated = false;
+          instantiated->template_param_names.clear();
+
+          instantiated->is_instantiated = true;
+
+          auto fScope = (FunctionScope*)this->GetScopeOf(originalptr);
+
+          this->SaveScopeLocation();
+
+          this->BackTo(fScope->_owner);
+
+          this->check(instantiated, {.swap_func_scope = fScope});
+
+          this->RestoreScopeLocation();
+
+          // alertexpr(AST::ToString(instantiated));
+        }
+
+        // func->InsertInstantiated(instantiated);
+
+        func = instantiated;
       }
       else if (id->id_params.size() >= 1) {
         throw Error(id, "function '" + func->GetName() + "' is not a template");
@@ -358,11 +450,13 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
     case NameType::TypeName: {
       auto type = TypeInfo(idinfo.result.kind, idinfo.id_params);
 
-      if (size_t c = type.needed_param_count(); c == 0 && type.params.size() >= 1) {
-        throw Error(id, "'" + id->GetName() + "' is not template type");
-      }
-      else if (c >= 1 && c != type.params.size()) {
-        throw Error(id, "no match template argument count");
+      if (id->sema_must_completed) {
+        if (size_t c = type.needed_param_count(); c == 0 && type.params.size() >= 1) {
+          throw Error(id, "'" + id->GetName() + "' is not template type");
+        }
+        else if (c >= 1 && c != type.params.size()) {
+          throw Error(id, "no match template argument count");
+        }
       }
 
       return TypeInfo(TypeKind::TypeName, {type});
@@ -541,8 +635,11 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
         else {
           TypeVec formal_arg_types;
 
-          for (ASTPtr<AST::Argument> arg : candidate->arguments)
-            formal_arg_types.emplace_back(this->eval_type(arg->type));
+          for (auto&& arg : candidate->arguments) {
+            auto& T = formal_arg_types.emplace_back(this->eval_type(arg->type));
+
+            alertexpr(T.to_string());
+          }
 
           auto res = this->check_function_call_parameters(
               call->args, candidate->is_var_arg, formal_arg_types, arg_types, false);
@@ -553,13 +650,16 @@ TypeInfo Sema::eval_type(ASTPointer ast) {
 
           else if (id->candidates.size() == 1) {
             switch (res.result) {
-            case ArgumentCheckResult::TypeMismatch:
-              throw Error(call->token, "expected '" +
-                                           formal_arg_types[res.index].to_string() +
-                                           "' type expression, but found '" +
-                                           arg_types[res.index].to_string() + "'")
+            case ArgumentCheckResult::TypeMismatch: {
+              alert;
+
+              throw Error(call->args[res.index],
+                          "expected '" + formal_arg_types[res.index].to_string() +
+                              "' type expression, but found '" +
+                              arg_types[res.index].to_string() + "'")
                   .AddChain(Error(Error::ER_Note, candidate->arguments[res.index]->type,
                                   "defined here"));
+            }
 
             case ArgumentCheckResult::TooFewArguments:
             case ArgumentCheckResult::TooManyArguments:

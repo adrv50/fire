@@ -131,15 +131,20 @@ class Sema {
     return this->get_identifier_info(Sema::GetID(ast));
   }
 
+  struct SemaContext {
+
+    FunctionScope* swap_func_scope;
+  };
+
 public:
   Sema(ASTPtr<AST::Block> prg);
   ~Sema();
 
   void check_full();
 
-  void check(ASTPointer ast);
+  void check(ASTPointer ast, SemaContext Ctx = {0});
 
-  TypeInfo eval_type(ASTPointer ast);
+  TypeInfo eval_type(ASTPointer ast, SemaContext Ctx = {0});
 
   TypeInfo eval_type_name(ASTPtr<AST::TypeName> ast);
 
@@ -183,6 +188,8 @@ private:
 
     ASTPtr<AST::Templatable> ast;
 
+    ASTPointer Instantiated = nullptr;
+
     vector<Parameter> parameter_list;
 
     Result result = Result::NotApplied;
@@ -211,6 +218,8 @@ private:
   std::vector<TemplateTypeApplier> _applied_templates;
 
   std::list<TemplateTypeApplier*> _applied_ptr_stack;
+
+  Vec<ASTPtr<AST::Templatable>> InstantiatedTemplates; // to check
 
   TypeInfo* find_template_parameter_name(string_view const& name);
 
@@ -306,6 +315,27 @@ private:
 
   IdentifierInfo& keep_id(IdentifierInfo info) {
     return _identifier_info_keep.emplace_back(std::move(info));
+  }
+
+  static ASTPtr<AST::TypeName> CreateTypeNameAST_From_TypeInfo(TypeInfo const& type) {
+    Token tok;
+
+    if (type.IsPrimitiveType()) {
+      tok.str = type.GetSV();
+    }
+    else if (type.kind == TypeKind::Function) {
+      tok.str = "function";
+    }
+
+    auto ast = AST::TypeName::New(tok);
+
+    for (auto&& p : type.params) {
+      ast->type_params.emplace_back(CreateTypeNameAST_From_TypeInfo(p));
+    }
+
+    ast->is_const = type.is_const;
+
+    return ast;
   }
 };
 

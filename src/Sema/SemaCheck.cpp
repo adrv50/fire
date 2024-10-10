@@ -15,9 +15,16 @@ namespace fire::semantics_checker {
 
 void Sema::check_full() {
   this->check(this->root);
+
+  alertexpr(AST::ToString(this->root));
+
+  // for (auto&& I : this->InstantiatedTemplates) {
+
+  //   this->check(I);
+  // }
 }
 
-void Sema::check(ASTPointer ast) {
+void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
 
   if (!ast)
     return;
@@ -85,6 +92,7 @@ void Sema::check(ASTPointer ast) {
 
     // auto func = this->get_func(x);
     // SemaFunction* func = nullptr;
+
     FunctionScope* func = nullptr;
 
     for (auto&& [_Key, _Val] : this->function_scope_map) {
@@ -94,9 +102,15 @@ void Sema::check(ASTPointer ast) {
       }
     }
 
-    assert(func);
+    if (!func) {
+      if (!(func = Ctx.swap_func_scope)) {
+        panic;
+      }
+    }
 
-    if (func->is_templated()) {
+    // assert(func);
+
+    if (x->is_templated) {
       break;
     }
 
@@ -108,31 +122,47 @@ void Sema::check(ASTPointer ast) {
       arg.is_type_deducted = true;
     }
 
-    func->result_type = this->eval_type(x->return_type);
+    auto RetType = this->eval_type(x->return_type);
 
-    this->EnterScope(x);
+    this->EnterScope(func);
 
-    AST::walk_ast(func->block->ast, [&func](AST::ASTWalkerLocation loc, ASTPointer _ast) {
-      if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
-        func->return_stmt_list.emplace_back(ASTCast<AST::Statement>(_ast));
+    ASTVec<AST::Statement> return_stmt_list;
+
+    AST::walk_ast(
+        x->block,
+        [&return_stmt_list](AST::ASTWalkerLocation loc, ASTPointer _ast) -> bool {
+          if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
+            return_stmt_list.emplace_back(ASTCast<AST::Statement>(_ast));
+          }
+
+          return true;
+        });
+
+    for (auto&& rs : return_stmt_list) {
+      if (rs->expr) {
+        this->ExpectType(RetType, rs->expr);
       }
-    });
-
-    if (!func->result_type.equals(TypeKind::None)) {
-      if (func->return_stmt_list.empty()) {
-        Error(func->ast->token, "function must return value of type '" +
-                                    func->result_type.to_string() +
-                                    "', but don't return "
-                                    "anything.")
-            .emit();
-
-        throw Error(Error::ER_Note, func->ast->return_type, "specified here");
-      }
-      else if (auto block = func->block;
-               (*block->ast->list.rbegin())->kind != ASTKind::Return) {
-        throw Error(block->ast->endtok, "expected return-statement before this token");
+      else if (!RetType.equals(TypeKind::None)) {
+        throw Error(rs->token, "expected '" + RetType.to_string() +
+                                   "' type expression after this token");
       }
     }
+
+    // if (!func->result_type.equals(TypeKind::None)) {
+    //   if (func->return_stmt_list.empty()) {
+    //     Error(func->ast->token, "function must return value of type '" +
+    //                                 func->result_type.to_string() +
+    //                                 "', but don't return "
+    //                                 "anything.")
+    //         .emit();
+
+    //     throw Error(Error::ER_Note, func->ast->return_type, "specified here");
+    //   }
+    //   else if (auto block = func->block;
+    //            (*block->ast->list.rbegin())->kind != ASTKind::Return) {
+    //     throw Error(block->ast->endtok, "expected return-statement before this token");
+    //   }
+    // }
 
     this->check(x->block);
 
@@ -149,8 +179,20 @@ void Sema::check(ASTPointer ast) {
 
     this->EnterScope(x);
 
-    for (auto&& e : x->list)
-      this->check(e);
+    for (size_t i = 0, end = x->list.size(); i < end; i++, (end = x->list.size())) {
+      auto y = x->list[i];
+
+      if (y->_s_pass_this)
+        continue;
+
+      alertexpr(static_cast<int>(y->kind));
+
+      if (y->token.sourceloc.ref) {
+        Error(y->token).format("element in block %p", x.get()).emit();
+      }
+
+      this->check(y);
+    }
 
     this->LeaveScope();
 
@@ -400,7 +442,10 @@ void Sema::check(ASTPointer ast) {
   }
 
   case ASTKind::Return: {
-    this->ExpectType(this->cur_function->result_type, ast->as_stmt()->expr);
+    // this->ExpectType(this->cur_function->result_type, ast->as_stmt()->expr);
+
+    this->eval_type(ast->as_stmt()->expr);
+
     break;
   }
 

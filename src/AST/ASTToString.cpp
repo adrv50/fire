@@ -20,6 +20,44 @@ string ToString(ASTPointer ast) {
     return "(null)";
 
   switch (ast->_constructed_as) {
+  case ASTKind::Function: {
+    auto x = ast->As<Function>();
+
+    string s;
+
+    if (x->is_virtualized)
+      s = "virtual ";
+
+    s += "fn ";
+
+    if (x->is_templated) {
+      s += "<" +
+           utils::join(", ", x->template_param_names,
+                       [](Token const& t) -> string {
+                         return string(t.str);
+                       }) +
+           ">";
+    }
+
+    s += "(" + join(", ", x->arguments) + ") ";
+
+    if (x->return_type) {
+      s += "-> " + ToString(x->return_type) + " ";
+    }
+
+    if (x->is_overrided) {
+      s += "override ";
+    }
+
+    return s + ToString(x->block);
+  }
+
+  case ASTKind::Argument: {
+    auto x = ast->As<Argument>();
+
+    return x->name.str + ": " + ToString(x->type);
+  }
+
   case ASTKind::TypeName: {
     auto x = ast->As<TypeName>();
 
@@ -42,6 +80,12 @@ string ToString(ASTPointer ast) {
 
   case ASTKind::Value:
     return string(ast->token.str);
+
+  case ASTKind::Array: {
+    auto x = ast->As<Array>();
+
+    return "[" + join(", ", x->elements) + "]";
+  }
 
   case ASTKind::ScopeResol: {
     auto x = ast->As<ScopeResol>();
@@ -88,6 +132,15 @@ string ToString(ASTPointer ast) {
     return s;
   }
 
+  case ASTKind::Return: {
+    auto ex = ast->as_stmt()->expr;
+
+    if (ex)
+      return "return " + ToString(ex) + ";";
+
+    return "return;";
+  }
+
   case ASTKind::Vardef: {
     auto x = ASTCast<AST::VarDef>(ast);
 
@@ -103,11 +156,12 @@ string ToString(ASTPointer ast) {
   }
   }
 
+  alertexpr(static_cast<int>(ast->kind));
   assert(ast->is_expr);
 
   auto x = ast->as_expr();
 
-  return ToString(x->lhs) + x->op.str + ToString(x->rhs);
+  return ToString(x->lhs) + " " + x->op.str + " " + ToString(x->rhs);
 }
 
 } // namespace fire::AST

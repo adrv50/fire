@@ -89,15 +89,8 @@ struct Object {
   virtual ObjPointer Clone() const = 0;
   virtual std::string ToString() const = 0;
 
-  std::string ToStringAsMember() const {
-    auto s = this->ToString();
-
-    if (this->type.kind == TypeKind::String) {
-      s.insert(s.begin(), '"');
-      s.push_back('"');
-    }
-
-    return s;
+  virtual std::string ToStringAsMember() const {
+    return this->ToString();
   }
 
 protected:
@@ -218,6 +211,7 @@ struct ObjString : ObjIterable {
   }
 
   std::string ToString() const override;
+  std::string ToStringAsMember() const override;
 
   ObjPointer Clone() const override;
 

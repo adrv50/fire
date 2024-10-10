@@ -5,7 +5,7 @@
 namespace fire::AST {
 
 struct TypeName : Named {
-  ASTPtr<Signature> sig;
+  ASTPtr<Signature> sig = nullptr;
 
   ASTVec<TypeName> type_params;
   bool is_const;
@@ -68,6 +68,10 @@ struct Enum : Templatable {
 };
 
 struct Class : Templatable {
+  ASTVector derive_names;
+
+  ASTVec<Class> derived_classes; // --> Sema
+
   ASTVec<VarDef> member_variables;
   ASTVec<Function> member_functions;
 

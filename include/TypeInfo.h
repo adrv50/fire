@@ -63,6 +63,23 @@ struct TypeInfo {
   // >=1  =
   int needed_param_count() const;
 
+  bool IsPrimitiveType() const {
+    switch (this->kind) {
+    case TypeKind::None:
+    case TypeKind::Int:
+    case TypeKind::Float:
+    case TypeKind::Bool:
+    case TypeKind::Char:
+    case TypeKind::String:
+    case TypeKind::Vector:
+    case TypeKind::Tuple:
+    case TypeKind::Dict:
+      return true;
+    }
+
+    return false;
+  }
+
   bool is_iterable() const;
 
   bool is_numeric() const;
@@ -72,6 +89,8 @@ struct TypeInfo {
 
   bool is_hit(std::vector<TypeInfo> types) const;
   bool is_hit_kind(std::vector<TypeKind> kinds) const;
+
+  string_view GetSV() const;
 
   static TypeInfo from_enum(ASTPtr<AST::Enum> ast);
   static TypeInfo from_class(ASTPtr<AST::Class> ast);

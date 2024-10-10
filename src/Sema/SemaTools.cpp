@@ -29,8 +29,12 @@ TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
   case TypeKind::Unknown:
     break;
 
-  default:
+  default: {
+    for (auto&& p : ast->type_params)
+      type.params.emplace_back(this->eval_type_name(p));
+
     return type;
+  }
   }
 
   if (auto tp = this->find_template_parameter_name(name); tp)
@@ -92,7 +96,7 @@ ScopeContext* Sema::EnterScope(ASTPointer ast) {
 }
 
 ScopeContext* Sema::EnterScope(ScopeContext* ctx) {
-  // debug(assert(this->GetCurScope()->contains(ctx)));
+  debug(assert(this->GetCurScope()->contains(ctx)));
 
   return this->_scope_history.emplace_front(ctx);
 }
@@ -304,6 +308,10 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast,
   id_info.result = this->find_name(ast->GetName(), only_cur_scope);
 
   for (auto&& x : ast->id_params) {
+    assert(x->is_ident_or_scoperesol());
+
+    x->GetID()->sema_must_completed = false;
+
     auto& y = id_info.id_params.emplace_back(this->eval_type(x));
 
     if (y.kind == TypeKind::TypeName && y.params.size() == 1) {

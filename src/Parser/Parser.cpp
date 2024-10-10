@@ -249,6 +249,13 @@ ASTPointer Parser::Top() {
   if (this->eat("class")) {
     auto ast = AST::Class::New(tok, *this->expectIdentifier());
 
+    if (this->eat(":")) {
+      auto& C = ast->derive_names.emplace_back(this->ScopeResol());
+
+      if (!C->is_ident_or_scoperesol()) {
+      }
+    }
+
     this->expect("{");
 
     bool closed = false;
@@ -285,8 +292,26 @@ ASTPointer Parser::Top() {
     return ast;
   }
 
+  bool _f_virtualized = false;
+
+  if (this->eat("virtual")) {
+    if (!this->_in_class) {
+      throw Error(*this->ate, "cannot define virtualized function out of class");
+    }
+
+    this->expect("fn");
+
+    _f_virtualized = true;
+
+    goto __parse_func_L;
+  }
+
   if (this->eat("fn")) {
+  __parse_func_L:;
+
     auto func = AST::Function::New(tok, *this->expectIdentifier());
+
+    func->is_virtualized = _f_virtualized;
 
     if (this->eat_typeparam_bracket_open()) {
       func->is_templated = true;
@@ -325,6 +350,14 @@ ASTPointer Parser::Top() {
       func->return_type = this->expectTypeName();
     }
 
+    if (this->eat("override")) {
+      if (!this->_in_class) {
+        throw Error(*this->ate, "cannot define overrided function at out of scope");
+      }
+
+      func->is_overrided = true;
+    }
+
     this->expect("{", true);
     func->block = ASTCast<AST::Block>(this->Stmt());
 
@@ -344,8 +377,18 @@ ASTPointer Parser::Top() {
 
     bool closed = false;
 
+    size_t i = 0;
+
     do {
-      ast->list.emplace_back(this->Top());
+      auto& e = ast->list.emplace_back(this->Top());
+
+      if (e->IsTemplateAST()) {
+        auto te = e->As<AST::Templatable>();
+
+        te->owner_block_ptr = ast;
+        te->index_of_self_in_owner_block_list = i++;
+      }
+
     } while (this->check() && !(closed = this->eat("}")));
 
     if (!closed)
@@ -394,8 +437,15 @@ ASTPtr<AST::Block> Parser::Parse() {
     this->expect(";");
   }
 
-  while (this->check()) {
-    ret->list.emplace_back(this->Top());
+  for (size_t i = 0; this->check(); i++) {
+    auto& e = ret->list.emplace_back(this->Top());
+
+    if (e->IsTemplateAST()) {
+      auto te = e->As<AST::Templatable>();
+
+      te->owner_block_ptr = ret;
+      te->index_of_self_in_owner_block_list = i;
+    }
   }
 
   for (size_t i = 0; i < this->tokens.size(); i++) {

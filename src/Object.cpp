@@ -109,6 +109,10 @@ std::string ObjString::ToString() const {
   return utils::to_u8string(temp);
 }
 
+std::string ObjString::ToStringAsMember() const {
+  return "\"" + this->ToString() + "\"";
+}
+
 ObjPointer ObjString::Clone() const {
   auto obj = ObjNew<ObjString>();
 
