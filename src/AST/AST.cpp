@@ -231,6 +231,8 @@ ASTPointer Block::Clone() const {
   for (ASTPointer const& a : this->list)
     x->list.emplace_back(a->Clone());
 
+  x->scope_ctx_ptr = this->scope_ctx_ptr;
+
   return x;
 }
 
@@ -340,6 +342,8 @@ Match::Match(Token tok, ASTPointer cond, Vec<Pattern> patterns)
 }
 
 void Templatable::_Copy(Templatable const* _t) {
+  this->scope_ctx_ptr = _t->scope_ctx_ptr;
+
   this->tok_template = _t->tok_template;
   this->is_templated = _t->is_templated;
 

@@ -1,8 +1,15 @@
 #pragma once
 
+namespace fire::semantics_checker {
+
+struct ScopeContext;
+
+}
+
 namespace fire::AST {
 
 struct Base {
+
   ASTKind kind;
   Token token;
   Token endtok;
@@ -52,6 +59,8 @@ struct Base {
   [[maybe_unused]] i64 GetChilds(ASTVector& out) const;
 
   virtual ~Base() = default;
+
+  semantics_checker::ScopeContext* scope_ctx_ptr = nullptr;
 
 protected:
   Base(ASTKind kind, Token token);

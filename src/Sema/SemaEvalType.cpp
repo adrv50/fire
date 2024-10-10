@@ -209,6 +209,9 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
       if (!res.lvar->is_type_deducted)
         throw Error(ast->token, "cannot use variable before assignment");
 
+      alertexpr(this->GetCurScope()->depth);
+      alertexpr(res.lvar->depth);
+
       id->distance = this->GetCurScope()->depth - res.lvar->depth;
 
       id->index = res.lvar->index;
@@ -377,7 +380,7 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
           instantiated->is_instantiated = true;
 
-          auto fScope = (FunctionScope*)this->GetScopeOf(originalptr);
+          auto fScope = (FunctionScope*)originalptr->scope_ctx_ptr;
 
           assert(fScope);
 
@@ -387,8 +390,7 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
           try {
 
-            this->check(instantiated,
-                        {.original_template_func = fScope, .create_new_scope = true});
+            this->check(instantiated, {.original_template_func = fScope});
           }
           catch (Error e) {
 

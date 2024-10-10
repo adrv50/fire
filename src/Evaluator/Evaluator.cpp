@@ -40,6 +40,8 @@ Evaluator::VarStack& Evaluator::get_stack(int distance) {
 
 ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
 
+  alert;
+
   switch (ast->kind) {
   case ASTKind::IndexRef: {
     auto ex = ast->as_expr();
@@ -51,6 +53,12 @@ ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
   assert(ast->kind == ASTKind::Variable);
 
   auto x = ast->GetID();
+
+  alertexpr(x->distance);
+  alertexpr(x->index);
+  alertexpr(x->index_add);
+
+  alert;
 
   return this->get_stack(x->distance).var_list[x->index + x->index_add];
 }

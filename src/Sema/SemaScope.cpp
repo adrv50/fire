@@ -84,6 +84,8 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
     : ScopeContext(SC_Block),
       ast(ast) {
 
+  ast->scope_ctx_ptr = this;
+
   this->depth = depth;
 
   if (!ast)
@@ -275,6 +277,8 @@ ScopeContext*& BlockScope::AddScope(ScopeContext* scope) {
 
       dest->_ast.emplace_back(src->ast);
 
+      src->ast->scope_ctx_ptr = dest;
+
       auto index_add = this->child_var_count;
 
       for (auto&& v : src->variables) {
@@ -403,6 +407,8 @@ FunctionScope::FunctionScope(int depth, ASTPtr<AST::Function> ast)
     : ScopeContext(SC_Func),
       ast(ast) {
 
+  ast->scope_ctx_ptr = this;
+
   this->depth = depth;
 
   auto S = Sema::GetInstance();
@@ -495,6 +501,9 @@ std::string FunctionScope::to_string() const {
 NamespaceScope::NamespaceScope(int depth, ASTPtr<AST::Block> ast, int index_add)
     : BlockScope(depth, ast, index_add),
       name(ast->token.str) {
+
+  ast->scope_ctx_ptr = this;
+
   this->type = SC_Namespace;
 
   // this->child_var_count = this->variables.size();

@@ -36,10 +36,10 @@ TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
     if (auto c = type.needed_param_count(); c == 0 && type.params.size() >= 1) {
       throw Error(ast->token, "'" + ast->GetName() + "' type is not a template");
     }
-    else if (1 <= c && c > type.params.size()) {
+    else if (1 <= c && c > (int)type.params.size()) {
       throw Error(ast->token, "too few template arguments");
     }
-    else if (1 <= c && c < type.params.size()) {
+    else if (1 <= c && c < (int)type.params.size()) {
       throw Error(ast->token, "too many template arguments");
     }
 
@@ -86,9 +86,13 @@ ScopeContext* Sema::EnterScope(ASTPointer ast) {
 
   auto& cur = this->GetCurScope();
 
-  auto scope = cur->find_child_scope(ast);
+  // auto scope = cur->find_child_scope(ast);
+
+  auto scope = ast->scope_ctx_ptr;
 
   if (!scope && ast->kind == ASTKind::Namespace && cur->is_block) {
+    alert;
+
     for (auto&& c : ((BlockScope*)cur)->child_scopes) {
       if (c->type != ScopeContext::SC_Namespace)
         continue;

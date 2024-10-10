@@ -93,6 +93,10 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
     // auto func = this->get_func(x);
     // SemaFunction* func = nullptr;
 
+    if (x->is_templated) {
+      break;
+    }
+
     FunctionScope* func = nullptr;
 
     for (auto&& [_Key, _Val] : this->function_scope_map) {
@@ -105,18 +109,12 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
     auto& cur = this->GetCurScope();
 
     if (!func) {
-      if (Ctx.create_new_scope) {
-        func = new FunctionScope(cur->depth + 1, x);
-
-        Ctx.original_template_func->InstantiatedTemplateFunctions.emplace_back(func);
+      if (Ctx.original_template_func) {
+        func = Ctx.original_template_func;
       }
     }
 
     // assert(func);
-
-    if (x->is_templated) {
-      break;
-    }
 
     auto pfunc = this->cur_function;
     this->cur_function = func;
@@ -145,16 +143,6 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
           return true;
         });
 
-    for (auto&& rs : return_stmt_list) {
-      if (rs->expr) {
-        this->ExpectType(RetType, rs->expr);
-      }
-      else if (!RetType.equals(TypeKind::None)) {
-        throw Error(rs->token, "expected '" + RetType.to_string() +
-                                   "' type expression after this token");
-      }
-    }
-
     // if (!func->result_type.equals(TypeKind::None)) {
     //   if (func->return_stmt_list.empty()) {
     //     Error(func->ast->token, "function must return value of type '" +
@@ -172,6 +160,16 @@ void Sema::check(ASTPointer ast, Sema::SemaContext Ctx) {
     // }
 
     this->check(x->block);
+
+    for (auto&& rs : return_stmt_list) {
+      if (rs->expr) {
+        this->ExpectType(RetType, rs->expr);
+      }
+      else if (!RetType.equals(TypeKind::None)) {
+        throw Error(rs->token, "expected '" + RetType.to_string() +
+                                   "' type expression after this token");
+      }
+    }
 
     this->LeaveScope();
 
