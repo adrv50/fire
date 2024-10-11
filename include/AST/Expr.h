@@ -40,11 +40,25 @@ struct Identifier : Named {
   builtins::MemberVariable const* blt_member_var = nullptr;
 
   //
+  //----------------------
+
+  //
   // for Kind::Variable
   int distance = 0;
   int index = 0; // (=> or member variable, enumerator)
   int index_add = 0;
   semantics_checker::LocalVar* lvar_ptr = nullptr;
+
+  //
+  //----------------------
+
+  // Kind::MemberVariable
+  TypeInfo member_var_type;
+  // and location be stored to .ast_class, .index
+  // to reference --> { ast_class->member_variables[index] }
+
+  //
+  //----------------------
 
   ASTPtr<Class> ast_class = nullptr;
   ASTPtr<Enum> ast_enum = nullptr;

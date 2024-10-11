@@ -31,6 +31,8 @@ enum class NameType {
   // variable
   Var,
 
+  MemberVar,
+
   Func,
   BuiltinFunc,
 
@@ -128,15 +130,37 @@ struct SemaClassNameContext {
   ASTPtr<AST::Class> Now_Analysing;
 };
 
+struct SemaMemberReferenceContext {
+
+  bool IsValid = false;
+
+  ASTPtr<AST::Expr> RefExpr;
+
+  ASTPointer Left;
+  ASTPointer Right;
+
+  TypeInfo LeftType;
+
+  IdentifierInfo LeftNameII;
+
+  ASTPointer ReferencedItem;
+};
+
 struct SemaContext {
 
   FunctionScope* original_template_func = nullptr;
 
   bool create_new_scope = false;
 
+  //
+  // 関数呼び出し式において，呼び出し先の関数を一つに決める必要がある場合に使用
   SemaFunctionNameContext FuncName;
 
+  //
+  // クラス名として参照される式である場合に使用
   SemaClassNameContext ClassCtx;
+
+  SemaMemberReferenceContext MemberRefCtx;
 
   bool InCallFunc() {
     return FuncName.CF != nullptr;
@@ -323,6 +347,7 @@ class Sema {
 
   friend struct SemaContext;
   friend struct SemaFunctionNameContext;
+  friend struct SemaMemberReferenceContext;
 
   ArgumentCheckResult check_function_call_parameters(ASTVector args, bool isVariableArg,
                                                      TypeVec const& formal,
@@ -350,6 +375,8 @@ class Sema {
 
     return this->get_identifier_info(Sema::GetID(ast));
   }
+
+  IdentifierInfo GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& Ctx);
 
   SemaIdentifierEvalResult EvalID(ASTPtr<AST::Identifier> id, SemaContext& Ctx);
 

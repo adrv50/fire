@@ -265,7 +265,7 @@ struct ObjEnumerator : Object {
 struct ObjInstance : Object {
   ASTPtr<AST::Class> ast;
 
-  ObjVector member_variables;
+    ObjVector member_variables;
 
   ObjPointer& add_member_var(ObjPointer obj) {
     return this->member_variables.emplace_back(obj);

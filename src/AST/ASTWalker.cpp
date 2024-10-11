@@ -26,7 +26,9 @@ void walk_ast(ASTPointer ast, std::function<bool(ASTWalkerLocation, ASTPointer)>
     break;
 
   case Kind::Variable:
+  case Kind::MemberVariable:
   case Kind::FuncName:
+  case Kind::BuiltinFuncName:
   case Kind::Enumerator:
     if (ast->_constructed_as == Kind::ScopeResol)
       goto _label_scope_resol;

@@ -287,7 +287,7 @@ ASTPointer Parser::Top() {
 
     // member functions
     while (this->check() && !(closed = this->eat("}"))) {
-      if (!this->match("fn", TokenKind::Identifier))
+      if (!this->match("virtual") && !this->match("fn", TokenKind::Identifier))
         throw Error(*this->cur, "expected definition of member function");
 
       ast->append_func(ASTCast<AST::Function>(this->Top()));
@@ -309,15 +309,12 @@ ASTPointer Parser::Top() {
       throw Error(*this->ate, "cannot define virtualized function out of class");
     }
 
-    this->expect("fn");
+    this->expect("fn", true);
 
     _f_virtualized = true;
-
-    goto __parse_func_L;
   }
 
   if (this->eat("fn")) {
-  __parse_func_L:;
 
     auto func = AST::Function::New(tok, *this->expectIdentifier());
 

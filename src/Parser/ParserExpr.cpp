@@ -243,8 +243,8 @@ ASTPointer Parser::IndexRef() {
     else if (this->eat(".")) {
       auto rhs = this->ScopeResol();
 
-      if (rhs->kind != ASTKind::Identifier)
-        throw Error(op, "syntax error");
+      // if (rhs->kind != ASTKind::Identifier)
+      //   throw Error(op, "syntax error");
 
       x = new_expr(ASTKind::MemberAccess, op, x, rhs);
     }

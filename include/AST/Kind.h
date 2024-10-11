@@ -13,10 +13,19 @@ enum class ASTKind {
   //  replaced to this kind from Identifier or ScopeResol in
   //  Semantics-Checker. Don't use this.
   Variable,
+
+  MemberVariable,
+  MemberFunction,
+
+  BuiltinMemberVariable,
+  BuiltinMemberFunction,
+
   FuncName,
   BuiltinFuncName,
+
   Enumerator,
   EnumName,
+
   ClassName,
   // ------------------/
 
@@ -30,12 +39,7 @@ enum class ASTKind {
 
   MemberAccess,
 
-  // /-----------------
-  MemberVariable, // => use ast->GetID() (to index in instance)
-  MemberFunction,
-  BuiltinMemberVariable,
-  BuiltinMemberFunction,
-  //   ------------------/
+  RefMemberVar,
 
   CallFunc,
   CallFunc_Ctor,

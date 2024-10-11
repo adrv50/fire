@@ -209,10 +209,9 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
       arg_types.emplace_back(this->eval_type(arg));
     }
 
-    TypeInfo functor_type =
-        this->eval_type(functor, {.FuncName = {.CF = call,
-                                               .ArgTypes = &arg_types,
-                                               .MustDecideOneCandidate = false}});
+    Ctx.FuncName = {.CF = call, .ArgTypes = &arg_types, .MustDecideOneCandidate = false};
+
+    TypeInfo functor_type = this->eval_type(functor, Ctx);
 
     if (functor->kind == ASTKind::MemberFunction) {
       call->args.insert(call->args.begin(), functor->as_expr()->lhs);
@@ -374,95 +373,32 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
   case Kind::MemberAccess: {
 
-    ASTPtr<AST::Expr> expr = ASTCast<AST::Expr>(ast);
+    auto Expr = ASTCast<AST::Expr>(ast);
 
-    TypeInfo left_type = this->eval_type(expr->lhs);
-
-    ASTPtr<AST::Identifier> rhs_id = Sema::GetID(expr);
-
-    string_view name = rhs_id->GetName();
-
-    alertexpr(rhs_id->sema_allow_ambiguous);
-
-    switch (left_type.kind) {
-    case TypeKind::Instance: {
-      switch (left_type.type_ast->kind) {
-      case ASTKind::Class: {
-        auto x = ASTCast<AST::Class>(left_type.type_ast);
-
-        alertexpr(x);
-
-        for (i64 index = 0; auto&& mv : x->member_variables) {
-          if (name == mv->GetName()) {
-            expr->kind = ASTKind::MemberVariable;
-            rhs_id->index = index;
-            rhs_id->ast_class = x;
-
-            return this->eval_type(mv->type);
-          }
-
-          index++;
-        }
-
-        for (auto&& mf : x->member_functions) {
-          if (mf->member_of && mf->GetName() == name) {
-            rhs_id->candidates.emplace_back(mf);
-          }
-        }
-
-        break;
-      }
-      }
-      break;
-    }
+    if (Expr->lhs->is_ident_or_scoperesol()) {
+      Ctx.MemberRefCtx = {.IsValid = true,
+                          .RefExpr = Expr,
+                          .Left = Expr->lhs,
+                          .Right = Expr->rhs};
     }
 
-    if (!rhs_id->sema_allow_ambiguous && rhs_id->candidates.size() >= 2) {
-      goto _ambiguous_err;
+    auto& LeftType = Ctx.MemberRefCtx.LeftType;
+
+    LeftType = this->eval_type(Expr->lhs, Ctx);
+
+    if (Expr->rhs->_constructed_as != ASTKind::Identifier) {
+      throw Error(Expr->rhs, "invalid syntax");
     }
 
-    if (!rhs_id->candidates.empty()) {
-      expr->kind = ASTKind::MemberFunction;
-      rhs_id->self_type = left_type;
+    auto right_type = this->eval_type(Expr->rhs, Ctx);
 
-      return this->eval_type(rhs_id->candidates[0]->return_type);
-    }
+    // Error(Expr->rhs, "aaa").emit();
+    // alertexpr(right_type.to_string());
 
-    for (auto const& [self_type, func] : builtins::get_builtin_member_functions()) {
-      if (left_type.equals(self_type) && func.name == rhs_id->GetName()) {
-        rhs_id->candidates_builtin.emplace_back(&func);
-      }
-    }
-
-    if (!rhs_id->sema_allow_ambiguous && rhs_id->candidates_builtin.size() >= 2) {
-    _ambiguous_err:
-      throw Error(rhs_id, "member function '" + left_type.to_string() + "::" + name +
-                              "' is ambiguous");
-    }
-
-    for (builtins::MemberVariable const& mvar :
-         builtins::get_builtin_member_variables()) {
-      if (left_type.equals(mvar.self_type) && mvar.name == name) {
-        expr->kind = ASTKind::BuiltinMemberVariable;
-        rhs_id->blt_member_var = &mvar;
-        return mvar.result_type;
-      }
-    }
-
-    if (rhs_id->candidates_builtin.size() >= 1) {
-      expr->kind = ASTKind::BuiltinMemberFunction;
-      rhs_id->self_type = left_type;
-
-      return rhs_id->candidates_builtin.size() == 1
-                 ? this->make_functor_type(rhs_id->candidates_builtin[0])
-                 : TypeKind::Function;
-    }
-
-    throw Error(rhs_id, "type '" + left_type.to_string() + "' don't have a member '" +
-                            name + "'");
+    return right_type;
   }
 
-  case Kind::MemberVariable: {
+  case Kind::RefMemberVar: {
     return this->eval_type(
         ast->GetID()->ast_class->member_variables[ast->GetID()->index]->type);
   }

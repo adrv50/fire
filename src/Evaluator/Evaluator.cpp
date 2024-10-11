@@ -173,7 +173,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     return ObjNew<ObjType>(ast->GetID()->ast_class);
   }
 
-  case Kind::MemberVariable: {
+  case Kind::RefMemberVar: {
     auto ex = ast->as_expr();
 
     auto inst = PtrCast<ObjInstance>(this->evaluate(ex->lhs));

@@ -2,6 +2,68 @@
 
 namespace fire::semantics_checker {
 
+IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& Ctx) {
+
+  if (Ctx.MemberRefCtx.IsValid && Ctx.MemberRefCtx.Right == Id) {
+
+    auto const& LeftII = Ctx.MemberRefCtx.LeftNameII;
+
+    auto const& LeftType = Ctx.MemberRefCtx.LeftType;
+
+    string name = Id->GetName();
+
+    IdentifierInfo II = {.ast = Id};
+
+    auto E = Ctx.MemberRefCtx.RefExpr;
+
+    switch (LeftType.kind) {
+
+    case TypeKind::Instance: {
+
+      auto ClassPtr = ASTCast<AST::Class>(LeftType.type_ast);
+
+      for (int i = 0; auto&& mv : ClassPtr->member_variables) {
+        if (mv->GetName() == name) {
+
+          II.result.type = NameType::MemberVar;
+
+          Id->ast_class = ClassPtr;
+          Id->index = i;
+
+          E->kind = ASTKind::RefMemberVar;
+
+          goto _found_member_var;
+        }
+
+        i++;
+      }
+
+      for (auto&& mf : ClassPtr->member_functions) {
+        if (mf->GetName() == name) {
+          Id->candidates.emplace_back(mf);
+        }
+      }
+
+      if (Id->candidates.size() >= 1) {
+        II.result.type = NameType::Func;
+        E->kind = ASTKind::MemberFunction;
+      }
+
+    _found_member_var:
+
+      break;
+    }
+
+    default:
+      todo_impl;
+    }
+
+    return II;
+  }
+
+  return this->get_identifier_info(Id);
+}
+
 SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& Ctx) {
 
   auto& SR = id->S_Evaluated ? *id->S_Evaluated
@@ -50,7 +112,7 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
 
     auto& II = SR.II;
 
-    II = this->get_identifier_info(id);
+    II = this->GetIdentifierInfo(id, Ctx);
 
     auto& res = II.result;
 
@@ -67,9 +129,6 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
       if (!res.lvar->is_type_deducted)
         throw Error(id, "cannot use variable before assignment");
 
-      alertexpr(this->GetCurScope()->depth);
-      alertexpr(res.lvar->depth);
-
       id->distance = this->GetCurScope()->depth - res.lvar->depth;
 
       id->index = res.lvar->index;
@@ -85,6 +144,15 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
       break;
     }
 
+    case NameType::MemberVar: {
+
+      id->kind = ASTKind::MemberVariable;
+
+      ST = this->eval_type(id->ast_class->member_variables[id->index]->type);
+
+      break;
+    }
+
     case NameType::Func: {
       id->kind = ASTKind::FuncName;
 
@@ -92,7 +160,7 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
           this->GetMatchedFunctions(id->candidates, res.functions, &II, &Ctx, true);
 
       if (count >= 2) {
-        if (Ctx.FuncName.IsValid() && Ctx.FuncName.MustDecideOneCandidate) {
+        if (Ctx.FuncName.IsValid()) {
           todo_impl;
         }
       }
@@ -127,6 +195,8 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
 
         _Scope = _Scope->_owner;
       }
+
+      alert;
 
       ST = type;
       break;
@@ -206,6 +276,11 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
   }
 
   id->S_Evaluated = &SR;
+
+  if (Ctx.MemberRefCtx.IsValid && Ctx.MemberRefCtx.Left == id) {
+    Ctx.MemberRefCtx.LeftNameII = SR.II;
+    Ctx.MemberRefCtx.LeftType = ST;
+  }
 
   return SR;
 }

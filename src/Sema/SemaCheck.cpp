@@ -113,6 +113,10 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
     }
 
     for (auto&& mf : x->member_functions) {
+      if (mf->is_virtualized) {
+        x->virtual_functions.emplace_back(mf);
+      }
+
       this->check(mf);
     }
 
@@ -153,8 +157,6 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
     this->cur_function = func;
 
     for (auto&& arg : func->arguments) {
-
-      alertexpr(AST::ToString(arg.arg->type));
 
       arg.deducted_type = this->eval_type(arg.arg->type);
       arg.is_type_deducted = true;

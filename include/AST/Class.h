@@ -14,6 +14,8 @@ struct Class : Templatable {
   ASTVec<VarDef> member_variables;
   ASTVec<Function> member_functions;
 
+  ASTVec<Function> virtual_functions; // --> for make vtable
+
   bool IsFinal = false;
   Token FianlSpecifyToken;
 
