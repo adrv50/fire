@@ -33,35 +33,11 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
     return ast->as_value()->value->type;
   }
 
-  case Kind::Variable: {
-    return ast->GetID()->lvar_ptr->deducted_type;
-  }
-
-  case Kind::FuncName: {
-    auto id = ast->GetID();
-
-    TypeInfo type = TypeKind::Function;
-
-    type.params = id->ft_args;
-    type.params.insert(type.params.begin(), id->ft_ret);
-
-    return type;
-  }
-
-  case Kind::BuiltinFuncName: {
-    auto id = ast->GetID();
-
-    TypeInfo type = TypeKind::Function;
-
-    builtins::Function const* func = id->candidates_builtin[0];
-
-    type.is_free_args = func->is_variable_args;
-
-    type.params = id->ft_args = func->arg_types;
-    type.params.insert(type.params.begin(), id->ft_ret = func->result_type);
-
-    return type;
-  }
+  case Kind::Variable:
+  case Kind::FuncName:
+  case Kind::BuiltinFuncName:
+  case Kind::Identifier:
+    return this->EvalID(Sema::GetID(ast), Ctx).Type;
 
   case Kind::Array: {
     auto x = ast->As<AST::Array>();
@@ -108,170 +84,6 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
       ret.params.emplace_back(this->eval_type(t));
 
     return ret;
-  }
-
-  case Kind::Identifier: {
-
-    auto id = ASTCast<AST::Identifier>(ast);
-
-    IdentifierInfo idinfo;
-
-    // if (id->sema_use_keeped)
-    //   idinfo = *this->get_keeped_id_info(id);
-    // else
-
-    idinfo = this->get_identifier_info(id);
-
-    auto& res = idinfo.result;
-
-    //
-    // TypeKind::Function:
-    //
-    // type.params =
-    //   { return-type, arg1, arg2, ...(arg) }
-    //
-
-    switch (res.type) {
-    case NameType::Var: {
-      id->kind = ASTKind::Variable;
-
-      if (id->id_params.size() >= 1)
-        throw Error(id->paramtok, "invalid use type argument for variable");
-
-      if (!res.lvar->is_type_deducted)
-        throw Error(ast->token, "cannot use variable before assignment");
-
-      alertexpr(this->GetCurScope()->depth);
-      alertexpr(res.lvar->depth);
-
-      id->distance = this->GetCurScope()->depth - res.lvar->depth;
-
-      id->index = res.lvar->index;
-      id->index_add = res.lvar->index_add;
-
-      id->lvar_ptr = res.lvar;
-
-      if (res.lvar->decl)
-        res.lvar->decl->index_add = id->index_add;
-
-      return res.lvar->deducted_type;
-    }
-
-    case NameType::Func: {
-      id->kind = ASTKind::FuncName;
-
-      auto count = this->GetMatchedFunctions(id->candidates, idinfo.result.functions,
-                                             &idinfo, &Ctx, true);
-
-      alertexpr(idinfo.result.functions.size());
-
-      if (count >= 2) {
-        if (Ctx.FuncName.IsValid() && Ctx.FuncName.MustDecideOneCandidate) {
-          todo_impl;
-        }
-      }
-
-      else if (count == 0 && Ctx.FuncName.MustDecideOneCandidate) {
-        throw Error(id->token, "no found function name '" + id->GetName() +
-                                   "' matched template parameter <" +
-                                   utils::join(", ", id->template_args,
-                                               [](TypeInfo const& t) -> string {
-                                                 return t.to_string();
-                                               }) +
-                                   ">");
-      }
-
-      TypeInfo type = TypeKind::Function;
-
-      auto func = id->candidates[0];
-
-      type.params.emplace_back(this->eval_type(func->return_type));
-
-      for (auto&& arg : func->arguments)
-        type.params.emplace_back(this->eval_type(arg->type));
-
-      auto& _Record = this->InstantiatedRecords.emplace_back();
-
-      _Record.Instantiated = func;
-
-      auto& _Scope = _Record.Scope.emplace_back(func->scope_ctx_ptr);
-
-      while (_Scope->_owner) {
-        _Record.Scope.emplace_back(_Scope->_owner);
-
-        _Scope = _Scope->_owner;
-      }
-
-      return type;
-    }
-
-    case NameType::BuiltinFunc: {
-      id->kind = ASTKind::BuiltinFuncName;
-
-      id->candidates_builtin = std::move(idinfo.result.builtin_funcs);
-
-      if (id->candidates_builtin.size() >= 2) {
-        if (!id->sema_allow_ambiguous)
-          throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
-
-        return TypeKind::Function; // ambigious -> called by case CallFunc
-      }
-
-      assert(id->candidates_builtin.size() == 1);
-
-      TypeInfo type = TypeKind::Function;
-
-      builtins::Function const* func = id->candidates_builtin[0];
-
-      type.is_free_args = func->is_variable_args;
-
-      type.params = id->ft_args = func->arg_types;
-      type.params.insert(type.params.begin(), id->ft_ret = func->result_type);
-
-      return type;
-    }
-
-    case NameType::Class: {
-      id->kind = ASTKind::ClassName;
-      id->ast_class = idinfo.result.ast_class;
-
-      return TypeInfo::from_class(id->ast_class);
-    }
-
-    case NameType::Enum: {
-      id->kind = ASTKind::EnumName;
-      id->ast_enum = idinfo.result.ast_enum;
-
-      return TypeInfo::from_enum(id->ast_enum);
-    }
-
-    case NameType::TypeName: {
-      auto type = TypeInfo(idinfo.result.kind, idinfo.id_params);
-
-      if (id->sema_must_completed) {
-        if (size_t c = type.needed_param_count(); c == 0 && type.params.size() >= 1) {
-          throw Error(id, "'" + id->GetName() + "' is not template type");
-        }
-        else if (c >= 1 && c != type.params.size()) {
-          throw Error(id, "no match template argument count");
-        }
-      }
-
-      return TypeInfo(TypeKind::TypeName, {type});
-    }
-
-    case NameType::Unknown:
-      throw Error(ast->token, "cannot find name '" + id->GetName() + "'");
-
-    case NameType::Namespace:
-      throw Error(ast, "expected identifier-expression after this token ");
-
-    default:
-      alertexpr(static_cast<int>(res.type));
-      todo_impl;
-    }
-
-    break;
   }
 
   case Kind::ScopeResol: {
@@ -348,11 +160,11 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
       throw Error(ast, "cannot find name '" + AST::ToString(ast) + "'");
     }
 
-    this->keep_id(idinfo);
+    // this->keep_id(idinfo);
 
-    id->sema_use_keeped = true;
+    // id->sema_use_keeped = true;
 
-    auto type = this->eval_type(id);
+    auto type = this->eval_type(id, Ctx);
 
     ast->kind = id->kind;
 

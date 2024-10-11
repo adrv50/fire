@@ -8,7 +8,8 @@ struct Class : Templatable {
   // parse
   ASTVector derive_names; // elem is Parser::ScopeResol()
 
-  ASTVec<Class> derived_classes; // --> Sema
+  ASTVec<Class> derived_classes; //
+  ASTVec<Class> BasedBy;         // --> Sema
 
   ASTVec<VarDef> member_variables;
   ASTVec<Function> member_functions;

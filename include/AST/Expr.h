@@ -51,6 +51,8 @@ struct Identifier : Named {
 
   TypeInfo self_type; // if member
 
+  semantics_checker::SemaIdentifierEvalResult* S_Evaluated = nullptr;
+
   static ASTPtr<Identifier> New(Token tok);
 
   ASTPointer Clone() const override;

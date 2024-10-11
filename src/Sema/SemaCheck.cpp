@@ -83,20 +83,20 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
         throw Error(BaseNameID, "invalid syntax");
       }
 
-      ASTPtr<AST::Class> BaseClass;
+      this->eval_type(BaseNameID, Ctx);
 
-      auto ClassNameII = this->get_identifier_info(BaseNameID);
-
-      if (ClassNameII.result.type != NameType::Class) {
+      if (BaseNameID->kind != ASTKind::ClassName) {
         throw Error(BaseNameID,
                     "'" + AST::ToString(BaseNameID) + "' is not a class name");
       }
 
-      BaseClass = ClassNameII.result.ast_class;
+      auto BaseClass = BaseNameID->GetID()->ast_class;
+
+      BaseClass->BasedBy.emplace_back(x);
 
       if (BaseClass->IsFinal) {
-        throw Error(BaseNameID, "cannot inheritance the final class '" +
-                                    ClassNameII.to_string() + "'");
+        throw Error(BaseNameID,
+                    "cannot inheritance the final class '" + BaseClass->GetName() + "'");
       }
 
       x->derived_classes.emplace_back(BaseClass);

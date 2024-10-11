@@ -4,9 +4,11 @@
 
 namespace fire::semantics_checker {
 
-struct ScopeContext;
-struct IdentifierInfo;
 struct LocalVar;
+struct ScopeContext;
+
+struct IdentifierInfo;
+struct SemaIdentifierEvalResult;
 
 } // namespace fire::semantics_checker
 

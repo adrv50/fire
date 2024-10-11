@@ -18,6 +18,8 @@ namespace fire::semantics_checker {
 struct SemaContext;
 struct SemaFunctionNameContext;
 
+struct SemaIdentifierEvalResult;
+
 using namespace AST;
 using TypeVec = vector<TypeInfo>;
 
@@ -145,6 +147,27 @@ struct SemaContext {
   }
 
   static SemaContext NullCtx;
+};
+
+struct SemaIdentifierEvalResult {
+
+  /*
+    enum IDEvalResult {
+      IE_None,
+
+      IE_Identifier,
+
+      IE_Error,
+    };
+
+    IDEvalResult Result = IE_None;
+
+    */
+
+  IdentifierInfo II;
+  TypeInfo Type;
+
+  ASTPtr<AST::Identifier> ast;
 };
 
 /*
@@ -327,6 +350,10 @@ class Sema {
 
     return this->get_identifier_info(Sema::GetID(ast));
   }
+
+  SemaIdentifierEvalResult EvalID(ASTPtr<AST::Identifier> id, SemaContext& Ctx);
+
+  Vec<std::shared_ptr<SemaIdentifierEvalResult>> EvaluatedIDResultRecord;
 
   // -----------------
   // -----------------
