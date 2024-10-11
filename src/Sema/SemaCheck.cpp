@@ -76,6 +76,32 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
 
     auto x = ASTCast<AST::Class>(ast);
 
+    Ctx.ClassCtx.Now_Analysing = x;
+
+    for (auto&& BaseNameID : x->derive_names) {
+      if (!BaseNameID->is_ident_or_scoperesol()) {
+        throw Error(BaseNameID, "invalid syntax");
+      }
+
+      ASTPtr<AST::Class> BaseClass;
+
+      auto ClassNameII = this->get_identifier_info(BaseNameID);
+
+      if (ClassNameII.result.type != NameType::Class) {
+        throw Error(BaseNameID,
+                    "'" + AST::ToString(BaseNameID) + "' is not a class name");
+      }
+
+      BaseClass = ClassNameII.result.ast_class;
+
+      if (BaseClass->IsFinal) {
+        throw Error(BaseNameID, "cannot inheritance the final class '" +
+                                    ClassNameII.to_string() + "'");
+      }
+
+      x->derived_classes.emplace_back(BaseClass);
+    }
+
     for (auto&& mv : x->member_variables) {
       if (auto n = mv->GetName(); utils::contains(v, n))
         throw Error(mv->name, "duplicate member variable name");

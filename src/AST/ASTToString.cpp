@@ -160,6 +160,18 @@ string ToString(ASTPointer ast) {
 
     return s + ";";
   }
+
+  case ASTKind::MemberAccess: {
+    auto x = ast->as_expr();
+
+    return ToString(x->lhs) + "." + ToString(x->rhs);
+  }
+
+  case ASTKind::IndexRef: {
+    auto x = ast->as_expr();
+
+    return ToString(x->lhs) + "[" + ToString(x->rhs) + "]";
+  }
   }
 
   alertexpr(static_cast<int>(ast->kind));
@@ -167,7 +179,19 @@ string ToString(ASTPointer ast) {
 
   auto x = ast->as_expr();
 
-  return ToString(x->lhs) + " " + x->op.str + " " + ToString(x->rhs);
+  string ops = x->op.str;
+
+  switch (x->kind) {
+  case ASTKind::Bigger:
+    ops = ">";
+    break;
+
+  case ASTKind::BiggerOrEqual:
+    ops = ">=";
+    break;
+  }
+
+  return ToString(x->lhs) + " " + ops + " " + ToString(x->rhs);
 }
 
 } // namespace fire::AST

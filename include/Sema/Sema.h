@@ -121,6 +121,11 @@ struct SemaFunctionNameContext {
   }
 };
 
+struct SemaClassNameContext {
+
+  ASTPtr<AST::Class> Now_Analysing;
+};
+
 struct SemaContext {
 
   FunctionScope* original_template_func = nullptr;
@@ -128,6 +133,8 @@ struct SemaContext {
   bool create_new_scope = false;
 
   SemaFunctionNameContext FuncName;
+
+  SemaClassNameContext ClassCtx;
 
   bool InCallFunc() {
     return FuncName.CF != nullptr;
@@ -140,24 +147,73 @@ struct SemaContext {
   static SemaContext NullCtx;
 };
 
-struct TemplateInstantiationContext {
+/*
+ * TemplateInstantiationContext:
+ *
+ * テンプレート関数・クラスのインスタンス化を行う．
+ * また，それに関する情報や文脈を管理する．
+ *
+ */
+class TemplateInstantiationContext {
+  friend class Sema;
 
-  enum ResultTypes {
+public:
+  //
+  // InstantiationResultTypes
+  //
+  // 与えられたテンプレート引数と，定義側のパラメータとの比較．
+  //
+  enum InstantiationResultTypes {
+
+    //
+    // このクラスのインスタンスを作成した直後．
+    // まだインスタンス化をしていない状態．
     TI_NotTryied,
 
+    //
+    // 正しくインスタンス化できた．
     TI_Succeed,
 
+    //
+    // 与えられたテンプレート引数が多すぎる
     TI_TooManyParameters,
 
+    //
+    // 不足しているテンプレート引数の型を他の文脈から推論できなかった．
     TI_CannotDeductType,
 
-    TI_Arg_TypeMismatch,
+    TI_Arg_ParamError,
 
-    TI_Arg_ParamError, // in formal define
+    TI_Arg_TypeMismatch,
 
     TI_Arg_TooFew,
 
     TI_Arg_TooMany,
+  };
+
+  //
+  // FunctionInstantiationResultTypes
+  //
+  // テンプレート関数のインスタンス化を行ったあとの結果．
+  //
+  enum FunctionInstantiationResultTypes {
+    TI_FR_NotTryied,
+
+    //
+    // 成功
+    TI_FR_Succeed,
+
+    //
+    // 引数の型が一致しない
+    TI_FR_Arg_TypeMismatch,
+
+    //
+    // 引数が少ない
+    TI_FR_Arg_TooFew,
+
+    //
+    // 引数が多すぎる
+    TI_FR_Arg_TooMany,
   };
 
   struct ParameterInfo {
@@ -182,7 +238,9 @@ struct TemplateInstantiationContext {
   };
 
   struct InstantiationResult {
-    ResultTypes Type = TI_NotTryied;
+    InstantiationResultTypes Type = TI_NotTryied;
+
+    FunctionInstantiationResultTypes FuncResult = TI_FR_NotTryied;
 
     ParameterInfo* ErrParam = nullptr;
 
@@ -238,7 +296,7 @@ class Sema {
   friend struct BlockScope;
   friend struct FunctionScope;
 
-  friend struct TemplateInstantiationContext;
+  friend class TemplateInstantiationContext;
 
   friend struct SemaContext;
   friend struct SemaFunctionNameContext;

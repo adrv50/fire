@@ -246,14 +246,24 @@ ASTPointer Parser::Top() {
     return ast;
   }
 
+  bool ate_final_tok = false;
+
+  // final class
+  if (this->eat("final")) {
+    this->expect("class", true);
+    ate_final_tok = true;
+  }
+
   if (this->eat("class")) {
     auto ast = AST::Class::New(tok, *this->expectIdentifier());
 
-    if (this->eat(":")) {
-      auto& C = ast->derive_names.emplace_back(this->ScopeResol());
+    ast->IsFinal = ate_final_tok;
+    ast->FianlSpecifyToken = tok;
 
-      if (!C->is_ident_or_scoperesol()) {
-      }
+    if (this->eat(":")) {
+      do {
+        ast->derive_names.emplace_back(this->ScopeResol());
+      } while (this->eat(","));
     }
 
     this->expect("{");

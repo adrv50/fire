@@ -15,7 +15,7 @@ using TypeVec = vector<TypeInfo>;
 class Sema;
 
 struct LocalVar {
-  string_view name;
+  string name;
 
   TypeInfo deducted_type;
   bool is_type_deducted = false;
@@ -29,7 +29,7 @@ struct LocalVar {
 
   int index_add = 0;
 
-  LocalVar(string_view name = "")
+  LocalVar(string const& name = "")
       : name(name) {
   }
 
