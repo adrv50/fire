@@ -4,20 +4,26 @@
 
 namespace fire::AST {
 
+struct Interface;
+
 struct Class : Templatable {
-  // parse
-  ASTVector derive_names; // elem is Parser::ScopeResol()
-
-  ASTVec<Class> derived_classes; //
-  ASTVec<Class> BasedBy;         // --> Sema
-
   ASTVec<VarDef> member_variables;
   ASTVec<Function> member_functions;
 
-  ASTVec<Function> virtual_functions; // --> for make vtable
-
   bool IsFinal = false;
   Token FianlSpecifyToken;
+
+  // parse
+  ASTPointer InheritBaseClassName; // Parser::ScopeResol()
+
+  ASTPtr<Class> InheritBaseClassPtr;
+
+  ASTVec<Class> InheritedBy;
+
+  ASTVec<Interface> CoveredInterfaces; // feature
+
+  //
+  ASTVec<Function> VirtualFunctions;
 
   static ASTPtr<Class> New(Token tok, Token name);
 

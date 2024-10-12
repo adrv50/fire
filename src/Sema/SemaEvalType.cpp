@@ -12,7 +12,7 @@
 
 namespace fire::semantics_checker {
 
-TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
+TypeInfo Sema::eval_type(ASTPointer ast, SemaContext& Ctx) {
   using Kind = ASTKind;
 
   if (!ast)
@@ -89,8 +89,6 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
   case Kind::ScopeResol: {
     auto scoperesol = ASTCast<AST::ScopeResol>(ast);
 
-
-
     todo_impl;
   }
 
@@ -113,6 +111,8 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
     return TypeInfo::from_class(ast->GetID()->ast_class);
 
   case Kind::CallFunc: {
+    auto context = Ctx;
+
     auto call = ASTCast<AST::CallFunc>(ast);
 
     ASTPointer functor = call->callee;
@@ -128,14 +128,12 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
     if (functor->is_ident_or_scoperesol() || functor->kind == ASTKind::MemberAccess) {
       id = AST::GetID(functor);
 
-      Ctx.FuncName = {
-        .CF = call,
-        .ArgTypes = &arg_types,
-        .MustDecideOneCandidate = false
-      };
+      context.FuncName = {.CF = call,
+                          .ArgTypes = &arg_types,
+                          .MustDecideOneCandidate = false};
     }
 
-    TypeInfo functor_type = this->eval_type(functor, Ctx);
+    TypeInfo functor_type = this->eval_type(functor, context);
 
     if (functor->kind == ASTKind::MemberFunction) {
       call->args.insert(call->args.begin(), functor->as_expr()->lhs);
@@ -303,14 +301,9 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
     auto E = ASTCast<AST::Expr>(ast);
 
     //
-    // 
+    //
     if (E->lhs->is_ident_or_scoperesol()) {
-      Ctx.MemberRefCtx = {
-        .IsValid = true,
-        .RefExpr = E,
-        .Left = E->lhs,
-        .Right = E->rhs
-      };
+      Ctx.MemberRefCtx = {.IsValid = true, .RefExpr = E, .Left = E->lhs, .Right = E->rhs};
     }
 
     auto& LeftType = Ctx.MemberRefCtx.LeftType;
@@ -384,13 +377,11 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
   }
 
   default:
-    debug(
-      if (!ast->IsExpr()) {
-        Error(ast, "").emit();
-        alertmsg(static_cast<int>(ast->kind));
-        todo_impl;
-      }
-    );
+    debug(if (!ast->IsExpr()) {
+      Error(ast, "").emit();
+      alertmsg(static_cast<int>(ast->kind));
+      todo_impl;
+    });
 
     return this->EvalExpr(ASTCast<AST::Expr>(ast));
   }

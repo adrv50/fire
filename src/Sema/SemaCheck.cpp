@@ -30,7 +30,7 @@ void Sema::check_full() {
   // }
 }
 
-void Sema::check(ASTPointer ast, SemaContext Ctx) {
+void Sema::check(ASTPointer ast, SemaContext& Ctx) {
 
   if (!ast)
     return;
@@ -76,30 +76,41 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
 
     auto x = ASTCast<AST::Class>(ast);
 
-    Ctx.ClassCtx.Now_Analysing = x;
+    auto context = Ctx;
 
-    for (auto&& BaseNameID : x->derive_names) {
-      if (!BaseNameID->is_ident_or_scoperesol()) {
-        throw Error(BaseNameID, "invalid syntax");
+    context.ClassCtx.Now_Analysing = x;
+
+    if (auto IHBaseName = x->InheritBaseClassName; IHBaseName) {
+
+      if (!IHBaseName->is_ident_or_scoperesol()) {
+        throw Error(IHBaseName, "invalid syntax");
       }
 
-      this->eval_type(BaseNameID, Ctx);
+      this->eval_type(IHBaseName, context);
 
-      if (BaseNameID->kind != ASTKind::ClassName) {
-        throw Error(BaseNameID,
-                    "'" + AST::ToString(BaseNameID) + "' is not a class name");
+      if (IHBaseName->kind != ASTKind::ClassName) {
+        throw Error(IHBaseName,
+                    "'" + AST::ToString(IHBaseName) + "' is not a class name");
       }
 
-      auto BaseClass = BaseNameID->GetID()->ast_class;
+      auto BaseClass = IHBaseName->GetID()->ast_class;
 
-      BaseClass->BasedBy.emplace_back(x);
+      if (BaseClass == x) {
+        throw Error(x->InheritBaseClassName, "cannot inherit self class");
+      }
 
       if (BaseClass->IsFinal) {
-        throw Error(BaseNameID,
+        throw Error(IHBaseName,
                     "cannot inheritance the final class '" + BaseClass->GetName() + "'");
       }
 
-      x->derived_classes.emplace_back(BaseClass);
+      BaseClass->InheritedBy.emplace_back(x);
+
+      x->InheritBaseClassPtr = BaseClass;
+
+      context.ClassCtx.InheritBaseClass = BaseClass;
+
+      this->check(BaseClass);
     }
 
     for (auto&& mv : x->member_variables) {
@@ -113,11 +124,66 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
     }
 
     for (auto&& mf : x->member_functions) {
+      this->check(mf, context);
+
       if (mf->is_virtualized) {
-        x->virtual_functions.emplace_back(mf);
+        x->VirtualFunctions.emplace_back(mf);
       }
 
-      this->check(mf);
+      else if (mf->is_override) {
+
+        string name = mf->GetName();
+
+        auto Base = context.ClassCtx.InheritBaseClass;
+
+        ASTPtr<Function> ov_base = nullptr;
+
+        do {
+
+          Vec<ASTPtr<Function>> ov;
+
+          for (auto&& base_f : Base->member_functions) {
+            if (base_f->is_virtualized && base_f->GetName() == name) {
+              ov.emplace_back(base_f);
+            }
+          }
+
+          for (auto it = ov.begin(); it != ov.end();) {
+            auto& ov_f = *it;
+
+            if (ov_f->is_var_arg != mf->is_var_arg ||
+                ov_f->arguments.size() != mf->arguments.size() ||
+                !this->eval_type(ov_f->return_type, context)
+                     .equals(this->eval_type(mf->return_type, context))) {
+              ov.erase(it);
+              continue;
+            }
+
+            it++;
+          }
+
+          if (ov.size() == 1) {
+            ov_base = ov[0];
+            break;
+          }
+
+          if (ov.size() >= 2) {
+            // error: ambiguity
+            todo_impl;
+          }
+
+          Base = Base->InheritBaseClassPtr;
+        } while (Base);
+
+        if (!ov_base) {
+          throw Error(mf->override_specify_tok,
+                      "function " + name +
+                          " must be overridden from a base class, but the same "
+                          "name cannot be found in the base class");
+        }
+
+        mf->OverridingFunc = ov_base;
+      }
     }
 
     break;
@@ -152,6 +218,9 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
     // }
 
     assert(func);
+
+    if (x->is_virtualized) {
+    }
 
     auto pfunc = this->cur_function;
     this->cur_function = func;
@@ -203,7 +272,7 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
 
     this->EnterScope(x);
 
-    for( auto&& e : x->list )
+    for (auto&& e : x->list)
       this->check(e, Ctx);
 
     this->LeaveScope();
@@ -324,7 +393,8 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
 
           // alertexpr(static_cast<int>(e_type.kind));
 
-          // if (e_type.kind != TypeKind::Enumerator || e_type.type_ast != cond.type_ast) {
+          // if (e_type.kind != TypeKind::Enumerator || e_type.type_ast != cond.type_ast)
+          // {
           //   todo_impl;
           // }
 

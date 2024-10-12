@@ -67,7 +67,7 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
 SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& Ctx) {
 
   SemaIdentifierEvalResult& SR =
-    *EvaluatedIDResultRecord.emplace_back(std::make_shared<SemaIdentifierEvalResult>());
+      *EvaluatedIDResultRecord.emplace_back(std::make_shared<SemaIdentifierEvalResult>());
 
   TypeInfo& ST = SR.Type;
 

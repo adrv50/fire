@@ -69,8 +69,8 @@ struct Base {
   }
 
   bool is_ident_or_scoperesol() const {
-    return this->IsConstructedAs(ASTKind::Identifier)
-            || this->IsConstructedAs(ASTKind::ScopeResol);
+    return this->IsConstructedAs(ASTKind::Identifier) ||
+           this->IsConstructedAs(ASTKind::ScopeResol);
   }
 
   bool IsIdentifier() const {
@@ -108,131 +108,35 @@ struct Base {
   virtual ~Base() = default;
 
 protected:
-
   friend struct sema::LocalVar;
   friend struct sema::ScopeContext;
   friend struct sema::BlockScope;
   friend struct sema::FunctionScope;
   friend struct sema::NamespaceScope;
 
-  struct __attribute__((packed)) AST_Attribute  {
-    ASTKind   ConstructedAs;
+  struct __attribute__((packed)) AST_Attribute {
+    ASTKind ConstructedAs;
 
-    bool  IsTemplate;
-    bool  IsExpr;
-    bool  IsNamed;
+    bool IsTemplate;
+    bool IsExpr;
+    bool IsNamed;
   };
 
-  AST_Attribute _attr  = { };
+  AST_Attribute _attr = {};
 
   bool _s_pass_this = false;
 
-  sema::ScopeContext*  ScopeCtxPtr = nullptr;
+  sema::ScopeContext* ScopeCtxPtr = nullptr;
 
   Base(ASTKind k, Token token, Token endtok)
-    : kind(k),
-      token(std::move(token)),
-      endtok(std::move(endtok))
-  {
+      : kind(k),
+        token(std::move(token)),
+        endtok(std::move(endtok)) {
     this->_attr.ConstructedAs = k;
   }
 
   Base(ASTKind kind, Token token)
-    : Base(kind, token, token)
-  {
-  }
-
-};
-
-struct Named : Base {
-  Token name;
-
-  string const& GetName() const {
-    return this->name.str;
-  }
-
-protected:
-  Named(ASTKind k, Token tok, Token name)
-    : Base(k, tok),
-      name(name)
-  {
-    this->_attr.IsNamed = true;
-  }
-
-  Named(ASTKind k, Token t)
-    : Named(k, t, t)
-  {
-  }
-};
-
-struct Templatable : Named {
-
-  struct ParameterName {
-    Token token;
-    Vec<ParameterName> params;
-
-    string to_string() const {
-      string s = token.str;
-
-      if (params.size() >= 1) {
-        s += "<" +
-             utils::join(", ", params,
-                         [](auto const& P) -> string {
-                           return P.to_string();
-                         }) +
-             ">";
-      }
-
-      return s;
-    }
-  };
-
-  Token TemplateTok;  // "<"
-
-  bool IsTemplated = false;
-
-  bool IsInstantiated = false;
-
-  Vec<ParameterName>  ParameterList;
-
-  //
-  // 可変長パラメータ引数
-  bool IsVariableParameters = false;
-  Token VariableParams_Name;
-
-  size_t ParameterCount() const {
-    return ParameterList.size();
-  }
-
-  // ASTPtr<Block> owner_block_ptr = nullptr;
-  // size_t index_of_self_in_owner_block_list = 0;
-
-  // ASTPointer& InsertInstantiated(ASTPtr<Templatable> ast);
-
-protected:
-  Templatable(ASTKind kind, Token tok, Token name)
-      : Named(kind, tok, name) {
-    this->_attr.IsTemplate = true;
-  }
-
-  Templatable(ASTKind k, Token t)
-      : Templatable(k, t, t) {
-  }
-
-  void _Copy(Templatable const& T) {
-
-    this->ScopeCtxPtr = T.ScopeCtxPtr;
-
-    this->TemplateTok = T.TemplateTok;
-
-    this->IsTemplated = T.IsTemplated;
-
-    this->IsInstantiated = T.IsInstantiated;
-
-    for( auto&& Param : T.ParameterList ) {
-      this->ParameterList.emplace_back(Param);
-    }
-
+      : Base(kind, token, token) {
   }
 };
 

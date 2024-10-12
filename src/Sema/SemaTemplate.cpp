@@ -225,7 +225,7 @@ bool TIContext::AssignmentTypeToParam(ParameterInfo* P, ASTPtr<AST::TypeName> Ty
 }
 
 ASTPtr<AST::Function>
-TIContext::TryInstantiate_Of_Function(SemaFunctionNameContext* Ctx) {
+TIContext::TryInstantiate_Of_Function(SemaFunctionNameContext const* Ctx) {
 
   if (Item->kind != ASTKind::Function)
     return nullptr;
@@ -345,7 +345,7 @@ TIContext::TemplateInstantiationContext(Sema& S, IdentifierInfo* ParamsII,
 
 size_t Sema::GetMatchedFunctions(ASTVec<AST::Function>& Matched,
                                  ASTVec<AST::Function> const& Candidates,
-                                 IdentifierInfo* ParamsII, SemaContext* Ctx,
+                                 IdentifierInfo* ParamsII, SemaContext const* Ctx,
                                  bool ThrowError) {
 
   for (auto&& C : Candidates) {

@@ -260,11 +260,13 @@ ASTPointer Parser::Top() {
     ast->IsFinal = ate_final_tok;
     ast->FianlSpecifyToken = tok;
 
-    if (this->eat(":")) {
-      do {
-        ast->derive_names.emplace_back(this->ScopeResol());
-      } while (this->eat(","));
+    if (this->eat("extends")) {
+      ast->InheritBaseClassName = this->ScopeResol();
     }
+
+    //
+    // todo: inherit interfaces
+    //
 
     this->expect("{");
 
@@ -303,6 +305,7 @@ ASTPointer Parser::Top() {
   }
 
   bool _f_virtualized = false;
+  TokenIterator virtual_tok = this->cur;
 
   if (this->eat("virtual")) {
     if (!this->_in_class) {
@@ -318,7 +321,9 @@ ASTPointer Parser::Top() {
 
     auto func = AST::Function::New(tok, *this->expectIdentifier());
 
-    func->is_virtualized = _f_virtualized;
+    if ((func->is_virtualized = _f_virtualized)) {
+      func->virtualize_specify_tok = *virtual_tok;
+    }
 
     if (this->eat_typeparam_bracket_open()) {
       func->IsTemplated = true;
@@ -362,7 +367,8 @@ ASTPointer Parser::Top() {
         throw Error(*this->ate, "cannot define overrided function at out of scope");
       }
 
-      func->is_overrided = true;
+      func->is_override = true;
+      func->override_specify_tok = *this->ate;
     }
 
     this->expect("{", true);
@@ -435,7 +441,7 @@ ASTPtr<AST::Block> Parser::Parse() {
   }
 
   while (this->check()) {
-    auto& e = ret->list.emplace_back(this->Top());
+    ret->list.emplace_back(this->Top());
   }
 
   for (size_t i = 0; i < this->tokens.size(); i++) {

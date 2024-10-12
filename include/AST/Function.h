@@ -17,12 +17,18 @@ struct Function : Templatable {
   ASTPtr<TypeName> return_type;
   ASTPtr<Block> block;
 
-  bool is_var_arg;
+  bool is_var_arg = false;
 
   ASTPtr<Class> member_of = nullptr;
 
   bool is_virtualized = false;
-  bool is_overrided = false;
+  Token virtualize_specify_tok;
+
+  bool is_override = false;
+  Token override_specify_tok;
+
+  ASTPtr<Class> OverridingClass;   //
+  ASTPtr<Function> OverridingFunc; // --> base-class
 
   sema::FunctionScope* GetScope();
 

@@ -6,7 +6,11 @@
 #include "Token.h"
 
 #include "AST/Kind.h"
-#include "AST/Base.h"
+
+#include "AST/Base/Base.h"
+#include "AST/Base/Named.h"
+#include "AST/Base/Templatable.h"
+
 #include "AST/Expr.h"
 #include "AST/Stmt.h"
 #include "AST/Types.h"

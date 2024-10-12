@@ -115,11 +115,11 @@ struct SemaFunctionNameContext {
 
   bool MustDecideOneCandidate = true;
 
-  bool IsValid() {
+  bool IsValid() const {
     return CF || Sig;
   }
 
-  size_t GetArgumentsCount() {
+  size_t GetArgumentsCount() const {
     return ArgTypes ? ArgTypes->size() : 0;
   }
 };
@@ -127,6 +127,8 @@ struct SemaFunctionNameContext {
 struct SemaClassNameContext {
 
   ASTPtr<AST::Class> Now_Analysing;
+
+  ASTPtr<AST::Class> InheritBaseClass;
 };
 
 struct SemaMemberReferenceContext {
@@ -148,7 +150,6 @@ struct SemaMemberReferenceContext {
 struct SemaScopeResolContext {
 
   // todo
-  
 };
 
 struct SemaContext {
@@ -163,17 +164,18 @@ struct SemaContext {
 
   //
   // クラス名として参照される式である場合に使用
+  // また，クラス内を解析している場合は，そのクラスへのポインタを格納．
   SemaClassNameContext ClassCtx;
 
   SemaMemberReferenceContext MemberRefCtx;
 
   SemaScopeResolContext ScopeResolCtx;
 
-  bool InCallFunc() {
+  bool InCallFunc() const {
     return FuncName.CF != nullptr;
   }
 
-  bool InOverloadResolGuide() {
+  bool InOverloadResolGuide() const {
     return FuncName.Sig != nullptr;
   }
 
@@ -348,7 +350,7 @@ public:
   bool AssignmentTypeToParam(ParameterInfo* P, ASTPtr<AST::TypeName> TypeAST,
                              ASTPointer Arg, TypeInfo const& type);
 
-  ASTPtr<AST::Function> TryInstantiate_Of_Function(SemaFunctionNameContext* Ctx);
+  ASTPtr<AST::Function> TryInstantiate_Of_Function(SemaFunctionNameContext const* Ctx);
 
   ASTPtr<AST::Class> TryInstantiate_Of_Class();
 
@@ -401,7 +403,7 @@ class Sema {
   // -----------------
   size_t GetMatchedFunctions(ASTVec<AST::Function>& Matched,
                              ASTVec<AST::Function> const& Candidates,
-                             IdentifierInfo* ParamsII, SemaContext* Ctx,
+                             IdentifierInfo* ParamsII, SemaContext const* Ctx,
                              bool ThrowError = false);
 
 public:
@@ -410,9 +412,9 @@ public:
 
   void check_full();
 
-  void check(ASTPointer ast, SemaContext Ctx = SemaContext::NullCtx);
+  void check(ASTPointer ast, SemaContext& Ctx = SemaContext::NullCtx);
 
-  TypeInfo eval_type(ASTPointer ast, SemaContext Ctx = SemaContext::NullCtx);
+  TypeInfo eval_type(ASTPointer ast, SemaContext& Ctx = SemaContext::NullCtx);
 
   TypeInfo eval_type_name(ASTPtr<AST::TypeName> ast);
 

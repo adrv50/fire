@@ -30,7 +30,7 @@ string ToString(ASTPointer ast) {
   if (!ast)
     return "(null)";
 
-  switch( ast->GetConstructedKind() ) {
+  switch (ast->GetConstructedKind()) {
   case ASTKind::Function: {
     auto x = ast->As<Function>();
 
@@ -51,7 +51,7 @@ string ToString(ASTPointer ast) {
       s += "-> " + ToString(x->return_type) + " ";
     }
 
-    if (x->is_overrided) {
+    if (x->is_override) {
       s += "override ";
     }
 
@@ -175,7 +175,7 @@ string ToString(ASTPointer ast) {
   }
 
   alertexpr(static_cast<int>(ast->kind));
-  assert( ast->IsExpr() );
+  assert(ast->IsExpr());
 
   auto x = ast->as_expr();
 
