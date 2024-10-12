@@ -413,17 +413,6 @@ FunctionScope::FunctionScope(int depth, ASTPtr<AST::Function> ast)
 
   auto S = Sema::GetInstance();
 
-  for (auto&& [_key, _val] : S->function_scope_map) {
-    if (_key == ast) {
-      todo_impl; // why again?
-    }
-  }
-
-  // auto f = Sema::SemaFunction(ast);
-  // f.scope = this;
-
-  S->function_scope_map.emplace_back(ast, this);
-
   for (auto&& arg : ast->arguments) {
     this->add_arg(arg);
   }

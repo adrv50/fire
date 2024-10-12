@@ -296,7 +296,7 @@ TIContext::TryInstantiate_Of_Function(SemaFunctionNameContext const* Ctx) {
       return false;
 
     if (auto t = x->As<AST::TypeName>(); t->kind == ASTKind::TypeName) {
-      if (auto p = this->GetParam(t->GetName()); p) {
+      if (ParameterInfo* p = this->GetParam(t->GetName()); p) {
         t->name.str = p->Type.GetName();
       }
     }
@@ -358,7 +358,7 @@ size_t Sema::GetMatchedFunctions(ASTVec<AST::Function>& Matched,
       ASTPtr<AST::Function> Instantiated = nullptr;
 
       if (!TI.Failed) {
-        Instantiated = TI.TryInstantiate_Of_Function(Ctx ? &Ctx->FuncName : nullptr);
+        Instantiated = TI.TryInstantiate_Of_Function(Ctx ? Ctx->FuncNameCtx : nullptr);
       }
 
       if (Instantiated) {
@@ -402,15 +402,16 @@ size_t Sema::GetMatchedFunctions(ASTVec<AST::Function>& Matched,
 
     // 非テンプレート関数
     //  => 引数の型がわかる文脈であれば、引数との一致を見る
-    else if (Ctx && Ctx->FuncName.IsValid()) {
-      if (Ctx->FuncName.GetArgumentsCount() < C->arguments.size() ||
-          (!C->is_var_arg && C->arguments.size() < Ctx->FuncName.GetArgumentsCount())) {
+    else if (Ctx && Ctx->FuncNameCtx) {
+      auto N = Ctx->FuncNameCtx->GetArgumentsCount();
+      auto M = C->arguments.size();
+
+      if (N < M || (!C->is_var_arg && N > M))
         continue;
-      }
 
       for (size_t i = 0; i < C->arguments.size(); i++) {
         auto FormalType = this->eval_type(C->arguments[i]->type);
-        auto const& ActualType = (*Ctx->FuncName.ArgTypes)[i];
+        auto const& ActualType = (*Ctx->FuncNameCtx->ArgTypes)[i];
 
         if (!FormalType.equals(ActualType)) {
           goto _pass_candidate;

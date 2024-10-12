@@ -154,31 +154,34 @@ struct SemaScopeResolContext {
   // todo
 };
 
+struct SemaTypeExpectionContext {
+
+  TypeInfo const* Expected = nullptr;
+};
+
 struct SemaContext {
-
-  FunctionScope* original_template_func = nullptr;
-
-  bool create_new_scope = false;
 
   //
   // 関数呼び出し式において，呼び出し先の関数を一つに決める必要がある場合に使用
-  SemaFunctionNameContext FuncName;
+  SemaFunctionNameContext* FuncNameCtx;
 
   //
   // クラス名として参照される式である場合に使用
   // また，クラス内を解析している場合は，そのクラスへのポインタを格納．
-  SemaClassNameContext ClassCtx;
+  SemaClassNameContext* ClassCtx;
 
-  SemaMemberReferenceContext MemberRefCtx;
+  SemaMemberReferenceContext* MemberRefCtx;
 
-  SemaScopeResolContext ScopeResolCtx;
+  SemaScopeResolContext* ScopeResolCtx;
+
+  SemaTypeExpectionContext* TypeExpection;
 
   bool InCallFunc() const {
-    return FuncName.CF != nullptr;
+    return FuncNameCtx && FuncNameCtx->CF;
   }
 
   bool InOverloadResolGuide() const {
-    return FuncName.Sig != nullptr;
+    return FuncNameCtx && FuncNameCtx->Sig;
   }
 
   //
@@ -191,8 +194,6 @@ struct SemaContext {
   //   match-statement
   //
   bool IsAllowedNoEnumeratorArguments = false;
-
-  static SemaContext NullCtx;
 };
 
 struct SemaIdentifierEvalResult {
@@ -365,11 +366,11 @@ class Sema {
   friend struct BlockScope;
   friend struct FunctionScope;
 
-  friend class TemplateInstantiationContext;
-
   friend struct SemaContext;
   friend struct SemaFunctionNameContext;
   friend struct SemaMemberReferenceContext;
+
+  friend class TemplateInstantiationContext;
 
   ArgumentCheckResult check_function_call_parameters(ASTVector args, bool isVariableArg,
                                                      TypeVec const& formal,
@@ -414,9 +415,9 @@ public:
 
   void check_full();
 
-  void check(ASTPointer ast, SemaContext& Ctx = SemaContext::NullCtx);
+  void check(ASTPointer ast, SemaContext Ctx = {});
 
-  TypeInfo eval_type(ASTPointer ast, SemaContext& Ctx = SemaContext::NullCtx);
+  TypeInfo eval_type(ASTPointer ast, SemaContext Ctx = {});
 
   TypeInfo eval_type_name(ASTPtr<AST::TypeName> ast);
 
@@ -429,6 +430,7 @@ public:
 private:
   struct TemplateInstantiatedRecord {
     ASTPtr<AST::Templatable> Instantiated;
+
     std::list<ScopeContext*> Scope;
   };
 
@@ -455,9 +457,7 @@ private:
 
   void LeaveScope();
 
-  void ClearScopeHistory() {
-    this->GetHistory().clear();
-  }
+  void ClearScopeHistory();
 
   void SaveScopeLocation();
   void RestoreScopeLocation();
@@ -468,79 +468,13 @@ private:
   int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth);
 
   TypeInfo ExpectType(TypeInfo const& type, ASTPointer ast);
-  TypeInfo* GetExpectedType();
-
-  bool IsExpected(TypeKind kind);
-
-  vector<TypeInfo> _expected;
-
-  vector<std::pair<ASTPtr<AST::Function>, FunctionScope*>> function_scope_map;
-
-  ASTVec<Enum> enums;
-  ASTVec<Class> classes;
-
-  ASTPtr<Enum>& add_enum(ASTPtr<Enum> e) {
-    return this->enums.emplace_back(e);
-  }
-
-  ASTPtr<Class>& add_class(ASTPtr<Class> c) {
-    return this->classes.emplace_back(c);
-  }
 
   TypeInfo make_functor_type(ASTPtr<AST::Function> ast);
   TypeInfo make_functor_type(builtins::Function const* builtin);
 
-  std::vector<IdentifierInfo> _identifier_info_keep;
-
   std::map<ASTPtr<AST::Class>, bool> _class_analysing_flag_map;
 
-  // std::vector<std::pair<ASTPtr<AST::Identifier>, TypeInfo>> id_result_keep;
-
-  IdentifierInfo* get_keeped_id_info(ASTPtr<AST::Identifier> id) {
-    for (auto&& info : _identifier_info_keep)
-      if (info.ast == id)
-        return &info;
-
-    return nullptr;
-  }
-
-  IdentifierInfo& keep_id(IdentifierInfo info) {
-    return _identifier_info_keep.emplace_back(std::move(info));
-  }
-
-  static ASTPtr<AST::TypeName> CreateTypeNameAST_From_TypeInfo(TypeInfo const& type) {
-    Token tok;
-
-    if (type.IsPrimitiveType()) {
-      tok.str = type.GetSV();
-    }
-    else if (type.kind == TypeKind::Function) {
-      tok.str = "function";
-    }
-
-    auto ast = AST::TypeName::New(tok);
-
-    for (auto&& p : type.params) {
-      ast->type_params.emplace_back(CreateTypeNameAST_From_TypeInfo(p));
-    }
-
-    ast->is_const = type.is_const;
-
-    return ast;
-  }
-
-  //
-  // is
-  static bool IsDerivedFrom(ASTPtr<AST::Class> _class, ASTPtr<AST::Class> _base) {
-
-    for (auto C = _class->InheritBaseClassPtr; C; C = C->InheritBaseClassPtr) {
-      if (C == _base) {
-        return true;
-      }
-    }
-
-    return false;
-  }
+  static bool IsDerivedFrom(ASTPtr<AST::Class> _class, ASTPtr<AST::Class> _base);
 };
 
 } // namespace fire::semantics_checker

@@ -2,6 +2,7 @@
     "files.associations": {
         "chrono": "cpp",
         "typeinfo": "cpp",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "cstdint": "cpp"
     }
 }

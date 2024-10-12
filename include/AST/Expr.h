@@ -14,9 +14,8 @@ struct Value : Base {
   }
 
   Value(Token const& tok, ObjPointer value)
-    : Base(ASTKind::Value, tok),
-      value(value)
-  {
+      : Base(ASTKind::Value, tok),
+        value(value) {
   }
 };
 
@@ -64,11 +63,11 @@ struct Identifier : Named {
   ASTPointer Clone() const override {
     auto x = New(this->token);
 
-    for( auto&& p : this->id_params )
+    for (auto&& p : this->id_params)
       x->id_params.emplace_back(p->Clone());
 
     x->template_func_decided = this->template_func_decided;
-    
+
     x->template_original = this->template_original;
 
     x->ft_ret = this->ft_ret;
@@ -92,8 +91,7 @@ struct Identifier : Named {
   }
 
   Identifier(Token t)
-    : Named(ASTKind::Identifier, t, t)
-  {
+      : Named(ASTKind::Identifier, t, t) {
   }
 };
 
@@ -102,24 +100,24 @@ struct ScopeResol : Named {
   ASTVec<Identifier> idlist;
 
   static ASTPtr<ScopeResol> New(ASTPtr<Identifier> first) {
-  return ASTNew<ScopeResol>(first);
+    return ASTNew<ScopeResol>(first);
   }
 
   ASTPointer Clone() const override {
     auto x = New(ASTCast<AST::Identifier>(this->first->Clone()));
 
-    for( auto&& id : idlist )
+    for (auto&& id : idlist)
       x->idlist.emplace_back(ASTCast<AST::Identifier>(id));
 
     return x;
   }
 
   Identifier* GetID() override {
-  #if _DBG_DONT_USE_SMART_PTR_
+#if _DBG_DONT_USE_SMART_PTR_
     return *idlist.rbegin();
-  #else
+#else
     return idlist.rbegin()->get();
-  #endif
+#endif
   }
 
   ASTPtr<Identifier> GetLastID() const {
@@ -127,9 +125,8 @@ struct ScopeResol : Named {
   }
 
   ScopeResol(ASTPtr<Identifier> first)
-    : Named(ASTKind::ScopeResol, first->token),
-      first(first)
-  {
+      : Named(ASTKind::ScopeResol, first->token),
+        first(first) {
   }
 };
 
@@ -156,6 +153,8 @@ struct CallFunc : Base {
 
   ASTPtr<Enum> ast_enum = nullptr;
   size_t enum_index = 0;
+
+  bool IsMemberCall = false;
 
   static ASTPtr<CallFunc> New(ASTPointer callee, ASTVector args = {});
 

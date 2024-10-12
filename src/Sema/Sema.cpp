@@ -2,8 +2,6 @@
 
 namespace fire::semantics_checker {
 
-SemaContext SemaContext::NullCtx;
-
 static vector<Sema*> _sema_instances;
 
 Sema* Sema::GetInstance() {

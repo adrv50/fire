@@ -12,7 +12,7 @@
 
 namespace fire::semantics_checker {
 
-TypeInfo Sema::eval_type(ASTPointer ast, SemaContext& Ctx) {
+TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
   using Kind = ASTKind;
 
   if (!ast)
@@ -44,8 +44,8 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext& Ctx) {
     TypeInfo type = TypeKind::Vector;
 
     if (x->elements.empty()) {
-      if (this->IsExpected(TypeKind::Vector)) {
-        return x->elem_type = *this->GetExpectedType();
+      if (Ctx.TypeExpection) {
+        return x->elem_type = *Ctx.TypeExpection->Expected;
       }
 
       throw Error(x->token, "cannot deduction element type")
@@ -111,8 +111,6 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext& Ctx) {
     return TypeInfo::from_class(ast->GetID()->ast_class);
 
   case Kind::CallFunc: {
-    auto context = Ctx;
-
     auto call = ASTCast<AST::CallFunc>(ast);
 
     ASTPointer functor = call->callee;
@@ -125,18 +123,23 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext& Ctx) {
       arg_types.emplace_back(this->eval_type(arg));
     }
 
+    SemaFunctionNameContext f_ctx;
+
     if (functor->is_ident_or_scoperesol() || functor->kind == ASTKind::MemberAccess) {
       id = AST::GetID(functor);
 
-      context.FuncName = {.CF = call,
-                          .ArgTypes = &arg_types,
-                          .MustDecideOneCandidate = false};
+      f_ctx = {.CF = call, .ArgTypes = &arg_types, .MustDecideOneCandidate = false};
+
+      Ctx.FuncNameCtx = &f_ctx;
     }
 
-    TypeInfo functor_type = this->eval_type(functor, context);
+    TypeInfo functor_type = this->eval_type(functor, Ctx);
 
     if (functor->kind == ASTKind::MemberFunction) {
+      call->IsMemberCall = true;
+
       call->args.insert(call->args.begin(), functor->as_expr()->lhs);
+
       functor->kind = ASTKind::FuncName;
     }
 
@@ -300,13 +303,18 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext& Ctx) {
 
     auto E = ASTCast<AST::Expr>(ast);
 
+    SemaMemberReferenceContext mrefctx;
+
     //
     //
     if (E->lhs->is_ident_or_scoperesol()) {
-      Ctx.MemberRefCtx = {.IsValid = true, .RefExpr = E, .Left = E->lhs, .Right = E->rhs};
+
+      mrefctx = {.IsValid = true, .RefExpr = E, .Left = E->lhs, .Right = E->rhs};
+
+      Ctx.MemberRefCtx = &mrefctx;
     }
 
-    auto& LeftType = Ctx.MemberRefCtx.LeftType;
+    auto& LeftType = mrefctx.LeftType;
 
     LeftType = this->eval_type(E->lhs, Ctx);
 

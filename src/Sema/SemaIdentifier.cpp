@@ -4,17 +4,17 @@ namespace fire::semantics_checker {
 
 IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& Ctx) {
 
-  if (Ctx.MemberRefCtx.IsValid && Ctx.MemberRefCtx.Right == Id) {
+  if (Ctx.MemberRefCtx && Ctx.MemberRefCtx->Right == Id) {
 
-    auto const& LeftII = Ctx.MemberRefCtx.LeftNameII;
+    auto& C = *Ctx.MemberRefCtx;
 
-    auto const& LeftType = Ctx.MemberRefCtx.LeftType;
+    auto const& LeftType = C.LeftType;
 
     string name = Id->GetName();
 
     IdentifierInfo II = {.ast = Id};
 
-    auto E = Ctx.MemberRefCtx.RefExpr;
+    auto E = C.RefExpr;
 
     switch (LeftType.kind) {
 
@@ -70,6 +70,8 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
       *EvaluatedIDResultRecord.emplace_back(std::make_shared<SemaIdentifierEvalResult>());
 
   TypeInfo& ST = SR.Type;
+
+  bool IsFuncNameCtxValid = Ctx.FuncNameCtx != nullptr;
 
   SR.ast = id;
 
@@ -159,12 +161,13 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
           this->GetMatchedFunctions(id->candidates, res.functions, &II, &Ctx, true);
 
       if (count >= 2) {
-        if (Ctx.FuncName.IsValid()) {
+        if (IsFuncNameCtxValid) {
           todo_impl;
         }
       }
 
-      else if (count == 0 && Ctx.FuncName.MustDecideOneCandidate) {
+      else if (count == 0 && IsFuncNameCtxValid &&
+               Ctx.FuncNameCtx->MustDecideOneCandidate) {
         throw Error(id->token, "no found function name '" + id->GetName() +
                                    "' matched template parameter <" +
                                    utils::join(", ", id->template_args,
@@ -195,8 +198,6 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
         _Scope = _Scope->_owner;
       }
 
-      alert;
-
       ST = type;
       break;
     }
@@ -207,7 +208,7 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
       id->candidates_builtin = std::move(res.builtin_funcs);
 
       if (id->candidates_builtin.size() >= 2) {
-        if (Ctx.FuncName.MustDecideOneCandidate)
+        if (IsFuncNameCtxValid && Ctx.FuncNameCtx->MustDecideOneCandidate)
           throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
 
         todo_impl; // may be overloaded.
@@ -229,11 +230,13 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
       id->kind = ASTKind::ClassName;
       id->ast_class = res.ast_class;
 
-      auto context = Ctx;
+      auto ctx = Ctx;
 
-      context.ClassCtx.PassMemberAnalyze = true;
+      SemaClassNameContext classnamectx = {.PassMemberAnalyze = true};
 
-      this->check(id->ast_class, context);
+      ctx.ClassCtx = &classnamectx;
+
+      this->check(id->ast_class, ctx);
 
       ST = TypeInfo::from_class(id->ast_class);
 
@@ -280,9 +283,10 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
     todo_impl; // ?
   }
 
-  if (Ctx.MemberRefCtx.IsValid && Ctx.MemberRefCtx.Left == id) {
-    Ctx.MemberRefCtx.LeftNameII = SR.II;
-    Ctx.MemberRefCtx.LeftType = ST;
+  if (Ctx.MemberRefCtx && Ctx.MemberRefCtx->Left == id) {
+
+    Ctx.MemberRefCtx->LeftNameII = SR.II;
+    Ctx.MemberRefCtx->LeftType = ST;
   }
 
   return SR;

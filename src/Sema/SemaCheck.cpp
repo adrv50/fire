@@ -30,7 +30,7 @@ void Sema::check_full() {
   // }
 }
 
-void Sema::check(ASTPointer ast, SemaContext& Ctx) {
+void Sema::check(ASTPointer ast, SemaContext Ctx) {
 
   if (!ast)
     return;
@@ -80,9 +80,11 @@ void Sema::check(ASTPointer ast, SemaContext& Ctx) {
 
     this->_class_analysing_flag_map[x] = true;
 
-    auto context = Ctx;
+    SemaClassNameContext context = {.Now_Analysing = x};
 
-    context.ClassCtx.Now_Analysing = x;
+    auto pCtx = Ctx.ClassCtx;
+
+    Ctx.ClassCtx = &context;
 
     if (auto IHBaseName = x->InheritBaseClassName; IHBaseName) {
 
@@ -90,7 +92,7 @@ void Sema::check(ASTPointer ast, SemaContext& Ctx) {
         throw Error(IHBaseName, "invalid syntax");
       }
 
-      this->eval_type(IHBaseName, context);
+      this->eval_type(IHBaseName, Ctx);
 
       if (IHBaseName->kind != ASTKind::ClassName) {
         throw Error(IHBaseName,
@@ -112,12 +114,12 @@ void Sema::check(ASTPointer ast, SemaContext& Ctx) {
 
       x->InheritBaseClassPtr = BaseClass;
 
-      context.ClassCtx.InheritBaseClass = BaseClass;
+      context.InheritBaseClass = BaseClass;
 
       this->check(BaseClass);
     }
 
-    if (Ctx.ClassCtx.PassMemberAnalyze) {
+    if (pCtx && pCtx->PassMemberAnalyze) {
       break;
     }
 
@@ -134,7 +136,7 @@ void Sema::check(ASTPointer ast, SemaContext& Ctx) {
     }
 
     for (auto&& mf : x->member_functions) {
-      this->check(mf, context);
+      this->check(mf, Ctx);
 
       if (mf->is_virtualized) {
         x->VirtualFunctions.emplace_back(mf);
@@ -144,7 +146,7 @@ void Sema::check(ASTPointer ast, SemaContext& Ctx) {
 
         string name = mf->GetName();
 
-        auto Base = context.ClassCtx.InheritBaseClass;
+        auto Base = context.InheritBaseClass;
 
         ASTPtr<Function> ov_base = nullptr;
 
@@ -163,8 +165,8 @@ void Sema::check(ASTPointer ast, SemaContext& Ctx) {
 
             if (ov_f->is_var_arg != mf->is_var_arg ||
                 ov_f->arguments.size() != mf->arguments.size() ||
-                !this->eval_type(ov_f->return_type, context)
-                     .equals(this->eval_type(mf->return_type, context))) {
+                !this->eval_type(ov_f->return_type, Ctx)
+                     .equals(this->eval_type(mf->return_type, Ctx))) {
               ov.erase(it);
               goto __L_candidate_removed;
             }

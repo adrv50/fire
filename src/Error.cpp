@@ -162,12 +162,14 @@ Error const& Error::emit() const {
 
   cout << COL_DEFAULT << COL_BOLD << "     " COL_BORDER_LINE " | ";
 
-  cout << cursor_space << COL_WHITE COL_BOLD "^" << COL_DEFAULT << endl << endl;
+  cout << cursor_space << COL_WHITE COL_BOLD "^" << COL_DEFAULT << endl;
 
   _err_emitted_count++;
 
-  for (auto&& e : this->chained)
+  for (auto&& e : this->chained) {
+    cout << endl;
     e.emit();
+  }
 
   for (auto&& note : this->notes) {
     cout << "     " << COL_DEFAULT COL_BOLD COL_NOTE << "note: " << COL_WHITE << note

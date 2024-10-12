@@ -122,6 +122,10 @@ void Sema::LeaveScope() {
   this->_scope_history.pop_front();
 }
 
+void Sema::ClearScopeHistory() {
+  this->_scope_history.clear();
+}
+
 void Sema::SaveScopeLocation() {
 
   _bak_list.emplace_back(this->_scope_history);
@@ -464,7 +468,9 @@ bool Sema::IsWritable(ASTPointer ast) {
 TypeInfo Sema::ExpectType(TypeInfo const& type, ASTPointer ast) {
   // this->_expected.emplace_back(type);
 
-  if (auto t = this->eval_type(ast); !t.equals(type)) {
+  SemaTypeExpectionContext ctx = {.Expected = &type};
+
+  if (auto t = this->eval_type(ast, {.TypeExpection = &ctx}); !t.equals(type)) {
     Error E{ast, "expected '" + type.to_string() + "' type expression, but found '" +
                      t.to_string() + "'"};
 
@@ -485,17 +491,6 @@ TypeInfo Sema::ExpectType(TypeInfo const& type, ASTPointer ast) {
   return type;
 }
 
-TypeInfo* Sema::GetExpectedType() {
-  if (this->_expected.empty())
-    return nullptr;
-
-  return &*this->_expected.rbegin();
-}
-
-bool Sema::IsExpected(TypeKind kind) {
-  return !this->_expected.empty() && this->GetExpectedType()->kind == kind;
-}
-
 TypeInfo Sema::make_functor_type(ASTPtr<AST::Function> ast) {
   TypeInfo ret = TypeKind::Function;
 
@@ -514,6 +509,17 @@ TypeInfo Sema::make_functor_type(builtins::Function const* builtin) {
   ret.params.insert(ret.params.begin(), builtin->result_type);
 
   return ret;
+}
+
+bool Sema::IsDerivedFrom(ASTPtr<AST::Class> _class, ASTPtr<AST::Class> _base) {
+
+  for (auto C = _class->InheritBaseClassPtr; C; C = C->InheritBaseClassPtr) {
+    if (C == _base) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 } // namespace fire::semantics_checker

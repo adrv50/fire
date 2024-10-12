@@ -40,8 +40,6 @@ Evaluator::VarStack& Evaluator::get_stack(int distance) {
 
 ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
 
-  alert;
-
   switch (ast->kind) {
   case ASTKind::IndexRef: {
     auto ex = ast->as_expr();
@@ -50,15 +48,9 @@ ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
   }
   }
 
-  assert(ast->kind == ASTKind::Variable);
+  debug(assert(ast->kind == ASTKind::Variable));
 
   auto x = ast->GetID();
-
-  alertexpr(x->distance);
-  alertexpr(x->index);
-  alertexpr(x->index_add);
-
-  alert;
 
   return this->get_stack(x->distance).var_list[x->index + x->index_add];
 }
@@ -74,7 +66,7 @@ ObjPointer& Evaluator::eval_index_ref(ObjPointer array, ObjPointer _index_obj) {
   }
   }
 
-  assert(array->type.kind == TypeKind::Vector);
+  debug(assert(array->type.kind == TypeKind::Vector));
 
   return array->As<ObjIterable>()->list[(size_t)index];
 }
@@ -229,6 +221,19 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     if (_builtin) {
       return _builtin->Call(x, std::move(args));
+    }
+
+    if (x->IsMemberCall) {
+      auto _class = args[0]->As<ObjInstance>()->ast;
+
+      string name = AST::GetID(x->callee)->GetName();
+
+      for (auto&& mf : _class->member_functions) {
+        if (mf->GetName() == name && mf != _func) {
+          _func = mf;
+          break;
+        }
+      }
     }
 
     auto stack = this->push_stack(x->args.size());
