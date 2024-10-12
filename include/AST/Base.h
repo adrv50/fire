@@ -15,6 +15,8 @@ struct SemaIdentifierEvalResult;
 
 struct SemaContext;
 
+class Sema;
+
 } // namespace fire::semantics_checker
 
 namespace fire::AST {
@@ -32,7 +34,7 @@ ASTPtr<T> ASTNew(Args&&... args) {
 
 struct Base {
 
-  friend class Sema;
+  friend class sema::Sema;
 
   ASTKind kind;
 

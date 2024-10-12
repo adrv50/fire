@@ -42,7 +42,7 @@ TIContext::ParameterInfo::ParameterInfo(AST::Templatable::ParameterName const& P
     auto& e = this->Params.emplace_back(pp);
 
     if (this->TemplateArg) {
-      e.TemplateArg = Sema::GetID(this->TemplateArg->id_params[i]);
+      e.TemplateArg = AST::GetID(this->TemplateArg->id_params[i]);
     }
 
     i++;
@@ -143,7 +143,7 @@ bool TIContext::CheckParameterMatchings(ParameterInfo& P) {
 
   if (P.TemplateArg) {
     for (size_t i = 0; i < P.Params.size(); i++) {
-      P.Params[i].TemplateArg = Sema::GetID(P.TemplateArg->id_params[i]);
+      P.Params[i].TemplateArg = AST::GetID(P.TemplateArg->id_params[i]);
       P.Params[i].Type = P.Type.params[i];
     }
   }
@@ -304,8 +304,8 @@ TIContext::TryInstantiate_Of_Function(SemaFunctionNameContext* Ctx) {
     return true;
   });
 
-  Func->is_templated = false;
-  Func->is_instantiated = true;
+  Func->IsTemplated = false;
+  Func->IsInstantiated = true;
 
   alertexpr("\n" << AST::ToString(Func));
 
@@ -322,7 +322,7 @@ TIContext::TemplateInstantiationContext(Sema& S, IdentifierInfo* ParamsII,
     : S(S),
       ParamsII(ParamsII),
       Item(Item) {
-  for (auto&& P : Item->template_param_names) {
+  for (auto&& P : Item->ParameterList) {
     this->Params.emplace_back(P);
   }
 
@@ -352,7 +352,7 @@ size_t Sema::GetMatchedFunctions(ASTVec<AST::Function>& Matched,
 
     // テンプレート関数の場合、いったんインスタンス化してみる
     // 成功したら候補に追加する
-    if (C->is_templated) {
+    if (C->IsTemplated) {
       TemplateInstantiationContext TI{*this, ParamsII, C};
 
       ASTPtr<AST::Function> Instantiated = nullptr;
@@ -378,7 +378,7 @@ size_t Sema::GetMatchedFunctions(ASTVec<AST::Function>& Matched,
         throw TI.CreateError()
                 .InLocation(
                     "in instantiation '" + C->GetName() + "<" +
-                    utils::join(", ", C->template_param_names,
+                    utils::join(", ", C->ParameterList,
                                 [](auto const& E) -> string {
                                   return E.to_string();
                                 }) +

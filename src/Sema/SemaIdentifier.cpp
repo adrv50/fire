@@ -66,11 +66,10 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
 
 SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& Ctx) {
 
-  auto& SR = id->S_Evaluated ? *id->S_Evaluated
-                             : *EvaluatedIDResultRecord.emplace_back(
-                                   std::make_shared<SemaIdentifierEvalResult>());
+  SemaIdentifierEvalResult& SR =
+    *EvaluatedIDResultRecord.emplace_back(std::make_shared<SemaIdentifierEvalResult>());
 
-  auto& ST = SR.Type;
+  TypeInfo& ST = SR.Type;
 
   SR.ast = id;
 
@@ -188,7 +187,7 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
 
       _Record.Instantiated = func;
 
-      auto& _Scope = _Record.Scope.emplace_back(func->scope_ctx_ptr);
+      auto& _Scope = _Record.Scope.emplace_back(func->GetScope());
 
       while (_Scope->_owner) {
         _Record.Scope.emplace_back(_Scope->_owner);
@@ -274,8 +273,6 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
   default:
     todo_impl; // ?
   }
-
-  id->S_Evaluated = &SR;
 
   if (Ctx.MemberRefCtx.IsValid && Ctx.MemberRefCtx.Left == id) {
     Ctx.MemberRefCtx.LeftNameII = SR.II;

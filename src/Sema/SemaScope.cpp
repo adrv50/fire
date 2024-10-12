@@ -84,7 +84,7 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
     : ScopeContext(SC_Block),
       ast(ast) {
 
-  ast->scope_ctx_ptr = this;
+  ast->ScopeCtxPtr = this;
 
   this->depth = depth;
 
@@ -138,14 +138,14 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
         if (!eb.everything) {
           ASTVec<Identifier> v;
 
-          if (eb.expr->is_id_nonqual()) {
+          if (eb.expr->IsUnqualifiedIdentifier()) {
             v.emplace_back(ASTCast<AST::Identifier>(eb.expr));
 
             // eb.vardef_list.emplace_back(0, eb.expr->token.str);
           }
-          else if (eb.expr->is(ASTKind::CallFunc)) {
+          else if (eb.expr->Is(ASTKind::CallFunc)) {
             for (size_t i = 0; auto&& arg : eb.expr->As<CallFunc>()->args) {
-              if (arg->is(ASTKind::Identifier) && !arg->is_qual_id()) {
+              if (arg->Is(ASTKind::Identifier) && !arg->IsQualifiedIdentifier()) {
                 v.emplace_back(ASTCast<AST::Identifier>(arg));
 
                 eb.vardef_list.emplace_back(i, arg->token.str);
@@ -277,7 +277,7 @@ ScopeContext*& BlockScope::AddScope(ScopeContext* scope) {
 
       dest->_ast.emplace_back(src->ast);
 
-      src->ast->scope_ctx_ptr = dest;
+      src->ast->ScopeCtxPtr = dest;
 
       auto index_add = this->child_var_count;
 
@@ -407,7 +407,7 @@ FunctionScope::FunctionScope(int depth, ASTPtr<AST::Function> ast)
     : ScopeContext(SC_Func),
       ast(ast) {
 
-  ast->scope_ctx_ptr = this;
+  ast->ScopeCtxPtr = this;
 
   this->depth = depth;
 
@@ -502,7 +502,7 @@ NamespaceScope::NamespaceScope(int depth, ASTPtr<AST::Block> ast, int index_add)
     : BlockScope(depth, ast, index_add),
       name(ast->token.str) {
 
-  ast->scope_ctx_ptr = this;
+  ast->ScopeCtxPtr = this;
 
   this->type = SC_Namespace;
 

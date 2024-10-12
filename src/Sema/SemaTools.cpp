@@ -85,7 +85,7 @@ ScopeContext* Sema::EnterScope(ASTPointer ast) {
 
   // auto scope = cur->find_child_scope(ast);
 
-  auto scope = ast->scope_ctx_ptr;
+  auto scope = ast->ScopeCtxPtr;
 
   if (!scope && ast->kind == ASTKind::Namespace && cur->is_block) {
     alert;
@@ -327,8 +327,6 @@ IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast,
   for (auto&& x : ast->id_params) {
     assert(x->is_ident_or_scoperesol());
 
-    x->GetID()->sema_must_completed = false;
-
     auto& y = id_info.id_params.emplace_back(this->eval_type(x));
 
     if (y.kind == TypeKind::TypeName && y.params.size() == 1) {
@@ -404,8 +402,14 @@ IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
           info.result.functions.emplace_back(mf);
         }
       }
+      
+      // TODO:
+      //  replace to EvalID()
 
-      if (!id->sema_allow_ambiguous && info.result.functions.size() >= 2) {
+      if (info.result.functions.size() >= 2) {
+
+        todo_impl;
+
         throw Error(id->token, idname + "::" + name + " is ambiguous");
       }
 

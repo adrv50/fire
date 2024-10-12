@@ -307,7 +307,7 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
     if (E->lhs->is_ident_or_scoperesol()) {
       Ctx.MemberRefCtx = {
         .IsValid = true,
-        .RefExpr = Expr,
+        .RefExpr = E,
         .Left = E->lhs,
         .Right = E->rhs
       };
@@ -317,7 +317,7 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
     LeftType = this->eval_type(E->lhs, Ctx);
 
-    if (E->rhs->_constructed_as != ASTKind::Identifier) {
+    if (!E->rhs->IsConstructedAs(ASTKind::Identifier)) {
       throw Error(E->rhs, "invalid syntax");
     }
 
@@ -384,13 +384,15 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
   }
 
   default:
-    if (ast->is_expr) {
-      return this->EvalExpr(ASTCast<AST::Expr>(ast));
-    }
+    debug(
+      if (!ast->IsExpr()) {
+        Error(ast, "").emit();
+        alertmsg(static_cast<int>(ast->kind));
+        todo_impl;
+      }
+    );
 
-    Error(ast, "").emit();
-    alertmsg(static_cast<int>(ast->kind));
-    todo_impl;
+    return this->EvalExpr(ASTCast<AST::Expr>(ast));
   }
 
   return TypeKind::None;
