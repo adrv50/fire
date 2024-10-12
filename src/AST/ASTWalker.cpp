@@ -14,9 +14,9 @@ void walk_ast(ASTPointer ast, std::function<bool(ASTWalkerLocation, ASTPointer)>
   if (!fn(AW_Begin, ast))
     return;
 
-  if (ast->is_expr) {
-    walk_ast(ASTCast<AST::Expr>(ast)->lhs, fn);
-    walk_ast(ASTCast<AST::Expr>(ast)->rhs, fn);
+  if (ast->IsExpr()) {
+    walk_ast(ast->as_expr()->lhs, fn);
+    walk_ast(ast->as_expr()->rhs, fn);
     return;
   }
 
@@ -30,7 +30,7 @@ void walk_ast(ASTPointer ast, std::function<bool(ASTWalkerLocation, ASTPointer)>
   case Kind::FuncName:
   case Kind::BuiltinFuncName:
   case Kind::Enumerator:
-    if (ast->_constructed_as == Kind::ScopeResol)
+    if (ast->IsConstructedAs(Kind::ScopeResol))
       goto _label_scope_resol;
 
   case Kind::Identifier:

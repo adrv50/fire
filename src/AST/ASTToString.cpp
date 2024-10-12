@@ -30,7 +30,7 @@ string ToString(ASTPointer ast) {
   if (!ast)
     return "(null)";
 
-  switch (ast->_constructed_as) {
+  switch( ast->GetConstructedKind() ) {
   case ASTKind::Function: {
     auto x = ast->As<Function>();
 
@@ -41,8 +41,8 @@ string ToString(ASTPointer ast) {
 
     s += "fn " + x->GetName();
 
-    if (x->is_templated) {
-      s += " <" + utils::join(", ", x->template_param_names, tpn2str_fn) + ">";
+    if (x->IsTemplated) {
+      s += " <" + utils::join(", ", x->ParameterList, tpn2str_fn) + ">";
     }
 
     s += " (" + join(", ", x->arguments) + ") ";
@@ -175,7 +175,7 @@ string ToString(ASTPointer ast) {
   }
 
   alertexpr(static_cast<int>(ast->kind));
-  assert(ast->is_expr);
+  assert( ast->IsExpr() );
 
   auto x = ast->as_expr();
 

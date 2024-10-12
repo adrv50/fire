@@ -18,4 +18,6 @@ namespace fire::AST {
 
 string ToString(ASTPointer ast);
 
+ASTPtr<Identifier> GetID(ASTPointer);
+
 } // namespace fire::AST

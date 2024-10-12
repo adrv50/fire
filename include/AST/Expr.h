@@ -5,11 +5,19 @@ namespace fire::AST {
 struct Value : Base {
   ObjPointer value;
 
-  static ASTPtr<Value> New(Token tok, ObjPointer val);
+  static ASTPtr<Value> New(Token const& tok, ObjPointer val) {
+    return ASTNew<Value>(tok, val);
+  }
 
-  ASTPointer Clone() const override;
+  ASTPointer Clone() const override {
+    return Value::New(this->token, this->value);
+  }
 
-  Value(Token tok, ObjPointer value);
+  Value(Token const& tok, ObjPointer value)
+    : Base(ASTKind::Value, tok),
+      value(value)
+  {
+  }
 };
 
 struct Identifier : Named {
@@ -17,12 +25,6 @@ struct Identifier : Named {
 
   ASTVector id_params; // T = Identifier or ScopeResol
 
-  // flags for Sema
-  bool sema_must_completed = true;
-  bool sema_allow_ambiguous = false;
-  bool sema_use_keeped = false;
-
-  //
   // for Kind::FuncName or BuiltinFuncName
   ASTVec<Function> candidates;
   vector<builtins::Function const*> candidates_builtin;
@@ -47,15 +49,7 @@ struct Identifier : Named {
   int distance = 0;
   int index = 0; // (=> or member variable, enumerator)
   int index_add = 0;
-  semantics_checker::LocalVar* lvar_ptr = nullptr;
-
-  //
-  //----------------------
-
-  // Kind::MemberVariable
-  TypeInfo member_var_type;
-  // and location be stored to .ast_class, .index
-  // to reference --> { ast_class->member_variables[index] }
+  sema::LocalVar* lvar_ptr = nullptr;
 
   //
   //----------------------
@@ -63,32 +57,80 @@ struct Identifier : Named {
   ASTPtr<Class> ast_class = nullptr;
   ASTPtr<Enum> ast_enum = nullptr;
 
-  TypeInfo self_type; // if member
+  static ASTPtr<Identifier> New(Token tok) {
+    return ASTNew<Identifier>(tok);
+  }
 
-  semantics_checker::SemaIdentifierEvalResult* S_Evaluated = nullptr;
+  ASTPointer Clone() const override {
+    auto x = New(this->token);
 
-  static ASTPtr<Identifier> New(Token tok);
+    for( auto&& p : this->id_params )
+      x->id_params.emplace_back(p->Clone());
 
-  ASTPointer Clone() const override;
+    x->template_func_decided = this->template_func_decided;
+    
+    x->template_original = this->template_original;
 
-  Identifier* GetID() override;
+    x->ft_ret = this->ft_ret;
+    x->ft_args = this->ft_args;
 
-  Identifier(Token tok);
+    x->template_args = this->template_args;
+
+    x->distance = this->distance;
+    x->index = this->index;
+    x->index_add = this->index_add;
+    x->lvar_ptr = this->lvar_ptr;
+
+    x->ast_class = this->ast_class;
+    x->ast_enum = this->ast_enum;
+
+    return x;
+  }
+
+  Identifier* GetID() override {
+    return this;
+  }
+
+  Identifier(Token t)
+    : Named(ASTKind::Identifier, t, t)
+  {
+  }
 };
 
 struct ScopeResol : Named {
   ASTPtr<Identifier> first;
   ASTVec<Identifier> idlist;
 
-  static ASTPtr<ScopeResol> New(ASTPtr<Identifier> first);
+  static ASTPtr<ScopeResol> New(ASTPtr<Identifier> first) {
+  return ASTNew<ScopeResol>(first);
+  }
 
-  ASTPointer Clone() const override;
+  ASTPointer Clone() const override {
+    auto x = New(ASTCast<AST::Identifier>(this->first->Clone()));
 
-  Identifier* GetID() override;
+    for( auto&& id : idlist )
+      x->idlist.emplace_back(ASTCast<AST::Identifier>(id));
 
-  ASTPtr<Identifier> GetLastID() const;
+    return x;
+  }
 
-  ScopeResol(ASTPtr<Identifier> first);
+  Identifier* GetID() override {
+  #if _DBG_DONT_USE_SMART_PTR_
+    return *idlist.rbegin();
+  #else
+    return idlist.rbegin()->get();
+  #endif
+  }
+
+  ASTPtr<Identifier> GetLastID() const {
+    return *this->idlist.rbegin();
+  }
+
+  ScopeResol(ASTPtr<Identifier> first)
+    : Named(ASTKind::ScopeResol, first->token),
+      first(first)
+  {
+  }
 };
 
 struct Array : Base {

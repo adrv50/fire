@@ -222,8 +222,8 @@ int TypeInfo::needed_param_count() const {
 
   case TypeKind::TypeName: {
     if (auto x = ASTCast<AST::Templatable>(this->type_ast);
-        this->type_ast->IsTemplateAST() && x->is_templated) {
-      return x->template_param_names.size();
+        this->type_ast->IsTemplateAST() && x->IsTemplated) {
+      return x->ParameterCount();
     }
 
     break;

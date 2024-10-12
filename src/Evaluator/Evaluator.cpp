@@ -315,7 +315,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
     break;
 
   default:
-    if (ast->is_expr)
+    if (ast->IsExpr())
       return this->eval_expr(ASTCast<AST::Expr>(ast));
 
     alertexpr(static_cast<int>(ast->kind));

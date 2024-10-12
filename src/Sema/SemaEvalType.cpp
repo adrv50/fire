@@ -37,7 +37,7 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
   case Kind::FuncName:
   case Kind::BuiltinFuncName:
   case Kind::Identifier:
-    return this->EvalID(Sema::GetID(ast), Ctx).Type;
+    return this->EvalID(AST::GetID(ast), Ctx).Type;
 
   case Kind::Array: {
     auto x = ast->As<AST::Array>();
@@ -88,87 +88,10 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
   case Kind::ScopeResol: {
     auto scoperesol = ASTCast<AST::ScopeResol>(ast);
-    auto idinfo = this->get_identifier_info(scoperesol);
 
-    auto id = scoperesol->GetLastID();
 
-    switch (idinfo.result.type) {
-    case NameType::Var:
-    case NameType::Func:
-      break;
 
-    case NameType::Enumerator: {
-      ast->kind = Kind::Enumerator;
-
-      id->ast_enum = idinfo.result.ast_enum;
-      id->index = idinfo.result.enumerator_index;
-
-      if (id->sema_must_completed) {
-        auto& e = id->ast_enum->enumerators[id->index];
-
-        if (e.data_type != Enum::Enumerator::DataType::NoData) {
-          throw Error(id, "cannot use enumerator '" + AST::ToString(ast) +
-                              "' without arguments");
-        }
-      }
-
-      TypeInfo type = TypeKind::Enumerator;
-
-      // type.name = id->ast_enum->GetName();
-      type.name = AST::ToString(ast);
-
-      type.type_ast = id->ast_enum;
-      type.enum_index = id->index;
-
-      return type;
-    }
-
-    case NameType::MemberFunc: {
-      todo_impl;
-
-      ast->kind = ASTKind::FuncName;
-
-      id->candidates = idinfo.result.functions;
-
-      if (!id->sema_allow_ambiguous) {
-        if (id->candidates.size() >= 2) {
-          throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
-        }
-
-        TypeInfo type{TypeKind::Function};
-
-        alert;
-        type.params = {this->eval_type(id->candidates[0]->return_type)};
-
-        for (auto&& arg : id->candidates[0]->arguments) {
-          alert;
-          type.params.emplace_back(this->eval_type(arg->type));
-        }
-
-        alert;
-        return type;
-      }
-
-      return TypeKind::Function;
-    }
-
-    case NameType::Namespace: {
-      throw Error(ast, "expected identifier-expression after this token ");
-    }
-
-    case NameType::Unknown:
-      throw Error(ast, "cannot find name '" + AST::ToString(ast) + "'");
-    }
-
-    // this->keep_id(idinfo);
-
-    // id->sema_use_keeped = true;
-
-    auto type = this->eval_type(id, Ctx);
-
-    ast->kind = id->kind;
-
-    return type;
+    todo_impl;
   }
 
   case Kind::Enumerator: {
@@ -196,20 +119,21 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
     ASTPtr<AST::Identifier> id = nullptr; // -> functor (if id or scoperesol)
 
-    if (functor->is_ident_or_scoperesol() || functor->kind == ASTKind::MemberAccess) {
-      id = Sema::GetID(functor);
-
-      id->sema_allow_ambiguous = true;
-      id->sema_must_completed = false;
-    }
-
     TypeVec arg_types;
 
     for (ASTPointer arg : call->args) {
       arg_types.emplace_back(this->eval_type(arg));
     }
 
-    Ctx.FuncName = {.CF = call, .ArgTypes = &arg_types, .MustDecideOneCandidate = false};
+    if (functor->is_ident_or_scoperesol() || functor->kind == ASTKind::MemberAccess) {
+      id = AST::GetID(functor);
+
+      Ctx.FuncName = {
+        .CF = call,
+        .ArgTypes = &arg_types,
+        .MustDecideOneCandidate = false
+      };
+    }
 
     TypeInfo functor_type = this->eval_type(functor, Ctx);
 
@@ -384,20 +308,20 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
       Ctx.MemberRefCtx = {
         .IsValid = true,
         .RefExpr = Expr,
-        .Left = Expr->lhs,
-        .Right = Expr->rhs
+        .Left = E->lhs,
+        .Right = E->rhs
       };
     }
 
     auto& LeftType = Ctx.MemberRefCtx.LeftType;
 
-    LeftType = this->eval_type(Expr->lhs, Ctx);
+    LeftType = this->eval_type(E->lhs, Ctx);
 
-    if (Expr->rhs->_constructed_as != ASTKind::Identifier) {
-      throw Error(Expr->rhs, "invalid syntax");
+    if (E->rhs->_constructed_as != ASTKind::Identifier) {
+      throw Error(E->rhs, "invalid syntax");
     }
 
-    auto right_type = this->eval_type(Expr->rhs, Ctx);
+    auto right_type = this->eval_type(E->rhs, Ctx);
 
     // Error(Expr->rhs, "aaa").emit();
     // alertexpr(right_type.to_string());

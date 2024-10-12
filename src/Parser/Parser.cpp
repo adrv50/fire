@@ -49,7 +49,7 @@ ASTPointer Parser::Stmt() {
       auto& p = ast->patterns.emplace_back(AST::Match::Pattern::Type::Unknown, e,
                                            ASTCast<AST::Block>(this->Stmt()));
 
-      if (e->is_id_nonqual() && e->token.str == "_") {
+      if (e->IsUnqualifiedIdentifier() && e->token.str == "_") {
         p.everything = true;
       }
 
@@ -321,11 +321,11 @@ ASTPointer Parser::Top() {
     func->is_virtualized = _f_virtualized;
 
     if (this->eat_typeparam_bracket_open()) {
-      func->is_templated = true;
-      func->tok_template = *this->cur;
+      func->IsTemplated = true;
+      func->TemplateTok = *this->cur;
 
       do {
-        func->template_param_names.emplace_back(this->parse_template_param_decl());
+        func->ParameterList.emplace_back(this->parse_template_param_decl());
       } while (this->eat(","));
 
       this->expect_typeparam_bracket_close();
@@ -384,18 +384,8 @@ ASTPointer Parser::Top() {
 
     bool closed = false;
 
-    size_t i = 0;
-
     do {
-      auto& e = ast->list.emplace_back(this->Top());
-
-      if (e->IsTemplateAST()) {
-        auto te = e->As<AST::Templatable>();
-
-        te->owner_block_ptr = ast;
-        te->index_of_self_in_owner_block_list = i++;
-      }
-
+      ast->list.emplace_back(this->Top());
     } while (this->check() && !(closed = this->eat("}")));
 
     if (!closed)
@@ -444,15 +434,8 @@ ASTPtr<AST::Block> Parser::Parse() {
     this->expect(";");
   }
 
-  for (size_t i = 0; this->check(); i++) {
+  while (this->check()) {
     auto& e = ret->list.emplace_back(this->Top());
-
-    if (e->IsTemplateAST()) {
-      auto te = e->As<AST::Templatable>();
-
-      te->owner_block_ptr = ret;
-      te->index_of_self_in_owner_block_list = i;
-    }
   }
 
   for (size_t i = 0; i < this->tokens.size(); i++) {

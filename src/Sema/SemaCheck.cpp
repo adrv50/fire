@@ -129,14 +129,14 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
     // auto func = this->get_func(x);
     // SemaFunction* func = nullptr;
 
-    if (x->is_templated) {
+    if (x->IsTemplated) {
 
       break;
     }
 
     // FunctionScope* func = nullptr;
 
-    FunctionScope* func = (FunctionScope*)ast->scope_ctx_ptr;
+    FunctionScope* func = x->GetScope();
 
     // for (auto&& [_Key, _Val] : this->function_scope_map) {
     //   if (_Key == x) {
@@ -203,14 +203,8 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
 
     this->EnterScope(x);
 
-    for (size_t i = 0, end = x->list.size(); i < end; i++, (end = x->list.size())) {
-      auto y = x->list[i];
-
-      if (y->_s_pass_this)
-        continue;
-
-      this->check(y);
-    }
+    for( auto&& e : x->list )
+      this->check(e, Ctx);
 
     this->LeaveScope();
 
@@ -294,7 +288,7 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
 
       alertexpr(var_scope);
 
-      if (px->is_id_nonqual()) {
+      if (px->IsUnqualifiedIdentifier()) {
         auto& var = var_scope->variables[0];
 
         var.deducted_type = cond;
@@ -323,14 +317,18 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
           enumerator = ASTCast<AST::ScopeResol>(cf->callee);
           args = cf->args;
 
-          if (enumerator->is(ASTKind::ScopeResol))
-            enumerator->GetID()->sema_must_completed = false;
+          // if (enumerator->Is(ASTKind::ScopeResol))
+          //   enumerator->GetID()->sema_must_completed = false;
 
           auto e_type = this->eval_type(enumerator);
 
-          alertexpr(static_cast<int>(e_type.kind));
+          // alertexpr(static_cast<int>(e_type.kind));
 
-          if (e_type.kind != TypeKind::Enumerator || e_type.type_ast != cond.type_ast) {
+          // if (e_type.kind != TypeKind::Enumerator || e_type.type_ast != cond.type_ast) {
+          //   todo_impl;
+          // }
+
+          if (enumerator->kind != ASTKind::Enumerator) {
             todo_impl;
           }
 
@@ -378,7 +376,7 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
             for (size_t i = 0, j = 0; i < args.size(); i++) {
               auto et = this->eval_type(e.types[i]);
 
-              if (!args[i]->is_id_nonqual()) {
+              if (!args[i]->IsUnqualifiedIdentifier()) {
                 if (auto t_arg = this->eval_type(args[i]); !et.equals(t_arg)) {
                   throw Error(args[i], "expected '" + et.to_string() +
                                            "' type expression, but found '" +

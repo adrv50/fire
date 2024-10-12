@@ -20,7 +20,6 @@ struct SemaFunctionNameContext;
 
 struct SemaIdentifierEvalResult;
 
-using namespace AST;
 using TypeVec = vector<TypeInfo>;
 
 class Sema;
@@ -146,6 +145,12 @@ struct SemaMemberReferenceContext {
   ASTPointer ReferencedItem;
 };
 
+struct SemaScopeResolContext {
+
+  // todo
+  
+};
+
 struct SemaContext {
 
   FunctionScope* original_template_func = nullptr;
@@ -162,6 +167,8 @@ struct SemaContext {
 
   SemaMemberReferenceContext MemberRefCtx;
 
+  SemaScopeResolContext ScopeResolCtx;
+
   bool InCallFunc() {
     return FuncName.CF != nullptr;
   }
@@ -169,6 +176,17 @@ struct SemaContext {
   bool InOverloadResolGuide() {
     return FuncName.Sig != nullptr;
   }
+
+  //
+  // IsAllowedNoEnumeratorArguments:
+  //
+  // データ型が定義されている列挙子を参照するとき，データを
+  // 初期化する引数が与えられていない構文を許可するかどうか
+  //
+  // used for:
+  //   match-statement
+  //
+  bool IsAllowedNoEnumeratorArguments = false;
 
   static SemaContext NullCtx;
 };
@@ -370,10 +388,7 @@ class Sema {
   IdentifierInfo get_identifier_info(ASTPtr<AST::ScopeResol> ast);
 
   IdentifierInfo get_identifier_info(ASTPointer ast) {
-    if (ast->kind == ASTKind::ScopeResol)
-      return this->get_identifier_info(ASTCast<AST::ScopeResol>(ast));
-
-    return this->get_identifier_info(Sema::GetID(ast));
+    return this->get_identifier_info(AST::GetID(ast));
   }
 
   IdentifierInfo GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& Ctx);
@@ -466,17 +481,6 @@ private:
 
   ASTPtr<Class>& add_class(ASTPtr<Class> c) {
     return this->classes.emplace_back(c);
-  }
-
-  static ASTPtr<AST::Identifier> GetID(ASTPointer ast) {
-    if (ast->_constructed_as == ASTKind::MemberAccess)
-      return GetID(ast->as_expr()->rhs);
-
-    if (ast->_constructed_as == ASTKind::ScopeResol)
-      return ASTCast<AST::ScopeResol>(ast)->GetLastID();
-
-    assert(ast->_constructed_as == ASTKind::Identifier);
-    return ASTCast<AST::Identifier>(ast);
   }
 
   TypeInfo make_functor_type(ASTPtr<AST::Function> ast);

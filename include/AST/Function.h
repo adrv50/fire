@@ -24,6 +24,8 @@ struct Function : Templatable {
   bool is_virtualized = false;
   bool is_overrided = false;
 
+  sema::FunctionScope* GetScope();
+
   static ASTPtr<Function> New(Token tok, Token name);
 
   static ASTPtr<Function> New(Token tok, Token name, ASTVec<Argument> args,

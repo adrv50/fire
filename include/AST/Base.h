@@ -6,6 +6,9 @@ namespace fire::semantics_checker {
 
 struct LocalVar;
 struct ScopeContext;
+struct BlockScope;
+struct FunctionScope;
+struct NamespaceScope;
 
 struct IdentifierInfo;
 struct SemaIdentifierEvalResult;
@@ -16,7 +19,16 @@ struct SemaContext;
 
 namespace fire::AST {
 
-using sema = semantics_checker;
+namespace sema = fire::semantics_checker;
+
+template <class T, class... Args>
+ASTPtr<T> ASTNew(Args&&... args) {
+#if _DBG_DONT_USE_SMART_PTR_
+  return new T(std::forward<Args>(args)...);
+#else
+  return std::make_shared<T>(std::forward<Args>(args)...);
+#endif
+}
 
 struct Base {
 
@@ -38,8 +50,12 @@ struct Base {
     return this->_attr.IsExpr;
   }
 
-  bool IsConstructedAs(ASTkind k) const {
+  bool IsConstructedAs(ASTKind k) const {
     return this->_attr.ConstructedAs == k;
+  }
+
+  ASTKind GetConstructedKind() const {
+    return this->_attr.ConstructedAs;
   }
 
   bool IsNamed() const {
@@ -51,17 +67,16 @@ struct Base {
   }
 
   bool is_ident_or_scoperesol() const {
-    return this->IsConstrucedAs(ASTKind::Identifier)
+    return this->IsConstructedAs(ASTKind::Identifier)
             || this->IsConstructedAs(ASTKind::ScopeResol);
   }
 
   bool IsIdentifier() const {
-    return this->IsConstrucedAs(ASTKind::Identifier);
+    return this->IsConstructedAs(ASTKind::Identifier);
   }
 
-  bool IsQualifiedIdentifier() const;
-
-  bool IsUnqualifiedIdentifier() const;
+  bool IsQualifiedIdentifier();
+  bool IsUnqualifiedIdentifier();
 
   template <class T>
   T* As() {
@@ -92,8 +107,13 @@ struct Base {
 
 protected:
 
-  __attribute__((packed))
-  struct AST_Attribute {
+  friend struct sema::LocalVar;
+  friend struct sema::ScopeContext;
+  friend struct sema::BlockScope;
+  friend struct sema::FunctionScope;
+  friend struct sema::NamespaceScope;
+
+  struct __attribute__((packed)) AST_Attribute  {
     ASTKind   ConstructedAs;
 
     bool  IsTemplate;
@@ -105,7 +125,7 @@ protected:
 
   bool _s_pass_this = false;
 
-  sema::ScopeContext* scope_ctx_ptr = nullptr;
+  sema::ScopeContext*  ScopeCtxPtr = nullptr;
 
   Base(ASTKind k, Token token, Token endtok)
     : kind(k),
@@ -171,7 +191,7 @@ struct Templatable : Named {
 
   bool IsInstantiated = false;
 
-  Vec<ParameterName> template_param_names;
+  Vec<ParameterName>  ParameterList;
 
   //
   // 可変長パラメータ引数
@@ -179,25 +199,39 @@ struct Templatable : Named {
   Token VariableParams_Name;
 
   size_t ParameterCount() const {
-    return template_param_names.size();
+    return ParameterList.size();
   }
 
-  ASTPtr<Block> owner_block_ptr = nullptr;
-  size_t index_of_self_in_owner_block_list = 0;
+  // ASTPtr<Block> owner_block_ptr = nullptr;
+  // size_t index_of_self_in_owner_block_list = 0;
 
-  ASTPointer& InsertInstantiated(ASTPtr<Templatable> ast);
+  // ASTPointer& InsertInstantiated(ASTPtr<Templatable> ast);
 
 protected:
   Templatable(ASTKind kind, Token tok, Token name)
       : Named(kind, tok, name) {
-    this->_is_template_ast = true;
+    this->_attr.IsTemplate = true;
   }
 
   Templatable(ASTKind k, Token t)
       : Templatable(k, t, t) {
   }
 
-  void _Copy(Templatable const* _t);
+  void _Copy(Templatable const& T) {
+
+    this->ScopeCtxPtr = T.ScopeCtxPtr;
+
+    this->TemplateTok = T.TemplateTok;
+
+    this->IsTemplated = T.IsTemplated;
+
+    this->IsInstantiated = T.IsInstantiated;
+
+    for( auto&& Param : T.ParameterList ) {
+      this->ParameterList.emplace_back(Param);
+    }
+
+  }
 };
 
 } // namespace fire::AST

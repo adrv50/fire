@@ -144,8 +144,8 @@ struct FunctionScope : ScopeContext {
 
   Vec<FunctionScope*> InstantiatedTemplateFunctions;
 
-  bool is_templated() const {
-    return ast->is_templated;
+  bool IsTemplatedFunc() const {
+    return ast->IsTemplated;
   }
 
   LocalVar& add_arg(ASTPtr<AST::Argument> def);
