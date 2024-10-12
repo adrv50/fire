@@ -12,6 +12,10 @@ enum class ASTKind {
   // /--------------
   //  replaced to this kind from Identifier or ScopeResol in
   //  Semantics-Checker. Don't use this.
+  //
+  // 以下の Kind は，意味解析によって割り当てられます．
+  // 最初から AST を構築するときに使用することはありません．
+  //
   Variable,
 
   MemberVariable,
@@ -39,11 +43,13 @@ enum class ASTKind {
 
   MemberAccess,
 
+  //
+  // Member-Variable Referencing Expr.
   RefMemberVar,
 
   CallFunc,
-  CallFunc_Ctor,
-  CallFunc_Enumerator,
+  CallFunc_Ctor,          //  MyClass(...)
+  CallFunc_Enumerator,    //  MyKind::A( ... )
 
   //
   // in call-func expr.

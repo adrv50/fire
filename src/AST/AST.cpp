@@ -3,6 +3,23 @@
 
 namespace fire::AST {
 
+bool Base::is_ident_or_scoperesol() const {
+  return this->_ConstructedKind == ASTKind::Identifier ||
+          this->_ConstructedKind == ASTKind::ScopeResol;
+}
+
+bool Base::IsIdentifier() const {
+  return this->_ConstructedKind == ASTKind::Identifier;
+}
+
+bool Base::IsQualifiedIdentifier() const {
+  return this->IsIdentifier() && this->GetID()->ID_Params.size() >= 1;
+}
+
+bool Base::IsUnqualifiedIdentifier() const {
+  return this->IsIdentifier() && this->GetID()->ID_Params.empty();
+}
+
 template <class T, class... Args>
 ASTPtr<T> ASTNew(Args&&... args) {
 #if _DBG_DONT_USE_SMART_PTR_
@@ -66,16 +83,6 @@ i64 Base::GetChilds(ASTVector& out) const {
   return 0;
 }
 
-Base::Base(ASTKind kind, Token token)
-    : Base(kind, token, token) {
-}
-
-Base::Base(ASTKind kind, Token token, Token endtok)
-    : kind(kind),
-      token(token),
-      endtok(endtok),
-      _constructed_as(kind) {
-}
 
 // ----------------------------------- //
 

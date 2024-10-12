@@ -371,15 +371,22 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
     throw Error(x->op, "'" + arr.to_string() + "' type is not subscriptable");
   }
 
+  //
+  // Member-Access expr
+  ///
   case Kind::MemberAccess: {
 
-    auto Expr = ASTCast<AST::Expr>(ast);
+    auto E = ASTCast<AST::Expr>(ast);
 
-    if (Expr->lhs->is_ident_or_scoperesol()) {
-      Ctx.MemberRefCtx = {.IsValid = true,
-                          .RefExpr = Expr,
-                          .Left = Expr->lhs,
-                          .Right = Expr->rhs};
+    //
+    // 
+    if (E->lhs->is_ident_or_scoperesol()) {
+      Ctx.MemberRefCtx = {
+        .IsValid = true,
+        .RefExpr = Expr,
+        .Left = Expr->lhs,
+        .Right = Expr->rhs
+      };
     }
 
     auto& LeftType = Ctx.MemberRefCtx.LeftType;

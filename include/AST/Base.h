@@ -10,31 +10,58 @@ struct ScopeContext;
 struct IdentifierInfo;
 struct SemaIdentifierEvalResult;
 
+struct SemaContext;
+
 } // namespace fire::semantics_checker
 
 namespace fire::AST {
 
+using sema = semantics_checker;
+
 struct Base {
 
+  friend class Sema;
+
   ASTKind kind;
+
   Token token;
   Token endtok;
 
-  bool is_named = false;
-  bool is_expr = false;
+  // bool is_named = false;
+  // bool is_expr = false;
 
-  ASTKind _constructed_as;
+  bool Is(ASTKind k) const {
+    return this->kind == k;
+  }
 
-  bool _s_pass_this = false;
+  bool IsExpr() const {
+    return this->_attr.IsExpr;
+  }
+
+  bool IsConstructedAs(ASTkind k) const {
+    return this->_attr.ConstructedAs == k;
+  }
+
+  bool IsNamed() const {
+    return this->_attr.IsNamed;
+  }
 
   bool IsTemplateAST() const {
-    return this->_is_template_ast;
+    return this->_attr.IsTemplate;
   }
 
   bool is_ident_or_scoperesol() const {
-    return this->_constructed_as == ASTKind::Identifier ||
-           this->_constructed_as == ASTKind::ScopeResol;
+    return this->IsConstrucedAs(ASTKind::Identifier)
+            || this->IsConstructedAs(ASTKind::ScopeResol);
   }
+
+  bool IsIdentifier() const {
+    return this->IsConstrucedAs(ASTKind::Identifier);
+  }
+
+  bool IsQualifiedIdentifier() const;
+
+  bool IsUnqualifiedIdentifier() const;
 
   template <class T>
   T* As() {
@@ -54,44 +81,69 @@ struct Base {
 
   Value const* as_value() const;
 
-  bool is(ASTKind k);
-  bool is_qual_id();
-  bool is_id_nonqual();
-
   virtual Identifier* GetID();
 
   virtual ASTPointer Clone() const = 0;
 
-  [[maybe_unused]] i64 GetChilds(ASTVector& out) const;
+  [[maybe_unused]]
+  i64 GetChilds(ASTVector& out) const;
 
   virtual ~Base() = default;
 
-  semantics_checker::ScopeContext* scope_ctx_ptr = nullptr;
-
 protected:
-  Base(ASTKind kind, Token token);
-  Base(ASTKind kind, Token token, Token endtok);
 
-  bool _is_template_ast = false;
+  __attribute__((packed))
+  struct AST_Attribute {
+    ASTKind   ConstructedAs;
+
+    bool  IsTemplate;
+    bool  IsExpr;
+    bool  IsNamed;
+  };
+
+  AST_Attribute _attr  = { };
+
+  bool _s_pass_this = false;
+
+  sema::ScopeContext* scope_ctx_ptr = nullptr;
+
+  Base(ASTKind k, Token token, Token endtok)
+    : kind(k),
+      token(std::move(token)),
+      endtok(std::move(endtok))
+  {
+    this->_attr.ConstructedAs = k;
+  }
+
+  Base(ASTKind kind, Token token)
+    : Base(kind, token, token)
+  {
+  }
+
 };
 
 struct Named : Base {
   Token name;
 
-  string const& GetName() const;
+  string const& GetName() const {
+    return this->name.str;
+  }
 
 protected:
-  Named(ASTKind kind, Token tok, Token name);
+  Named(ASTKind k, Token tok, Token name)
+    : Base(k, tok),
+      name(name)
+  {
+    this->_attr.IsNamed = true;
+  }
 
-  Named(ASTKind kind, Token tok);
+  Named(ASTKind k, Token t)
+    : Named(k, t, t)
+  {
+  }
 };
 
 struct Templatable : Named {
-  Token tok_template;
-
-  bool is_templated = false;
-
-  bool is_instantiated = false;
 
   struct ParameterName {
     Token token;
@@ -112,6 +164,12 @@ struct Templatable : Named {
       return s;
     }
   };
+
+  Token TemplateTok;  // "<"
+
+  bool IsTemplated = false;
+
+  bool IsInstantiated = false;
 
   Vec<ParameterName> template_param_names;
 
