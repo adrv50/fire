@@ -346,6 +346,9 @@ ASTPointer Parser::Top() {
 
       func->add_arg(*tokkk, AST::TypeName::New(this->_classptr->name));
     }
+    else if (func->is_virtualized) {
+      throw Error(*virtual_tok, "static member function cannot be virtualized");
+    }
 
     if (!this->eat(")")) {
       do {
@@ -365,6 +368,10 @@ ASTPointer Parser::Top() {
     if (this->eat("override")) {
       if (!this->_in_class) {
         throw Error(*this->ate, "cannot define overrided function at out of scope");
+      }
+
+      if (!func->member_of) {
+        throw Error(*this->ate, "cannot use 'override' for static member function");
       }
 
       func->is_override = true;

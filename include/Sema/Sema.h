@@ -129,6 +129,8 @@ struct SemaClassNameContext {
   ASTPtr<AST::Class> Now_Analysing;
 
   ASTPtr<AST::Class> InheritBaseClass;
+
+  bool PassMemberAnalyze = false;
 };
 
 struct SemaMemberReferenceContext {
@@ -490,6 +492,8 @@ private:
 
   std::vector<IdentifierInfo> _identifier_info_keep;
 
+  std::map<ASTPtr<AST::Class>, bool> _class_analysing_flag_map;
+
   // std::vector<std::pair<ASTPtr<AST::Identifier>, TypeInfo>> id_result_keep;
 
   IdentifierInfo* get_keeped_id_info(ASTPtr<AST::Identifier> id) {
@@ -523,6 +527,19 @@ private:
     ast->is_const = type.is_const;
 
     return ast;
+  }
+
+  //
+  // is
+  static bool IsDerivedFrom(ASTPtr<AST::Class> _class, ASTPtr<AST::Class> _base) {
+
+    for (auto C = _class->InheritBaseClassPtr; C; C = C->InheritBaseClassPtr) {
+      if (C == _base) {
+        return true;
+      }
+    }
+
+    return false;
   }
 };
 

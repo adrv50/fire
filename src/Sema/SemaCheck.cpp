@@ -72,9 +72,13 @@ void Sema::check(ASTPointer ast, SemaContext& Ctx) {
 
   case ASTKind::Class: {
 
-    Vec<string> v;
-
     auto x = ASTCast<AST::Class>(ast);
+
+    if (this->_class_analysing_flag_map[x]) {
+      break;
+    }
+
+    this->_class_analysing_flag_map[x] = true;
 
     auto context = Ctx;
 
@@ -112,6 +116,12 @@ void Sema::check(ASTPointer ast, SemaContext& Ctx) {
 
       this->check(BaseClass);
     }
+
+    if (Ctx.ClassCtx.PassMemberAnalyze) {
+      break;
+    }
+
+    Vec<string> v;
 
     for (auto&& mv : x->member_variables) {
       if (auto n = mv->GetName(); utils::contains(v, n))
@@ -156,10 +166,20 @@ void Sema::check(ASTPointer ast, SemaContext& Ctx) {
                 !this->eval_type(ov_f->return_type, context)
                      .equals(this->eval_type(mf->return_type, context))) {
               ov.erase(it);
-              continue;
+              goto __L_candidate_removed;
+            }
+
+            for (size_t i = 1; i < mf->arguments.size(); i++) {
+              if (this->eval_type(mf->arguments[i]->type)
+                      .equals(this->eval_type(ov_f->arguments[i]->type))) {
+                ov.erase(it);
+                goto __L_candidate_removed;
+              }
             }
 
             it++;
+
+          __L_candidate_removed:;
           }
 
           if (ov.size() == 1) {
@@ -218,9 +238,6 @@ void Sema::check(ASTPointer ast, SemaContext& Ctx) {
     // }
 
     assert(func);
-
-    if (x->is_virtualized) {
-    }
 
     auto pfunc = this->cur_function;
     this->cur_function = func;
@@ -293,16 +310,12 @@ void Sema::check(ASTPointer ast, SemaContext& Ctx) {
     }
 
     if (x->init) {
-      auto type = this->eval_type(x->init);
-
-      if (x->type && !var.deducted_type.equals(type)) {
-        throw Error(x->init, "expected '" + var.deducted_type.to_string() +
-                                 "' type expression, but found '" + type.to_string() +
-                                 "'");
+      if (auto type = x->type ? this->ExpectType(var.deducted_type, x->init)
+                              : this->eval_type(x->init);
+          !x->type) {
+        var.deducted_type = type;
+        var.is_type_deducted = true;
       }
-
-      var.deducted_type = type;
-      var.is_type_deducted = true;
     }
 
     break;

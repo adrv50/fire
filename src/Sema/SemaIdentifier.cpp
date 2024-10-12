@@ -229,6 +229,12 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
       id->kind = ASTKind::ClassName;
       id->ast_class = res.ast_class;
 
+      auto context = Ctx;
+
+      context.ClassCtx.PassMemberAnalyze = true;
+
+      this->check(id->ast_class, context);
+
       ST = TypeInfo::from_class(id->ast_class);
 
       break;

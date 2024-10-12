@@ -402,7 +402,7 @@ IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
           info.result.functions.emplace_back(mf);
         }
       }
-      
+
       // TODO:
       //  replace to EvalID()
 
@@ -462,11 +462,24 @@ bool Sema::IsWritable(ASTPointer ast) {
 }
 
 TypeInfo Sema::ExpectType(TypeInfo const& type, ASTPointer ast) {
-  this->_expected.emplace_back(type);
+  // this->_expected.emplace_back(type);
 
   if (auto t = this->eval_type(ast); !t.equals(type)) {
-    throw Error(ast, "expected '" + type.to_string() + "' type expression, but found '" +
-                         t.to_string() + "'");
+    Error E{ast, "expected '" + type.to_string() + "' type expression, but found '" +
+                     t.to_string() + "'"};
+
+    if (t.kind == TypeKind::Instance && type.kind == TypeKind::Instance) {
+      if (IsDerivedFrom(ASTCast<AST::Class>(t.type_ast),
+                        ASTCast<AST::Class>(type.type_ast))) {
+        return type;
+      }
+
+      E.AddNote("class '" + t.type_ast->As<AST::Class>()->GetName() +
+                "' is not derived from '" + type.type_ast->As<AST::Class>()->GetName() +
+                "'");
+    }
+
+    throw E;
   }
 
   return type;

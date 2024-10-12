@@ -19,7 +19,7 @@ struct Function : Templatable {
 
   bool is_var_arg = false;
 
-  ASTPtr<Class> member_of = nullptr;
+  ASTPtr<Class> member_of = nullptr; // if arg[0] == "self"
 
   bool is_virtualized = false;
   Token virtualize_specify_tok;
