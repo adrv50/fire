@@ -455,6 +455,7 @@ bool Sema::IsWritable(ASTPointer ast) {
 
   switch (ast->kind) {
   case ASTKind::Variable:
+  case ASTKind::RefMemberVar:
     return true;
 
   case ASTKind::IndexRef:

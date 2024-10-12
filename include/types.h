@@ -164,7 +164,7 @@ std::shared_ptr<T> PtrDynamicCast(std::shared_ptr<U> p) {
 }
 
 template <class T, class... Args>
-std::shared_ptr<T> ObjNew(Args&&... args) {
+inline std::shared_ptr<T> ObjNew(Args&&... args) {
   return std::make_shared<T>(std::forward<Args>(args)...);
 }
 

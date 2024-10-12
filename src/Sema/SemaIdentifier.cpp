@@ -4,9 +4,10 @@ namespace fire::semantics_checker {
 
 IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& Ctx) {
 
-  if (Ctx.MemberRefCtx && Ctx.MemberRefCtx->Right == Id) {
+  if (Ctx.ExprCtx && Ctx.ExprCtx->kind == SemaExprContext::EX_MemberRef &&
+      Ctx.ExprCtx->Right == Id) {
 
-    auto& C = *Ctx.MemberRefCtx;
+    auto& C = *Ctx.ExprCtx;
 
     auto const& LeftType = C.LeftType;
 
@@ -14,7 +15,7 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
 
     IdentifierInfo II = {.ast = Id};
 
-    auto E = C.RefExpr;
+    auto E = C.E;
 
     switch (LeftType.kind) {
 
@@ -22,20 +23,32 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
 
       auto ClassPtr = ASTCast<AST::Class>(LeftType.type_ast);
 
-      for (int i = 0; auto&& mv : ClassPtr->member_variables) {
-        if (mv->GetName() == name) {
+      {
+        auto ctx = Ctx;
 
-          II.result.type = NameType::MemberVar;
+        SemaClassNameContext classnamectx{.PassMemberAnalyze = true};
 
-          Id->ast_class = ClassPtr;
-          Id->index = i;
+        ctx.ClassCtx = &classnamectx;
 
-          E->kind = ASTKind::RefMemberVar;
+        this->check(ClassPtr, ctx);
+      }
 
-          goto _found_member_var;
+      for (auto ptr = ClassPtr; ptr; ptr = ptr->InheritBaseClassPtr) {
+        for (int i = 0; auto&& mv : ptr->member_variables) {
+          if (mv->GetName() == name) {
+
+            II.result.type = NameType::MemberVar;
+
+            Id->ast_class = ptr;
+            Id->index = i;
+
+            E->kind = ASTKind::RefMemberVar;
+
+            goto _found_member_var;
+          }
+
+          i++;
         }
-
-        i++;
       }
 
       for (auto&& mf : ClassPtr->member_functions) {
@@ -127,9 +140,6 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
         throw Error(id->paramtok,
                     "cannot use template argument for '" + id->GetName() + "'");
 
-      if (!res.lvar->is_type_deducted)
-        throw Error(id, "cannot use variable before assignment");
-
       id->distance = this->GetCurScope()->depth - res.lvar->depth;
 
       id->index = res.lvar->index;
@@ -141,6 +151,16 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
         res.lvar->decl->index_add = id->index_add;
 
       ST = res.lvar->deducted_type;
+
+      if (!res.lvar->is_type_deducted) {
+        if (Ctx.ExprCtx && Ctx.ExprCtx->kind == SemaExprContext::EX_Assignment &&
+            Ctx.ExprCtx->LeftID == id) {
+          Ctx.ExprCtx->AssignRightTypeToLVar = true;
+          Ctx.ExprCtx->TargetLVarPtr = id->lvar_ptr;
+        }
+        else
+          throw Error(id, "cannot use variable before assignment");
+      }
 
       break;
     }
@@ -283,10 +303,11 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
     todo_impl; // ?
   }
 
-  if (Ctx.MemberRefCtx && Ctx.MemberRefCtx->Left == id) {
+  if (Ctx.ExprCtx && Ctx.ExprCtx->kind == SemaExprContext::EX_MemberRef &&
+      Ctx.ExprCtx->Left == id) {
 
-    Ctx.MemberRefCtx->LeftNameII = SR.II;
-    Ctx.MemberRefCtx->LeftType = ST;
+    Ctx.ExprCtx->LeftNameII = SR.II;
+    Ctx.ExprCtx->LeftType = ST;
   }
 
   return SR;

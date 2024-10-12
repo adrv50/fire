@@ -37,9 +37,10 @@ enum class TypeKind : u8 {
 
 struct TypeInfo {
   TypeKind kind;
-  std::vector<TypeInfo> params;
 
-  std::string name;
+  Vec<TypeInfo> params;
+
+  string name; // <-- todo: remove this, and use GetName()
 
   bool is_const = false;
 

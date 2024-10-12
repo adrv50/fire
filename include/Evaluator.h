@@ -7,6 +7,20 @@
 
 namespace fire::eval {
 
+struct VarStack {
+  vector<ObjPointer> var_list;
+
+  bool returned = false;
+  ObjPointer func_result = nullptr;
+
+  bool breaked = false;
+  bool continued = false;
+
+  VarStack(size_t vcount) {
+    this->var_list.resize(vcount);
+  }
+};
+
 class Evaluator {
 
 public:
@@ -23,21 +37,11 @@ public:
   ObjPointer& eval_index_ref(ObjPointer array, ObjPointer index);
 
 private:
-  struct VarStack {
-    vector<ObjPointer> var_list;
-
-    bool returned = false;
-    ObjPointer func_result = nullptr;
-
-    bool breaked = false;
-    bool continued = false;
-
-    VarStack(size_t vcount) {
-      this->var_list.resize(vcount);
-    }
-  };
-
   using VarStackPtr = std::shared_ptr<VarStack>;
+
+  ObjPtr<ObjInstance> CreateClassInstance(ASTPtr<AST::Class> ast);
+
+  ObjPointer CreateDefaultValue(TypeInfo const& type);
 
   VarStackPtr push_stack(size_t var_count);
   void pop_stack();

@@ -53,6 +53,8 @@ struct Identifier : Named {
   //
   //----------------------
 
+  int digging_depth = 0; // when accessing to member-variable in base-class
+
   ASTPtr<Class> ast_class = nullptr;
   ASTPtr<Enum> ast_enum = nullptr;
 

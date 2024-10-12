@@ -411,8 +411,6 @@ FunctionScope::FunctionScope(int depth, ASTPtr<AST::Function> ast)
 
   this->depth = depth;
 
-  auto S = Sema::GetInstance();
-
   for (auto&& arg : ast->arguments) {
     this->add_arg(arg);
   }

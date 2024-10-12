@@ -87,9 +87,9 @@ struct Object {
   virtual ~Object() = default;
 
   virtual ObjPointer Clone() const = 0;
-  virtual std::string ToString() const = 0;
+  virtual string ToString() const = 0;
 
-  virtual std::string ToStringAsMember() const {
+  virtual string ToStringAsMember() const {
     return this->ToString();
   }
 
@@ -128,7 +128,7 @@ struct ObjPrimitive : Object {
   ObjPrimitive* to_float();
 
   ObjPointer Clone() const override;
-  std::string ToString() const override;
+  string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
     if (!this->type.equals(obj->type))
@@ -182,7 +182,7 @@ struct ObjIterable : Object {
   }
 
   ObjPointer Clone() const override;
-  std::string ToString() const override;
+  string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
     if (!obj->type.is_iterable())
@@ -210,13 +210,13 @@ struct ObjString : ObjIterable {
     return this->list.size();
   }
 
-  std::string ToString() const override;
-  std::string ToStringAsMember() const override;
+  string ToString() const override;
+  string ToStringAsMember() const override;
 
   ObjPointer Clone() const override;
 
   ObjString(std::u16string const& str = u"");
-  ObjString(std::string const& str);
+  ObjString(string const& str);
 };
 
 //
@@ -237,7 +237,7 @@ struct ObjEnumerator : Object {
     return x;
   }
 
-  std::string ToString() const override;
+  string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
     if (obj->type.kind != TypeKind::Enumerator)
@@ -265,7 +265,9 @@ struct ObjEnumerator : Object {
 struct ObjInstance : Object {
   ASTPtr<AST::Class> ast;
 
-    ObjVector member_variables;
+  ObjPtr<ObjInstance> base_class_inst;
+
+  ObjVector member_variables;
 
   ObjPointer& add_member_var(ObjPointer obj) {
     return this->member_variables.emplace_back(obj);
@@ -279,7 +281,7 @@ struct ObjInstance : Object {
   ASTPtr<AST::Function> get_constructor() const;
 
   ObjPointer Clone() const override;
-  std::string ToString() const override;
+  string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
     return this->ast == obj->As<ObjInstance>()->ast;
@@ -303,10 +305,10 @@ struct ObjCallable : Object {
   ObjPointer selfobj = nullptr;
   bool is_member_call = false;
 
-  std::string GetName() const;
+  string GetName() const;
 
   ObjPointer Clone() const override;
-  std::string ToString() const override;
+  string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
     auto x = obj->As<ObjCallable>();
@@ -323,12 +325,12 @@ struct ObjCallable : Object {
 // TypeKind::Module
 //
 struct ObjModule : Object {
-  std::string name;
+  string name;
 
   std::shared_ptr<SourceStorage> source;
   ASTPtr<AST::Block> ast;
 
-  std::map<std::string, ObjPointer> variables;
+  std::map<string, ObjPointer> variables;
   ObjVec<ObjType> types;
   ObjVec<ObjCallable> functions;
 
@@ -336,7 +338,7 @@ struct ObjModule : Object {
     return ObjNew<ObjModule>(*this);
   }
 
-  std::string ToString() const override;
+  string ToString() const override;
 
   ObjModule(std::shared_ptr<SourceStorage> src, ASTPtr<AST::Block> ast = nullptr)
       : Object(TypeKind::Module),
@@ -358,9 +360,9 @@ struct ObjType : Object {
     return ObjNew<ObjType>(*this);
   }
 
-  std::string GetName() const;
+  string GetName() const;
 
-  std::string ToString() const override;
+  string ToString() const override;
 
   bool Equals(ObjPointer obj) const override {
     auto x = obj->As<ObjType>();

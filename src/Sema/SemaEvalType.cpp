@@ -303,18 +303,21 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
     auto E = ASTCast<AST::Expr>(ast);
 
-    SemaMemberReferenceContext mrefctx;
+    SemaExprContext exprCtx;
 
     //
     //
     if (E->lhs->is_ident_or_scoperesol()) {
 
-      mrefctx = {.IsValid = true, .RefExpr = E, .Left = E->lhs, .Right = E->rhs};
+      exprCtx = {.kind = SemaExprContext::EX_MemberRef,
+                 .E = E,
+                 .Left = E->lhs,
+                 .Right = E->rhs};
 
-      Ctx.MemberRefCtx = &mrefctx;
+      Ctx.ExprCtx = &exprCtx;
     }
 
-    auto& LeftType = mrefctx.LeftType;
+    auto& LeftType = exprCtx.LeftType;
 
     LeftType = this->eval_type(E->lhs, Ctx);
 
@@ -359,26 +362,30 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
   case Kind::Assign: {
     auto x = ASTCast<AST::Expr>(ast);
 
-    auto src = this->eval_type(x->rhs);
+    auto ctx = Ctx;
 
-    if (x->lhs->kind == ASTKind::Identifier || x->lhs->kind == ASTKind::ScopeResol) {
-      auto idinfo = this->get_identifier_info(x->lhs);
+    SemaExprContext exprC = {.kind = SemaExprContext::EX_Assignment,
+                             .E = x,
+                             .Left = x->lhs,
+                             .Right = x->rhs,
+                             .LeftID = AST::GetID(x->lhs)};
 
-      if (auto lvar = idinfo.result.lvar; idinfo.result.type == NameType::Var) {
+    ctx.ExprCtx = &exprC;
 
-        lvar->deducted_type = src;
-        lvar->is_type_deducted = true;
-      }
-    }
-
-    auto dest = this->eval_type(x->lhs);
-
-    if (!dest.equals(src)) {
-      throw Error(x->rhs, "expected '" + dest.to_string() + "' type expression");
-    }
+    auto dest = this->eval_type(x->lhs, ctx);
 
     if (!this->IsWritable(x->lhs)) {
       throw Error(x->lhs, "expected writable expression");
+    }
+
+    if (exprC.AssignRightTypeToLVar) {
+      debug(assert(exprC.TargetLVarPtr));
+
+      exprC.TargetLVarPtr->deducted_type = this->eval_type(x->rhs);
+      exprC.TargetLVarPtr->is_type_deducted = true;
+    }
+    else {
+      this->ExpectType(dest, x->rhs);
     }
 
     return dest;

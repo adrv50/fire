@@ -133,20 +133,35 @@ struct SemaClassNameContext {
   bool PassMemberAnalyze = false;
 };
 
-struct SemaMemberReferenceContext {
+struct SemaExprContext {
+
+  enum Kind {
+    EX_None,
+    EX_MemberRef,
+    EX_Assignment,
+  };
+
+  Kind kind = EX_None;
 
   bool IsValid = false;
 
-  ASTPtr<AST::Expr> RefExpr;
+  bool AssignRightTypeToLVar = false;
+
+  LocalVar* TargetLVarPtr = nullptr;
+
+  ASTPtr<AST::Expr> E;
 
   ASTPointer Left;
   ASTPointer Right;
 
   TypeInfo LeftType;
+  TypeInfo RightType;
+
+  ASTPtr<AST::Identifier> LeftID;
 
   IdentifierInfo LeftNameII;
 
-  ASTPointer ReferencedItem;
+  ASTPointer ReferencedItem; // EX_MemberRef
 };
 
 struct SemaScopeResolContext {
@@ -170,7 +185,7 @@ struct SemaContext {
   // また，クラス内を解析している場合は，そのクラスへのポインタを格納．
   SemaClassNameContext* ClassCtx;
 
-  SemaMemberReferenceContext* MemberRefCtx;
+  SemaExprContext* ExprCtx;
 
   SemaScopeResolContext* ScopeResolCtx;
 
@@ -368,7 +383,7 @@ class Sema {
 
   friend struct SemaContext;
   friend struct SemaFunctionNameContext;
-  friend struct SemaMemberReferenceContext;
+  friend struct SemaExprContext;
 
   friend class TemplateInstantiationContext;
 

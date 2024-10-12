@@ -15,6 +15,61 @@ Evaluator::Evaluator() {
 Evaluator::~Evaluator() {
 }
 
+ObjPtr<ObjInstance> Evaluator::CreateClassInstance(ASTPtr<AST::Class> ast) {
+
+  auto obj = ObjNew<ObjInstance>(ast);
+
+  if (ast->InheritBaseClassPtr) {
+    obj->base_class_inst = CreateClassInstance(ast->InheritBaseClassPtr);
+  }
+
+  obj->member_variables.resize(ast->member_variables.size());
+
+  for (size_t i = 0; i < ast->member_variables.size(); i++) {
+    auto& mv = ast->member_variables[i];
+
+    if (mv->init) {
+      obj->member_variables[i] = this->evaluate(mv->init);
+    }
+  }
+
+  return obj;
+}
+
+ObjPointer Evaluator::CreateDefaultValue(TypeInfo const& type) {
+
+  switch (type.kind) {
+  case TypeKind::None:
+    return _None;
+
+  case TypeKind::Int:
+    return ObjNew<ObjPrimitive>((i64)0);
+
+  case TypeKind::Float:
+    return ObjNew<ObjPrimitive>((float)0);
+
+  case TypeKind::Bool:
+    return ObjNew<ObjPrimitive>((bool)0);
+
+  case TypeKind::Char:
+    return ObjNew<ObjPrimitive>((char16_t)0);
+
+  case TypeKind::String:
+    return ObjNew<ObjString>();
+
+  case TypeKind::Vector:
+    return ObjNew<ObjIterable>(TypeKind::Vector);
+
+  case TypeKind::Tuple:
+    todo_impl;
+
+  case TypeKind::Dict:
+    todo_impl;
+  }
+
+  return nullptr;
+}
+
 Evaluator::VarStackPtr Evaluator::push_stack(size_t var_count) {
   return this->var_stack.emplace_front(std::make_shared<VarStack>(var_count));
 }
@@ -25,11 +80,11 @@ void Evaluator::pop_stack() {
   this->var_stack.pop_front();
 }
 
-Evaluator::VarStack& Evaluator::get_cur_stack() {
+VarStack& Evaluator::get_cur_stack() {
   return **this->var_stack.begin();
 }
 
-Evaluator::VarStack& Evaluator::get_stack(int distance) {
+VarStack& Evaluator::get_stack(int distance) {
   auto it = this->var_stack.begin();
 
   for (int i = 0; i < distance; i++)
@@ -45,6 +100,21 @@ ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
     auto ex = ast->as_expr();
 
     return this->eval_index_ref(this->eval_as_left(ex->lhs), this->evaluate(ex->rhs));
+  }
+
+  case ASTKind::RefMemberVar: {
+    auto ex = ast->as_expr();
+
+    auto inst = PtrCast<ObjInstance>(this->evaluate(ex->lhs));
+
+    auto id = ASTCast<AST::Identifier>(ex->rhs);
+
+    while (inst->ast != id->ast_class)
+      inst = inst->base_class_inst;
+
+    debug(assert(inst != nullptr));
+
+    return inst->get_mvar(id->index);
   }
   }
 
@@ -98,6 +168,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   }
 
   case Kind::Variable:
+  case Kind::RefMemberVar:
     return this->eval_as_left(ast);
 
   case Kind::Array: {
@@ -163,16 +234,6 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
   case Kind::ClassName: {
     return ObjNew<ObjType>(ast->GetID()->ast_class);
-  }
-
-  case Kind::RefMemberVar: {
-    auto ex = ast->as_expr();
-
-    auto inst = PtrCast<ObjInstance>(this->evaluate(ex->lhs));
-
-    auto id = ASTCast<AST::Identifier>(ex->rhs);
-
-    return inst->get_mvar(id->index);
   }
 
   case Kind::MemberFunction: {
@@ -261,17 +322,9 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
     auto ast_class = x->get_class_ptr();
 
-    auto inst = ObjNew<ObjInstance>(ast_class);
+    auto inst = this->CreateClassInstance(ast_class);
 
-    size_t const argc = x->args.size();
-
-    inst->member_variables.resize(argc);
-
-    for (size_t i = 0; i < argc; i++) {
-      if (auto init = ast_class->member_variables[i]->init; init) {
-        inst->member_variables[i] = this->evaluate(init);
-      }
-
+    for (size_t i = 0; i < x->args.size(); i++) {
       inst->member_variables[i] = this->evaluate(x->args[i]);
     }
 
