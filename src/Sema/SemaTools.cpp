@@ -455,12 +455,12 @@ bool Sema::IsWritable(ASTPointer ast) {
 
   switch (ast->kind) {
   case ASTKind::Variable:
-  case ASTKind::RefMemberVar:
     return true;
 
   case ASTKind::IndexRef:
   case ASTKind::MemberAccess:
-    return this->IsWritable(ASTCast<AST::Expr>(ast)->lhs);
+  case ASTKind::RefMemberVar:
+    return IsWritable(ASTCast<AST::Expr>(ast)->lhs);
   }
 
   return false;

@@ -201,6 +201,11 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
       ast->kind = ASTKind::CallFunc_Ctor;
 
+      if (auto E = Ctx.ExprCtx; E && E->IsClassInfoNeeded) {
+        E->InstancableExprAST = ast;
+        E->ExprInstanceClassPtr = id->ast_class;
+      }
+
       return TypeInfo::make_instance_type(id->ast_class);
     }
 
@@ -305,32 +310,27 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
     SemaExprContext exprCtx;
 
-    //
-    //
-    if (E->lhs->is_ident_or_scoperesol()) {
+    exprCtx = {
+        .kind = SemaExprContext::EX_MemberRef,
+        .E = E,
+        .Left = E->lhs,
+        .Right = E->rhs,
+        .IsClassInfoNeeded = true,
+    };
 
-      exprCtx = {.kind = SemaExprContext::EX_MemberRef,
-                 .E = E,
-                 .Left = E->lhs,
-                 .Right = E->rhs};
-
-      Ctx.ExprCtx = &exprCtx;
-    }
+    Ctx.ExprCtx = &exprCtx;
 
     auto& LeftType = exprCtx.LeftType;
 
     LeftType = this->eval_type(E->lhs, Ctx);
 
-    if (!E->rhs->IsConstructedAs(ASTKind::Identifier)) {
-      throw Error(E->rhs, "invalid syntax");
+    auto right = this->eval_type(E->rhs, Ctx);
+
+    if (E->Is(ASTKind::RefMemberVar) && IsWritable(E->lhs)) {
+      E->kind = ASTKind::RefMemberVar_Left;
     }
 
-    auto right_type = this->eval_type(E->rhs, Ctx);
-
-    // Error(Expr->rhs, "aaa").emit();
-    // alertexpr(right_type.to_string());
-
-    return right_type;
+    return right;
   }
 
   case Kind::RefMemberVar: {
@@ -364,11 +364,13 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
     auto ctx = Ctx;
 
-    SemaExprContext exprC = {.kind = SemaExprContext::EX_Assignment,
-                             .E = x,
-                             .Left = x->lhs,
-                             .Right = x->rhs,
-                             .LeftID = AST::GetID(x->lhs)};
+    SemaExprContext exprC = {
+        .kind = SemaExprContext::EX_Assignment,
+        .E = x,
+        .Left = x->lhs,
+        .Right = x->rhs,
+        .LeftID = AST::GetID(x->lhs),
+    };
 
     ctx.ExprCtx = &exprC;
 

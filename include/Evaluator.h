@@ -36,6 +36,9 @@ public:
 
   ObjPointer& eval_index_ref(ObjPointer array, ObjPointer index);
 
+  ObjPointer& eval_member_ref(ObjPtr<ObjInstance> inst, ASTPtr<AST::Class> expected_class,
+                              int index);
+
 private:
   using VarStackPtr = std::shared_ptr<VarStack>;
 

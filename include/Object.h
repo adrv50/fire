@@ -3,6 +3,8 @@
 #include <concepts>
 #include <string>
 #include <map>
+
+#include "alert.h"
 #include "TypeInfo.h"
 
 namespace fire {

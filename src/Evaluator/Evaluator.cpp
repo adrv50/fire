@@ -102,19 +102,13 @@ ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
     return this->eval_index_ref(this->eval_as_left(ex->lhs), this->evaluate(ex->rhs));
   }
 
-  case ASTKind::RefMemberVar: {
-    auto ex = ast->as_expr();
+  case ASTKind::RefMemberVar_Left: {
 
-    auto inst = PtrCast<ObjInstance>(this->evaluate(ex->lhs));
+    auto id = ASTCast<AST::Identifier>(ast->as_expr()->rhs);
 
-    auto id = ASTCast<AST::Identifier>(ex->rhs);
-
-    while (inst->ast != id->ast_class)
-      inst = inst->base_class_inst;
-
-    debug(assert(inst != nullptr));
-
-    return inst->get_mvar(id->index);
+    return this->eval_member_ref(
+        PtrCast<ObjInstance>(this->eval_as_left(ast->as_expr()->lhs)), id->ast_class,
+        id->index);
   }
   }
 
@@ -139,6 +133,16 @@ ObjPointer& Evaluator::eval_index_ref(ObjPointer array, ObjPointer _index_obj) {
   debug(assert(array->type.kind == TypeKind::Vector));
 
   return array->As<ObjIterable>()->list[(size_t)index];
+}
+
+ObjPointer& Evaluator::eval_member_ref(ObjPtr<ObjInstance> inst,
+                                       ASTPtr<AST::Class> expected_class, int index) {
+
+  while (inst->ast != expected_class) {
+    inst = inst->base_class_inst;
+  }
+
+  return inst->get_mvar(index);
 }
 
 ObjPointer Evaluator::evaluate(ASTPointer ast) {
@@ -168,8 +172,16 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   }
 
   case Kind::Variable:
-  case Kind::RefMemberVar:
+  case Kind::RefMemberVar_Left:
     return this->eval_as_left(ast);
+
+  case Kind::RefMemberVar: {
+    auto id = ASTCast<AST::Identifier>(ast->as_expr()->rhs);
+
+    return this->eval_member_ref(
+        PtrCast<ObjInstance>(this->evaluate(ast->as_expr()->lhs)), id->ast_class,
+        id->index);
+  }
 
   case Kind::Array: {
     CAST(Array);

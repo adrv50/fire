@@ -171,14 +171,12 @@ struct SemaExprContext {
 
   ASTPtr<AST::Identifier> LeftID;
 
-  IdentifierInfo LeftNameII;
-
   //
-  // -- ReferencedItem
-  //
-  // EX_MemberRef の場合使われます．
-  //
-  ASTPointer ReferencedItem; // <- now no codes using this, but Intend. Don't remove.
+  // 特定の文脈内において，TypeKind::Instance として評価される式があるとき，
+  // そのクラスへのポインタが必要なとき，これを経由します．
+  bool IsClassInfoNeeded = false;
+  ASTPointer InstancableExprAST;           // expr evaluated to instance object.
+  ASTPtr<AST::Class> ExprInstanceClassPtr; // the class type of expr pointed to.
 };
 
 struct SemaScopeResolContext {
@@ -455,7 +453,7 @@ public:
 
   TypeInfo EvalExpr(ASTPtr<AST::Expr> ast);
 
-  bool IsWritable(ASTPointer ast);
+  static bool IsWritable(ASTPointer ast);
 
   static Sema* GetInstance();
 

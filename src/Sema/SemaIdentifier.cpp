@@ -26,10 +26,16 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
       {
         auto ctx = Ctx;
 
-        SemaClassNameContext classnamectx{.PassMemberAnalyze = true};
+        SemaClassNameContext classnamectx{
+            .PassMemberAnalyze =
+                true, // from now, just I wanna get relation of class inheritances.
+        };
 
         ctx.ClassCtx = &classnamectx;
 
+        //
+        // クラスの継承関係を解析するためここで check を呼びます．
+        // すでに解析されたものである場合，何も行われません．
         this->check(ClassPtr, ctx);
       }
 
@@ -285,8 +291,15 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
       break;
     }
 
-    case NameType::Unknown:
-      throw Error(id->token, "cannot find name '" + id->GetName() + "'");
+    case NameType::Unknown: {
+      string msg = "cannot find name '" + id->GetName() + "'";
+
+      if (Ctx.ExprCtx && Ctx.ExprCtx->ExprInstanceClassPtr) {
+        msg += " in class '" + Ctx.ExprCtx->ExprInstanceClassPtr->GetName() + "'";
+      }
+
+      throw Error(id, msg);
+    }
 
     case NameType::Namespace:
       throw Error(id, "expected identifier-expression after this token ");
@@ -306,8 +319,13 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
   if (Ctx.ExprCtx && Ctx.ExprCtx->kind == SemaExprContext::EX_MemberRef &&
       Ctx.ExprCtx->Left == id) {
 
-    Ctx.ExprCtx->LeftNameII = SR.II;
-    Ctx.ExprCtx->LeftType = ST;
+    auto& E = *Ctx.ExprCtx;
+
+    E.LeftType = ST;
+
+    if (E.IsClassInfoNeeded && ST.type_ast && ST.type_ast->Is(ASTKind::Class)) {
+      E.ExprInstanceClassPtr = ASTCast<AST::Class>(ST.type_ast);
+    }
   }
 
   return SR;

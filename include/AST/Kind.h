@@ -46,10 +46,11 @@ enum class ASTKind {
   //
   // Member-Variable Referencing Expr.
   RefMemberVar,
+  RefMemberVar_Left, // for assign
 
   CallFunc,
-  CallFunc_Ctor,          //  MyClass(...)
-  CallFunc_Enumerator,    //  MyKind::A( ... )
+  CallFunc_Ctor,       //  MyClass(...)
+  CallFunc_Enumerator, //  MyKind::A( ... )
 
   //
   // in call-func expr.

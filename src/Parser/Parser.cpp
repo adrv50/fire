@@ -278,6 +278,35 @@ ASTPointer Parser::Top() {
     this->_in_class = true;
     this->_classptr = ast;
 
+    while (!this->eat("}")) {
+      auto stmt = this->Top();
+
+      switch (stmt->kind) {
+      case ASTKind::Vardef:
+        ast->append_var(ASTCast<AST::VarDef>(stmt));
+        break;
+
+      case ASTKind::Function:
+        ast->append_func(ASTCast<AST::Function>(stmt));
+        break;
+
+      case ASTKind::Class: {
+        auto nestedClass = ASTCast<AST::Class>(stmt);
+
+        //
+        // feature.
+        //
+
+        throw Error(stmt->token, "nested class is not supported yet.");
+
+        break;
+      }
+
+      default:
+        throw Error(stmt->token, "");
+      }
+    }
+
     // member variables
     while (this->cur->str == "let") {
       auto& var = ast->append_var(ASTCast<AST::VarDef>(this->Stmt()));
