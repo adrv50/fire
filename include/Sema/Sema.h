@@ -133,26 +133,38 @@ struct SemaClassNameContext {
   bool PassMemberAnalyze = false;
 };
 
+//
+// = SemaExprContext =
+//
+// 特定の文脈において式の型を評価するときに使用されます．
+//
 struct SemaExprContext {
 
   enum Kind {
     EX_None,
-    EX_MemberRef,
-    EX_Assignment,
+    EX_MemberRef,  // ASTKind::MemberAccess
+    EX_Assignment, // ASTKind::Assign
   };
 
   Kind kind = EX_None;
-
-  bool IsValid = false;
-
-  bool AssignRightTypeToLVar = false;
-
-  LocalVar* TargetLVarPtr = nullptr;
 
   ASTPtr<AST::Expr> E;
 
   ASTPointer Left;
   ASTPointer Right;
+
+  //
+  // -- AssignRightTypeToLVar
+  //
+  // 代入式において左辺が変数で，かつそれの型がまだ不明なとき，
+  // 右辺の型を評価し，それを割り当てます．
+  //
+  // If in an assignment expression has variable name in left side,
+  // set the type of right side to that if type not deducted yet.
+  //
+  bool AssignRightTypeToLVar = false; //        |
+                                      //        |
+  LocalVar* TargetLVarPtr = nullptr;  //  <-----
 
   TypeInfo LeftType;
   TypeInfo RightType;
@@ -161,7 +173,12 @@ struct SemaExprContext {
 
   IdentifierInfo LeftNameII;
 
-  ASTPointer ReferencedItem; // EX_MemberRef
+  //
+  // -- ReferencedItem
+  //
+  // EX_MemberRef の場合使われます．
+  //
+  ASTPointer ReferencedItem; // <- now no codes using this, but Intend. Don't remove.
 };
 
 struct SemaScopeResolContext {
