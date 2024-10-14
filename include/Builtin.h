@@ -8,10 +8,10 @@ namespace fire::builtins {
 struct Function {
   using FuncPointer = ObjPointer (*)(ASTPtr<AST::CallFunc>, ObjVector);
 
-  std::string name;
+  string name;
 
   TypeInfo result_type;
-  vector<TypeInfo> arg_types;
+  Vec<TypeInfo> arg_types;
 
   bool is_variable_args; // true = 可変長引数
 
@@ -20,7 +20,7 @@ struct Function {
   ObjPointer Call(ASTPtr<AST::CallFunc> ast, ObjVector args) const;
 
   Function(std::string const& name, FuncPointer fp, TypeInfo result_type,
-           vector<TypeInfo> arg_types, bool is_vararg = false)
+           Vec<TypeInfo> arg_types, bool is_vararg = false)
       : name(name),
         result_type(result_type),
         arg_types(arg_types),

@@ -31,11 +31,13 @@ enum class NameType {
   Var,
 
   MemberVar,
+  BuiltinMemberVar,
 
   Func,
-  BuiltinFunc,
-
   MemberFunc,
+
+  BuiltinFunc,
+  BuiltinMethod,
 
   Enum,
   Enumerator,
@@ -53,7 +55,9 @@ struct NameFindResult {
   LocalVar* lvar = nullptr; // if variable
 
   ASTVec<Function> functions;
-  vector<builtins::Function const*> builtin_funcs;
+  Vec<builtins::Function const*> builtin_funcs;
+
+  builtins::MemberVariable const* builtin_attr = nullptr;
 
   ASTPtr<Enum> ast_enum = nullptr; // NameType::Enum
   int enumerator_index = 0;        // NameType::Enumerator
@@ -95,20 +99,20 @@ struct ArgumentCheckResult {
 };
 
 struct IdentifierInfo {
-  ASTPtr<AST::Identifier> ast;
+  ASTPtr<AST::Identifier> ast = nullptr;
 
-  TypeVec id_params;
+  TypeVec id_params = {};
 
-  vector<IdentifierInfo> template_args;
+  Vec<IdentifierInfo> template_args = {};
 
-  NameFindResult result;
+  NameFindResult result = {};
 
   string to_string() const;
 };
 
 struct SemaFunctionNameContext {
-  ASTPtr<AST::CallFunc> CF;
-  ASTPtr<AST::Signature> Sig;
+  ASTPtr<AST::CallFunc> CF = nullptr;
+  ASTPtr<AST::Signature> Sig = nullptr;
 
   TypeVec const* ArgTypes = nullptr;
   TypeInfo const* ExpectedResultType = nullptr;
@@ -126,9 +130,9 @@ struct SemaFunctionNameContext {
 
 struct SemaClassNameContext {
 
-  ASTPtr<AST::Class> Now_Analysing;
+  ASTPtr<AST::Class> Now_Analysing = nullptr;
 
-  ASTPtr<AST::Class> InheritBaseClass;
+  ASTPtr<AST::Class> InheritBaseClass = nullptr;
 
   bool PassMemberAnalyze = false;
 };
@@ -166,17 +170,17 @@ struct SemaExprContext {
                                       //        |
   LocalVar* TargetLVarPtr = nullptr;  //  <-----
 
-  TypeInfo LeftType;
-  TypeInfo RightType;
+  TypeInfo LeftType = {};
+  TypeInfo RightType = {};
 
-  ASTPtr<AST::Identifier> LeftID;
+  ASTPtr<AST::Identifier> LeftID = nullptr;
 
   //
-  // 特定の文脈内において，TypeKind::Instance として評価される式があるとき，
+  // 特定の文脈内において，TypeKind::Instance として評価される式があり，
   // そのクラスへのポインタが必要なとき，これを経由します．
   bool IsClassInfoNeeded = false;
-  ASTPointer InstancableExprAST;           // expr evaluated to instance object.
-  ASTPtr<AST::Class> ExprInstanceClassPtr; // the class type of expr pointed to.
+  ASTPointer InstancableExprAST = nullptr;           // expr evaluated to instance object.
+  ASTPtr<AST::Class> ExprInstanceClassPtr = nullptr; // the class type of expr pointed to.
 };
 
 struct SemaScopeResolContext {
@@ -193,26 +197,18 @@ struct SemaContext {
 
   //
   // 関数呼び出し式において，呼び出し先の関数を一つに決める必要がある場合に使用
-  SemaFunctionNameContext* FuncNameCtx;
+  SemaFunctionNameContext* FuncNameCtx = nullptr;
 
   //
   // クラス名として参照される式である場合に使用
   // また，クラス内を解析している場合は，そのクラスへのポインタを格納．
-  SemaClassNameContext* ClassCtx;
+  SemaClassNameContext* ClassCtx = nullptr;
 
-  SemaExprContext* ExprCtx;
+  SemaExprContext* ExprCtx = nullptr;
 
-  SemaScopeResolContext* ScopeResolCtx;
+  SemaScopeResolContext* ScopeResolCtx = nullptr;
 
-  SemaTypeExpectionContext* TypeExpection;
-
-  bool InCallFunc() const {
-    return FuncNameCtx && FuncNameCtx->CF;
-  }
-
-  bool InOverloadResolGuide() const {
-    return FuncNameCtx && FuncNameCtx->Sig;
-  }
+  SemaTypeExpectionContext* TypeExpection = nullptr;
 
   //
   // IsAllowedNoEnumeratorArguments:
@@ -224,6 +220,14 @@ struct SemaContext {
   //   match-statement
   //
   bool IsAllowedNoEnumeratorArguments = false;
+
+  bool InCallFunc() const {
+    return FuncNameCtx && FuncNameCtx->CF;
+  }
+
+  bool InOverloadResolGuide() const {
+    return FuncNameCtx && FuncNameCtx->Sig;
+  }
 };
 
 struct SemaIdentifierEvalResult {

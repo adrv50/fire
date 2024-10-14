@@ -202,9 +202,12 @@ ASTPointer Parser::Stmt() {
 
 ASTPointer Parser::Top() {
 
-  auto tok = *this->cur;
+  auto& tok = *this->cur;
   auto iter = this->cur;
 
+  //
+  // Enum
+  //
   if (this->eat("enum")) {
     auto ast = AST::Enum::New(tok, *this->expectIdentifier());
 
@@ -246,19 +249,25 @@ ASTPointer Parser::Top() {
     return ast;
   }
 
-  bool ate_final_tok = false;
-
+  //
   // final class
-  if (this->eat("final")) {
+  //
+  else if (this->eat("final")) {
     this->expect("class", true);
-    ate_final_tok = true;
+
+    auto x = ASTCast<AST::Class>(this->Top());
+
+    x->IsFinal = true;
+    x->FianlSpecifyToken = tok;
+
+    return x;
   }
 
-  if (this->eat("class")) {
+  //
+  // Class
+  //
+  else if (this->eat("class")) {
     auto ast = AST::Class::New(tok, *this->expectIdentifier());
-
-    ast->IsFinal = ate_final_tok;
-    ast->FianlSpecifyToken = tok;
 
     if (this->eat("extends")) {
       ast->InheritBaseClassName = this->ScopeResol();
@@ -268,17 +277,15 @@ ASTPointer Parser::Top() {
     // todo: inherit interfaces
     //
 
-    this->expect("{");
-
-    bool closed = false;
-
     auto s1 = this->_in_class;
     auto s2 = this->_classptr;
 
     this->_in_class = true;
     this->_classptr = ast;
 
-    while (!this->eat("}")) {
+    this->expect("{");
+
+    do {
       auto stmt = this->Top();
 
       switch (stmt->kind) {
@@ -303,29 +310,10 @@ ASTPointer Parser::Top() {
       }
 
       default:
-        throw Error(stmt->token, "");
+        throw Error(stmt->token, "expected declaration of member variable or function, "
+                                 "constructor, destructor.");
       }
-    }
-
-    // member variables
-    while (this->cur->str == "let") {
-      auto& var = ast->append_var(ASTCast<AST::VarDef>(this->Stmt()));
-
-      if (!var->type && !var->init) {
-        throw Error(var->token, "cannot use delay-assignment here");
-      }
-    }
-
-    // member functions
-    while (this->check() && !(closed = this->eat("}"))) {
-      if (!this->match("virtual") && !this->match("fn", TokenKind::Identifier))
-        throw Error(*this->cur, "expected definition of member function");
-
-      ast->append_func(ASTCast<AST::Function>(this->Top()));
-    }
-
-    if (!closed)
-      throw Error(iter[2], "not terminated block");
+    } while (!this->eat("}"));
 
     this->_in_class = s1;
     this->_classptr = s2;
@@ -333,26 +321,27 @@ ASTPointer Parser::Top() {
     return ast;
   }
 
-  bool _f_virtualized = false;
-  TokenIterator virtual_tok = this->cur;
-
-  if (this->eat("virtual")) {
+  //
+  // Virtual function
+  //
+  else if (this->eat("virtual")) {
     if (!this->_in_class) {
       throw Error(*this->ate, "cannot define virtualized function out of class");
     }
 
     this->expect("fn", true);
 
-    _f_virtualized = true;
+    auto x = ASTCast<AST::Function>(this->Top());
+
+    x->is_virtualized = true;
+    x->virtualize_specify_tok = tok;
+
+    return x;
   }
 
-  if (this->eat("fn")) {
+  else if (this->eat("fn")) {
 
     auto func = AST::Function::New(tok, *this->expectIdentifier());
-
-    if ((func->is_virtualized = _f_virtualized)) {
-      func->virtualize_specify_tok = *virtual_tok;
-    }
 
     if (this->eat_typeparam_bracket_open()) {
       func->IsTemplated = true;
@@ -367,16 +356,17 @@ ASTPointer Parser::Top() {
 
     this->expect("(");
 
-    if (auto tokkk = this->cur; this->_in_class && this->eat("self")) {
+    if (auto SelfArgToken = *this->cur; this->_in_class && this->eat("self")) {
       func->member_of = this->_classptr;
 
       if (!this->eat(","))
         this->expect(")", true);
 
-      func->add_arg(*tokkk, AST::TypeName::New(this->_classptr->name));
+      func->add_arg(SelfArgToken, AST::TypeName::New(this->_classptr->name));
     }
     else if (func->is_virtualized) {
-      throw Error(*virtual_tok, "static member function cannot be virtualized");
+      throw Error(func->virtualize_specify_tok,
+                  "static member function cannot be virtualized");
     }
 
     if (!this->eat(")")) {

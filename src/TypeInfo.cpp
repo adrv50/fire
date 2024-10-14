@@ -152,6 +152,7 @@ string TypeInfo::to_string() const {
       ret = this->params[0].to_string();
       break;
     }
+    // fall through
 
   case TypeKind::Enumerator:
     return this->type_ast->As<AST::Enum>()->GetName() +

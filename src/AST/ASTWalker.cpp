@@ -32,6 +32,7 @@ void walk_ast(ASTPointer ast, std::function<bool(ASTWalkerLocation, ASTPointer)>
   case Kind::Enumerator:
     if (ast->IsConstructedAs(Kind::ScopeResol))
       goto _label_scope_resol;
+    // fall through
 
   case Kind::Identifier:
     for (auto&& id_param : ASTCast<AST::Identifier>(ast)->id_params)

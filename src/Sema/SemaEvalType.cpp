@@ -25,6 +25,7 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
   case Kind::Argument:
     ast = ast->As<AST::Argument>()->type;
+    /* fall through */
 
   case Kind::TypeName:
     return this->eval_type_name(ASTCast<AST::TypeName>(ast));

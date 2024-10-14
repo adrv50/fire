@@ -215,6 +215,7 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
 
   case Kind::OverloadResolutionGuide:
     ast = ast->as_expr()->lhs;
+    /* fall through */
 
   case Kind::FuncName: {
     auto id = ast->GetID();

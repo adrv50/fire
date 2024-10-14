@@ -4,6 +4,8 @@ namespace fire::semantics_checker {
 
 IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& Ctx) {
 
+  //
+  // Id がメンバアクセス式の右辺である場合，左辺の型のメンバもしくはメソッドを取得する
   if (Ctx.ExprCtx && Ctx.ExprCtx->kind == SemaExprContext::EX_MemberRef &&
       Ctx.ExprCtx->Right == Id) {
 
@@ -11,15 +13,17 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
 
     auto const& LeftType = C.LeftType;
 
-    string name = Id->GetName();
+    string const& name = Id->GetName();
 
     IdentifierInfo II = {.ast = Id};
 
     auto E = C.E;
 
-    switch (LeftType.kind) {
-
-    case TypeKind::Instance: {
+    //
+    // user-defined class:
+    //   find member in it
+    //
+    if (LeftType.kind == TypeKind::Instance) {
 
       auto ClassPtr = ASTCast<AST::Class>(LeftType.type_ast);
 
@@ -50,7 +54,7 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
 
             E->kind = ASTKind::RefMemberVar;
 
-            goto _found_member_var;
+            goto _found_userdef_attr;
           }
 
           i++;
@@ -68,12 +72,30 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
         E->kind = ASTKind::MemberFunction;
       }
 
-    _found_member_var:
-
-      break;
+    _found_userdef_attr:;
     }
 
-    default:
+    // find built-in attributes
+    for (auto const& attr : builtins::get_builtin_member_variables()) {
+      if (attr.name == name && LeftType.equals(attr.self_type)) {
+        II.result.type = NameType::BuiltinMemberVar;
+        II.result.builtin_attr = &attr;
+        break;
+      }
+    }
+
+    // find built-in methods
+    for (auto const& [SelfType, M] : builtins::get_builtin_member_functions()) {
+      if (SelfType.equals(LeftType) && M.name == name) {
+        II.result.type = NameType::BuiltinMethod;
+        II.result.builtin_funcs.emplace_back(&M);
+      }
+    }
+
+    if (II.result.builtin_funcs.size() >= 2) {
+      //
+      // feature: overload of builtin func or methoda
+      //
       todo_impl;
     }
 
@@ -228,8 +250,10 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
       break;
     }
 
+    case NameType::BuiltinMethod:
     case NameType::BuiltinFunc: {
-      id->kind = ASTKind::BuiltinFuncName;
+      id->kind = res.type == NameType::BuiltinMethod ? ASTKind::BuiltinMemberFunction
+                                                     : ASTKind::BuiltinFuncName;
 
       id->candidates_builtin = std::move(res.builtin_funcs);
 
@@ -237,7 +261,7 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
         if (IsFuncNameCtxValid && Ctx.FuncNameCtx->MustDecideOneCandidate)
           throw Error(id->token, "function name '" + id->GetName() + "' is ambigous.");
 
-        todo_impl; // may be overloaded.
+        todo_impl; // feature: overload of builtin func or method
       }
 
       assert(id->candidates_builtin.size() == 1);
@@ -248,6 +272,12 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
 
       ST.params = id->ft_args = func->arg_types;
       ST.params.insert(ST.params.begin(), id->ft_ret = func->result_type);
+
+      if (id->kind == ASTKind::BuiltinMemberFunction) {
+        assert(Ctx.ExprCtx);
+
+        ST.params.insert(ST.params.begin() + 1, Ctx.ExprCtx->LeftType);
+      }
 
       break;
     }

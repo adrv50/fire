@@ -83,6 +83,7 @@ string ToString(ASTPointer ast) {
     if (auto x = ast->As<Identifier>(); !x->id_params.empty()) {
       return x->token.str + "@<" + join(", ", x->id_params) + ">";
     }
+    // fall through
 
   case ASTKind::Value:
     return string(ast->token.str);

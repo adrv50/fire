@@ -23,6 +23,15 @@ Lexer::Lexer(SourceStorage& source)
 bool Lexer::Lex(Vec<Token>& out) {
   this->pass_space();
 
+  ///
+  /// パーサで，テンプレートパラメータもしくはテンプレート引数のパースにおいて
+  /// ">"
+  /// が２個連続になっていて右シフト演算子になっている場合，それを分割する操作をトークン配列に対して行います．
+  /// メモリ再確保によって Token
+  /// ポインタが無効にならないよう，字句解析で登場する右シフト演算子の回数をここに加算し，最後にトークンベクタのサイズを，これを足した数で
+  /// reserve() を行います．
+  size_t BufCount_for_TemplParamCloseTokenSplitting = 0;
+
   while (this->check()) {
     auto c = this->peek();
     auto s = this->source.data.data() + this->position;
@@ -113,12 +122,16 @@ bool Lexer::Lex(Vec<Token>& out) {
         if (this->match(s)) {
           tok.kind = TokenKind::Punctuater;
           tok.str = s;
+
+          if (s == ">>")
+            BufCount_for_TemplParamCloseTokenSplitting++;
+
           this->position += s.length();
           goto found_punct;
         }
       }
 
-      Error(tok, "invalid token")();
+      throw Error(tok, "invalid token");
     }
 
     tok.str = std::string_view(s, this->position - pos);
@@ -133,6 +146,9 @@ bool Lexer::Lex(Vec<Token>& out) {
 
     this->pass_space();
   }
+
+  out.reserve(out.size() + BufCount_for_TemplParamCloseTokenSplitting +
+              1); // +1 is insurance.
 
   return true;
 }

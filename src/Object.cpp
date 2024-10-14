@@ -58,8 +58,14 @@ std::string ObjPrimitive::ToString() const {
   case TypeKind::Bool:
     return this->vb ? "true" : "false";
 
-  case TypeKind::Char:
-    return utils::to_u8string((char16_t[]){this->vc, 0});
+  case TypeKind::Char: {
+    static char16_t _tmp_ch_tbl[2] = {0};
+
+    _tmp_ch_tbl[0] = this->vc;
+    // _tmp_ch_tbl[1] = 0;
+
+    return utils::to_u8string(_tmp_ch_tbl);
+  }
   }
 
   todo_impl;

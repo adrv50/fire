@@ -80,7 +80,9 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
 
     this->_class_analysing_flag_map[x] = true;
 
-    SemaClassNameContext context = {.Now_Analysing = x};
+    SemaClassNameContext context = {
+        .Now_Analysing = x,
+    };
 
     auto pCtx = Ctx.ClassCtx;
 
