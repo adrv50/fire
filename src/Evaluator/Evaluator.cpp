@@ -1,4 +1,5 @@
 #include "Builtin.h"
+#include "Sema/Sema.h"
 #include "Evaluator.h"
 #include "Error.h"
 
@@ -8,7 +9,8 @@ namespace fire::eval {
 
 ObjPtr<ObjNone> Evaluator::_None;
 
-Evaluator::Evaluator() {
+Evaluator::Evaluator(semantics_checker::Sema& S)
+    : S(S) {
   _None = ObjNew<ObjNone>();
 }
 
@@ -31,12 +33,16 @@ ObjPtr<ObjInstance> Evaluator::CreateClassInstance(ASTPtr<AST::Class> ast) {
     if (mv->init) {
       obj->member_variables[i] = this->evaluate(mv->init);
     }
+    else {
+      obj->member_variables[i] =
+          this->MakeDefaultValueOfType(this->S.eval_type(mv->type));
+    }
   }
 
   return obj;
 }
 
-ObjPointer Evaluator::CreateDefaultValue(TypeInfo const& type) {
+ObjPointer Evaluator::MakeDefaultValueOfType(TypeInfo const& type) {
 
   switch (type.kind) {
   case TypeKind::None:
@@ -65,6 +71,14 @@ ObjPointer Evaluator::CreateDefaultValue(TypeInfo const& type) {
 
   case TypeKind::Dict:
     todo_impl;
+
+  case TypeKind::TypeName: {
+    todo_impl;
+  }
+
+  case TypeKind::Instance: {
+    todo_impl;
+  }
   }
 
   return nullptr;

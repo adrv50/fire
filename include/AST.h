@@ -24,4 +24,6 @@ string ToString(ASTPointer ast);
 
 ASTPtr<Identifier> GetID(ASTPointer);
 
+char const* GetKindStr(ASTKind const);
+
 } // namespace fire::AST

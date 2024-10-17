@@ -120,7 +120,7 @@ ObjPointer FireDriver::execute(SourceStorage& source) {
     alertmsg("semantics analysis...");
     sema.check_full();
 
-    eval::Evaluator ev;
+    eval::Evaluator ev{sema};
 
     alertmsg("evaluate...");
     return ev.evaluate(prg);

@@ -395,7 +395,13 @@ public:
                                ASTPtr<AST::Templatable> Item);
 };
 
+namespace eval {
+class Evaluator;
+}
+
 class Sema {
+
+  friend class eval::Evaluator;
 
   friend struct BlockScope;
   friend struct FunctionScope;

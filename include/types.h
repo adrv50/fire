@@ -103,6 +103,10 @@ struct Class;
 
 } // namespace AST
 
+namespace semantics_checker {
+class Sema;
+}
+
 namespace builtins {
 
 struct Function;

@@ -23,8 +23,10 @@ struct VarStack {
 
 class Evaluator {
 
+  semantics_checker::Sema& S;
+
 public:
-  Evaluator();
+  Evaluator(semantics_checker::Sema& S);
   ~Evaluator();
 
   ObjPointer evaluate(ASTPointer ast);
@@ -45,7 +47,7 @@ private:
 
   ObjPtr<ObjInstance> CreateClassInstance(ASTPtr<AST::Class> ast);
 
-  ObjPointer CreateDefaultValue(TypeInfo const& type);
+  ObjPointer MakeDefaultValueOfType(TypeInfo const& type);
 
   VarStackPtr push_stack(size_t var_count);
   void pop_stack();
