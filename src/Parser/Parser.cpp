@@ -285,6 +285,10 @@ ASTPointer Parser::Top() {
 
     this->expect("{");
 
+    if (this->eat("}")) {
+      throw Error(*this->ate, "empty class is not valid");
+    }
+
     do {
       auto stmt = this->Top();
 
