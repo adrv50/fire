@@ -40,11 +40,17 @@ private:
   bool eat(std::string_view str);
   void expect(std::string_view str, bool keep_token = false);
 
-  bool eat_typeparam_bracket_open();
-  void expect_typeparam_bracket_open();
-
-  bool eat_typeparam_bracket_close();
-  void expect_typeparam_bracket_close();
+  // ----
+  // for brackets of template parameter "<" ">"
+  //
+  // 閉じ括弧で右シフト演算子がある場合，自動的に分割します．
+  // フラグの都合のため eat(), expect() ではなく以下の関数群を使うこと
+  //
+  bool eat_typeparam_bracket_open();     //  eat "<"
+  bool eat_typeparam_bracket_close();    //  eat ">"
+  void expect_typeparam_bracket_open();  // expect "<"
+  void expect_typeparam_bracket_close(); // expect ">"
+  // -----
 
   bool match(std::string_view s) {
     return this->cur->str == s;

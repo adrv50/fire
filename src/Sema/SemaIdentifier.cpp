@@ -256,6 +256,15 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
                                    ">");
       }
 
+      if (count == 0) {
+        auto e = Error(id->token, "no match function call '" + id->GetName() + "'");
+
+        for (auto&& f : res.functions)
+          e.AddChain(Error(f->name, "candidate:"));
+
+        throw e;
+      }
+
       TypeInfo type = TypeKind::Function;
 
       auto func = id->candidates[0];

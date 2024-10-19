@@ -346,7 +346,18 @@ ASTPointer Parser::Top() {
 
   else if (this->eat("fn")) {
 
-    auto func = AST::Function::New(tok, *this->expectIdentifier());
+    if (this->eat_typeparam_bracket_open()) { // error!
+
+      throw Error(*this->ate, "expected identifier")
+
+          // but suggest hint <3
+          .AddNote("template parameter must write after function name; like \"fn func "
+                   "<T> (...\"");
+    }
+
+    auto func_name_token = *this->expectIdentifier();
+
+    auto func = AST::Function::New(tok, func_name_token);
 
     if (this->eat_typeparam_bracket_open()) {
       func->IsTemplated = true;
