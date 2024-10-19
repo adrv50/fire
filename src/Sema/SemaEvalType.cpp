@@ -88,9 +88,29 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
   }
 
   case Kind::ScopeResol: {
-    auto scoperesol = ASTCast<AST::ScopeResol>(ast);
+    auto sr = ASTCast<AST::ScopeResol>(ast);
 
-    todo_impl;
+    alert;
+
+    auto II = this->GetIdentifierInfo(sr->first, Ctx);
+
+    SemaScopeResolContext sr_ctx = {.LeftII = &II};
+
+    Ctx.ScopeResolCtx = &sr_ctx;
+
+    for (size_t i = 0; i + 1 < sr->idlist.size(); i++) {
+
+      alert;
+      II = this->GetIdentifierInfo(sr->idlist[i], Ctx);
+    }
+
+    alert;
+
+    auto idevres = this->EvalID(*sr->idlist.rbegin(), Ctx);
+
+    ast->kind = idevres.ast->kind;
+
+    return idevres.Type;
   }
 
   case Kind::Enumerator: {
@@ -207,7 +227,11 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
         E->ExprInstanceClassPtr = id->ast_class;
       }
 
-      return TypeInfo::make_instance_type(id->ast_class);
+      auto aaa = TypeInfo::make_instance_type(id->ast_class);
+
+      alertexpr(aaa.to_string());
+
+      return aaa;
     }
 
     case ASTKind::Enumerator: {
@@ -283,7 +307,7 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
   }
 
   case Kind::CallFunc_Ctor: {
-    return TypeInfo::from_class(ast->As<CallFunc>()->get_class_ptr());
+    return TypeInfo::make_instance_type(ast->As<CallFunc>()->get_class_ptr());
   }
 
   case Kind::SpecifyArgumentName:

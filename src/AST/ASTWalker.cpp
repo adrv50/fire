@@ -20,7 +20,7 @@ void walk_ast(ASTPointer ast, std::function<bool(ASTWalkerLocation, ASTPointer)>
     return;
   }
 
-  switch (ast->kind) {
+  switch (ast->GetConstructedKind()) {
 
   case Kind::Value:
     break;

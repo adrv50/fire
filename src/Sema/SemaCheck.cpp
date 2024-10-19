@@ -270,8 +270,6 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
 
     this->check(x->block);
 
-    this->LeaveScope();
-
     for (auto&& rs : return_stmt_list) {
       if (rs->expr) {
         this->ExpectType(RetType, rs->expr);
@@ -281,6 +279,8 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
                                    "' type expression after this token");
       }
     }
+
+    this->LeaveScope();
 
     this->cur_function = pfunc;
 

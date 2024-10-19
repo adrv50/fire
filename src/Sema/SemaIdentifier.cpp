@@ -102,6 +102,37 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
     return II;
   }
 
+  // スコープ解決演算子
+
+  if (Ctx.ScopeResolCtx) {
+    auto& lhs_ii = *Ctx.ScopeResolCtx->LeftII;
+
+    IdentifierInfo info;
+
+    switch (lhs_ii.result.type) {
+    case NameType::Class: {
+
+      auto C = lhs_ii.result.ast_class;
+
+      for (auto&& mf : C->member_functions) {
+        if (!mf->member_of && mf->GetName() == Id->GetName()) {
+          info.result.functions.emplace_back(mf);
+        }
+      }
+
+      if (info.result.functions.size() >= 1)
+        info.result.type = NameType::Func;
+
+      break;
+    }
+
+    default:
+      todo_impl;
+    }
+
+    return info;
+  }
+
   return this->get_identifier_info(Id);
 }
 
@@ -322,13 +353,21 @@ SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& C
     }
 
     case NameType::Unknown: {
-      string msg = "cannot find name '" + id->GetName() + "'";
+      string msgadd;
+      string msgnametypeinsert;
 
       if (Ctx.ExprCtx && Ctx.ExprCtx->ExprInstanceClassPtr) {
-        msg += " in class '" + Ctx.ExprCtx->ExprInstanceClassPtr->GetName() + "'";
+        msgadd = " in class '" + Ctx.ExprCtx->ExprInstanceClassPtr->GetName() + "'";
+      }
+      else if (Ctx.ScopeResolCtx) {
+        if (auto c = Ctx.ScopeResolCtx->GetClassAST()) {
+          msgnametypeinsert = "static member function ";
+          msgadd = " in class '" + c->GetName() + "'";
+        }
       }
 
-      throw Error(id, msg);
+      throw Error(id, "cannot find " + msgnametypeinsert + "name '" + id->GetName() +
+                          "'" + msgadd);
     }
 
     case NameType::Namespace:

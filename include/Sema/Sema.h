@@ -186,6 +186,12 @@ struct SemaExprContext {
 struct SemaScopeResolContext {
 
   // todo
+
+  IdentifierInfo* LeftII = nullptr;
+
+  ASTPtr<AST::Class> GetClassAST() {
+    return LeftII ? LeftII->result.ast_class : nullptr;
+  }
 };
 
 struct SemaTypeExpectionContext {
