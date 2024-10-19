@@ -118,6 +118,7 @@ ASTPointer Parser::Stmt() {
                                                            AST::Block::New(tok, {
                                                                                     block,
                                                                                     step,
+
                                                                                 }))});
   }
 

@@ -11,7 +11,7 @@
 
 namespace fire::semantics_checker {
 
-std::vector<std::list<ScopeContext*>> _bak_list;
+Vec<std::list<ScopeContext*>> _bak_list;
 
 TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
   auto& name = ast->GetName();
