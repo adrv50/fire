@@ -314,8 +314,16 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
     }
 
     if (x->init) {
-      if (auto type = x->type ? this->ExpectType(var.deducted_type, x->init)
-                              : this->eval_type(x->init);
+      if (
+          //
+          auto type =
+              //
+          x->type ?
+                  //
+              this->ExpectType(var.deducted_type, x->init)
+                  //
+                  : this->eval_type(x->init);
+          //
           !x->type) {
         var.deducted_type = type;
         var.is_type_deducted = true;

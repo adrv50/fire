@@ -107,7 +107,7 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
   if (Ctx.ScopeResolCtx) {
     auto& lhs_ii = *Ctx.ScopeResolCtx->LeftII;
 
-    IdentifierInfo info;
+    IdentifierInfo info = {.ast = Id};
 
     switch (lhs_ii.result.type) {
     case NameType::Class: {
