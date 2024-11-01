@@ -8,12 +8,14 @@ struct Templatable : Named {
     Token token;
     Vec<ParameterName> params;
 
+    Vec<ASTPointer> candidates = {}; // for type deduction
+
     string to_string() const {
       string s = token.str;
 
-      if (params.size() >= 1) {
+      if (this->params.size() >= 1) {
         s += "<" +
-             utils::join(", ", params,
+             utils::join(", ", this->params,
                          [](auto const& P) -> string {
                            return P.to_string();
                          }) +
@@ -22,6 +24,12 @@ struct Templatable : Named {
 
       return s;
     }
+  };
+
+  //
+  struct TypePair { // given like @<...>
+
+    ParameterName* param = nullptr;
   };
 
   Token TemplateTok; // "<"

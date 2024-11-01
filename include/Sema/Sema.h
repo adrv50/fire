@@ -444,7 +444,7 @@ class Sema {
 
   IdentifierInfo GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& Ctx);
 
-  SemaIdentifierEvalResult EvalID(ASTPtr<AST::Identifier> id, SemaContext& Ctx);
+  SemaIdentifierEvalResult& EvalID(ASTPtr<AST::Identifier> id, SemaContext& Ctx);
 
   Vec<std::shared_ptr<SemaIdentifierEvalResult>> EvaluatedIDResultRecord;
 

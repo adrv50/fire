@@ -102,6 +102,10 @@ struct Base {
 
   virtual ASTPointer Clone() const = 0;
 
+  virtual bool is_type_dependent() const {
+    return false;
+  }
+
   [[maybe_unused]]
   i64 GetChilds(ASTVector& out) const;
 

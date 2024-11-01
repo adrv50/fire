@@ -105,16 +105,42 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
   // スコープ解決演算子
 
   if (Ctx.ScopeResolCtx) {
+
+    alert;
+
     auto& lhs_ii = *Ctx.ScopeResolCtx->LeftII;
 
     IdentifierInfo info = {.ast = Id};
 
+    for (auto&& p : Id->id_params) {
+      alert;
+      auto& e = info.id_params.emplace_back(this->eval_type(p));
+
+      if (e.kind == TypeKind::TypeName && e.params.size() >= 1) {
+        alert;
+        e = e.params[0];
+      }
+
+      if (!info.template_args.emplace_back(get_identifier_info(p)).result.is_type_name())
+        throw Error(p, "expected type name");
+    }
+
+    alert;
+    Id->template_args = info.id_params;
+
     switch (lhs_ii.result.type) {
+
+      //
+      // <class-name> "::" <id>
     case NameType::Class: {
 
       auto C = lhs_ii.result.ast_class;
 
+      // find static method
       for (auto&& mf : C->member_functions) {
+        alertexpr(mf->GetName());
+        alertexpr(Id->GetName());
+
         if (!mf->member_of && mf->GetName() == Id->GetName()) {
           info.result.functions.emplace_back(mf);
         }
@@ -122,10 +148,14 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
 
       if (info.result.functions.size() >= 1)
         info.result.type = NameType::Func;
+      else
+        todo_impl;
 
       break;
     }
 
+      //
+      // ?
     default:
       todo_impl;
     }
@@ -136,7 +166,7 @@ IdentifierInfo Sema::GetIdentifierInfo(ASTPtr<AST::Identifier> Id, SemaContext& 
   return this->get_identifier_info(Id);
 }
 
-SemaIdentifierEvalResult Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& Ctx) {
+SemaIdentifierEvalResult& Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& Ctx) {
 
   SemaIdentifierEvalResult& SR =
       *EvaluatedIDResultRecord.emplace_back(std::make_shared<SemaIdentifierEvalResult>());

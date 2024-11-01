@@ -242,13 +242,13 @@ TIContext::TryInstantiate_Of_Function(SemaFunctionNameContext const* Ctx) {
   // 引数が与えられている文脈
   if (Ctx && Ctx->ArgTypes) {
     if (Ctx->GetArgumentsCount() < Func->arguments.size()) {
-      this->TryiedResult.Type = TI_Arg_TooMany;
+      this->TryiedResult.Type = TI_Arg_TooFew;
       this->Failed = true;
       return nullptr;
     }
 
     if (!Func->is_var_arg && Func->arguments.size() < Ctx->GetArgumentsCount()) {
-      this->TryiedResult.Type = TI_Arg_TooFew;
+      this->TryiedResult.Type = TI_Arg_TooMany;
       this->Failed = true;
       return nullptr;
     }

@@ -106,7 +106,7 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
     alert;
 
-    auto idevres = this->EvalID(*sr->idlist.rbegin(), Ctx);
+    auto& idevres = this->EvalID(*sr->idlist.rbegin(), Ctx);
 
     ast->kind = idevres.ast->kind;
 
