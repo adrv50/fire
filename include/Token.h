@@ -27,7 +27,7 @@ struct Token {
   i64 _index = 0;
 
   TokenKind kind;
-  std::string_view str;
+  string str;
   SourceLocation sourceloc;
 
   Token const* get_prev(int step = 1);
@@ -41,18 +41,18 @@ struct Token {
     return this->kind == tok.kind && this->str == tok.str;
   }
 
-  Token(TokenKind kind, std::string const& str, SourceLocation sourceloc = {})
+  Token(TokenKind kind, string str, SourceLocation sourceloc = {})
       : kind(kind),
-        str(str),
+        str(std::move(str)),
         sourceloc(sourceloc) {
   }
 
-  Token(std::string str)
-      : Token(TokenKind::Unknown, str) {
+  Token(string str)
+      : Token(TokenKind::Unknown, std::move(str)) {
   }
 
   Token(char const* str = "")
-      : Token(std::string(str)) {
+      : Token(string(str)) {
   }
 
   Token(TokenKind kind)

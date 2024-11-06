@@ -7,10 +7,26 @@
 
 namespace fire::eval {
 
+struct VarStack {
+  vector<ObjPointer> var_list;
+
+  bool returned = false;
+  ObjPointer func_result = nullptr;
+
+  bool breaked = false;
+  bool continued = false;
+
+  VarStack(size_t vcount) {
+    this->var_list.resize(vcount);
+  }
+};
+
 class Evaluator {
 
+  semantics_checker::Sema& S;
+
 public:
-  Evaluator();
+  Evaluator(semantics_checker::Sema& S);
   ~Evaluator();
 
   ObjPointer evaluate(ASTPointer ast);
@@ -22,22 +38,16 @@ public:
 
   ObjPointer& eval_index_ref(ObjPointer array, ObjPointer index);
 
+  //
+  ObjPointer& eval_member_ref(ObjPtr<ObjInstance> inst, ASTPtr<AST::Class> expected_class,
+                              int index);
+
 private:
-  struct VarStack {
-    vector<ObjPointer> var_list;
-
-    bool returned = false;
-    ObjPointer func_result = nullptr;
-
-    bool breaked = false;
-    bool continued = false;
-
-    VarStack(size_t vcount) {
-      this->var_list.resize(vcount);
-    }
-  };
-
   using VarStackPtr = std::shared_ptr<VarStack>;
+
+  ObjPtr<ObjInstance> CreateClassInstance(ASTPtr<AST::Class> ast);
+
+  ObjPointer MakeDefaultValueOfType(TypeInfo const& type);
 
   VarStackPtr push_stack(size_t var_count);
   void pop_stack();

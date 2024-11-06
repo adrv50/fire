@@ -9,6 +9,8 @@
 
 #include "types.h"
 
+#include "strpool.h"
+
 namespace utils {
 
 template <class... Args>

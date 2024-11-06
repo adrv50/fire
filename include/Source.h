@@ -28,23 +28,27 @@ struct SourceStorage {
     }
   };
 
-  std::string path;
-  std::string data;
+  string path;
+  string data;
 
-  std::unique_ptr<std::ifstream> file;
+  std::shared_ptr<std::ifstream> file;
 
-  std::vector<LineRange> line_range_list;
+  Vec<LineRange> line_range_list;
 
-  std::vector<Token> token_list;
+  Vec<Token> token_list;
+
+  static SourceStorage& GetInstance();
+
+  SourceStorage& AddIncluded(SourceStorage&& SS);
 
   bool Open();
   bool IsOpen() const;
 
   LineRange GetLineRange(i64 position) const;
-  std::string_view GetLineView(LineRange const& line) const;
-  std::vector<LineRange> GetLinesOfAST(ASTPointer ast);
+  string_view GetLineView(LineRange const& line) const;
+  Vec<LineRange> GetLinesOfAST(ASTPointer ast);
 
-  std::string_view GetLineView(i64 index) const {
+  string_view GetLineView(i64 index) const {
     return this->GetLineView(this->line_range_list[index]);
   }
 
@@ -57,6 +61,12 @@ struct SourceStorage {
   }
 
   SourceStorage(std::string path);
+  ~SourceStorage();
+
+private:
+  // use pointer for keep location element in memory
+  // because referenced by tokens. (SourceLocation)
+  Vec<std::shared_ptr<SourceStorage>> _included;
 };
 
 struct SourceLocation {
@@ -67,7 +77,7 @@ struct SourceLocation {
   SourceStorage* ref;
   SourceStorage::LineRange line;
 
-  std::string_view GetLine() const {
+  string_view GetLine() const {
     return this->ref->GetLineView(this->line);
   }
 
@@ -85,6 +95,10 @@ struct SourceLocation {
   SourceLocation()
       : SourceLocation(0, 0, nullptr) {
   }
+};
+
+class IdentifierTable {
+public:
 };
 
 } // namespace fire

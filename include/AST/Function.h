@@ -17,9 +17,20 @@ struct Function : Templatable {
   ASTPtr<TypeName> return_type;
   ASTPtr<Block> block;
 
-  bool is_var_arg;
+  bool is_var_arg = false;
 
-  ASTPtr<Class> member_of = nullptr;
+  ASTPtr<Class> member_of = nullptr; // if arg[0] == "self"
+
+  bool is_virtualized = false;
+  Token virtualize_specify_tok;
+
+  bool is_override = false;
+  Token override_specify_tok;
+
+  ASTPtr<Class> OverridingClass;   //
+  ASTPtr<Function> OverridingFunc; // --> base-class
+
+  sema::FunctionScope* GetScope();
 
   static ASTPtr<Function> New(Token tok, Token name);
 
@@ -38,4 +49,4 @@ struct Function : Templatable {
            ASTPtr<TypeName> rettype, ASTPtr<Block> block);
 };
 
-}
+} // namespace fire::AST

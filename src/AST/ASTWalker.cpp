@@ -4,31 +4,35 @@
 
 namespace fire::AST {
 
-void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)> fn) {
+void walk_ast(ASTPointer ast, std::function<bool(ASTWalkerLocation, ASTPointer)> fn) {
 
   using Kind = ASTKind;
 
   if (!ast)
     return;
 
-  fn(AW_Begin, ast);
+  if (!fn(AW_Begin, ast))
+    return;
 
-  if (ast->is_expr) {
-    walk_ast(ASTCast<AST::Expr>(ast)->lhs, fn);
-    walk_ast(ASTCast<AST::Expr>(ast)->rhs, fn);
+  if (ast->IsExpr()) {
+    walk_ast(ast->as_expr()->lhs, fn);
+    walk_ast(ast->as_expr()->rhs, fn);
     return;
   }
 
-  switch (ast->kind) {
+  switch (ast->GetConstructedKind()) {
 
   case Kind::Value:
     break;
 
   case Kind::Variable:
+  case Kind::MemberVariable:
   case Kind::FuncName:
+  case Kind::BuiltinFuncName:
   case Kind::Enumerator:
-    if (ast->_constructed_as == Kind::ScopeResol)
+    if (ast->IsConstructedAs(Kind::ScopeResol))
       goto _label_scope_resol;
+    // fall through
 
   case Kind::Identifier:
     for (auto&& id_param : ASTCast<AST::Identifier>(ast)->id_params)

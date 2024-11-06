@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "alert.h"
+#include "Lexer.h"
 #include "Parser.h"
 #include "Error.h"
 #include "Utils.h"
@@ -48,7 +49,7 @@ ASTPointer Parser::Stmt() {
       auto& p = ast->patterns.emplace_back(AST::Match::Pattern::Type::Unknown, e,
                                            ASTCast<AST::Block>(this->Stmt()));
 
-      if (e->is_id_nonqual() && e->token.str == "_") {
+      if (e->IsUnqualifiedIdentifier() && e->token.str == "_") {
         p.everything = true;
       }
 
@@ -117,6 +118,7 @@ ASTPointer Parser::Stmt() {
                                                            AST::Block::New(tok, {
                                                                                     block,
                                                                                     step,
+
                                                                                 }))});
   }
 
@@ -201,9 +203,12 @@ ASTPointer Parser::Stmt() {
 
 ASTPointer Parser::Top() {
 
-  auto tok = *this->cur;
+  auto& tok = *this->cur;
   auto iter = this->cur;
 
+  //
+  // Enum
+  //
   if (this->eat("enum")) {
     auto ast = AST::Enum::New(tok, *this->expectIdentifier());
 
@@ -245,12 +250,33 @@ ASTPointer Parser::Top() {
     return ast;
   }
 
-  if (this->eat("class")) {
+  //
+  // final class
+  //
+  else if (this->eat("final")) {
+    this->expect("class", true);
+
+    auto x = ASTCast<AST::Class>(this->Top());
+
+    x->IsFinal = true;
+    x->FianlSpecifyToken = tok;
+
+    return x;
+  }
+
+  //
+  // Class
+  //
+  else if (this->eat("class")) {
     auto ast = AST::Class::New(tok, *this->expectIdentifier());
 
-    this->expect("{");
+    if (this->eat("extends")) {
+      ast->InheritBaseClassName = this->ScopeResol();
+    }
 
-    bool closed = false;
+    //
+    // todo: inherit interfaces
+    //
 
     auto s1 = this->_in_class;
     auto s2 = this->_classptr;
@@ -258,25 +284,48 @@ ASTPointer Parser::Top() {
     this->_in_class = true;
     this->_classptr = ast;
 
-    // member variables
-    while (this->cur->str == "let") {
-      auto& var = ast->append_var(ASTCast<AST::VarDef>(this->Stmt()));
+    this->expect("{");
 
-      if (!var->type && !var->init) {
-        throw Error(var->token, "cannot use delay-assignment here");
+    if (this->eat("}")) {
+      throw Error(*this->ate, "empty class is not valid");
+    }
+
+    do {
+      auto _tok = this->cur;
+      auto stmt = this->Top();
+
+      switch (stmt->kind) {
+      case ASTKind::Vardef: {
+        auto& vdef = ast->append_var(ASTCast<AST::VarDef>(stmt));
+
+        if (!vdef->type)
+          throw Error(*_tok,
+                      "cannot omit type specification of let-statement in class scope");
+
+        break;
       }
-    }
 
-    // member functions
-    while (this->check() && !(closed = this->eat("}"))) {
-      if (!this->match("fn", TokenKind::Identifier))
-        throw Error(*this->cur, "expected definition of member function");
+      case ASTKind::Function:
+        ast->append_func(ASTCast<AST::Function>(stmt));
+        break;
 
-      ast->append_func(ASTCast<AST::Function>(this->Top()));
-    }
+      case ASTKind::Class: {
+        auto nestedClass = ASTCast<AST::Class>(stmt);
 
-    if (!closed)
-      throw Error(iter[2], "not terminated block");
+        //
+        // feature.
+        //
+
+        throw Error(stmt->token, "nested class is not supported yet.");
+
+        break;
+      }
+
+      default:
+        throw Error(stmt->token, "expected declaration of member variable or function, "
+                                 "constructor, destructor.");
+      }
+    } while (!this->eat("}"));
 
     this->_in_class = s1;
     this->_classptr = s2;
@@ -284,15 +333,45 @@ ASTPointer Parser::Top() {
     return ast;
   }
 
-  if (this->eat("fn")) {
-    auto func = AST::Function::New(tok, *this->expectIdentifier());
+  //
+  // Virtual function
+  //
+  else if (this->eat("virtual")) {
+    if (!this->_in_class) {
+      throw Error(*this->ate, "cannot define virtualized function out of class");
+    }
+
+    this->expect("fn", true);
+
+    auto x = ASTCast<AST::Function>(this->Top());
+
+    x->is_virtualized = true;
+    x->virtualize_specify_tok = tok;
+
+    return x;
+  }
+
+  else if (this->eat("fn")) {
+
+    if (this->eat_typeparam_bracket_open()) { // error!
+
+      throw Error(*this->ate, "expected identifier")
+
+          // but suggest hint <3
+          .AddNote("template parameter must write after function name; like \"fn func "
+                   "<T> (...\"");
+    }
+
+    auto func_name_token = *this->expectIdentifier();
+
+    auto func = AST::Function::New(tok, func_name_token);
 
     if (this->eat_typeparam_bracket_open()) {
-      func->is_templated = true;
-      func->tok_template = *this->ate;
+      func->IsTemplated = true;
+      func->TemplateTok = *this->cur;
 
       do {
-        func->template_param_names.emplace_back(*this->expectIdentifier());
+        func->ParameterList.emplace_back(this->parse_template_param_decl());
       } while (this->eat(","));
 
       this->expect_typeparam_bracket_close();
@@ -300,13 +379,17 @@ ASTPointer Parser::Top() {
 
     this->expect("(");
 
-    if (auto tokkk = this->cur; this->_in_class && this->eat("self")) {
+    if (auto SelfArgToken = *this->cur; this->_in_class && this->eat("self")) {
       func->member_of = this->_classptr;
 
       if (!this->eat(","))
         this->expect(")", true);
 
-      func->add_arg(*tokkk, AST::TypeName::New(this->_classptr->name));
+      func->add_arg(SelfArgToken, AST::TypeName::New(this->_classptr->name));
+    }
+    else if (func->is_virtualized) {
+      throw Error(func->virtualize_specify_tok,
+                  "static member function cannot be virtualized");
     }
 
     if (!this->eat(")")) {
@@ -322,6 +405,19 @@ ASTPointer Parser::Top() {
 
     if (this->eat("->")) {
       func->return_type = this->expectTypeName();
+    }
+
+    if (this->eat("override")) {
+      if (!this->_in_class) {
+        throw Error(*this->ate, "cannot define overrided function at out of scope");
+      }
+
+      if (!func->member_of) {
+        throw Error(*this->ate, "cannot use 'override' for static member function");
+      }
+
+      func->is_override = true;
+      func->override_specify_tok = *this->ate;
     }
 
     this->expect("{", true);
@@ -360,7 +456,37 @@ ASTPtr<AST::Block> Parser::Parse() {
   auto ret = AST::Block::New(*this->cur);
 
   while (this->eat("include")) {
-    todo_impl;
+    auto tok = this->ate;
+
+    if (!this->check() || this->cur->kind != TokenKind::String) {
+      throw Error(*tok, "expected string literal after this token");
+    }
+
+    auto path = string(this->cur->str);
+
+    this->cur++;
+
+    path.erase(path.begin());
+    path.pop_back();
+
+    auto& src = tok->sourceloc.ref->AddIncluded(path);
+
+    if (!src.Open()) {
+      throw Error(*tok, "cannot open file '" + src.path + "'");
+    }
+
+    Lexer lexer{src};
+
+    lexer.Lex(src.token_list);
+
+    Parser parser{src.token_list};
+
+    auto parsed = parser.Parse();
+
+    for (auto&& e : parsed->list)
+      ret->list.emplace_back(e);
+
+    this->expect(";");
   }
 
   while (this->check()) {

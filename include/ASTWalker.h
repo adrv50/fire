@@ -10,6 +10,6 @@ enum ASTWalkerLocation {
   AW_End,
 };
 
-void walk_ast(ASTPointer ast, std::function<void(ASTWalkerLocation, ASTPointer)> fn);
+void walk_ast(ASTPointer ast, std::function<bool(ASTWalkerLocation, ASTPointer)> fn);
 
 }

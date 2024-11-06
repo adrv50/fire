@@ -54,6 +54,19 @@ static std::map<TypeKind, char const*> kind_name_map {
 );
 // clang-format on
 
+string_view TypeInfo::GetSV() const {
+  assert(this->IsPrimitiveType());
+
+  return g_names[static_cast<u8>(this->kind)];
+}
+
+string TypeInfo::GetName() const {
+  if (this->IsPrimitiveType())
+    return string(this->GetSV());
+
+  return this->name;
+}
+
 bool TypeInfo::is_numeric() const {
   switch (this->kind) {
   case TypeKind::Int:
@@ -97,7 +110,9 @@ bool TypeInfo::is_primitive_name(std::string_view name) {
 }
 
 bool TypeInfo::equals(TypeInfo const& type) const {
-  if (this->kind == TypeKind::Unknown || type.kind == TypeKind::Unknown)
+  using Ty = TypeKind;
+
+  if (this->kind == Ty::Unknown || type.kind == Ty::Unknown)
     return true;
 
   if (this->kind != type.kind)
@@ -110,13 +125,13 @@ bool TypeInfo::equals(TypeInfo const& type) const {
     return false;
 
   switch (this->kind) {
-  case TypeKind::TypeName:
-  case TypeKind::Instance:
+  case Ty::TypeName:
+  case Ty::Instance:
     if (this->type_ast != type.type_ast)
       return false;
     break;
 
-  case TypeKind::Function:
+  case Ty::Function:
     if (this->is_free_args != type.is_free_args)
       return false;
     break;
@@ -133,12 +148,20 @@ string TypeInfo::to_string() const {
   string ret;
 
   switch (this->kind) {
-  case TypeKind::TypeName:
+  case TypeKind::TypeName: {
+
     if (this->params.size() == 1) {
       alert;
       ret = this->params[0].to_string();
       break;
     }
+
+    assert(this->type_ast);
+
+    ret = this->type_ast->As<AST::Named>()->GetName();
+
+    break;
+  }
 
   case TypeKind::Enumerator:
     return this->type_ast->As<AST::Enum>()->GetName() +
@@ -178,11 +201,11 @@ string TypeInfo::to_string() const {
            ">";
   }
 
+  if (this->kind == TypeKind::TypeName)
+    ret = "<typeinfo of " + ret + ">";
+
   if (this->is_const)
     ret += " const";
-
-  if (this->kind == TypeKind::TypeName)
-    return "<typeinfo of " + ret + ">";
 
   return ret;
 }
@@ -208,8 +231,9 @@ int TypeInfo::needed_param_count() const {
     return 2; // key, value
 
   case TypeKind::TypeName: {
-    if (auto x = ASTCast<AST::Templatable>(this->type_ast); x->is_templated) {
-      return x->template_param_names.size();
+    if (auto x = ASTCast<AST::Templatable>(this->type_ast);
+        this->type_ast->IsTemplateAST() && x->IsTemplated) {
+      return x->ParameterCount();
     }
 
     break;

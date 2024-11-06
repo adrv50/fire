@@ -14,6 +14,29 @@ using TypeVec = vector<TypeInfo>;
 
 class Sema;
 
+struct LocalVar {
+  string name;
+
+  TypeInfo deducted_type;
+  bool is_type_deducted = false;
+
+  bool is_argument = false;
+  ASTPtr<AST::VarDef> decl = nullptr;
+  ASTPtr<AST::Argument> arg = nullptr;
+
+  int depth = 0;
+  int index = 0;
+
+  int index_add = 0;
+
+  LocalVar(string const& name = "")
+      : name(name) {
+  }
+
+  LocalVar(ASTPtr<AST::VarDef> vardef);
+  LocalVar(ASTPtr<AST::Argument> arg);
+};
+
 // ------------------------------------
 //  ScopeContext ( base-struct )
 
@@ -25,29 +48,6 @@ struct ScopeContext {
     SC_Enum,
     SC_Class,
     SC_Namespace,
-  };
-
-  struct LocalVar {
-    string_view name;
-
-    TypeInfo deducted_type;
-    bool is_type_deducted = false;
-
-    bool is_argument = false;
-    ASTPtr<AST::VarDef> decl = nullptr;
-    ASTPtr<AST::Argument> arg = nullptr;
-
-    int depth = 0;
-    int index = 0;
-
-    int index_add = 0;
-
-    LocalVar(string_view name = "")
-        : name(name) {
-    }
-
-    LocalVar(ASTPtr<AST::VarDef> vardef);
-    LocalVar(ASTPtr<AST::Argument> arg);
   };
 
   Types type;
@@ -142,8 +142,10 @@ struct FunctionScope : ScopeContext {
 
   ASTVec<AST::Statement> return_stmt_list;
 
-  bool is_templated() const {
-    return ast->is_templated;
+  Vec<FunctionScope*> InstantiatedTemplateFunctions;
+
+  bool IsTemplatedFunc() const {
+    return ast->IsTemplated;
   }
 
   LocalVar& add_arg(ASTPtr<AST::Argument> def);

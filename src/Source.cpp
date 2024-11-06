@@ -4,6 +4,16 @@
 
 namespace fire {
 
+Vec<SourceStorage*> ss_v;
+
+SourceStorage& SourceStorage::GetInstance() {
+  return **ss_v.rbegin();
+}
+
+SourceStorage& SourceStorage::AddIncluded(SourceStorage&& SS) {
+  return *this->_included.emplace_back(std::make_shared<SourceStorage>(std::move(SS)));
+}
+
 SourceStorage::LineRange SourceStorage::GetLineRange(i64 position) const {
   for (auto&& line : this->line_range_list) {
     if (line.begin <= position && position <= line.end)
@@ -17,8 +27,7 @@ std::string_view SourceStorage::GetLineView(LineRange const& line) const {
   return std::string_view(this->data.c_str() + line.begin, line.length);
 }
 
-std::vector<SourceStorage::LineRange>
-SourceStorage::GetLinesOfAST(ASTPointer ast) {
+std::vector<SourceStorage::LineRange> SourceStorage::GetLinesOfAST(ASTPointer ast) {
   std::vector<LineRange> lines;
 
   (void)ast;
@@ -28,7 +37,7 @@ SourceStorage::GetLinesOfAST(ASTPointer ast) {
 }
 
 bool SourceStorage::Open() {
-  this->file = std::make_unique<std::ifstream>(this->path);
+  this->file = std::make_shared<std::ifstream>(this->path);
 
   if (this->file->fail())
     return false;
@@ -49,6 +58,8 @@ bool SourceStorage::Open() {
     this->line_range_list.emplace_back(0, 0, 0);
   }
 
+  this->file->close();
+
   return true;
 }
 
@@ -58,6 +69,11 @@ bool SourceStorage::IsOpen() const {
 
 SourceStorage::SourceStorage(std::string path)
     : path(path) {
+  ss_v.push_back(this);
+}
+
+SourceStorage::~SourceStorage() {
+  ss_v.pop_back();
 }
 
 } // namespace fire

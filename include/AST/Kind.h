@@ -12,11 +12,24 @@ enum class ASTKind {
   // /--------------
   //  replaced to this kind from Identifier or ScopeResol in
   //  Semantics-Checker. Don't use this.
+  //
+  // 以下の Kind は，意味解析によって割り当てられます．
+  // 最初から AST を構築するときに使用することはありません．
+  //
   Variable,
+
+  MemberVariable,
+  MemberFunction,
+
+  BuiltinMemberVariable,
+  BuiltinMemberFunction,
+
   FuncName,
   BuiltinFuncName,
+
   Enumerator,
   EnumName,
+
   ClassName,
   // ------------------/
 
@@ -30,16 +43,14 @@ enum class ASTKind {
 
   MemberAccess,
 
-  // /-----------------
-  MemberVariable, // => use ast->GetID() (to index in instance)
-  MemberFunction,
-  BuiltinMemberVariable,
-  BuiltinMemberFunction,
-  //   ------------------/
+  //
+  // Member-Variable Referencing Expr.
+  RefMemberVar,
+  RefMemberVar_Left, // for assign
 
   CallFunc,
-  CallFunc_Ctor,
-  CallFunc_Enumerator,
+  CallFunc_Ctor,       //  MyClass(...)
+  CallFunc_Enumerator, //  MyKind::A( ... )
 
   //
   // in call-func expr.

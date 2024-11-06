@@ -6,13 +6,13 @@
 
 namespace fire::semantics_checker {
 
-ScopeContext::LocalVar::LocalVar(ASTPtr<AST::VarDef> vardef) {
+LocalVar::LocalVar(ASTPtr<AST::VarDef> vardef) {
 
   this->name = vardef->GetName();
   this->decl = vardef;
 }
 
-ScopeContext::LocalVar::LocalVar(ASTPtr<AST::Argument> arg) {
+LocalVar::LocalVar(ASTPtr<AST::Argument> arg) {
   // Don't use this ctor if arg is template.
 
   this->name = arg->GetName();
@@ -57,7 +57,7 @@ ASTPointer ScopeContext::GetAST() const {
   return nullptr;
 }
 
-ScopeContext::LocalVar* ScopeContext::find_var(string_view const&) {
+LocalVar* ScopeContext::find_var(string_view const&) {
   alert;
   return nullptr;
 }
@@ -83,6 +83,8 @@ vector<ScopeContext*> ScopeContext::find_name(string const&) {
 BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
     : ScopeContext(SC_Block),
       ast(ast) {
+
+  ast->ScopeCtxPtr = this;
 
   this->depth = depth;
 
@@ -136,14 +138,14 @@ BlockScope::BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add)
         if (!eb.everything) {
           ASTVec<Identifier> v;
 
-          if (eb.expr->is_id_nonqual()) {
+          if (eb.expr->IsUnqualifiedIdentifier()) {
             v.emplace_back(ASTCast<AST::Identifier>(eb.expr));
 
             // eb.vardef_list.emplace_back(0, eb.expr->token.str);
           }
-          else if (eb.expr->is(ASTKind::CallFunc)) {
+          else if (eb.expr->Is(ASTKind::CallFunc)) {
             for (size_t i = 0; auto&& arg : eb.expr->As<CallFunc>()->args) {
-              if (arg->is(ASTKind::Identifier) && !arg->is_qual_id()) {
+              if (arg->Is(ASTKind::Identifier) && !arg->IsQualifiedIdentifier()) {
                 v.emplace_back(ASTCast<AST::Identifier>(arg));
 
                 eb.vardef_list.emplace_back(i, arg->token.str);
@@ -275,6 +277,8 @@ ScopeContext*& BlockScope::AddScope(ScopeContext* scope) {
 
       dest->_ast.emplace_back(src->ast);
 
+      src->ast->ScopeCtxPtr = dest;
+
       auto index_add = this->child_var_count;
 
       for (auto&& v : src->variables) {
@@ -307,7 +311,7 @@ ScopeContext*& BlockScope::AddScope(ScopeContext* scope) {
   return this->child_scopes.emplace_back(scope);
 }
 
-ScopeContext::LocalVar& BlockScope::add_var(ASTPtr<AST::VarDef> def) {
+LocalVar& BlockScope::add_var(ASTPtr<AST::VarDef> def) {
   LocalVar* pvar = this->find_var(def->GetName());
 
   if (!pvar) {
@@ -333,7 +337,7 @@ ASTPointer BlockScope::GetAST() const {
   return this->ast;
 }
 
-ScopeContext::LocalVar* BlockScope::find_var(string_view const& name) {
+LocalVar* BlockScope::find_var(string_view const& name) {
   for (auto&& var : this->variables) {
     if (var.name == name)
       return &var;
@@ -343,6 +347,8 @@ ScopeContext::LocalVar* BlockScope::find_var(string_view const& name) {
 }
 
 ScopeContext* BlockScope::find_child_scope(ASTPointer ast) {
+  alert;
+
   for (auto&& c : this->child_scopes) {
     if (c->GetAST() == ast)
       return c;
@@ -401,20 +407,9 @@ FunctionScope::FunctionScope(int depth, ASTPtr<AST::Function> ast)
     : ScopeContext(SC_Func),
       ast(ast) {
 
+  ast->ScopeCtxPtr = this;
+
   this->depth = depth;
-
-  auto S = Sema::GetInstance();
-
-  for (auto&& [_key, _val] : S->function_scope_map) {
-    if (_key == ast) {
-      todo_impl; // why again?
-    }
-  }
-
-  // auto f = Sema::SemaFunction(ast);
-  // f.scope = this;
-
-  S->function_scope_map.emplace_back(ast, this);
 
   for (auto&& arg : ast->arguments) {
     this->add_arg(arg);
@@ -429,7 +424,7 @@ FunctionScope::~FunctionScope() {
   delete this->block;
 }
 
-ScopeContext::LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
+LocalVar& FunctionScope::add_arg(ASTPtr<AST::Argument> def) {
   LocalVar& arg = this->arguments.emplace_back(def->GetName());
 
   arg.arg = def;
@@ -445,7 +440,7 @@ ASTPointer FunctionScope::GetAST() const {
   return this->ast;
 }
 
-ScopeContext::LocalVar* FunctionScope::find_var(string_view const& name) {
+LocalVar* FunctionScope::find_var(string_view const& name) {
   for (auto&& arg : this->arguments) {
     if (arg.name == name)
       return &arg;
@@ -455,15 +450,25 @@ ScopeContext::LocalVar* FunctionScope::find_var(string_view const& name) {
 }
 
 ScopeContext* FunctionScope::find_child_scope(ASTPointer ast) {
+  alert;
+
   if (this->ast == ast)
     return this;
+
+  if (this->block->ast == ast)
+    return this->block;
 
   return this->block->find_child_scope(ast);
 }
 
 ScopeContext* FunctionScope::find_child_scope(ScopeContext* ctx) {
+  alert;
+
   if (this == ctx)
     return this;
+
+  if (ctx == this->block)
+    return this->block;
 
   return this->block->find_child_scope(ctx);
 }
@@ -483,6 +488,9 @@ std::string FunctionScope::to_string() const {
 NamespaceScope::NamespaceScope(int depth, ASTPtr<AST::Block> ast, int index_add)
     : BlockScope(depth, ast, index_add),
       name(ast->token.str) {
+
+  ast->ScopeCtxPtr = this;
+
   this->type = SC_Namespace;
 
   // this->child_var_count = this->variables.size();

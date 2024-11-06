@@ -15,18 +15,62 @@ static string join(string const& s, std::vector<ASTPtr<T>> const& v) {
   return utils::join(s, v, ToString);
 }
 
+string tpn2str_fn(AST::Templatable::ParameterName const& P) {
+
+  string s = string(P.token.str);
+
+  if (P.params.size() >= 1) {
+    s += "<" + utils::join(", ", P.params, tpn2str_fn) + ">";
+  }
+
+  return s;
+}
+
 string ToString(ASTPointer ast) {
   if (!ast)
     return "(null)";
 
-  switch (ast->_constructed_as) {
+  switch (ast->GetConstructedKind()) {
+  case ASTKind::Function: {
+    auto x = ast->As<Function>();
+
+    string s;
+
+    if (x->is_virtualized)
+      s = "virtual ";
+
+    s += "fn " + x->GetName();
+
+    if (x->IsTemplated) {
+      s += " <" + utils::join(", ", x->ParameterList, tpn2str_fn) + ">";
+    }
+
+    s += " (" + join(", ", x->arguments) + ") ";
+
+    if (x->return_type) {
+      s += "-> " + ToString(x->return_type) + " ";
+    }
+
+    if (x->is_override) {
+      s += "override ";
+    }
+
+    return s + ToString(x->block);
+  }
+
+  case ASTKind::Argument: {
+    auto x = ast->As<Argument>();
+
+    return x->name.str + ": " + ToString(x->type);
+  }
+
   case ASTKind::TypeName: {
     auto x = ast->As<TypeName>();
 
     string s = string(x->GetName());
 
     if (!x->type_params.empty()) {
-      s += "@<" + utils::join<ASTPtr<TypeName>>(", ", x->type_params, ToString) + ">";
+      s += "<" + utils::join<ASTPtr<TypeName>>(", ", x->type_params, ToString) + ">";
     }
 
     if (x->is_const)
@@ -39,9 +83,16 @@ string ToString(ASTPointer ast) {
     if (auto x = ast->As<Identifier>(); !x->id_params.empty()) {
       return x->token.str + "@<" + join(", ", x->id_params) + ">";
     }
+    // fall through
 
   case ASTKind::Value:
     return string(ast->token.str);
+
+  case ASTKind::Array: {
+    auto x = ast->As<Array>();
+
+    return "[" + join(", ", x->elements) + "]";
+  }
 
   case ASTKind::ScopeResol: {
     auto x = ast->As<ScopeResol>();
@@ -88,6 +139,15 @@ string ToString(ASTPointer ast) {
     return s;
   }
 
+  case ASTKind::Return: {
+    auto ex = ast->as_stmt()->expr;
+
+    if (ex)
+      return "return " + ToString(ex) + ";";
+
+    return "return;";
+  }
+
   case ASTKind::Vardef: {
     auto x = ASTCast<AST::VarDef>(ast);
 
@@ -101,13 +161,38 @@ string ToString(ASTPointer ast) {
 
     return s + ";";
   }
+
+  case ASTKind::MemberAccess: {
+    auto x = ast->as_expr();
+
+    return ToString(x->lhs) + "." + ToString(x->rhs);
   }
 
-  assert(ast->is_expr);
+  case ASTKind::IndexRef: {
+    auto x = ast->as_expr();
+
+    return ToString(x->lhs) + "[" + ToString(x->rhs) + "]";
+  }
+  }
+
+  alertexpr(static_cast<int>(ast->kind));
+  assert(ast->IsExpr());
 
   auto x = ast->as_expr();
 
-  return ToString(x->lhs) + x->op.str + ToString(x->rhs);
+  string ops = x->op.str;
+
+  switch (x->kind) {
+  case ASTKind::Bigger:
+    ops = ">";
+    break;
+
+  case ASTKind::BiggerOrEqual:
+    ops = ">=";
+    break;
+  }
+
+  return ToString(x->lhs) + " " + ops + " " + ToString(x->rhs);
 }
 
 } // namespace fire::AST

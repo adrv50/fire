@@ -15,11 +15,11 @@ namespace fire::semantics_checker {
 //   }
 // }
 
-Sema::ArgumentCheckResult Sema::check_function_call_parameters(ASTVector args,
-                                                               bool isVariableArg,
-                                                               TypeVec const& formal,
-                                                               TypeVec const& actual,
-                                                               bool ignore_mismatch) {
+ArgumentCheckResult Sema::check_function_call_parameters(ASTVector args,
+                                                         bool isVariableArg,
+                                                         TypeVec const& formal,
+                                                         TypeVec const& actual,
+                                                         bool ignore_mismatch) {
 
   (void)args;
 

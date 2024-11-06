@@ -42,6 +42,7 @@ TypeInfo Sema::EvalExpr(ASTPtr<AST::Expr> ast) {
   case Kind::LogOR:
     if (lhs.kind != TypeKind::Bool || rhs.kind != TypeKind::Bool)
       break;
+    // fall through
 
   case Kind::Equal:
     if (!is_same) {

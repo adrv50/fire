@@ -17,6 +17,8 @@ struct VarDef : Named {
   ASTPtr<TypeName> type;
   ASTPointer init;
 
+  bool IsStaticMemberInClass = false;
+
   int index = 0;
   int index_add = 0;
 

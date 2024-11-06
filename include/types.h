@@ -23,6 +23,13 @@ using std::size_t;
 using std::string;
 using std::string_view;
 
+using std::vector;
+
+template <typename T>
+using Vec = std::vector<T>;
+
+using StringVector = std::vector<std::string>;
+
 static inline string operator+(string const& s, string_view sv) {
   return s + string(sv);
 }
@@ -30,13 +37,6 @@ static inline string operator+(string const& s, string_view sv) {
 static inline string operator+(string_view sv, string const& s) {
   return string(sv) + s;
 }
-
-using std::vector;
-
-template <typename T>
-using Vec = std::vector<T>;
-
-using StringVector = std::vector<std::string>;
 
 namespace fire {
 
@@ -73,34 +73,45 @@ struct SourceStorage;
 struct SourceLocation;
 
 namespace AST {
+
 struct Base;
-
-struct Value;
-struct Variable;
-struct Identifier;
-struct ScopeResol;
-
-struct CallFunc;
-struct Expr;
-struct Block;
-struct VarDef;
-struct Statement;
-struct TypeName;
-
-struct Function;
-struct Enum;
-struct Class;
+struct Templatable;
+struct Named;
 
 struct TypeName;
 struct Signature;
+
+struct Value;
+struct Identifier;
+struct ScopeResol;
+
+struct Array;
+struct CallFunc;
+struct Expr;
+
+struct Block;
+struct VarDef;
+struct Statement;
+struct Match;
+
+struct Function;
+
+struct Enum;
+struct Class;
 
 // struct Namespace;
 
 } // namespace AST
 
+namespace semantics_checker {
+class Sema;
+}
+
 namespace builtins {
+
 struct Function;
 struct MemberVariable;
+
 } // namespace builtins
 
 #if _DBG_DONT_USE_SMART_PTR_
@@ -135,15 +146,6 @@ ASTPtr<T> ASTCast(ASTPointer p) {
 }
 
 #else
-template <class T, class U>
-std::shared_ptr<T> PtrCast(std::shared_ptr<U> p) {
-  return std::static_pointer_cast<T>(p);
-}
-
-template <class T, class U>
-std::shared_ptr<T> PtrDynamicCast(std::shared_ptr<U> p) {
-  return std::dynamic_pointer_cast<T>(p);
-}
 
 using ObjPointer = std::shared_ptr<Object>;
 
@@ -155,8 +157,18 @@ using ASTPointer = std::shared_ptr<AST::Base>;
 template <class T>
 using ASTPtr = std::shared_ptr<T>;
 
+template <class T, class U>
+std::shared_ptr<T> PtrCast(std::shared_ptr<U> p) {
+  return std::static_pointer_cast<T>(p);
+}
+
+template <class T, class U>
+std::shared_ptr<T> PtrDynamicCast(std::shared_ptr<U> p) {
+  return std::dynamic_pointer_cast<T>(p);
+}
+
 template <class T, class... Args>
-std::shared_ptr<T> ObjNew(Args&&... args) {
+inline std::shared_ptr<T> ObjNew(Args&&... args) {
   return std::make_shared<T>(std::forward<Args>(args)...);
 }
 
@@ -164,16 +176,17 @@ template <class T>
 ASTPtr<T> ASTCast(ASTPointer p) {
   return std::static_pointer_cast<T>(p);
 }
+
 #endif
 
-using ObjVector = std::vector<ObjPointer>;
-using ASTVector = std::vector<ASTPointer>;
+using ObjVector = Vec<ObjPointer>;
+using ASTVector = Vec<ASTPointer>;
 
 template <class T>
-using ObjVec = std::vector<ObjPtr<T>>;
+using ObjVec = Vec<ObjPtr<T>>;
 
 template <class T>
-using ASTVec = std::vector<ASTPtr<T>>;
+using ASTVec = Vec<ASTPtr<T>>;
 
 template <typename T, typename U>
 ASTVec<T> CloneASTVec(ASTVec<U> const& vec) {

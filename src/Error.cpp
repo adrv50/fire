@@ -62,6 +62,11 @@ struct line_data_wrapper_t {
   }
 
   std::string to_print_str(bool is_main) const {
+    alertexpr(src);
+    alertexpr(index);
+    alertexpr(pos);
+    alertexpr(linenum);
+
     if (this->src) {
       std::stringstream ss;
 
@@ -80,7 +85,25 @@ struct line_data_wrapper_t {
 
 static int _err_emitted_count = 0;
 
+static char const* get_err_level_str(Error::ErrorKind k) {
+  switch (k) {
+  case Error::ER_Error:
+    return COL_ERROR "error: ";
+
+  case Error::ER_Warning:
+    return COL_WARNING "warning: ";
+
+  case Error::ER_Note:
+    return COL_NOTE "note: ";
+  }
+
+  return nullptr;
+}
+
 Error const& Error::emit() const {
+
+  using std::cout;
+  using std::endl;
 
   Token const& err_token = this->loc_ast ? this->loc_ast->token : this->loc_token;
 
@@ -93,72 +116,64 @@ Error const& Error::emit() const {
 
   std::stringstream ss;
 
-  std::string errlvstr;
-
-  switch (this->kind) {
-  case ER_Error:
-    errlvstr = COL_ERROR "error: ";
-    break;
-
-  case ER_Warning:
-    errlvstr = COL_WARNING "warning: ";
-    break;
-
-  case ER_Note:
-    errlvstr = COL_NOTE "note: ";
-    break;
-  }
-
   // location
   for (auto&& _loc : this->location) {
-    ss << COL_BOLD << loc.ref->path << ": " << _loc << ":" << std::endl;
+    cout << COL_BOLD << loc.ref->path << ": " << _loc << ":" << endl;
+  }
+
+  int cursorpos = line_err.pos;
+  string cursor_space;
+
+  for (int i = 0; i < line_err.pos;) {
+    u8 c = line_err.view[i];
+
+    if (c <= 0x80) {
+      cursor_space += ' ';
+      i += 1;
+    }
+    else if (0xC2 <= c && c < 0xE0) {
+      cursor_space.append("\xe3\x80\x80");
+      cursorpos -= 1;
+      i += 2;
+    }
+    else if (0xE0 <= c && c < 0xF0) {
+      cursor_space.append("\xe3\x80\x80");
+      cursorpos -= 2;
+      i += 3;
+    }
+    else if (0xF0 <= c && c < 0xF5) {
+      cursor_space.append("\xe3\x80\x80");
+      cursorpos -= 3;
+      i += 4;
+    }
   }
 
   // message
-  ss << COL_BOLD << errlvstr << COL_WHITE << this->msg << std::endl;
+  cout << COL_BOLD << get_err_level_str(this->kind) << COL_WHITE << this->msg << endl;
 
   // path and location
-  ss << "     " << COL_BOLD COL_UNDERLINE COL_BORDER_LINE << "--> " << loc.ref->path
-     << ":" << line_err.linenum << ":" << line_err.pos << COL_DEFAULT << std::endl;
+  cout << "     " << COL_BOLD COL_UNDERLINE COL_BORDER_LINE << "--> " << loc.ref->path
+       << ":" << line_err.linenum << ":" << (cursorpos + 1) << COL_DEFAULT << endl;
 
-  StringVector screen = {
-      line_top.to_print_str(false),
-      line_err.to_print_str(true),
-      line_bottom.to_print_str(false),
-  };
+  cout << COL_DEFAULT << COL_BOLD << "     " COL_BORDER_LINE " |" << endl;
 
-  // insert cursor '^'
-  {
-    auto& s = screen[2];
+  cout << COL_DEFAULT << COL_BOLD << utils::Format("%5d", line_err.linenum)
+       << COL_BORDER_LINE " | " << COL_WHITE << line_err.view << endl;
 
-    auto cursorpos = line_err.pos + LINENUM_WIDTH + 3 + utils::get_color_length_in_str(s);
+  cout << COL_DEFAULT << COL_BOLD << "     " COL_BORDER_LINE " | ";
 
-    if ((int)s.length() <= cursorpos)
-      s += std::string(cursorpos - s.length() + 10, ' ');
-
-    s = s.substr(0, cursorpos) + COL_DEFAULT COL_BOLD COL_WHITE "^" COL_UNBOLD COL_GRAY +
-        s.substr(cursorpos + 1);
-  }
-
-  // | (and back line if got)
-  ss << COL_DEFAULT << screen[0] << std::endl;
-
-  // | error line
-  ss << COL_DEFAULT << screen[1] << std::endl;
-
-  // | (and next line if got)  and cursor
-  ss << COL_DEFAULT << screen[2] << std::endl;
-
-  std::cout << COL_DEFAULT << ss.str() << COL_DEFAULT << std::endl;
+  cout << cursor_space << COL_WHITE COL_BOLD "^" << COL_DEFAULT << endl;
 
   _err_emitted_count++;
 
-  for (auto&& e : this->chained)
+  for (auto&& e : this->chained) {
+    cout << endl;
     e.emit();
+  }
 
   for (auto&& note : this->notes) {
-    std::cout << "     " << COL_DEFAULT COL_BOLD COL_NOTE << "note: " << COL_WHITE << note
-              << COL_DEFAULT << std::endl;
+    cout << "     " << COL_DEFAULT COL_BOLD COL_NOTE << "note: " << COL_WHITE << note
+         << COL_DEFAULT << endl;
   }
 
   return *this;

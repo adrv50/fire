@@ -11,7 +11,7 @@
 
 namespace fire::semantics_checker {
 
-std::vector<std::list<ScopeContext*>> _bak_list;
+Vec<std::list<ScopeContext*>> _bak_list;
 
 TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
   auto& name = ast->GetName();
@@ -29,12 +29,23 @@ TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
   case TypeKind::Unknown:
     break;
 
-  default:
+  default: {
+    for (auto&& p : ast->type_params)
+      type.params.emplace_back(this->eval_type_name(p));
+
+    if (auto c = type.needed_param_count(); c == 0 && type.params.size() >= 1) {
+      throw Error(ast->token, "'" + ast->GetName() + "' type is not a template");
+    }
+    else if (1 <= c && c > (int)type.params.size()) {
+      throw Error(ast->token, "too few template arguments");
+    }
+    else if (1 <= c && c < (int)type.params.size()) {
+      throw Error(ast->token, "too many template arguments");
+    }
+
     return type;
   }
-
-  if (auto tp = this->find_template_parameter_name(name); tp)
-    return *tp;
+  }
 
   auto rs = this->find_name(name);
 
@@ -50,6 +61,8 @@ TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
   case NameType::Class:
     return TypeInfo::make_instance_type(rs.ast_class);
   }
+
+  alertexpr(name);
 
   throw Error(ast->token, "unknown type name");
 }
@@ -72,9 +85,13 @@ ScopeContext* Sema::EnterScope(ASTPointer ast) {
 
   auto& cur = this->GetCurScope();
 
-  auto scope = cur->find_child_scope(ast);
+  // auto scope = cur->find_child_scope(ast);
+
+  auto scope = ast->ScopeCtxPtr;
 
   if (!scope && ast->kind == ASTKind::Namespace && cur->is_block) {
+    alert;
+
     for (auto&& c : ((BlockScope*)cur)->child_scopes) {
       if (c->type != ScopeContext::SC_Namespace)
         continue;
@@ -88,17 +105,27 @@ ScopeContext* Sema::EnterScope(ASTPointer ast) {
     }
   }
 
+  if (!scope) {
+    Error(ast->token, "scope is nullptr").emit();
+
+    panic;
+  }
+
   return this->EnterScope(scope);
 }
 
 ScopeContext* Sema::EnterScope(ScopeContext* ctx) {
-  debug(assert(this->GetCurScope()->contains(ctx)));
+  // debug(assert(this->GetCurScope()->contains(ctx)));
 
   return this->_scope_history.emplace_front(ctx);
 }
 
 void Sema::LeaveScope() {
   this->_scope_history.pop_front();
+}
+
+void Sema::ClearScopeHistory() {
+  this->_scope_history.clear();
 }
 
 void Sema::SaveScopeLocation() {
@@ -157,7 +184,7 @@ int GetScopesOfDepth(vector<ScopeContext*>& out, ScopeContext* scope, int depth)
   return (int)out.size();
 }
 
-ScopeContext::LocalVar* Sema::_find_variable(string_view const& name) {
+LocalVar* Sema::_find_variable(string const& name) {
 
   for (auto&& scope : this->GetHistory()) {
     auto lvar = scope->find_var(name);
@@ -169,7 +196,7 @@ ScopeContext::LocalVar* Sema::_find_variable(string_view const& name) {
   return nullptr;
 }
 
-ASTVec<Function> Sema::_find_func(string_view const& name) {
+ASTVec<Function> Sema::_find_func(string const& name) {
   ASTVec<AST::Function> v;
 
   for (auto&& scope : this->GetHistory()) {
@@ -186,19 +213,19 @@ ASTVec<Function> Sema::_find_func(string_view const& name) {
   return v;
 }
 
-ASTPtr<Enum> Sema::_find_enum(string_view const& name) {
+ASTPtr<Enum> Sema::_find_enum(string const& name) {
   return ASTCast<AST::Enum>(this->context_reverse_search([&name](ASTPointer p) {
     return p->kind == ASTKind::Enum && p->As<AST::Named>()->GetName() == name;
   }));
 }
 
-ASTPtr<Class> Sema::_find_class(string_view const& name) {
+ASTPtr<Class> Sema::_find_class(string const& name) {
   return ASTCast<AST::Class>(this->context_reverse_search([&name](ASTPointer p) {
     return p->kind == ASTKind::Class && p->As<AST::Named>()->GetName() == name;
   }));
 }
 
-ASTPtr<Block> Sema::_find_namespace(string_view const& name) {
+ASTPtr<Block> Sema::_find_namespace(string const& name) {
   return ASTCast<AST::Block>(this->context_reverse_search([&name](ASTPointer p) {
     return p->kind == ASTKind::Namespace && p->token.str == name;
   }));
@@ -218,7 +245,7 @@ ASTPointer Sema::context_reverse_search(std::function<bool(ASTPointer)> func) {
   return nullptr;
 }
 
-Sema::NameFindResult Sema::find_name(string_view const& name, bool const only_cur_scope) {
+NameFindResult Sema::find_name(string const& name, bool const only_cur_scope) {
 
   NameFindResult result = {};
 
@@ -277,7 +304,7 @@ Sema::NameFindResult Sema::find_name(string_view const& name, bool const only_cu
   return result;
 }
 
-string Sema::IdentifierInfo::to_string() const {
+string IdentifierInfo::to_string() const {
   string s = string(this->ast->GetName());
 
   if (!this->id_params.empty()) {
@@ -296,14 +323,16 @@ string Sema::IdentifierInfo::to_string() const {
   return s;
 }
 
-Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast,
-                                               bool only_cur_scope) {
+IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast,
+                                         bool only_cur_scope) {
   IdentifierInfo id_info{};
 
   id_info.ast = ast;
-  id_info.result = this->find_name(ast->GetName(), only_cur_scope);
+  id_info.result = this->find_name(string(ast->GetName()), only_cur_scope);
 
   for (auto&& x : ast->id_params) {
+    assert(x->is_ident_or_scoperesol());
+
     auto& y = id_info.id_params.emplace_back(this->eval_type(x));
 
     if (y.kind == TypeKind::TypeName && y.params.size() == 1) {
@@ -328,11 +357,11 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::Identifier> ast,
 }
 
 // scope-resolution
-Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
+IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
   auto info = this->get_identifier_info(ast->first);
 
   // string idname = string(ast->first->GetName());
-  string_view idname = ast->first->GetName();
+  string idname = ast->first->GetName();
 
   this->SaveScopeLocation();
 
@@ -343,7 +372,7 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
   }
 
   for (auto&& id : ast->idlist) {
-    string_view name = id->GetName();
+    string name = id->GetName();
 
     switch (info.result.type) {
     case NameType::Enum: {
@@ -380,7 +409,13 @@ Sema::IdentifierInfo Sema::get_identifier_info(ASTPtr<AST::ScopeResol> ast) {
         }
       }
 
-      if (!id->sema_allow_ambiguous && info.result.functions.size() >= 2) {
+      // TODO:
+      //  replace to EvalID()
+
+      if (info.result.functions.size() >= 2) {
+
+        todo_impl;
+
         throw Error(id->token, idname + "::" + name + " is ambiguous");
       }
 
@@ -426,32 +461,37 @@ bool Sema::IsWritable(ASTPointer ast) {
 
   case ASTKind::IndexRef:
   case ASTKind::MemberAccess:
-    return this->IsWritable(ASTCast<AST::Expr>(ast)->lhs);
+  case ASTKind::RefMemberVar:
+    return IsWritable(ASTCast<AST::Expr>(ast)->lhs);
   }
 
   return false;
 }
 
 TypeInfo Sema::ExpectType(TypeInfo const& type, ASTPointer ast) {
-  this->_expected.emplace_back(type);
+  // this->_expected.emplace_back(type);
 
-  if (auto t = this->eval_type(ast); !t.equals(type)) {
-    throw Error(ast, "expected '" + type.to_string() + "' type expression, but found '" +
-                         t.to_string() + "'");
+  SemaTypeExpectionContext ctx = {.Expected = &type};
+
+  if (auto t = this->eval_type(ast, {.TypeExpection = &ctx}); !t.equals(type)) {
+    Error E{ast, "expected '" + type.to_string() + "' type expression, but found '" +
+                     t.to_string() + "'"};
+
+    if (t.kind == TypeKind::Instance && type.kind == TypeKind::Instance) {
+      if (IsDerivedFrom(ASTCast<AST::Class>(t.type_ast),
+                        ASTCast<AST::Class>(type.type_ast))) {
+        return type;
+      }
+
+      E.AddNote("class '" + t.type_ast->As<AST::Class>()->GetName() +
+                "' is not derived from '" + type.type_ast->As<AST::Class>()->GetName() +
+                "'");
+    }
+
+    throw E;
   }
 
   return type;
-}
-
-TypeInfo* Sema::GetExpectedType() {
-  if (this->_expected.empty())
-    return nullptr;
-
-  return &*this->_expected.rbegin();
-}
-
-bool Sema::IsExpected(TypeKind kind) {
-  return !this->_expected.empty() && this->GetExpectedType()->kind == kind;
 }
 
 TypeInfo Sema::make_functor_type(ASTPtr<AST::Function> ast) {
@@ -472,6 +512,17 @@ TypeInfo Sema::make_functor_type(builtins::Function const* builtin) {
   ret.params.insert(ret.params.begin(), builtin->result_type);
 
   return ret;
+}
+
+bool Sema::IsDerivedFrom(ASTPtr<AST::Class> _class, ASTPtr<AST::Class> _base) {
+
+  for (auto C = _class->InheritBaseClassPtr; C; C = C->InheritBaseClassPtr) {
+    if (C == _base) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 } // namespace fire::semantics_checker

@@ -9,8 +9,7 @@ Sema* Sema::GetInstance() {
 }
 
 [[maybe_unused]]
-static string scope2s_var(string indent, string ns,
-                          std::vector<ScopeContext::LocalVar> lvar) {
+static string scope2s_var(string indent, string ns, Vec<LocalVar> const& lvar) {
   string ret;
 
   indent += "  ";
@@ -96,7 +95,7 @@ Sema::Sema(ASTPtr<AST::Block> prg)
 
   this->_scope_history.emplace_front(this->_scope_context);
 
-  debug(std::cout << scope2s(this->_scope_context) << std::endl);
+  // debug(std::cout << scope2s(this->_scope_context) << std::endl);
 
   // this->GetScopeLoc() = {this->_scope_context, {this->_scope_context}};
 

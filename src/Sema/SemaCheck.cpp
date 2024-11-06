@@ -15,9 +15,22 @@ namespace fire::semantics_checker {
 
 void Sema::check_full() {
   this->check(this->root);
+
+  for (auto&& TI_Record : this->InstantiatedRecords) {
+    this->GetHistory() = TI_Record.Scope;
+
+    this->check(TI_Record.Instantiated);
+  }
+
+  // alertexpr(AST::ToString(this->root));
+
+  // for (auto&& I : this->InstantiatedTemplates) {
+
+  //   this->check(I);
+  // }
 }
 
-void Sema::check(ASTPointer ast) {
+void Sema::check(ASTPointer ast, SemaContext Ctx) {
 
   if (!ast)
     return;
@@ -25,7 +38,7 @@ void Sema::check(ASTPointer ast) {
   switch (ast->kind) {
 
   case ASTKind::Enum: {
-    Vec<string_view> v;
+    Vec<string> v;
 
     auto x = ASTCast<AST::Enum>(ast);
 
@@ -39,7 +52,7 @@ void Sema::check(ASTPointer ast) {
         this->eval_type(e.types[0]);
       }
       else {
-        Vec<string_view> v2;
+        Vec<string> v2;
 
         for (auto&& t : e.types) {
           auto arg = ASTCast<AST::Argument>(t);
@@ -59,9 +72,60 @@ void Sema::check(ASTPointer ast) {
 
   case ASTKind::Class: {
 
-    Vec<string_view> v;
-
     auto x = ASTCast<AST::Class>(ast);
+
+    if (this->_class_analysing_flag_map[x]) {
+      break;
+    }
+
+    this->_class_analysing_flag_map[x] = true;
+
+    SemaClassNameContext context = {
+        .Now_Analysing = x,
+    };
+
+    auto pCtx = Ctx.ClassCtx;
+
+    Ctx.ClassCtx = &context;
+
+    if (auto IHBaseName = x->InheritBaseClassName; IHBaseName) {
+
+      if (!IHBaseName->is_ident_or_scoperesol()) {
+        throw Error(IHBaseName, "invalid syntax");
+      }
+
+      this->eval_type(IHBaseName, Ctx);
+
+      if (IHBaseName->kind != ASTKind::ClassName) {
+        throw Error(IHBaseName,
+                    "'" + AST::ToString(IHBaseName) + "' is not a class name");
+      }
+
+      auto BaseClass = IHBaseName->GetID()->ast_class;
+
+      if (BaseClass == x) {
+        throw Error(x->InheritBaseClassName, "cannot inherit self class");
+      }
+
+      if (BaseClass->IsFinal) {
+        throw Error(IHBaseName,
+                    "cannot inheritance the final class '" + BaseClass->GetName() + "'");
+      }
+
+      BaseClass->InheritedBy.emplace_back(x);
+
+      x->InheritBaseClassPtr = BaseClass;
+
+      context.InheritBaseClass = BaseClass;
+
+      this->check(BaseClass);
+    }
+
+    if (pCtx && pCtx->PassMemberAnalyze) {
+      break;
+    }
+
+    Vec<string> v;
 
     for (auto&& mv : x->member_variables) {
       if (auto n = mv->GetName(); utils::contains(v, n))
@@ -74,7 +138,76 @@ void Sema::check(ASTPointer ast) {
     }
 
     for (auto&& mf : x->member_functions) {
-      this->check(mf);
+      this->check(mf, Ctx);
+
+      if (mf->is_virtualized) {
+        x->VirtualFunctions.emplace_back(mf);
+      }
+
+      else if (mf->is_override) {
+
+        string name = mf->GetName();
+
+        auto Base = context.InheritBaseClass;
+
+        ASTPtr<Function> ov_base = nullptr;
+
+        do {
+
+          Vec<ASTPtr<Function>> ov;
+
+          for (auto&& base_f : Base->member_functions) {
+            if (base_f->is_virtualized && base_f->GetName() == name) {
+              ov.emplace_back(base_f);
+            }
+          }
+
+          for (auto it = ov.begin(); it != ov.end();) {
+            auto& ov_f = *it;
+
+            if (ov_f->is_var_arg != mf->is_var_arg ||
+                ov_f->arguments.size() != mf->arguments.size() ||
+                !this->eval_type(ov_f->return_type, Ctx)
+                     .equals(this->eval_type(mf->return_type, Ctx))) {
+              ov.erase(it);
+              goto __L_candidate_removed;
+            }
+
+            for (size_t i = 1; i < mf->arguments.size(); i++) {
+              if (this->eval_type(mf->arguments[i]->type)
+                      .equals(this->eval_type(ov_f->arguments[i]->type))) {
+                ov.erase(it);
+                goto __L_candidate_removed;
+              }
+            }
+
+            it++;
+
+          __L_candidate_removed:;
+          }
+
+          if (ov.size() == 1) {
+            ov_base = ov[0];
+            break;
+          }
+
+          if (ov.size() >= 2) {
+            // error: ambiguity
+            todo_impl;
+          }
+
+          Base = Base->InheritBaseClassPtr;
+        } while (Base);
+
+        if (!ov_base) {
+          throw Error(mf->override_specify_tok,
+                      "function " + name +
+                          " must be overridden from a base class, but the same "
+                          "name cannot be found in the base class");
+        }
+
+        mf->OverridingFunc = ov_base;
+      }
     }
 
     break;
@@ -85,56 +218,67 @@ void Sema::check(ASTPointer ast) {
 
     // auto func = this->get_func(x);
     // SemaFunction* func = nullptr;
-    FunctionScope* func = nullptr;
 
-    for (auto&& [_Key, _Val] : this->function_scope_map) {
-      if (_Key == x) {
-        func = _Val;
-        break;
-      }
-    }
+    if (x->IsTemplated) {
 
-    assert(func);
-
-    if (func->is_templated()) {
       break;
     }
+
+    // FunctionScope* func = nullptr;
+
+    FunctionScope* func = x->GetScope();
+
+    // for (auto&& [_Key, _Val] : this->function_scope_map) {
+    //   if (_Key == x) {
+    //     func = _Val;
+    //     break;
+    //   }
+    // }
+
+    // if (!func) {
+    //   if (Ctx.original_template_func) {
+    //     func = Ctx.original_template_func;
+    //   }
+    // }
+
+    assert(func);
 
     auto pfunc = this->cur_function;
     this->cur_function = func;
 
-    for (auto&& arg : func->arguments) {
-      arg.deducted_type = this->eval_type(arg.arg->type);
+    for (auto it = x->arguments.begin(); auto&& arg : func->arguments) {
+
+      arg.deducted_type = this->eval_type((*it++)->type);
       arg.is_type_deducted = true;
     }
 
-    func->result_type = this->eval_type(x->return_type);
+    auto RetType = this->eval_type(x->return_type);
 
-    this->EnterScope(x);
+    this->EnterScope(func);
 
-    AST::walk_ast(func->block->ast, [&func](AST::ASTWalkerLocation loc, ASTPointer _ast) {
-      if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
-        func->return_stmt_list.emplace_back(ASTCast<AST::Statement>(_ast));
-      }
-    });
+    ASTVec<AST::Statement> return_stmt_list;
 
-    if (!func->result_type.equals(TypeKind::None)) {
-      if (func->return_stmt_list.empty()) {
-        Error(func->ast->token, "function must return value of type '" +
-                                    func->result_type.to_string() +
-                                    "', but don't return "
-                                    "anything.")
-            .emit();
+    AST::walk_ast(
+        x->block,
+        [&return_stmt_list](AST::ASTWalkerLocation loc, ASTPointer _ast) -> bool {
+          if (loc == AST::AW_Begin && _ast->kind == ASTKind::Return) {
+            return_stmt_list.emplace_back(ASTCast<AST::Statement>(_ast));
+          }
 
-        throw Error(Error::ER_Note, func->ast->return_type, "specified here");
-      }
-      else if (auto block = func->block;
-               (*block->ast->list.rbegin())->kind != ASTKind::Return) {
-        throw Error(block->ast->endtok, "expected return-statement before this token");
-      }
-    }
+          return true;
+        });
 
     this->check(x->block);
+
+    for (auto&& rs : return_stmt_list) {
+      if (rs->expr) {
+        this->ExpectType(RetType, rs->expr);
+      }
+      else if (!RetType.equals(TypeKind::None)) {
+        throw Error(rs->token, "expected '" + RetType.to_string() +
+                                   "' type expression after this token");
+      }
+    }
 
     this->LeaveScope();
 
@@ -150,7 +294,7 @@ void Sema::check(ASTPointer ast) {
     this->EnterScope(x);
 
     for (auto&& e : x->list)
-      this->check(e);
+      this->check(e, Ctx);
 
     this->LeaveScope();
 
@@ -162,7 +306,7 @@ void Sema::check(ASTPointer ast) {
     auto x = ASTCast<AST::VarDef>(ast);
     auto& curScope = this->GetCurScope();
 
-    ScopeContext::LocalVar& var = ((BlockScope*)curScope)->variables[x->index];
+    LocalVar& var = ((BlockScope*)curScope)->variables[x->index];
 
     if (x->type) {
       var.deducted_type = this->eval_type(x->type);
@@ -170,16 +314,20 @@ void Sema::check(ASTPointer ast) {
     }
 
     if (x->init) {
-      auto type = this->eval_type(x->init);
-
-      if (x->type && !var.deducted_type.equals(type)) {
-        throw Error(x->init, "expected '" + var.deducted_type.to_string() +
-                                 "' type expression, but found '" + type.to_string() +
-                                 "'");
+      if (
+          //
+          auto type =
+              //
+          x->type ?
+                  //
+              this->ExpectType(var.deducted_type, x->init)
+                  //
+                  : this->eval_type(x->init);
+          //
+          !x->type) {
+        var.deducted_type = type;
+        var.is_type_deducted = true;
       }
-
-      var.deducted_type = type;
-      var.is_type_deducted = true;
     }
 
     break;
@@ -234,7 +382,7 @@ void Sema::check(ASTPointer ast) {
 
       alertexpr(var_scope);
 
-      if (px->is_id_nonqual()) {
+      if (px->IsUnqualifiedIdentifier()) {
         auto& var = var_scope->variables[0];
 
         var.deducted_type = cond;
@@ -263,14 +411,19 @@ void Sema::check(ASTPointer ast) {
           enumerator = ASTCast<AST::ScopeResol>(cf->callee);
           args = cf->args;
 
-          if (enumerator->is(ASTKind::ScopeResol))
-            enumerator->GetID()->sema_must_completed = false;
+          // if (enumerator->Is(ASTKind::ScopeResol))
+          //   enumerator->GetID()->sema_must_completed = false;
 
           auto e_type = this->eval_type(enumerator);
 
-          alertexpr(static_cast<int>(e_type.kind));
+          // alertexpr(static_cast<int>(e_type.kind));
 
-          if (e_type.kind != TypeKind::Enumerator || e_type.type_ast != cond.type_ast) {
+          // if (e_type.kind != TypeKind::Enumerator || e_type.type_ast != cond.type_ast)
+          // {
+          //   todo_impl;
+          // }
+
+          if (enumerator->kind != ASTKind::Enumerator) {
             todo_impl;
           }
 
@@ -318,7 +471,7 @@ void Sema::check(ASTPointer ast) {
             for (size_t i = 0, j = 0; i < args.size(); i++) {
               auto et = this->eval_type(e.types[i]);
 
-              if (!args[i]->is_id_nonqual()) {
+              if (!args[i]->IsUnqualifiedIdentifier()) {
                 if (auto t_arg = this->eval_type(args[i]); !et.equals(t_arg)) {
                   throw Error(args[i], "expected '" + et.to_string() +
                                            "' type expression, but found '" +
@@ -400,7 +553,10 @@ void Sema::check(ASTPointer ast) {
   }
 
   case ASTKind::Return: {
-    this->ExpectType(this->cur_function->result_type, ast->as_stmt()->expr);
+    // this->ExpectType(this->cur_function->result_type, ast->as_stmt()->expr);
+
+    this->eval_type(ast->as_stmt()->expr);
+
     break;
   }
 

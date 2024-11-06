@@ -50,7 +50,7 @@ void Parser::expect_typeparam_bracket_open() {
 }
 
 bool Parser::eat_typeparam_bracket_close() {
-  if (_typeparam_bracket_depth >= 1 && this->match(">>")) {
+  if (_typeparam_bracket_depth >= 2 && this->match(">>")) {
     this->cur->str = ">";
     this->cur = this->insert_token(">");
   }
@@ -65,6 +65,7 @@ bool Parser::eat_typeparam_bracket_close() {
 
 void Parser::expect_typeparam_bracket_close() {
   if (!this->eat_typeparam_bracket_close()) {
+    alert;
     throw Error(*this->cur, "expected '>'");
   }
 }
