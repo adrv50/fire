@@ -318,9 +318,17 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
 
     auto arr = this->eval_type(x->lhs);
 
+    auto idx = this->eval_type(x->rhs);
+
+    if (!idx.equals(TypeKind::Int))
+      throw Error(x->rhs, "expected int type for index");
+
     switch (arr.kind) {
     case TypeKind::Vector:
       return arr.params[0];
+
+    case TypeKind::String:
+      return TypeKind::Char;
     }
 
     throw Error(x->op, "'" + arr.to_string() + "' type is not subscriptable");
@@ -358,10 +366,10 @@ TypeInfo Sema::eval_type(ASTPointer ast, SemaContext Ctx) {
     return right;
   }
 
-  case Kind::RefMemberVar: {
+  case Kind::RefMemberVar:
+  case Kind::RefMemberVar_Left:
     return this->eval_type(
         ast->GetID()->ast_class->member_variables[ast->GetID()->index]->type);
-  }
 
   case Kind::MemberFunction: {
     todo_impl;

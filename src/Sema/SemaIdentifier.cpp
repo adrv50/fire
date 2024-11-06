@@ -256,7 +256,8 @@ SemaIdentifierEvalResult& Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& 
 
     case NameType::MemberVar: {
 
-      id->kind = ASTKind::MemberVariable;
+      // id->kind = ASTKind::MemberVariable;
+      id->kind = ASTKind::RefMemberVar;
 
       ST = this->eval_type(id->ast_class->member_variables[id->index]->type);
 

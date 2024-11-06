@@ -142,11 +142,13 @@ ObjPointer& Evaluator::eval_index_ref(ObjPointer array, ObjPointer _index_obj) {
   case TypeKind::Dict: {
     todo_impl;
   }
+
+  case TypeKind::Vector:
+  case TypeKind::String:
+    return array->As<ObjIterable>()->list[(size_t)index];
   }
 
-  debug(assert(array->type.kind == TypeKind::Vector));
-
-  return array->As<ObjIterable>()->list[(size_t)index];
+  todo_impl;
 }
 
 ObjPointer& Evaluator::eval_member_ref(ObjPtr<ObjInstance> inst,
