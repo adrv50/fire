@@ -297,7 +297,9 @@ TIContext::TryInstantiate_Of_Function(SemaFunctionNameContext const* Ctx) {
 
     if (auto t = x->As<AST::TypeName>(); t->kind == ASTKind::TypeName) {
       if (ParameterInfo* p = this->GetParam(t->GetName()); p) {
-        t->name.str = p->Type.GetName();
+        t->name.str = strpool::get(p->Type.GetName());
+
+        alertexpr(t->name.str);
       }
     }
 
@@ -363,6 +365,10 @@ size_t Sema::GetMatchedFunctions(ASTVec<AST::Function>& Matched,
 
       if (Instantiated) {
         Matched.emplace_back(Instantiated);
+
+        if (!find_instantiated(C))
+          this->InstantiatedRecords.emplace_back(C);
+
         continue;
       }
 

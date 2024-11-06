@@ -62,6 +62,8 @@ TypeInfo Sema::eval_type_name(ASTPtr<AST::TypeName> ast) {
     return TypeInfo::make_instance_type(rs.ast_class);
   }
 
+  alertexpr(name);
+
   throw Error(ast->token, "unknown type name");
 }
 

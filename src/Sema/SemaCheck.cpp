@@ -246,9 +246,9 @@ void Sema::check(ASTPointer ast, SemaContext Ctx) {
     auto pfunc = this->cur_function;
     this->cur_function = func;
 
-    for (auto&& arg : func->arguments) {
+    for (auto it = x->arguments.begin(); auto&& arg : func->arguments) {
 
-      arg.deducted_type = this->eval_type(arg.arg->type);
+      arg.deducted_type = this->eval_type((*it++)->type);
       arg.is_type_deducted = true;
     }
 

@@ -301,8 +301,9 @@ SemaIdentifierEvalResult& Sema::EvalID(ASTPtr<AST::Identifier> id, SemaContext& 
 
       type.params.emplace_back(this->eval_type(func->return_type));
 
-      for (auto&& arg : func->arguments)
+      for (auto&& arg : func->arguments) {
         type.params.emplace_back(this->eval_type(arg->type));
+      }
 
       auto& _Record = this->InstantiatedRecords.emplace_back();
 

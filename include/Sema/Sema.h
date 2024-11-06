@@ -455,6 +455,109 @@ class Sema {
                              IdentifierInfo* ParamsII, SemaContext const* Ctx,
                              bool ThrowError = false);
 
+  enum fn_sig_type_e {
+    FSIG_TYPE_TEMPORARY, // temporary constructed data
+
+    FSIG_TYPE_DEFINE, // definition of function
+
+    FSIG_TYPE_CALL, // call-expr
+  };
+
+  struct func_signature_info {
+    ASTPointer ast = nullptr;
+
+    fn_sig_type_e this_type = FSIG_TYPE_TEMPORARY;
+
+    bool is_variable_args = false;
+
+    Vec<TypeInfo> arg_types;
+
+    TypeInfo result_type;
+  };
+
+  Vec<TypeInfo> _create_type_vec_from__func_def(ASTPtr<AST::Function> func) {
+    Vec<TypeInfo> v;
+
+    for (auto&& a : func->arguments)
+      v.emplace_back(this->eval_type(a->type));
+
+    return v;
+  }
+
+  Vec<TypeInfo> _create_type_vec_from__call_expr(ASTPtr<AST::CallFunc> c) {
+    Vec<TypeInfo> v;
+
+    for (auto&& a : c->args)
+      v.emplace_back(this->eval_type(a));
+
+    return v;
+  }
+
+  func_signature_info create_signature_from_definition(ASTPtr<AST::Function> func) {
+    return func_signature_info{.ast = func,
+                               .this_type = FSIG_TYPE_DEFINE,
+                               .is_variable_args = func->is_var_arg,
+                               .arg_types = _create_type_vec_from__func_def(func),
+                               .result_type = this->eval_type(func->return_type)};
+  }
+
+  func_signature_info create_signature_from_call_expr(ASTPtr<AST::CallFunc> c) {
+    func_signature_info sig;
+
+    sig.ast = c;
+
+    sig.this_type = FSIG_TYPE_CALL;
+
+    sig.is_variable_args =
+        (c->callee_builtin
+             ? c->callee_builtin->is_variable_args
+             : (c->callee ? (c->callee->Is(ASTKind::Function)
+                                 ? c->callee->As<AST::Function>()->is_var_arg
+                                 : (false /*<-- case of c->kind is not Function*/))
+                          : false));
+
+    sig.arg_types = _create_type_vec_from__func_def(c->callee_ast);
+
+    sig.result_type =
+        (c->callee
+             ? (c->callee->Is(ASTKind::Function)
+                    ? this->eval_type(c->callee->As<AST::Function>()->return_type)
+                    : (TypeKind::None /*c->callee is valid but c->kind is not function*/))
+             : (c->callee_builtin
+                    ? c->callee_builtin->result_type
+                    : (TypeKind::None /*c->callee and c->callee_builtin is null. */)));
+
+    return sig;
+  }
+
+  enum fn_sig_cmp_result_enum {
+    //
+    // Perfect match (No problems.)
+    FSIG_CMP_EQ,
+
+    //
+    // Mismatched type of argument at index
+    FSIG_CMP_ARG_TYPE_MISMATCH,
+
+    //
+    // Too few args
+    FSIG_CMP_ARG_TOO_FEW,
+
+    //
+    // Too many args
+    FSIG_CMP_ARG_TOO_MANY,
+  };
+
+  struct func_sig_compare_result {
+
+    func_signature_info A;
+    func_signature_info B;
+
+    fn_sig_cmp_result_enum result;
+
+    i64 index = 0; // for argument error
+  };
+
 public:
   Sema(ASTPtr<AST::Block> prg);
   ~Sema();
@@ -475,12 +578,21 @@ public:
 
 private:
   struct TemplateInstantiatedRecord {
+    ASTPtr<AST::Templatable> Original;
     ASTPtr<AST::Templatable> Instantiated;
 
     std::list<ScopeContext*> Scope;
   };
 
   Vec<TemplateInstantiatedRecord> InstantiatedRecords;
+
+  TemplateInstantiatedRecord* find_instantiated(ASTPtr<AST::Templatable> original) {
+    for (auto&& ti : this->InstantiatedRecords)
+      if (ti.Original == original)
+        return &ti;
+
+    return nullptr;
+  }
 
   ASTPtr<Block> root;
 
