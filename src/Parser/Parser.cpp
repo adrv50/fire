@@ -291,12 +291,19 @@ ASTPointer Parser::Top() {
     }
 
     do {
+      auto _tok = this->cur;
       auto stmt = this->Top();
 
       switch (stmt->kind) {
-      case ASTKind::Vardef:
-        ast->append_var(ASTCast<AST::VarDef>(stmt));
+      case ASTKind::Vardef: {
+        auto& vdef = ast->append_var(ASTCast<AST::VarDef>(stmt));
+
+        if (!vdef->type)
+          throw Error(*_tok,
+                      "cannot omit type specification of let-statement in class scope");
+
         break;
+      }
 
       case ASTKind::Function:
         ast->append_func(ASTCast<AST::Function>(stmt));
