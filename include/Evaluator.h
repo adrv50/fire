@@ -36,7 +36,7 @@ public:
 
   ObjPointer& eval_as_left(ASTPointer ast);
 
-  ObjPointer& eval_index_ref(ObjPointer array, ObjPointer index);
+  ObjPointer& eval_index_ref(ASTPtr<AST::Expr> ast, ObjPointer array, ObjPointer index);
 
   //
   ObjPointer& eval_member_ref(ObjPtr<ObjInstance> inst, ASTPtr<AST::Class> expected_class,

@@ -111,9 +111,9 @@ ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
 
   switch (ast->kind) {
   case ASTKind::IndexRef: {
-    auto ex = ast->as_expr();
+    auto ex = ASTCast<AST::Expr>(ast);
 
-    return this->eval_index_ref(this->eval_as_left(ex->lhs), this->evaluate(ex->rhs));
+    return this->eval_index_ref(ex, this->eval_as_left(ex->lhs), this->evaluate(ex->rhs));
   }
 
   case ASTKind::RefMemberVar_Left: {
@@ -133,10 +133,15 @@ ObjPointer& Evaluator::eval_as_left(ASTPointer ast) {
   return this->get_stack(x->distance).var_list[x->index + x->index_add];
 }
 
-ObjPointer& Evaluator::eval_index_ref(ObjPointer array, ObjPointer _index_obj) {
+ObjPointer& Evaluator::eval_index_ref(ASTPtr<AST::Expr> ast, ObjPointer array,
+                                      ObjPointer _index_obj) {
   assert(_index_obj->type.kind == TypeKind::Int);
 
   i64 index = _index_obj->As<ObjPrimitive>()->vi;
+
+  if (index < 0) {
+    throw Error(ast->rhs, "index must be at least greater than or equal to zero.");
+  }
 
   switch (array->type.kind) {
   case TypeKind::Dict: {
@@ -144,8 +149,14 @@ ObjPointer& Evaluator::eval_index_ref(ObjPointer array, ObjPointer _index_obj) {
   }
 
   case TypeKind::Vector:
-  case TypeKind::String:
-    return array->As<ObjIterable>()->list[(size_t)index];
+  case TypeKind::String: {
+    auto obj = array->As<ObjIterable>();
+
+    if ((size_t)index >= obj->list.size())
+      throw Error(ast->rhs, "index out of range");
+
+    return obj->list[(size_t)index];
+  }
   }
 
   todo_impl;
@@ -211,9 +222,9 @@ ObjPointer Evaluator::evaluate(ASTPointer ast) {
   }
 
   case Kind::IndexRef: {
-    auto ex = ast->as_expr();
+    auto ex = ASTCast<AST::Expr>(ast);
 
-    return this->eval_index_ref(this->evaluate(ex->lhs), this->evaluate(ex->rhs));
+    return this->eval_index_ref(ex, this->evaluate(ex->lhs), this->evaluate(ex->rhs));
   }
 
   case Kind::LambdaFunc: {
