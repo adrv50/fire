@@ -225,16 +225,19 @@ ObjPointer ObjCallable::Clone() const {
 }
 
 string ObjCallable::ToString() const {
-  auto _args = this->type.params;
+  // auto _args = this->type.params;
 
-  _args.erase(_args.begin());
+  // _args.erase(_args.begin());
 
-  return "<callable (" +
-         utils::join<TypeInfo>(", ", _args,
-                               [](TypeInfo const& t) {
-                                 return t.to_string();
-                               }) +
-         ") -> " + this->type.params[0].to_string() + ">";
+  // return "<callable (" +
+  //        utils::join<TypeInfo>(", ", _args,
+  //                              [](TypeInfo const& t) {
+  //                                return t.to_string();
+  //                              }) +
+  //        ") -> " + this->type.params[0].to_string() + ">";
+
+  return utils::Format("<function at 0x%x>",
+                       this->func ? (void*)(this->func.get()) : this->builtin);
 }
 
 ObjCallable::ObjCallable(ASTPtr<AST::Function> fp)
