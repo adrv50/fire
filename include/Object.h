@@ -46,6 +46,8 @@ struct Object {
   virtual string to_string() const = 0;
   virtual Obj clone() const = 0;
 
+  virtual string to_string_as_element() const;
+
   static ObjNone* none;
 
   virtual ~Object() = default;
@@ -104,6 +106,8 @@ struct ObjChar : Object {
   string to_string() const override;
   ObjChar* clone() const override;
 
+  string to_string_as_element() const override;
+
   static ObjChar* make(char16_t val);
 };
 
@@ -114,6 +118,8 @@ struct ObjStr : Object {
 
   string to_string() const override;
   ObjStr* clone() const override;
+
+  string to_string_as_element() const override;
 
   size_t length() const;
 

@@ -129,6 +129,10 @@ ObjDict::ObjDict(TypeInfo const& key_ti, TypeInfo const& value_ti,
 // ----------------------------------------
 //  to_string
 // ----------------------------------------
+string Object::to_string_as_element() const {
+  return this->to_string();
+}
+
 string ObjNone::to_string() const {
   return "none";
 }
@@ -149,15 +153,23 @@ string ObjChar::to_string() const {
   return utf::to_utf8(std::u16string{1, this->val});
 }
 
+string ObjChar::to_string_as_element() const {
+  return "\'" + this->to_string() + "\'";
+}
+
 string ObjStr::to_string() const {
   return utf::to_utf8(this->val);
+}
+
+string ObjStr::to_string_as_element() const {
+  return "\"" + this->to_string() + "\"";
 }
 
 string ObjVector::to_string() const {
   return "[" +
          utils::join(", ", this->list,
                      [](Obj const& obj) -> string {
-                       return obj->to_string();
+                       return obj->to_string_as_element();
                      }) +
          "]";
 }
@@ -166,7 +178,7 @@ string ObjTuple::to_string() const {
   return "(" +
          utils::join(", ", this->list,
                      [](Obj const& obj) -> string {
-                       return obj->to_string();
+                       return obj->to_string_as_element();
                      }) +
          ")";
 }
@@ -175,7 +187,8 @@ string ObjDict::to_string() const {
   return "{" +
          utils::join(", ", this->list,
                      [](pair<Obj, Obj> const& item) -> string {
-                       return item.first->to_string() + ": " + item.second->to_string();
+                       return item.first->to_string_as_element() + ": " +
+                              item.second->to_string_as_element();
                      }) +
          "}";
 }

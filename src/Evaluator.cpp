@@ -95,6 +95,20 @@ Obj Evaluator::eval_expr(Node* node) {
     return obj;
   }
 
+  case ND_Tuple: {
+    auto obj = ObjTuple::make({});
+
+    for (auto&& item : node->nd_tuple_elements) {
+      auto elem = this->eval_expr(item);
+
+      obj->ti.append_template_arg(elem->ti);
+
+      obj->list.emplace_back(elem);
+    }
+
+    return obj;
+  }
+
   case ND_Identifier:
   case ND_ScopeResol:
     switch (node->id_kind) {
