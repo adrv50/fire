@@ -11,7 +11,7 @@ Error::Error(Token* tok, string const& msg, ErrorType type)
       tok(tok),
       node(nullptr),
       msg(msg) {
-}
+}0
 
 Error::Error(Node* node, string const& msg, ErrorType type)
     : type(type),
