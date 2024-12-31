@@ -107,6 +107,9 @@ enum class TokenKwdKind : u16 {
   Bool,   // "bool"
   Char,   // "char"
   String, // "string"
+  Vector, // "vector"
+  Tuple,  // "tuple"
+  Dict,   // "dict"
 };
 
 //

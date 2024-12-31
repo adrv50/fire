@@ -444,10 +444,28 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
     return ti;
   }
 
-  case ND_Tuple:
-  case ND_Dict:
-    todo_impl;
-    break;
+  case ND_Tuple: {
+    auto const& elems = node->nd_tuple_elements;
+
+#if _FIRE_DEBUG_
+    if (elems.empty()) {
+      // Why empty!?? may parser have bugs.
+      panic;
+    }
+#endif
+
+    TypeInfo ti{TypeKind::Tuple};
+
+    for (auto&& elem : elems)
+      ti.append_template_arg(this->eval_expr_ti(elem));
+
+    return ti;
+  }
+
+  case ND_Dict: {
+    return TypeInfo(TypeKind::Dict, {this->eval_expr_ti(node->nd_dict_pair_key),
+                                     this->eval_expr_ti(node->nd_dict_pair_value)});
+  }
 
   case ND_Identifier:
   case ND_ScopeResol: {

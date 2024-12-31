@@ -154,12 +154,15 @@ static constexpr pair<TKkwd, char const*> tok_keywords[] = {
     {TKkwd::True, "true"},
     {TKkwd::False, "false"},
 
-    // primitive types
+    // built-in type names
     {TKkwd::Int, "int"},
     {TKkwd::Float, "float"},
     {TKkwd::Bool, "bool"},
     {TKkwd::Char, "char"},
     {TKkwd::String, "string"},
+    {TKkwd::Vector, "vector"},
+    {TKkwd::Tuple, "tuple"},
+    {TKkwd::Dict, "dict"},
 };
 
 string Token::kind_to_str(TokenKind k) {

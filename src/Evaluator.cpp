@@ -83,6 +83,18 @@ Obj Evaluator::eval_expr(Node* node) {
   case ND_Value:
     return node->nd_value;
 
+  case ND_Array: {
+    auto obj = ObjVector::make({});
+
+    for (auto&& item : node->nd_array_elements)
+      obj->list.emplace_back(this->eval_expr(item));
+
+    if (!obj->list.empty())
+      obj->ti.template_args[0] = obj->list[0]->ti;
+
+    return obj;
+  }
+
   case ND_Identifier:
   case ND_ScopeResol:
     switch (node->id_kind) {

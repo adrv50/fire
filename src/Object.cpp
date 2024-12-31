@@ -1,6 +1,7 @@
 #include "alert.h"
 #include "Object.h"
 #include "utf.h"
+#include "Utils.h"
 
 template <std::derived_from<Object> T, typename... Args>
 requires std::constructible_from<T, Args...>
@@ -35,6 +36,18 @@ ObjStr* Object::as_str() {
   return reinterpret_cast<ObjStr*>(this);
 }
 
+ObjVector* Object::as_vector() {
+  return reinterpret_cast<ObjVector*>(this);
+}
+
+ObjTuple* Object::as_tuple() {
+  return reinterpret_cast<ObjTuple*>(this);
+}
+
+ObjDict* Object::as_dict() {
+  return reinterpret_cast<ObjDict*>(this);
+}
+
 ObjInt const* Object::as_int() const {
   return reinterpret_cast<ObjInt const*>(this);
 }
@@ -49,6 +62,18 @@ ObjBool const* Object::as_bool() const {
 
 ObjStr const* Object::as_str() const {
   return reinterpret_cast<ObjStr const*>(this);
+}
+
+ObjVector const* Object::as_vector() const {
+  return reinterpret_cast<ObjVector const*>(this);
+}
+
+ObjTuple const* Object::as_tuple() const {
+  return reinterpret_cast<ObjTuple const*>(this);
+}
+
+ObjDict const* Object::as_dict() const {
+  return reinterpret_cast<ObjDict const*>(this);
 }
 
 // ----------------------------------------
@@ -83,6 +108,24 @@ ObjStr::ObjStr(std::u16string const& val)
       val(val) {
 }
 
+ObjVector::ObjVector(TypeInfo const& elem_ti, Vec<Obj> const& val)
+    : Object(TypeInfo(TypeKind::Vector, {elem_ti})),
+      list(val) {
+}
+
+ObjTuple::ObjTuple(TypeInfo const& elem_ti, Vec<Obj> const& val)
+    : Object(TypeInfo(TypeKind::Tuple, {elem_ti})),
+      list(val) {
+}
+
+ObjDict::ObjDict(TypeInfo const& key_ti, TypeInfo const& value_ti,
+                 Vec<pair<Obj, Obj>> const& val)
+    : Object(TypeInfo(TypeKind::Dict, {key_ti, value_ti})),
+      key_ti(this->ti.template_args[0]),
+      value_ti(this->ti.template_args[1]),
+      list(val) {
+}
+
 // ----------------------------------------
 //  to_string
 // ----------------------------------------
@@ -110,6 +153,33 @@ string ObjStr::to_string() const {
   return utf::to_utf8(this->val);
 }
 
+string ObjVector::to_string() const {
+  return "[" +
+         utils::join(", ", this->list,
+                     [](Obj const& obj) -> string {
+                       return obj->to_string();
+                     }) +
+         "]";
+}
+
+string ObjTuple::to_string() const {
+  return "(" +
+         utils::join(", ", this->list,
+                     [](Obj const& obj) -> string {
+                       return obj->to_string();
+                     }) +
+         ")";
+}
+
+string ObjDict::to_string() const {
+  return "{" +
+         utils::join(", ", this->list,
+                     [](pair<Obj, Obj> const& item) -> string {
+                       return item.first->to_string() + ": " + item.second->to_string();
+                     }) +
+         "}";
+}
+
 // ----------------------------------------
 //  clone
 // ----------------------------------------
@@ -135,6 +205,33 @@ ObjChar* ObjChar::clone() const {
 
 ObjStr* ObjStr::clone() const {
   return make_obj<ObjStr>(this->val);
+}
+
+ObjVector* ObjVector::clone() const {
+  Vec<Obj> cloned;
+
+  for (auto&& item : this->list)
+    cloned.emplace_back(item->clone());
+
+  return make_obj<ObjVector>(this->ti, cloned);
+}
+
+ObjTuple* ObjTuple::clone() const {
+  Vec<Obj> cloned;
+
+  for (auto&& item : this->list)
+    cloned.emplace_back(item->clone());
+
+  return make_obj<ObjTuple>(this->ti, cloned);
+}
+
+ObjDict* ObjDict::clone() const {
+  Vec<pair<Obj, Obj>> cloned;
+
+  for (auto&& [key, value] : this->list)
+    cloned.emplace_back(key->clone(), value->clone());
+
+  return make_obj<ObjDict>(this->key_ti, this->value_ti, cloned);
 }
 
 // ----------------------------------------
@@ -166,6 +263,19 @@ ObjStr* ObjStr::make(std::u16string const& val) {
 
 ObjStr* ObjStr::make(string const& val) {
   return make_obj<ObjStr>(utf::to_utf16(val));
+}
+
+ObjVector* ObjVector::make(TypeInfo const& elem_ti, Vec<Obj> const& val) {
+  return make_obj<ObjVector>(elem_ti, val);
+}
+
+ObjTuple* ObjTuple::make(TypeInfo const& elem_ti, Vec<Obj> const& val) {
+  return make_obj<ObjTuple>(elem_ti, val);
+}
+
+ObjDict* ObjDict::make(TypeInfo const& key_ti, TypeInfo const& value_ti,
+                       Vec<pair<Obj, Obj>> const& val) {
+  return make_obj<ObjDict>(key_ti, value_ti, val);
 }
 
 // ----------------------------------------

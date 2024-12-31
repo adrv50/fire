@@ -12,11 +12,16 @@ enum class TypeKind {
   Bool,
   Char,
   String,
+
   Vector,
+  Tuple,
+  Dict,
 
   Type, // => the type of a type. (class, struct, enum, etc...)
 
   Instance,
+
+  Any,
 };
 
 struct TypeInfo {
@@ -27,9 +32,10 @@ struct TypeInfo {
 
   Vec<TypeInfo> template_args;
 
+  TypeInfo& append_template_arg(TypeInfo const& ti);
+
   bool is(TypeKind k) const;
-  bool is(TypeKind k, bool is_mutable,
-          Vec<TypeInfo> template_args) const;
+  bool is(TypeKind k, bool is_mutable, Vec<TypeInfo> template_args) const;
 
   bool is_numeric() const;
   bool is_subscriptable() const;
@@ -43,14 +49,13 @@ struct TypeInfo {
 
   static TypeKind get_kind_of_name(string const& name);
 
-  static Vec<pair<TypeKind, char const*>> const
-  get_type_name_map();
+  static Vec<pair<TypeKind, char const*>> const get_type_name_map();
 
   TypeInfo& get_elem_type(size_t template_param_index = 0) {
     return this->template_args[template_param_index];
   }
 
   TypeInfo(TypeKind kind = TypeKind::None);
-  TypeInfo(TypeKind kind, Vec<TypeInfo> template_args,
-           bool is_reference = false, bool is_mutable = false);
+  TypeInfo(TypeKind kind, Vec<TypeInfo> template_args, bool is_reference = false,
+           bool is_mutable = false);
 };

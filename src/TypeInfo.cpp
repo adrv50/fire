@@ -14,23 +14,27 @@ static Vec<pair<TypeKind, char const*>> const kind_and_name_table = {
   { TK::Char,       "char" },
   { TK::String,     "string" },
   { TK::Vector,     "vector" },
+  { TK::Tuple,      "tuple" },
+  { TK::Dict,       "dict" },
   { TK::Type,       "type" },
   { TK::Instance,   "instance" },
 };
 // clang-format on
 
+TypeInfo& TypeInfo::append_template_arg(TypeInfo const& ti) {
+  return this->template_args.emplace_back(ti);
+}
+
 bool TypeInfo::is(TypeKind k) const {
   return this->kind == k;
 }
 
-bool TypeInfo::is(TypeKind k, bool is_mutable,
-                  Vec<TypeInfo> template_args) const {
+bool TypeInfo::is(TypeKind k, bool is_mutable, Vec<TypeInfo> template_args) const {
   return this->kind == k && this->is_mutable == is_mutable &&
-         utils::compare_vector(
-             this->template_args, template_args,
-             [](TypeInfo const& a, TypeInfo const& b) -> bool {
-               return a.equals(b);
-             }) == 0;
+         utils::compare_vector(this->template_args, template_args,
+                               [](TypeInfo const& a, TypeInfo const& b) -> bool {
+                                 return a.equals(b);
+                               }) == 0;
 }
 
 bool TypeInfo::is_numeric() const {
@@ -99,8 +103,7 @@ TypeKind TypeInfo::get_kind_of_name(string const& name) {
   return TypeKind::Unknown;
 }
 
-Vec<pair<TypeKind, char const*>> const
-TypeInfo::get_type_name_map() {
+Vec<pair<TypeKind, char const*>> const TypeInfo::get_type_name_map() {
   return kind_and_name_table;
 }
 
@@ -110,8 +113,7 @@ TypeInfo::TypeInfo(TypeKind kind)
       is_mutable(false) {
 }
 
-TypeInfo::TypeInfo(TypeKind kind, Vec<TypeInfo> template_args,
-                   bool is_ref, bool is_mut)
+TypeInfo::TypeInfo(TypeKind kind, Vec<TypeInfo> template_args, bool is_ref, bool is_mut)
     : kind(kind),
       is_reference(is_ref),
       is_mutable(is_mut),

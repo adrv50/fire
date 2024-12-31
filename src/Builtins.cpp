@@ -1,11 +1,14 @@
+#include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <cmath>
 
 #include "Utils.h"
 #include "Builtins.h"
 
 #define def_builtin_func(_Name)                                                          \
-  static Obj b_##_Name([[maybe_unused]] Evaluator& eval, [[maybe_unused]] Vec<Obj>& args)
+  static Obj b_##_Name([[maybe_unused]] Evaluator& eval,                                 \
+                       [[maybe_unused]] Vec<Obj> const& args)
 
 namespace Builtins {
 
@@ -98,6 +101,93 @@ def_builtin_func(length) {
   return ObjInt::make(str->length());
 }
 
+//
+// vector::size(self) -> int
+//
+def_builtin_func(vector_size) {
+  ObjPtr<ObjVector> vec = args[0]->as_vector();
+
+  return ObjInt::make(vec->list.size());
+}
+
+//
+// vector::append(self, value: any) -> vector
+//
+def_builtin_func(vector_append) {
+  ObjPtr<ObjVector> vec = args[0]->as_vector();
+
+  vec->list.emplace_back(args[1]);
+
+  return vec;
+}
+
+//
+// float::abs(self) -> float
+//
+def_builtin_func(float_abs) {
+  return ObjFloat::make(std::abs(args[0]->as_float()->val));
+}
+
+//
+// float::floor(self) -> float
+//
+def_builtin_func(floor) {
+  return ObjFloat::make(std::floor(args[0]->as_float()->val));
+}
+
+//
+// float::ceil(self) -> float
+//
+def_builtin_func(ceil) {
+  return ObjFloat::make(std::ceil(args[0]->as_float()->val));
+}
+
+//
+// float::round(self) -> float
+//
+def_builtin_func(round) {
+  return ObjFloat::make(std::round(args[0]->as_float()->val));
+}
+
+//
+// int::abs(self) -> int
+//
+def_builtin_func(abs) {
+  ObjPtr<ObjInt> i = args[0]->as_int();
+
+  return ObjInt::make(std::abs(i->val));
+}
+
+//
+// int::pow(self, exp: int) -> int
+//
+def_builtin_func(pow) {
+  ObjPtr<ObjInt> i = args[0]->as_int();
+  ObjPtr<ObjInt> exp = args[1]->as_int();
+
+  return ObjInt::make(std::pow(i->val, exp->val));
+}
+
+//
+// int::fib(self) -> int
+//
+def_builtin_func(fib) {
+  ObjPtr<ObjInt> obj = args[0]->as_int();
+
+  if (auto n = obj->val; n < 2)
+    return ObjInt::make(1);
+  else
+    return ObjInt::make(b_fib(eval, {ObjInt::make(n - 1)})->as_int()->val +
+                        b_fib(eval, {ObjInt::make(n - 2)})->as_int()->val);
+}
+
+//
+// (any)::to_string(self) -> string
+//
+def_builtin_func(to_string) {
+  return ObjStr::make(args[0]->to_string());
+}
+
 static BuiltinFunc const builtins[] = {
     // input
     BuiltinFunc("input", {TypeKind::String}, false, TypeKind::String, b_input),
@@ -121,9 +211,40 @@ static BuiltinFunc const builtins[] = {
 
     // string::length
     BuiltinFunc("length", TypeKind::String, {}, false, TypeKind::Int, b_length),
+
+    // vector::size
+    BuiltinFunc("size", TypeKind::Vector, {}, false, TypeKind::Int, b_vector_size),
+
+    // vector::append
+    BuiltinFunc("append", TypeKind::Vector, {TypeKind::Any}, false, TypeKind::Vector,
+                b_vector_append),
+
+    // float::abs
+    BuiltinFunc("abs", TypeKind::Float, {}, false, TypeKind::Float, b_float_abs),
+
+    // float::floor
+    BuiltinFunc("floor", TypeKind::Float, {}, false, TypeKind::Float, b_floor),
+
+    // float::ceil
+    BuiltinFunc("ceil", TypeKind::Float, {}, false, TypeKind::Float, b_ceil),
+
+    // float::round
+    BuiltinFunc("round", TypeKind::Float, {}, false, TypeKind::Float, b_round),
+
+    // int::abs
+    BuiltinFunc("abs", TypeKind::Int, {}, false, TypeKind::Int, b_abs),
+
+    // int::pow
+    BuiltinFunc("pow", TypeKind::Int, {TypeKind::Int}, false, TypeKind::Int, b_pow),
+
+    // int::fib
+    BuiltinFunc("fib", TypeKind::Int, {}, false, TypeKind::Int, b_fib),
+
+    // (any)::to_string
+    BuiltinFunc("to_string", TypeKind::Any, {}, false, TypeKind::String, b_to_string),
 };
 
-Obj BuiltinFunc::call(Evaluator& eval, Vec<Obj>& args) const {
+Obj BuiltinFunc::call(Evaluator& eval, Vec<Obj> const& args) const {
   return impl(eval, args);
 }
 

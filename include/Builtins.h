@@ -11,7 +11,7 @@ namespace Builtins {
 //   builtin namespace
 
 struct BuiltinFunc {
-  using Impl = std::function<Obj(Evaluator&, Vec<Obj>&)>;
+  using Impl = std::function<Obj(Evaluator&, Vec<Obj> const&)>;
 
   string name;
 
@@ -25,7 +25,7 @@ struct BuiltinFunc {
 
   Impl impl;
 
-  Obj call(Evaluator& eval, Vec<Obj>& args) const;
+  Obj call(Evaluator& eval, Vec<Obj> const& args) const;
 
   string to_string() const;
 

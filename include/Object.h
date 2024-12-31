@@ -10,7 +10,7 @@ struct ObjInt;
 struct ObjFloat;
 struct ObjBool;
 struct ObjStr;
-struct ObjArray;
+struct ObjVector;
 struct ObjTuple;
 struct ObjDict;
 struct ObjFunctor;
@@ -31,11 +31,17 @@ struct Object {
   ObjFloat* as_float();
   ObjBool* as_bool();
   ObjStr* as_str();
+  ObjVector* as_vector();
+  ObjTuple* as_tuple();
+  ObjDict* as_dict();
 
   ObjInt const* as_int() const;
   ObjFloat const* as_float() const;
   ObjBool const* as_bool() const;
   ObjStr const* as_str() const;
+  ObjVector const* as_vector() const;
+  ObjTuple const* as_tuple() const;
+  ObjDict const* as_dict() const;
 
   virtual string to_string() const = 0;
   virtual Obj clone() const = 0;
@@ -115,37 +121,42 @@ struct ObjStr : Object {
   static ObjStr* make(string const& val);
 };
 
-struct ObjArray : Object {
-  Vec<Obj> val;
+struct ObjVector : Object {
+  Vec<Obj> list;
 
-  ObjArray(Vec<Obj> const& val);
+  ObjVector(TypeInfo const& elem_ti, Vec<Obj> const& val);
 
   string to_string() const override;
-  ObjArray* clone() const override;
+  ObjVector* clone() const override;
 
-  static ObjArray* make(Vec<Obj> const& val = {});
+  static ObjVector* make(TypeInfo const& elem_ti, Vec<Obj> const& val = {});
 };
 
 struct ObjTuple : Object {
-  Vec<Obj> val;
+  Vec<Obj> list;
 
-  ObjTuple(Vec<Obj> const& val);
+  ObjTuple(TypeInfo const& elem_ti, Vec<Obj> const& val);
 
   string to_string() const override;
   ObjTuple* clone() const override;
 
-  static ObjTuple* make(Vec<Obj> const& val = {});
+  static ObjTuple* make(TypeInfo const& elem_ti, Vec<Obj> const& val = {});
 };
 
 struct ObjDict : Object {
-  Vec<pair<Obj, Obj>> data;
+  TypeInfo const& key_ti;
+  TypeInfo const& value_ti;
 
-  ObjDict(Vec<pair<Obj, Obj>> const& data);
+  Vec<pair<Obj, Obj>> list;
+
+  ObjDict(TypeInfo const& key_ti, TypeInfo const& value_ti,
+          Vec<pair<Obj, Obj>> const& data);
 
   string to_string() const override;
   ObjDict* clone() const override;
 
-  static ObjDict* make(Vec<pair<Obj, Obj>> const& data = {});
+  static ObjDict* make(TypeInfo const& key_ti, TypeInfo const& value_ti,
+                       Vec<pair<Obj, Obj>> const& data = {});
 };
 
 struct ObjFunctor : Object {
