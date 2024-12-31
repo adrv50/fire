@@ -1,292 +1,165 @@
-#include <cassert>
-
 #include "alert.h"
-#include "Utils.h"
-#include "Builtin.h"
-#include "AST.h"
+#include "Object.h"
+#include "utf.h"
 
-using namespace std::string_literals;
-
-namespace fire {
-
-Object::Object(TypeInfo type)
-    : type(std::move(type)),
-      is_marked(false) {
+template <std::derived_from<Object> T, typename... Args>
+requires std::constructible_from<T, Args...>
+ObjPtr<T> make_obj(Args&&... args) {
+  return new T(std::forward<Args>(args)...);
 }
 
-i64 Object::get_vi() const {
-  return this->is_int() ? this->as_primitive()->vi : 0;
+ObjPtr<ObjNone> Object::none = make_obj<ObjNone>();
+
+Object::Object(TypeInfo const& ti)
+    : ti(ti),
+      is_marked(false),
+      ref_count(0) {
 }
 
-double Object::get_vf() const {
-  return this->is_float() ? this->as_primitive()->vf : 0;
+// ----------------------------------------
+//  Cast wrappers
+// ----------------------------------------
+ObjInt* Object::as_int() {
+  return reinterpret_cast<ObjInt*>(this);
 }
 
-char16_t Object::get_vc() const {
-  return this->is_char() ? this->as_primitive()->vc : 0;
+ObjFloat* Object::as_float() {
+  return reinterpret_cast<ObjFloat*>(this);
 }
 
-bool Object::get_vb() const {
-  return this->is_boolean() ? this->as_primitive()->vb : 0;
+ObjBool* Object::as_bool() {
+  return reinterpret_cast<ObjBool*>(this);
 }
 
-ObjPrimitive* ObjPrimitive::to_float() {
-  switch (this->type.kind) {
-  case TypeKind::Int:
-    this->vf = static_cast<double>(this->vi);
-    break;
-
-  default:
-    return nullptr;
-  }
-
-  return this;
+ObjStr* Object::as_str() {
+  return reinterpret_cast<ObjStr*>(this);
 }
 
-ObjPointer ObjPrimitive::Clone() const {
-  return ObjNew<ObjPrimitive>(*this);
+ObjInt const* Object::as_int() const {
+  return reinterpret_cast<ObjInt const*>(this);
 }
 
-std::string ObjPrimitive::ToString() const {
-  switch (this->type.kind) {
-  case TypeKind::Int:
-    return std::to_string(this->vi);
-
-  case TypeKind::Float:
-    return std::to_string(this->vf);
-
-  case TypeKind::Bool:
-    return this->vb ? "true" : "false";
-
-  case TypeKind::Char: {
-    static char16_t _tmp_ch_tbl[2] = {0};
-
-    _tmp_ch_tbl[0] = this->vc;
-    // _tmp_ch_tbl[1] = 0;
-
-    return utils::to_u8string(_tmp_ch_tbl);
-  }
-  }
-
-  todo_impl;
+ObjFloat const* Object::as_float() const {
+  return reinterpret_cast<ObjFloat const*>(this);
 }
 
-ObjPointer ObjIterable::Clone() const {
-  auto obj = ObjNew<ObjIterable>(this->type);
-
-  for (auto&& x : this->list)
-    obj->Append(x->Clone());
-
-  return obj;
+ObjBool const* Object::as_bool() const {
+  return reinterpret_cast<ObjBool const*>(this);
 }
 
-std::string ObjIterable::ToString() const {
-  std::string ret;
-
-  for (auto it = this->list.begin(); it != this->list.end(); it++) {
-    ret += (*it)->ToString();
-    if (it < this->list.end() - 1)
-      ret += ", ";
-  }
-
-  return "[" + ret + "]";
+ObjStr const* Object::as_str() const {
+  return reinterpret_cast<ObjStr const*>(this);
 }
 
-// ----------------------------
-//  ObjString
-
-ObjPointer ObjString::SubString(size_t pos, size_t length) {
-  auto obj = ObjNew<ObjString>();
-
-  for (size_t i = pos, end = pos + (length == 0 ? this->list.size() - pos : length);
-       i < end; i++) {
-    obj->Append(this->list[i]->Clone());
-  }
-
-  return obj;
+// ----------------------------------------
+//  Constructors
+// ----------------------------------------
+ObjNone::ObjNone()
+    : Object(TypeKind::None) {
 }
 
-std::string ObjString::ToString() const {
-  std::u16string temp;
-
-  for (auto&& c : this->list)
-    temp.push_back(c->As<ObjPrimitive>()->vc);
-
-  return utils::to_u8string(temp);
+ObjInt::ObjInt(i64 val)
+    : Object(TypeKind::Int),
+      val(val) {
 }
 
-std::string ObjString::ToStringAsMember() const {
-  return "\"" + this->ToString() + "\"";
+ObjFloat::ObjFloat(f64 val)
+    : Object(TypeKind::Float),
+      val(val) {
 }
 
-ObjPointer ObjString::Clone() const {
-  auto obj = ObjNew<ObjString>();
-
-  for (auto&& c : this->list) {
-    obj->Append(c->Clone());
-  }
-
-  return obj;
+ObjBool::ObjBool(bool val)
+    : Object(TypeKind::Bool),
+      val(val) {
 }
 
-ObjString::ObjString(std::u16string const& str)
-    : ObjIterable(TypeKind::String) {
-  for (auto&& c : str)
-    this->Append(ObjNew<ObjPrimitive>(c));
+ObjChar::ObjChar(char16_t val)
+    : Object(TypeKind::Char),
+      val(val) {
 }
 
-ObjString::ObjString(std::string const& str)
-    : ObjString(utils::to_u16string(str)) {
+ObjStr::ObjStr(std::u16string const& val)
+    : Object(TypeKind::String),
+      val(val) {
 }
 
-// ----------------------------
-//  ObjEnumerator
-
-std::string ObjEnumerator::ToString() const {
-  auto& e = this->ast->enumerators[this->index];
-
-  auto s = this->ast->GetName() + "::" + e.name.str;
-
-  switch (e.data_type) {
-  case AST::Enum::Enumerator::DataType::Value:
-    s += "(" + this->data->ToStringAsMember() + ")";
-    break;
-
-  case AST::Enum::Enumerator::DataType::Structure: {
-    s += "(";
-
-    for (size_t i = 0; i < e.types.size(); i++) {
-      s += e.types[i]->As<AST::Argument>()->name.str + ": " +
-           this->data->As<ObjIterable>()->list[i]->ToStringAsMember() + ", ";
-    }
-
-    s.erase(s.length() - 1);
-    s[s.length() - 1] = ')';
-    break;
-  }
-  }
-
-  return s;
+// ----------------------------------------
+//  to_string
+// ----------------------------------------
+string ObjNone::to_string() const {
+  return "none";
 }
 
-ObjEnumerator::ObjEnumerator(ASTPtr<AST::Enum> ast, int index)
-    : Object(TypeKind::Enumerator),
-      ast(ast),
-      index(index) {
-  this->type.name = this->ast->GetName();
+string ObjInt::to_string() const {
+  return std::to_string(this->val);
 }
 
-// ----------------------------
-//  ObjInstance
-
-ObjPointer ObjInstance::Clone() const {
-  auto obj = ObjNew<ObjInstance>(this->ast);
-
-  for (auto&& m : this->member_variables) {
-    obj->add_member_var(m->Clone());
-  }
-
-  return obj;
+string ObjFloat::to_string() const {
+  return std::to_string(this->val);
 }
 
-string ObjInstance::ToString() const {
-  i64 _index = 0;
-
-  auto const& mvarlist = this->ast->member_variables;
-
-  return this->ast->GetName() + "{" +
-         utils::join<ObjPointer>(", ", this->member_variables,
-                                 [&mvarlist, &_index](ObjPointer obj) {
-                                   return mvarlist[_index++]->GetName() + ": " +
-                                          obj->ToStringAsMember();
-                                 }) +
-         "}";
+string ObjBool::to_string() const {
+  return this->val ? "true" : "false";
 }
 
-ObjInstance::ObjInstance(ASTPtr<AST::Class> ast)
-    : Object(TypeKind::Instance),
-      ast(ast) {
-  this->type.name = ast->GetName();
+string ObjChar::to_string() const {
+  return utf::to_utf8(std::u16string{1, this->val});
 }
 
-// ----------------------------
-//  ObjCallable
-
-std::string ObjCallable::GetName() const {
-  if (this->is_named) {
-    return this->func ? string(this->func->GetName()) : this->builtin->name;
-  }
-
-  return "";
+string ObjStr::to_string() const {
+  return utf::to_utf8(this->val);
 }
 
-ObjPointer ObjCallable::Clone() const {
-  return ObjNew<ObjCallable>(*this);
+// ----------------------------------------
+//  clone
+// ----------------------------------------
+ObjNone* ObjNone::clone() const {
+  return new ObjNone();
 }
 
-string ObjCallable::ToString() const {
-  auto _args = this->type.params;
-
-  _args.erase(_args.begin());
-
-  return "<callable (" +
-         utils::join<TypeInfo>(", ", _args,
-                               [](TypeInfo const& t) {
-                                 return t.to_string();
-                               }) +
-         ") -> " + this->type.params[0].to_string() + ">";
+ObjInt* ObjInt::clone() const {
+  return make_obj<ObjInt>(this->val);
 }
 
-ObjCallable::ObjCallable(ASTPtr<AST::Function> fp)
-    : Object(TypeKind::Function),
-      func(fp),
-      builtin(nullptr),
-      is_named(true) {
-  assert(fp);
+ObjFloat* ObjFloat::clone() const {
+  return make_obj<ObjFloat>(this->val);
 }
 
-ObjCallable::ObjCallable(builtins::Function const* fp)
-    : Object(TypeKind::Function),
-      func(nullptr),
-      builtin(fp),
-      is_named(true) {
-  assert(fp);
+ObjBool* ObjBool::clone() const {
+  return make_obj<ObjBool>(this->val);
 }
 
-// ----------------------------
-//  ObjModule
-std::string ObjModule::ToString() const {
-  return "(ObjModule '" + this->name + "')";
+ObjChar* ObjChar::clone() const {
+  return make_obj<ObjChar>(this->val);
 }
 
-// ----------------------------
-//  ObjType
-
-std::string ObjType::GetName() const {
-  return string(this->ast_class ? this->ast_class->GetName() : this->ast_enum->GetName());
+ObjStr* ObjStr::clone() const {
+  return make_obj<ObjStr>(this->val);
 }
 
-std::string ObjType::ToString() const {
-  if (this->ast_class)
-    return "<class '" + this->ast_class->GetName() + "'>";
-
-  return "<enum '" + this->ast_enum->GetName() + "'>";
+// ----------------------------------------
+//  Constructor wrappers
+// ----------------------------------------
+ObjNone* ObjNone::make() {
+  return make_obj<ObjNone>();
 }
 
-ObjType::ObjType(ASTPtr<AST::Enum> x)
-    : Object(TypeKind::TypeName),
-      ast_enum(x) {
-  if (x)
-    this->type.name = this->ast_enum->GetName();
+ObjInt* ObjInt::make(i64 val) {
+  return make_obj<ObjInt>(val);
 }
 
-ObjType::ObjType(ASTPtr<AST::Class> x)
-    : Object(TypeKind::TypeName),
-      ast_class(x) {
-  this->type.name = this->ast_class->GetName();
+ObjFloat* ObjFloat::make(f64 val) {
+  return make_obj<ObjFloat>(val);
 }
 
-// ----------------------------
-//  ObjException
+ObjBool* ObjBool::make(bool val) {
+  return make_obj<ObjBool>(val);
+}
 
-} // namespace fire
+ObjChar* ObjChar::make(char16_t val) {
+  return make_obj<ObjChar>(val);
+}
+
+ObjStr* ObjStr::make(std::u16string val) {
+  return make_obj<ObjStr>(val);
+}

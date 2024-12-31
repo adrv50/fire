@@ -1,143 +1,103 @@
 #pragma once
 
-#include "AST.h"
-
-namespace fire::parser {
+#include "Node.h"
 
 class Parser {
 
+  Token* cur;
+  Token* ate;
+
+  Token* save() {
+    return this->ate = this->cur;
+  }
+
 public:
-  Parser(TokenVector& tokens);
+  Parser(Token* tok)
+      : cur(tok),
+        ate(nullptr) {
+  }
 
-  // ASTPointer Ident();
+  Node* parse();
 
-  ASTPointer Factor();
-  ASTPointer ScopeResol();
+  Node* p_root();
 
-  ASTPointer Lambda();
+  Node* p_func();
+  Node* p_func_arg();
 
-  ASTPointer IndexRef();
-  ASTPointer Unary();
+  Node* p_stmt();
+  Node* p_let();
+  Node* p_loop();
 
-  ASTPointer Mul();
-  ASTPointer Add();
-  ASTPointer Shift();
-  ASTPointer Compare();
-  ASTPointer BitCalc();
-  ASTPointer LogAndOr();
-  ASTPointer Assign();
+  Node* p_block(bool expected = false);
 
-  ASTPointer Expr();
-  ASTPointer Stmt();
+  Node* p_expr();
 
-  ASTPointer Top();
+  Node* p_assign();
 
-  ASTPtr<AST::Block> Parse();
+  // 'and' 'or'
+  Node* p_logical();
+
+  // '&' '|' '^'
+  Node* p_bit_calc();
+
+  // '==' '!='
+  Node* p_equality();
+
+  // '>=' '<=' '>' '<'
+  Node* p_compare();
+
+  Node* p_shift();
+  Node* p_add();
+  Node* p_mul();
+  Node* p_unary();
+  Node* p_subscript();
+  Node* p_factor();
+
+  Node* p_literal();
 
 private:
-  bool check() const;
+  bool check();
+  Token* next();
 
-  bool eat(std::string_view str);
-  void expect(std::string_view str, bool keep_token = false);
+  Token* insert(Token* tok);
 
-  // ----
-  // for brackets of template parameter "<" ">"
-  //
-  // 閉じ括弧で右シフト演算子がある場合，自動的に分割します．
-  // フラグの都合のため eat(), expect() ではなく以下の関数群を使うこと
-  //
-  bool eat_typeparam_bracket_open();     //  eat "<"
-  bool eat_typeparam_bracket_close();    //  eat ">"
-  void expect_typeparam_bracket_open();  // expect "<"
-  void expect_typeparam_bracket_close(); // expect ">"
-  // -----
+  bool match(TokenKind k);
+  bool match(TokenPunctKind k);
+  bool match(TokenOperatorKind k);
+  bool match(TokenKwdKind k);
 
-  bool match(std::string_view s) {
-    return this->cur->str == s;
-  }
+  bool eat(TokenKind k);
+  bool eat(TokenPunctKind k);
+  bool eat(TokenOperatorKind k);
+  bool eat(TokenKwdKind k);
 
-  bool match(TokenKind kind) {
-    return this->cur->kind == kind;
-  }
+  Token* expect(TokenKind k);
+  Token* expect(TokenPunctKind k);
+  Token* expect(TokenOperatorKind k);
+  Token* expect(TokenKwdKind k);
 
-  bool match(std::pair<TokenKind, std::string_view> pair) {
-    return this->match(pair.first) && this->match(pair.second);
-  }
+  // node create wrapper
+  static Node* new_zero();
+  static Node* new_assign_with_op(NodeKind kind, Token* tok, Node* lhs,
+                                  Node* rhs);
 
-  template <class T, class U, class... Args>
-  bool match(T&& t, U&& u, Args&&... args) {
-    if (!this->check() || !this->match(std::forward<T>(t))) {
-      return false;
-    }
+  // ident
+  bool eat_ident(bool allow_kwd = false);
+  Token* expect_ident(bool allow_kwd = false);
 
-    auto save = this->cur;
-    this->cur++;
+  // semicolon
+  bool eat_semi();
+  Token* expect_semi();
 
-    auto ret = this->match(std::forward<U>(u), std::forward<Args>(args)...);
+  // template args
+  bool eat_template_args_open();
+  bool eat_template_args_close();
+  Token* expect_template_args_close();
 
-    this->cur = save;
-    return ret;
-  }
+  // type name
+  Node* p_expect_type();
 
-  TokenIterator insert_token(Token tok) {
-    tok.sourceloc = this->cur->sourceloc;
-
-    this->cur = this->tokens.insert(this->cur, tok);
-    this->end = this->tokens.end();
-
-    return this->cur;
-  }
-
-  TokenIterator expectIdentifier();
-
-  ASTPtr<AST::TypeName> expectTypeName();
-
-  ASTPtr<AST::Signature> expect_signature();
-
-  static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op, ASTPointer lhs,
-                                    ASTPointer rhs) {
-    return AST::Expr::New(k, op, lhs, rhs);
-  }
-
-  static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op, ASTPointer lhs,
-                                      ASTPointer rhs) {
-    return new_expr(ASTKind::Assign, op, lhs, new_expr(kind, op, lhs, rhs));
-  }
-
-  TokenVector& tokens;
-  TokenIterator cur, end, ate;
-
-  bool _in_class = false;
-  ASTPtr<AST::Class> _classptr = nullptr;
-
-  bool _in_loop = false;
-
-  int _typeparam_bracket_depth = 0;
-
-  //
-  // fn func <...>
-  // class C <...>
-  AST::Templatable::ParameterName parse_template_param_decl() {
-    AST::Templatable::ParameterName pn = {.token = *this->expectIdentifier(),
-                                          .params = {}};
-
-    if (this->eat_typeparam_bracket_open()) {
-      do {
-        pn.params.emplace_back(parse_template_param_decl());
-      } while (this->eat(","));
-
-      this->expect_typeparam_bracket_close();
-    }
-
-    return pn;
-  }
-
-  void check_match_of_template_arg_type(AST::Templatable::ParameterName const& P,
-                                        ASTPtr<AST::TypeName> T) {
-
-    if (P.token.str != T->GetName())
-      return;
-  }
+  // identifier (with qualifier)
+  Node* p_expect_identifier(bool allow_qualifier = false);
+  void p_parse_id_qualifier(Node* nd);
 };
-
-} // namespace fire::parser

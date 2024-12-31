@@ -1,51 +1,71 @@
 #pragma once
 
-#include <any>
-#include <string>
-#include <locale>
-#include <codecvt>
-#include <sstream>
-#include <functional>
+#include <cstdio>
+#include <algorithm>
 
-#include "types.h"
+#include "typedef.h"
 
-#include "strpool.h"
-
+//
+// utils: utility functions or classes, and tools.
+//
 namespace utils {
 
-template <class... Args>
-string Format(string const& fmt, Args&&... args) {
-  static char buf[0x1000];
-  sprintf(buf, fmt.c_str(), std::forward<Args>(args)...);
-  return buf;
+//
+// read_text_file:
+//   open file from @path, and read to @out
+bool read_text_file(string& out, string const& path);
+
+//
+// find
+template <typename T>
+Vec<T>::const_iterator find(Vec<T> const& v, T const& item) {
+  return std::find(v.cbegin(), v.cend(), item);
 }
 
-template <class T>
-string join(string const& s, vector<T> const& vec, auto tostrfn) {
-  string ret;
+//
+// join
+template <typename T>
+string join(string const& str, Vec<T> const& v, auto to_str_fn) {
+  string s;
 
-  for (i64 i = 0; i < (i64)vec.size(); i++) {
-    ret += tostrfn(vec[i]);
+  for (size_t i = 0; i < v.size(); i++) {
+    s += to_str_fn(v[i]);
 
-    if (i + 1 < (i64)vec.size())
-      ret += s;
+    if (i + 1 < v.size())
+      s += str;
   }
 
-  return ret;
+  return s;
 }
 
+//
+// compare_vector:
+//   compare elements and count between two vector.
+//
+// result:
+//   0  = perfectly same.
+//  -1  = not same.
 template <typename E>
-bool contains(Vec<E> const& v, E const& e) {
-  return std::find(v.begin(), v.end(), e) != v.end();
+int compare_vector(Vec<E> const& a, Vec<E> const& b, auto cmp_fn) {
+  if (a.size() != b.size())
+    return -1;
+
+  for (auto it = a.begin(); auto&& e : b)
+    if (!cmp_fn(*it, e))
+      return -1;
+
+  return 0;
 }
 
-string remove_color(string str);
-i64 get_length_without_color(string const& str);
-i64 get_color_length_in_str(string const& str);
+//
+// format
+template <typename... Args>
+string format(string const& fmt, Args&&... args) {
+  static char buf[0x1000];
 
-string to_u8string(std::u16string const& str);
-std::u16string to_u16string(string const& str);
+  sprintf(buf, fmt.c_str(), std::forward<Args>(args)...);
 
-string get_base_name(string path);
+  return buf;
+}
 
 } // namespace utils

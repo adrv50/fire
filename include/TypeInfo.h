@@ -1,116 +1,56 @@
 #pragma once
 
-#include <vector>
-#include "types.h"
+#include "typedef.h"
 
-namespace fire {
+enum class TypeKind {
+  Unknown,
 
-enum class TypeKind : u8 {
   None,
 
   Int,
   Float,
   Bool,
-
   Char,
   String,
-
   Vector,
-  Tuple,
-  Dict,
 
-  Enumerator,
-  Instance, // instance of class
+  Type, // => the type of a type. (class, struct, enum, etc...)
 
-  //
-  // Function:
-  //   params[  0]  = result
-  //   params[>=1]  = args
-  Function,
-
-  Module,
-
-  TypeName, // class or enum or etc...
-
-  Unknown, // or template param
+  Instance,
 };
 
 struct TypeInfo {
   TypeKind kind;
 
-  Vec<TypeInfo> params;
+  bool is_reference;
+  bool is_mutable;
 
-  string name; // <-- todo: remove this, and use GetName()
+  Vec<TypeInfo> template_args;
 
-  bool is_const = false;
-
-  // TypeKind::TypeName
-  //
-  // AST::Enum
-  // AST::Class
-  ASTPointer type_ast = nullptr;
-
-  // when enumerator
-  size_t enum_index = 0;
-
-  //
-  // TypeKind::Function
-  bool is_free_args = false;
-  bool is_member_func = false;
-
-  //
-  //   0  = no need
-  //  -1  = infinity
-  // >=1  =
-  int needed_param_count() const;
-
-  bool IsPrimitiveType() const {
-    switch (this->kind) {
-    case TypeKind::None:
-    case TypeKind::Int:
-    case TypeKind::Float:
-    case TypeKind::Bool:
-    case TypeKind::Char:
-    case TypeKind::String:
-    case TypeKind::Vector:
-    case TypeKind::Tuple:
-    case TypeKind::Dict:
-      return true;
-    }
-
-    return false;
-  }
-
-  bool is_iterable() const;
+  bool is(TypeKind k) const;
+  bool is(TypeKind k, bool is_mutable,
+          Vec<TypeInfo> template_args) const;
 
   bool is_numeric() const;
-  bool is_numeric_or_char() const;
+  bool is_subscriptable() const;
+  bool is_template() const;
 
-  bool is_char_or_str() const;
+  bool equals(TypeInfo const& ti) const;
 
-  bool is_hit(std::vector<TypeInfo> types) const;
-  bool is_hit_kind(std::vector<TypeKind> kinds) const;
+  string to_string() const;
 
-  string_view GetSV() const;
+  static string get_name_of_kind(TypeKind kind);
 
-  string GetName() const;
+  static TypeKind get_kind_of_name(string const& name);
 
-  static TypeInfo from_enum(ASTPtr<AST::Enum> ast);
-  static TypeInfo from_class(ASTPtr<AST::Class> ast);
+  static Vec<pair<TypeKind, char const*>> const
+  get_type_name_map();
 
-  static TypeInfo make_instance_type(ASTPtr<AST::Class> ast);
-
-  static TypeKind from_name(string const& name);
-
-  static bool is_primitive_name(std::string_view);
-
-  bool equals(TypeInfo const& type) const;
-  std::string to_string() const;
-
-  TypeInfo without_params() const;
+  TypeInfo& get_elem_type(size_t template_param_index = 0) {
+    return this->template_args[template_param_index];
+  }
 
   TypeInfo(TypeKind kind = TypeKind::None);
-  TypeInfo(TypeKind kind, std::vector<TypeInfo> params);
+  TypeInfo(TypeKind kind, Vec<TypeInfo> template_args,
+           bool is_reference = false, bool is_mutable = false);
 };
-
-} // namespace fire

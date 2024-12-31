@@ -27,7 +27,7 @@
 #define COL_BK_CYAN "\033[46;5m"
 #define COL_BK_WHITE "\033[47m"
 
-#ifdef _METRO_DEBUG_
+#ifdef _FIRE_DEBUG_
 
 #include <cstdio>
 #include <cstring>

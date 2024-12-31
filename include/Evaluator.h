@@ -2,65 +2,49 @@
 
 #include <list>
 
-#include "AST.h"
-#include "Object.h"
-
-namespace fire::eval {
-
-struct VarStack {
-  vector<ObjPointer> var_list;
-
-  bool returned = false;
-  ObjPointer func_result = nullptr;
-
-  bool breaked = false;
-  bool continued = false;
-
-  VarStack(size_t vcount) {
-    this->var_list.resize(vcount);
-  }
-};
+#include "Node.h"
 
 class Evaluator {
 
-  semantics_checker::Sema& S;
+  struct CallStack {
+    Vec<Obj> objects;
 
-public:
-  Evaluator(semantics_checker::Sema& S);
-  ~Evaluator();
+    Obj result = nullptr;
 
-  ObjPointer evaluate(ASTPointer ast);
+    bool is_returned = false;
 
-  ObjPointer eval_expr(ASTPtr<AST::Expr> ast);
-  void eval_stmt(ASTPointer ast);
+    Obj& get(size_t index);
 
-  ObjPointer& eval_as_left(ASTPointer ast);
+    Obj& append(Obj obj);
+  };
 
-  ObjPointer& eval_index_ref(ObjPointer array, ObjPointer index);
+  Vec<Obj> global_variables;
 
-  //
-  ObjPointer& eval_member_ref(ObjPtr<ObjInstance> inst, ASTPtr<AST::Class> expected_class,
-                              int index);
+  Vec<CallStack> call_stack;
 
-private:
-  using VarStackPtr = std::shared_ptr<VarStack>;
+  Node* program;
 
-  ObjPtr<ObjInstance> CreateClassInstance(ASTPtr<AST::Class> ast);
+  CallStack& get_current_call_stack();
 
-  ObjPointer MakeDefaultValueOfType(TypeInfo const& type);
+  Obj& push(Obj obj);
+  Obj pop();
 
-  VarStackPtr push_stack(size_t var_count);
+  CallStack& push_stack();
+
   void pop_stack();
 
-  VarStack& get_cur_stack();
-  VarStack& get_stack(int distance);
+public:
+  Evaluator(Node* program);
 
-  std::list<VarStackPtr> var_stack;
+  Obj evaluate();
 
-  std::list<VarStackPtr> call_stack;
-  std::list<VarStackPtr> loops;
+  Obj eval_expr(Node* node);
 
-  static ObjPtr<ObjNone> _None;
+  Obj eval_call_func(Node* node, Vec<Obj>& args);
+
+  void eval_stmt(Node* node);
+
+  void eval_block(Node* node);
+
+  void eval_let(Node* node);
 };
-
-} // namespace fire::eval

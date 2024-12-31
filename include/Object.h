@@ -1,385 +1,106 @@
 #pragma once
 
 #include <concepts>
-#include <string>
-#include <map>
-
-#include "alert.h"
 #include "TypeInfo.h"
+#include "utf.h"
 
-namespace fire {
+struct Object;
+struct ObjNone;
+struct ObjInt;
+struct ObjFloat;
+struct ObjBool;
+struct ObjStr;
 
-namespace builtins {
-struct Function;
-}
+using Obj = Object*;
+
+template <typename T>
+using ObjPtr = T*;
 
 struct Object {
-  TypeInfo type;
-  // i64 ref_count;
+  TypeInfo ti;
   bool is_marked;
+  size_t ref_count;
 
-  bool is_callable() const {
-    return this->type.kind == TypeKind::Function;
-  }
+  ObjInt* as_int();
+  ObjFloat* as_float();
+  ObjBool* as_bool();
+  ObjStr* as_str();
 
-  bool is_numeric(bool contain_char = false) const {
-    return this->type.is_numeric() || (contain_char && this->type.kind == TypeKind::Char);
-  }
+  ObjInt const* as_int() const;
+  ObjFloat const* as_float() const;
+  ObjBool const* as_bool() const;
+  ObjStr const* as_str() const;
 
-  bool is_float() const {
-    return this->type.kind == TypeKind::Float;
-  }
+  virtual string to_string() const = 0;
+  virtual Obj clone() const = 0;
 
-  bool is_int() const {
-    return this->type.kind == TypeKind::Int;
-  }
-
-  bool is_boolean() const {
-    return this->type.kind == TypeKind::Bool;
-  }
-
-  bool is_char() const {
-    return this->type.kind == TypeKind::Char;
-  }
-
-  bool is_instance() const {
-    return this->type.kind == TypeKind::Instance;
-  }
-
-  bool is_iterable() const {
-    return this->is_string() || this->is_vector();
-  }
-
-  bool is_string() const {
-    return this->type.kind == TypeKind::String;
-  }
-
-  bool is_vector() const {
-    return this->type.kind == TypeKind::Vector;
-  }
-
-  i64 get_vi() const;
-  double get_vf() const;
-  char16_t get_vc() const;
-  bool get_vb() const;
-
-  virtual bool Equals(ObjPointer obj) const {
-    (void)obj;
-    return false;
-  }
-
-  template <typename T>
-  T* As() {
-    return static_cast<T*>(this);
-  }
-
-  template <typename T>
-  T const* As() const {
-    return static_cast<T const*>(this);
-  }
-
-  ObjPrimitive* as_primitive() {
-    return this->As<ObjPrimitive>();
-  }
-
-  ObjPrimitive const* as_primitive() const {
-    return this->As<ObjPrimitive>();
-  }
-
-  virtual ~Object() = default;
-
-  virtual ObjPointer Clone() const = 0;
-  virtual string ToString() const = 0;
-
-  virtual string ToStringAsMember() const {
-    return this->ToString();
-  }
+  static ObjNone* none;
 
 protected:
-  Object(TypeInfo type);
+  Object(TypeInfo const& ti);
 };
 
 struct ObjNone : Object {
-  ObjPointer Clone() const override {
-    return ObjNew<ObjNone>();
-  }
+  ObjNone();
 
-  string ToString() const override {
-    return "none";
-  }
+  string to_string() const override;
+  ObjNone* clone() const override;
 
-  bool Equals(ObjPointer) const override {
-    return true;
-  }
-
-  ObjNone()
-      : Object(TypeKind::None) {
-  }
+  static ObjNone* make();
 };
 
-struct ObjPrimitive : Object {
-  union {
-    i64 vi;
-    double vf;
-    bool vb;
-    char16_t vc;
+struct ObjInt : Object {
+  i64 val;
 
-    u64 _data = 0;
-  };
+  ObjInt(i64 val);
 
-  ObjPrimitive* to_float();
+  string to_string() const override;
+  ObjInt* clone() const override;
 
-  ObjPointer Clone() const override;
-  string ToString() const override;
-
-  bool Equals(ObjPointer obj) const override {
-    if (!this->type.equals(obj->type))
-      return false;
-
-    switch (this->type.kind) {
-    case TypeKind::Float:
-      return this->vf == obj->get_vf();
-
-    case TypeKind::Bool:
-      return this->vb == obj->get_vb();
-
-    case TypeKind::Char:
-      return this->vc == obj->get_vc();
-    }
-
-    return this->vi == obj->get_vi();
-  }
-
-  ObjPrimitive(i64 vi = 0)
-      : Object(TypeKind::Int),
-        vi(vi) {};
-
-  ObjPrimitive(double vf)
-      : Object(TypeKind::Float),
-        vf(vf) {};
-
-  ObjPrimitive(bool vb)
-      : Object(TypeKind::Bool),
-        vb(vb) {};
-
-  ObjPrimitive(char16_t vc)
-      : Object(TypeKind::Char),
-        vc(vc) {};
+  static ObjInt* make(i64 val);
 };
 
-struct ObjIterable : Object {
-  ObjVector list;
+struct ObjFloat : Object {
+  f64 val;
 
-  ObjPointer& Append(ObjPointer obj) {
-    return this->list.emplace_back(obj);
-  }
+  ObjFloat(f64 val);
 
-  void AppendList(ObjPtr<ObjIterable> obj) {
-    for (auto&& e : obj->list)
-      this->Append(e->Clone());
-  }
+  string to_string() const override;
+  ObjFloat* clone() const override;
 
-  size_t Count() const {
-    return this->list.size();
-  }
-
-  ObjPointer Clone() const override;
-  string ToString() const override;
-
-  bool Equals(ObjPointer obj) const override {
-    if (!obj->type.is_iterable())
-      return false;
-
-    if (this->list.size() != obj->As<ObjIterable>()->list.size())
-      return false;
-
-    for (auto it = this->list.begin(); auto&& e : obj->As<ObjIterable>()->list)
-      if (!(*it++)->Equals(e))
-        return false;
-
-    return true;
-  }
-
-  ObjIterable(TypeInfo type)
-      : Object(type) {
-  }
+  static ObjFloat* make(f64 val);
 };
 
-struct ObjString : ObjIterable {
-  ObjPointer SubString(size_t pos, size_t length = 0);
+struct ObjBool : Object {
+  bool val;
 
-  size_t Length() const {
-    return this->list.size();
-  }
+  ObjBool* clone() const override;
+  string to_string() const override;
 
-  string ToString() const override;
-  string ToStringAsMember() const override;
+  ObjBool(bool val);
 
-  ObjPointer Clone() const override;
-
-  ObjString(std::u16string const& str = u"");
-  ObjString(string const& str);
+  static ObjBool* make(bool val);
 };
 
-//
-// TypeKind::Enumerator
-//
-struct ObjEnumerator : Object {
-  ASTPtr<AST::Enum> ast;
-  int index;
+struct ObjChar : Object {
+  char16_t val;
 
-  ObjPointer data = nullptr;
+  string to_string() const override;
+  ObjChar* clone() const override;
 
-  ObjPointer Clone() const override {
-    auto x = ObjNew<ObjEnumerator>(this->ast, this->index);
+  ObjChar(char16_t val);
 
-    if (this->data)
-      x->data = this->data->Clone();
-
-    return x;
-  }
-
-  string ToString() const override;
-
-  bool Equals(ObjPointer obj) const override {
-    if (obj->type.kind != TypeKind::Enumerator)
-      return false;
-
-    if (auto x = obj->As<ObjEnumerator>(); this->ast != x->ast)
-      return false;
-
-    else if (this->index != x->index)
-      return false;
-
-    else if (this->data) {
-      if (!x->data || !this->data->Equals(x->data))
-        return false;
-    }
-
-    return true;
-  }
-
-  ObjEnumerator(ASTPtr<AST::Enum> ast, int index);
+  static ObjChar* make(char16_t val);
 };
 
-//
-// instance of class
-struct ObjInstance : Object {
-  ASTPtr<AST::Class> ast;
+struct ObjStr : Object {
+  std::u16string val;
 
-  ObjPtr<ObjInstance> base_class_inst;
+  string to_string() const override;
+  ObjStr* clone() const override;
 
-  ObjVector member_variables;
+  ObjStr(std::u16string const& val);
 
-  ObjPointer& add_member_var(ObjPointer obj) {
-    return this->member_variables.emplace_back(obj);
-  }
-
-  ObjPointer& get_mvar(i64 index) {
-    return this->member_variables[index];
-  }
-
-  bool have_constructor() const;
-  ASTPtr<AST::Function> get_constructor() const;
-
-  ObjPointer Clone() const override;
-  string ToString() const override;
-
-  bool Equals(ObjPointer obj) const override {
-    return this->ast == obj->As<ObjInstance>()->ast;
-  }
-
-  ObjInstance(ASTPtr<AST::Class> ast);
+  static ObjStr* make(std::u16string val);
+  static ObjStr* make(string const& val);
 };
-
-//
-// ObjCallable
-//
-//  .func       = ptr to ast
-//  .builtin    = ptr to builtin
-//  .is_named   = when lambda this is false
-//
-struct ObjCallable : Object {
-  ASTPtr<AST::Function> func;
-  builtins::Function const* builtin;
-  bool is_named = false;
-
-  ObjPointer selfobj = nullptr;
-  bool is_member_call = false;
-
-  string GetName() const;
-
-  ObjPointer Clone() const override;
-  string ToString() const override;
-
-  bool Equals(ObjPointer obj) const override {
-    auto x = obj->As<ObjCallable>();
-
-    return this->func == x->func && this->builtin == x->builtin &&
-           this->is_named == x->is_named;
-  }
-
-  ObjCallable(ASTPtr<AST::Function> fp);
-  ObjCallable(builtins::Function const* fp);
-};
-
-//
-// TypeKind::Module
-//
-struct ObjModule : Object {
-  string name;
-
-  std::shared_ptr<SourceStorage> source;
-  ASTPtr<AST::Block> ast;
-
-  std::map<string, ObjPointer> variables;
-  ObjVec<ObjType> types;
-  ObjVec<ObjCallable> functions;
-
-  ObjPointer Clone() const override {
-    return ObjNew<ObjModule>(*this);
-  }
-
-  string ToString() const override;
-
-  ObjModule(std::shared_ptr<SourceStorage> src, ASTPtr<AST::Block> ast = nullptr)
-      : Object(TypeKind::Module),
-        source(src),
-        ast(ast) {
-  }
-};
-
-//
-// TypeKind::TypeName
-//
-struct ObjType : Object {
-  TypeInfo typeinfo;
-
-  ASTPtr<AST::Enum> ast_enum = nullptr;
-  ASTPtr<AST::Class> ast_class = nullptr;
-
-  ObjPointer Clone() const override {
-    return ObjNew<ObjType>(*this);
-  }
-
-  string GetName() const;
-
-  string ToString() const override;
-
-  bool Equals(ObjPointer obj) const override {
-    auto x = obj->As<ObjType>();
-
-    return this->typeinfo.equals(x->typeinfo) || this->ast_enum == x->ast_enum ||
-           this->ast_class == x->ast_class;
-  }
-
-  ObjType(TypeInfo type)
-      : Object(TypeKind::TypeName),
-        typeinfo(std::move(type)) {
-  }
-
-  ObjType(ASTPtr<AST::Enum> x = nullptr);
-  ObjType(ASTPtr<AST::Class> x);
-};
-
-} // namespace fire

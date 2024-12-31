@@ -1,21 +1,83 @@
 #include "Token.h"
 
-namespace fire {
-
-Token const* Token::get_prev(int step) {
-  if (this->_index - step < 0)
-    return nullptr;
-
-  return &this->sourceloc.ref->token_list[this->_index - step];
+bool Token::is(TokenKind k) const {
+  return this->kind == k;
 }
 
-Token const* Token::get_next(int step) {
-  auto const& list = this->sourceloc.ref->token_list;
-
-  if (this->_index + step >= (i64)list.size())
-    return nullptr;
-
-  return &list[this->_index + step];
+bool Token::is_kwd(TokenKwdKind k) const {
+  return is(TokenKind::Keyword) && this->kwd == k;
 }
 
-} // namespace fire
+bool Token::is_op(TokenOperatorKind k) const {
+  return is(TokenKind::Operator) && this->op == k;
+}
+
+bool Token::is_punct(TokenPunctKind k) const {
+  return is(TokenKind::Punctuator) && this->punct == k;
+}
+
+bool Token::is_semi() const {
+  return is(TokenKind::Semi);
+}
+
+Token* Token::make(TokenKind kind, SourceStorage const* SS, Token* prev,
+                   string const& str, size_t pos, TokenKwdKind kwd,
+                   TokenOperatorKind op, TokenPunctKind punct) {
+  auto tok = new Token(kind, SS, prev, str, pos, kwd, op, punct);
+
+  if (prev)
+    prev->next = tok;
+
+  return tok;
+}
+
+Token* Token::make(TokenKind kind) {
+  return make(kind, nullptr, nullptr, "", 0);
+}
+
+Token* Token::set_kwd(TokenKwdKind k) {
+  this->kind = TokenKind::Keyword;
+  this->kwd = k;
+  return this;
+}
+
+Token* Token::set_op(TokenOperatorKind k) {
+  this->kind = TokenKind::Operator;
+  this->op = k;
+  return this;
+}
+
+Token* Token::set_punct(TokenPunctKind k) {
+  this->kind = TokenKind::Punctuator;
+  this->punct = k;
+  return this;
+}
+
+Token* Token::clone() const {
+  auto cloned =
+      Token::make(this->kind, &this->ref->get_ss(), this->prev, this->str,
+                  this->ref->pos, this->kwd, this->op, this->punct);
+
+  cloned->next = this->next;
+  cloned->prev = this->prev;
+
+  return cloned;
+}
+
+Token::Token(TokenKind kind, SourceStorage const* SS, Token* prev,
+             string const& str, size_t pos, TokenKwdKind kwd,
+             TokenOperatorKind op, TokenPunctKind punct)
+    : kind(kind),
+      kwd(kwd),
+      op(op),
+      punct(punct),
+      prev(prev),
+      next(nullptr),
+      str(str),
+      ref(SS ? SS->make_ref(this, pos, str.length()) : nullptr) {
+}
+
+Token::Token(TokenKind kind)
+    : Token(kind, nullptr, nullptr, "", 0, TokenKwdKind::None,
+            TokenOperatorKind::None, TokenPunctKind::None) {
+}
