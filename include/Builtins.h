@@ -15,6 +15,9 @@ struct BuiltinFunc {
 
   string name;
 
+  bool is_method; // if method of any type
+  TypeInfo self_type;
+
   Vec<TypeInfo> arg_types;
   bool is_variable_args = false;
 
@@ -26,16 +29,18 @@ struct BuiltinFunc {
 
   string to_string() const;
 
-  BuiltinFunc(string name, Vec<TypeInfo> arg_types, bool is_variable_args,
-              TypeInfo ret_type, Impl impl)
-      : name(name),
-        arg_types(arg_types),
-        is_variable_args(is_variable_args),
-        ret_type(ret_type),
-        impl(impl) {
-  }
-};
+  // static BuiltinFunc const* find(string const& name);
+  // static BuiltinFunc const* find_method(TypeInfo const& self, string const& name);
 
-Vec<BuiltinFunc> const& get_builtin_functions();
+  static size_t find(Vec<BuiltinFunc const*>& out, string const& name);
+
+  // ctor for method
+  BuiltinFunc(string name, TypeInfo const& self_type, Vec<TypeInfo> arg_types,
+              bool is_variable_args, TypeInfo ret_type, Impl impl);
+
+  // ctor for normal function
+  BuiltinFunc(string name, Vec<TypeInfo> arg_types, bool is_variable_args,
+              TypeInfo ret_type, Impl impl);
+};
 
 } // namespace Builtins

@@ -23,7 +23,7 @@ static constexpr char const* all_punct_list[] = {
 static char const* s_kind[] = {
     "(unknown)",    "decimal",   "float",    "hexadecimal", "binary",
     "string",     "character", "boolean",  "identifier",  "keyword",
-    "punctuator", "semi",      "operator", "end",
+    "punctuator", "\";\"",      "operator", "end",
 };
 
 //
@@ -210,8 +210,7 @@ string Lexer::trim_hexadecimal() {
 string Lexer::trim_binary() {
   string s;
 
-  for (char c; this->check() && ((c = this->peek()) == '0' || c == '1');
-       this->pos++)
+  for (char c; this->check() && ((c = this->peek()) == '0' || c == '1'); this->pos++)
     s += c;
 
   return s;
@@ -229,8 +228,7 @@ string Lexer::trim_decimal() {
 string Lexer::trim_identifier() {
   string s;
 
-  for (char c; this->check() && (isalnum((c = this->peek())) || c == '_');
-       this->pos++)
+  for (char c; this->check() && (isalnum((c = this->peek())) || c == '_'); this->pos++)
     s += c;
 
   return s;
@@ -268,8 +266,8 @@ Token* Lexer::lex() {
     //
     // hexadecimal
     if (this->eat("0x") || this->eat("0X")) {
-      cur = Token::make(TokenKind::Hexadecimal, &this->SS, cur,
-                        this->trim_hexadecimal(), _pos);
+      cur = Token::make(TokenKind::Hexadecimal, &this->SS, cur, this->trim_hexadecimal(),
+                        _pos);
 
       cur->literal_data.v_hex = std::stoull(cur->str, nullptr, 16);
     }
@@ -277,16 +275,15 @@ Token* Lexer::lex() {
     //
     // binary
     else if (this->eat("0b") || this->eat("0B")) {
-      cur = Token::make(TokenKind::Binary, &this->SS, cur, this->trim_binary(),
-                        _pos);
+      cur = Token::make(TokenKind::Binary, &this->SS, cur, this->trim_binary(), _pos);
 
       cur->literal_data.v_bin = std::stoull(cur->str, nullptr, 2);
     }
+
     //
     // decimal or float
     else if (isdigit(c)) {
-      cur = Token::make(TokenKind::Decimal, &this->SS, cur,
-                        this->trim_decimal(), _pos);
+      cur = Token::make(TokenKind::Decimal, &this->SS, cur, this->trim_decimal(), _pos);
 
       // if eat dot, it is a float
       if (this->eat(".")) {
@@ -306,8 +303,8 @@ Token* Lexer::lex() {
     else if (this->eat("'")) {
       string s;
 
-      while (this->check() && this->peek() != '\'')
-        s += this->peek();
+      for (; this->check() && (c = this->peek()) != '\''; this->pos++)
+        s += c;
 
       this->pos++;
 
@@ -326,8 +323,8 @@ Token* Lexer::lex() {
     else if (this->eat("\"")) {
       string s;
 
-      while (this->check() && this->peek() != '"')
-        s += this->peek();
+      for (; this->check() && (c = this->peek()) != '"'; this->pos++)
+        s += c;
 
       this->pos++;
 
@@ -339,8 +336,8 @@ Token* Lexer::lex() {
     //
     // identifier
     else if (isalpha(c) || c == '_') {
-      cur = Token::make(TokenKind::Identifier, &this->SS, cur,
-                        this->trim_identifier(), _pos);
+      cur = Token::make(TokenKind::Identifier, &this->SS, cur, this->trim_identifier(),
+                        _pos);
 
       for (auto&& [k, s] : ::tok_keywords)
         if (cur->str == s) {

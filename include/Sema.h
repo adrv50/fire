@@ -170,17 +170,28 @@ public:
 
   TypeInfo check_function_call(Node* call);
 
-  void compare_call_arguments(Node* cf, Vec<TypeInfo> const& call,
+  void compare_call_arguments(Node* cf, bool is_method, Vec<TypeInfo> const& call,
                               Vec<TypeInfo> const& func, bool is_variable_args,
                               Node* fn, Builtins::BuiltinFunc const* bfn);
+
+  bool is_method(Node* func);
+  bool is_method(Builtins::BuiltinFunc const* bf);
 
 private:
   struct NameFindResult {
     enum NameType {
       NA_NotFound,
 
+      //
+      // NA_Var:
+      //   .var = VarInfo
+      //   .scope = the scope where the variable is defined in.
       NA_Var,
 
+      //
+      // NA_Func:
+      //   .func = Node (ND_Function)
+      //   .scope = function scope
       NA_Func,
 
       NA_Enum,

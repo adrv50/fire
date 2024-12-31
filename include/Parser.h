@@ -51,6 +51,9 @@ public:
   Node* p_mul();
   Node* p_unary();
   Node* p_subscript();
+  Node* p_call_func();
+
+  Node* p_scope_resol();
   Node* p_factor();
 
   Node* p_literal();
@@ -78,8 +81,7 @@ private:
 
   // node create wrapper
   static Node* new_zero();
-  static Node* new_assign_with_op(NodeKind kind, Token* tok, Node* lhs,
-                                  Node* rhs);
+  static Node* new_assign_with_op(NodeKind kind, Token* tok, Node* lhs, Node* rhs);
 
   // ident
   bool eat_ident(bool allow_kwd = false);
@@ -92,6 +94,7 @@ private:
   // template args
   bool eat_template_args_open();
   bool eat_template_args_close();
+  Token* expect_template_args_open();
   Token* expect_template_args_close();
 
   // type name

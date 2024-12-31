@@ -215,7 +215,7 @@ Node* Parser::p_block(bool expected) {
   return nullptr;
 }
 
-//
+// ------------
 // expr ::=
 //   assign
 //
@@ -223,7 +223,7 @@ Node* Parser::p_expr() {
   return this->p_assign();
 }
 
-//
+// ------------
 // assign ::=
 //   add (("=" | "+=" | "-=" | "*=" | "/=" | "%=") add)*
 //
@@ -253,6 +253,10 @@ Node* Parser::p_assign() {
   return nd;
 }
 
+// ------------
+// logical ::=
+//   bit_calc (("&&" | "||") bit_calc)*
+//
 Node* Parser::p_logical() {
   auto nd = this->p_bit_calc();
 
@@ -289,8 +293,9 @@ Node* Parser::p_bit_calc() {
   return nd;
 }
 
-//
+// ------------
 // equality ::=
+//   compare (("==" | "!=") compare)*
 //
 Node* Parser::p_equality() {
 
@@ -306,8 +311,8 @@ Node* Parser::p_equality() {
     // "!="
     //  --> !(a == b)
     else if (this->eat(Op::NotEqual))
-      nd = Node::new_node(ND_Not, op,
-                          Node::new_node(ND_Equal, op, nd, this->p_compare()));
+      nd =
+          Node::new_node(ND_Not, op, Node::new_node(ND_Equal, op, nd, this->p_compare()));
 
     else
       break;
@@ -316,6 +321,10 @@ Node* Parser::p_equality() {
   return nd;
 }
 
+// ------------
+// compare ::=
+//   shift (("<" | ">" | "<=" | ">=") shift)*
+//
 Node* Parser::p_compare() {
   auto nd = this->p_shift();
 
@@ -337,6 +346,10 @@ Node* Parser::p_compare() {
   return nd;
 }
 
+// ------------
+// shift ::=
+//   add (("<<" | ">>") add)*
+//
 Node* Parser::p_shift() {
   auto nd = this->p_add();
 
@@ -354,7 +367,7 @@ Node* Parser::p_shift() {
   return nd;
 }
 
-//
+// ------------
 // add ::=
 //   mul (("+" | "-") mul)*
 //
@@ -375,7 +388,7 @@ Node* Parser::p_add() {
   return nd;
 }
 
-//
+// ------------
 // mul ::=
 //   factor (("*" | "/" | "%") factor)*
 //
@@ -398,7 +411,7 @@ Node* Parser::p_mul() {
   return nd;
 }
 
-//
+// ------------
 // unary ::=
 //   ("+" | "-" | "not" | "ref") factor
 //
@@ -433,12 +446,12 @@ Node* Parser::p_unary() {
   return this->p_subscript();
 }
 
-//
+// ------------
 // subscript ::=
 //   unary ("[" expr "]" | "." unary | "(" expr ("," expr)* ")")*
 //
 Node* Parser::p_subscript() {
-  auto nd = this->p_factor();
+  auto nd = this->p_call_func();
 
   while (this->check()) {
     auto op = this->cur;
@@ -452,30 +465,72 @@ Node* Parser::p_subscript() {
     }
 
     //
-    // member access
+    // member access (or method call)
     //
-    else if (this->eat(Punct::Dot)) {
-      nd = Node::new_node(ND_MemberAccess, op, nd, this->p_factor());
-    }
+    else if (this->eat(Op::MemberAccess)) {
+      auto rhs = this->p_call_func();
 
-    //
-    // call function
-    //
-    else if (this->eat(Punct::BraceOpen)) {
-      nd = Node::new_node(ND_CallFunc, op, nd, nullptr);
+      // if rhs is call function, set method call flag
+      // and left side is use for "self"
+      if (rhs->is(ND_CallFunc)) {
+        rhs->nd_callfunc_is_method_call = true;
+        rhs->nd_callfunc_method_self = nd;
 
-      if (!this->eat(Punct::BraceClose)) {
-        do {
-          nd->append(this->p_expr());
-        } while (this->eat(Punct::Comma));
-
-        this->expect(Punct::BraceClose);
+        nd = rhs;
+      }
+      else {
+        nd = Node::new_node(ND_MemberAccess, op, nd, rhs);
       }
     }
 
     else
       break;
   }
+
+  return nd;
+}
+
+//
+// call_func ::=
+//   ident "(" expr ("," expr)* ")"
+//
+Node* Parser::p_call_func() {
+  auto nd = this->p_scope_resol();
+
+  if (auto tok = this->cur; this->eat(Punct::BraceOpen)) {
+    if (!nd->is(ND_Identifier) && !nd->is(ND_ScopeResol))
+      Error(tok, "invalid syntax").crash();
+
+    auto cf = Node::new_node(ND_CallFunc, tok, nullptr);
+
+    cf->nd_callfunc_callee = nd;
+
+    if (!this->eat(Punct::BraceClose)) {
+      do {
+        cf->append(this->p_expr());
+      } while (this->eat(Punct::Comma));
+
+      this->expect(Punct::BraceClose);
+    }
+
+    return cf;
+  }
+
+  return nd;
+}
+
+//
+// scope_resol ::=
+//   ident ("::" ident)*
+//
+Node* Parser::p_scope_resol() {
+  auto nd = this->p_factor();
+
+  if (this->match(TokenPunctKind::ScopeResol) && !nd->is(ND_Identifier))
+    Error(this->cur, "invalid syntax").crash();
+
+  for (Token* op; (op = this->cur), this->eat(Punct::ScopeResol);)
+    nd = Node::new_node(ND_ScopeResol, op, nd, this->p_factor());
 
   return nd;
 }
@@ -606,8 +661,8 @@ bool Parser::eat(TokenKwdKind k) {
 
 Token* Parser::expect(TokenKind k) {
   if (!this->eat(k))
-    Error(this->cur, "expected " + Token::kind_to_str(k) + " but found '" +
-                         this->cur->str + "'")
+    Error(this->cur,
+          "expected " + Token::kind_to_str(k) + " but found '" + this->cur->str + "'")
         .crash();
 
   return this->cur->prev;
@@ -615,8 +670,8 @@ Token* Parser::expect(TokenKind k) {
 
 Token* Parser::expect(TokenPunctKind k) {
   if (!this->eat(k))
-    Error(this->cur, "expected '" + Token::punct_to_str(k) + "' but found '" +
-                         this->cur->str + "'")
+    Error(this->cur,
+          "expected '" + Token::punct_to_str(k) + "' but found '" + this->cur->str + "'")
         .crash();
 
   return this->cur->prev;
@@ -624,8 +679,8 @@ Token* Parser::expect(TokenPunctKind k) {
 
 Token* Parser::expect(TokenOperatorKind k) {
   if (!this->eat(k))
-    Error(this->cur, "expected '" + Token::op_to_str(k) + "' but found '" +
-                         this->cur->str + "'")
+    Error(this->cur,
+          "expected '" + Token::op_to_str(k) + "' but found '" + this->cur->str + "'")
         .crash();
 
   return this->cur->prev;
@@ -633,8 +688,8 @@ Token* Parser::expect(TokenOperatorKind k) {
 
 Token* Parser::expect(TokenKwdKind k) {
   if (!this->eat(k))
-    Error(this->cur, "expected '" + Token::kwd_to_str(k) + "' but found '" +
-                         this->cur->str + "'")
+    Error(this->cur,
+          "expected '" + Token::kwd_to_str(k) + "' but found '" + this->cur->str + "'")
         .crash();
 
   return this->cur->prev;
@@ -651,15 +706,12 @@ Node* Parser::new_zero() {
 // A op # "=" B
 //   --> A = (A op B)
 //
-Node* Parser::new_assign_with_op(NodeKind kind, Token* tok, Node* lhs,
-                                 Node* rhs) {
-  return Node::new_node(ND_Assign, tok, lhs,
-                        Node::new_node(kind, tok, lhs, rhs));
+Node* Parser::new_assign_with_op(NodeKind kind, Token* tok, Node* lhs, Node* rhs) {
+  return Node::new_node(ND_Assign, tok, lhs, Node::new_node(kind, tok, lhs, rhs));
 }
 
 bool Parser::eat_ident(bool allow_kwd) {
-  return this->eat(TokenKind::Identifier) ||
-         (allow_kwd && this->eat(TokenKind::Keyword));
+  return this->eat(TokenKind::Identifier) || (allow_kwd && this->eat(TokenKind::Keyword));
 }
 
 Token* Parser::expect_ident(bool allow_kwd) {
@@ -678,19 +730,21 @@ Token* Parser::expect_semi() {
 }
 
 bool Parser::eat_template_args_open() {
-  return this->eat(Punct::BeginTemplateArgs) &&
-         this->expect(Punct::AngleBraceOpen);
+  return this->eat(Punct::BeginTemplateArgs) && this->expect(Punct::AngleBraceOpen);
 }
 
 bool Parser::eat_template_args_close() {
   if (this->match(Op::RShift)) {
     this->cur->set_punct(Punct::AngleBraceClose);
 
-    this->insert(
-        Token::make(TokenKind::Punctuator)->set_punct(Punct::AngleBraceClose));
+    this->insert(Token::make(TokenKind::Punctuator)->set_punct(Punct::AngleBraceClose));
   }
 
   return this->eat(Punct::AngleBraceClose);
+}
+
+Token* Parser::expect_template_args_open() {
+  return this->expect(Punct::AngleBraceOpen);
 }
 
 Token* Parser::expect_template_args_close() {
@@ -722,11 +776,14 @@ Node* Parser::p_expect_identifier(bool allow_qualifier) {
 }
 
 void Parser::p_parse_id_qualifier(Node* nd) {
-  if (this->eat_template_args_open()) {
-    do {
-      nd->append(this->p_expect_type());
-    } while (this->eat(Punct::Comma));
+  if (!this->eat(Punct::BeginTemplateArgs))
+    return;
 
-    this->expect_template_args_close();
-  }
+  this->expect_template_args_open();
+
+  do {
+    nd->append(this->p_expect_type());
+  } while (this->eat(Punct::Comma));
+
+  this->expect_template_args_close();
 }

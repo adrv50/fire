@@ -12,9 +12,13 @@
 #define nd_id_name tok
 #define nd_id_template_args list
 
-#define nd_callfunc_callee nd.na
+//
+// ND_CallFunc
+#define nd_callfunc_callee nd.na 
 #define nd_callfunc_callee_userdef nd.nb
 #define nd_callfunc_callee_builtin nd.bfun
+#define nd_callfunc_is_method_call nd.b1
+#define nd_callfunc_method_self nd.nc
 #define nd_callfunc_args list
 
 #define nd_type_is_mut nd.b1
@@ -42,6 +46,7 @@
 #define nd_let_init nd.nb
 
 #define nd_func_name nd.tok2
+#define nd_func_is_method nd.b2
 #define nd_func_args list
 #define nd_func_result_type nd.na
 #define nd_func_is_variable_args nd.b1

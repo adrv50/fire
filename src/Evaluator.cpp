@@ -9,6 +9,16 @@ Obj& Evaluator::CallStack::append(Obj obj) {
   return this->objects.emplace_back(obj);
 }
 
+Evaluator::CallStack::CallStack()
+    : objects(),
+      result(nullptr),
+      is_returned(false) {
+}
+
+Evaluator::CallStack::~CallStack() {
+  this->objects.clear();
+}
+
 Evaluator::CallStack& Evaluator::get_current_call_stack() {
   return this->call_stack.back();
 }
@@ -82,6 +92,10 @@ Obj Evaluator::eval_expr(Node* node) {
 
   case ND_CallFunc: {
     Vec<Obj> args;
+
+    if (node->nd_callfunc_is_method_call) {
+      args.emplace_back(this->eval_expr(node->nd_callfunc_method_self));
+    }
 
     for (auto&& item : node->nd_callfunc_args)
       args.emplace_back(this->eval_expr(item));

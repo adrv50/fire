@@ -9,13 +9,16 @@ class Evaluator {
   struct CallStack {
     Vec<Obj> objects;
 
-    Obj result = nullptr;
+    Obj result;
 
-    bool is_returned = false;
+    bool is_returned;
 
     Obj& get(size_t index);
 
     Obj& append(Obj obj);
+
+    CallStack();
+    ~CallStack();
   };
 
   Vec<Obj> global_variables;

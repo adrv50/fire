@@ -36,6 +36,8 @@ struct Object {
 
   static ObjNone* none;
 
+  virtual ~Object() = default;
+
 protected:
   Object(TypeInfo const& ti);
 };
@@ -99,8 +101,10 @@ struct ObjStr : Object {
   string to_string() const override;
   ObjStr* clone() const override;
 
+  size_t length() const;
+
   ObjStr(std::u16string const& val);
 
-  static ObjStr* make(std::u16string val);
+  static ObjStr* make(std::u16string const& val);
   static ObjStr* make(string const& val);
 };

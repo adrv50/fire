@@ -341,8 +341,7 @@ void Sema::check_stmt(Node* stmt) {
       // don't match to specified type
       if (!retval.equals(expected))
         Error(stmt->tok, "expected '" + expected.to_string() +
-                             "' type expression, but found '" +
-                             retval.to_string() + "'")
+                             "' type expression, but found '" + retval.to_string() + "'")
             .crash();
     }
 
@@ -350,11 +349,9 @@ void Sema::check_stmt(Node* stmt) {
     else {
       // => is func side unspecified or None ?
 
-      if (cur_fn->node->nd_func_result_type &&
-          !expected.equals(TypeKind::None)) {
+      if (cur_fn->node->nd_func_result_type && !expected.equals(TypeKind::None)) {
         Error(stmt->tok, "cannot take value in return statement. (function '" +
-                             cur_fn->node->nd_func_name->str +
-                             "' must return none)")
+                             cur_fn->node->nd_func_name->str + "' must return none)")
             .crash();
       }
     }
@@ -400,8 +397,7 @@ void Sema::check_let(Node* let) {
     return;
   }
 
-  auto& var = this->get_cur_scope()->variables.append(
-      VarInfo(let->nd_let_name->str, ti));
+  auto& var = this->get_cur_scope()->variables.append(VarInfo(let->nd_let_name->str, ti));
 
   var.is_type_deducted = true;
 }
@@ -505,8 +501,8 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
   case ND_LShift:
   case ND_RShift:
     if (!lhs.is(TypeKind::Int))
-      Error(node->tok, "cannot use operator '" + node->tok->str +
-                           "' for type '" + lhs.to_string() + "'")
+      Error(node->tok, "cannot use operator '" + node->tok->str + "' for type '" +
+                           lhs.to_string() + "'")
           .crash();
     break;
 
@@ -523,8 +519,7 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
   case ND_Or:
   case ND_And:
     if (!lhs.is(TypeKind::Bool))
-      Error(node->tok, "only can use operator 'or' or 'and' for bool type")
-          .crash();
+      Error(node->tok, "only can use operator 'or' or 'and' for bool type").crash();
     break;
 
   case ND_Assign:
@@ -560,6 +555,33 @@ TypeInfo Sema::eval_type_ti(Node* node) {
   return ti;
 }
 
+void limit_bf_candidates(Vec<Builtins::BuiltinFunc const*>& vec,
+                         Vec<TypeInfo> const& args, bool is_method,
+                         TypeInfo const* self) {
+
+  auto pred = [&](Builtins::BuiltinFunc const* bf) {
+    if (bf->is_method != is_method)
+      return true;
+
+    if (bf->is_method) {
+      if (!self || !self->equals(bf->self_type))
+        return true;
+    }
+
+    if (bf->arg_types.size() > args.size() ||
+        (!bf->is_variable_args && bf->arg_types.size() < args.size()))
+      return true;
+
+    for (size_t i = 0; i < bf->arg_types.size(); i++)
+      if (!bf->arg_types[i].equals(args[i]))
+        return true;
+
+    return false;
+  };
+
+  vec.erase(std::remove_if(vec.begin(), vec.end(), pred), vec.end());
+}
+
 //
 // check_function_call:
 //   check function call.
@@ -571,51 +593,107 @@ TypeInfo Sema::check_function_call(Node* call) {
   for (auto&& arg : call->nd_callfunc_args)
     call_args.push_back(this->eval_expr_ti(arg));
 
+  string strargs = "(" +
+                   utils::join(", ", call_args,
+                               [](TypeInfo const& t) -> string {
+                                 return t.to_string();
+                               }) +
+                   ")";
+
   // auto res = this->find_name_wrap(call->nd_callfunc_callee);
-  auto res = this->find_name(call->nd_callfunc_callee, this->get_cur_scope(),
-                             false, true);
+  auto res =
+      this->find_name(call->nd_callfunc_callee, this->get_cur_scope(), false, true);
 
-  auto callee = res.func;
+  auto userdef = res.func;
 
-  if (!callee) {
+  // if not found user-defined, find builtin function
+  // ユーザー定義関数がない場合は組み込み関数を探す
+  if (!userdef) {
     auto id = call->nd_callfunc_callee->get_last_id();
 
-    auto const& name = id->tok->str;
+    auto name = id->tok->str;
 
-    for (auto&& bf : Builtins::get_builtin_functions()) {
-      if (bf.name == name) {
-        this->compare_call_arguments(call, call_args, bf.arg_types,
-                                     bf.is_variable_args, nullptr, &bf);
+    auto is_method_call = call->nd_callfunc_is_method_call;
 
-        call->nd_callfunc_callee_builtin = &bf;
+    TypeInfo self_ti;
 
-        return bf.ret_type;
-      }
+    if (is_method_call) {
+      self_ti = this->eval_expr_ti(call->nd_callfunc_method_self);
     }
 
-    Error(id->tok, "cannot find function '" + id->tok->str + "'").crash();
+    // if found builtin function, set pointer
+    // 組み込み関数が存在する
+    if (Vec<Builtins::BuiltinFunc const*> bfs;
+        Builtins::BuiltinFunc::find(bfs, name) != 0) {
+
+      limit_bf_candidates(bfs, call_args, is_method_call, &self_ti);
+
+      if (bfs.size() >= 2) {
+        Error(id, "ambiguous call to builtin function '" + name + strargs + "'").crash();
+      }
+      else if (bfs.empty()) {
+        Error(id, "no overload found for builtin-function '" + name + strargs + "'")
+            .crash();
+      }
+
+      auto& bf = bfs[0];
+
+      // compare arguments
+      // 引数を比較する
+      this->compare_call_arguments(call, this->is_method(bf), call_args, bf->arg_types,
+                                   bf->is_variable_args, nullptr, bf);
+
+      // set pointer
+      // ポインタを設定する
+      call->nd_callfunc_callee_builtin = bf;
+
+      // return type
+      // 戻り値の型を返す
+      return bf->ret_type;
+    }
+
+    // if not found builtin function, error
+    // 組み込み関数が見つからなかった場合はエラー
+    else {
+      Error(id->tok, "cannot find the " + string(is_method_call ? "method" : "function") +
+                         " '" + name + strargs + "'")
+          .crash();
+    }
   }
 
-  this->compare_call_arguments(call, call_args, res.scope->arg_types,
-                               callee->nd_func_is_variable_args, callee,
-                               nullptr);
+  // --------
+  // exist user-defined function same name
+  // 同じ名前のユーザー定義関数が存在する
 
-  call->nd_callfunc_callee_userdef = res.func;
+  // compare arguments
+  // 引数を比較する
+  this->compare_call_arguments(call, this->is_method(userdef), call_args,
+                               res.scope->arg_types, userdef->nd_func_is_variable_args,
+                               userdef, nullptr);
 
-  return this->eval_type_ti(callee->nd_func_result_type);
+  // set pointer
+  // ポインタを設定する
+  call->nd_callfunc_callee_userdef = userdef;
+
+  // return type
+  // 戻り値の型を返す
+  return this->eval_type_ti(userdef->nd_func_result_type);
 }
 
 //
 // compare_call_arguments
 //
 
-void Sema::compare_call_arguments(Node* cf, Vec<TypeInfo> const& call,
-                                  Vec<TypeInfo> const& func,
-                                  bool is_variable_args, Node* fn,
-                                  Builtins::BuiltinFunc const* bfn) {
+void Sema::compare_call_arguments(Node* cf, bool is_method, Vec<TypeInfo> const& call,
+                                  Vec<TypeInfo> const& func, bool is_variable_args,
+                                  Node* fn, Builtins::BuiltinFunc const* bfn) {
+
+  (void)is_method;
 
   if (!is_variable_args && func.size() < call.size()) {
-    Error(cf->nd_callfunc_callee->get_last_id(), "too many arguments")
+    Error(cf->nd_callfunc_callee->get_last_id(),
+          "too many arguments to call function '" +
+              (fn ? fn->nd_func_name->str : bfn->name) + "'")
         .add_note(fn,
                   fn ? "defined here"
                      : ("builtin function '" + bfn->name + "' can take up to " +
@@ -625,12 +703,13 @@ void Sema::compare_call_arguments(Node* cf, Vec<TypeInfo> const& call,
   }
 
   if (call.size() < func.size()) {
-    Error(cf->nd_callfunc_callee->get_last_id(), "too few arguments")
+    Error(cf->nd_callfunc_callee->get_last_id(),
+          "too few arguments to call function '" +
+              (fn ? fn->nd_func_name->str : bfn->name) + "'")
         .add_note(fn,
                   fn ? "defined here"
                      : ("least " + std::to_string(bfn->arg_types.size()) +
-                        " arguments needed by builtin function '" + bfn->name +
-                        "'"),
+                        " arguments needed by builtin function '" + bfn->name + "'"),
                   ErrorType::Note)
         .crash();
   }
@@ -640,14 +719,26 @@ void Sema::compare_call_arguments(Node* cf, Vec<TypeInfo> const& call,
     auto& funcarg = func[i];
 
     if (!callarg.equals(funcarg)) {
-      Error(cf->nd_callfunc_callee->get_last_id(),
-            "expected '" + funcarg.to_string() +
-                "' type expression, but found '" + callarg.to_string() + "'")
+      Error(cf->nd_callfunc_callee->get_last_id(), "expected '" + funcarg.to_string() +
+                                                       "' type expression, but found '" +
+                                                       callarg.to_string() + "'")
           .add_note(fn ? fn->nd_func_args[i]->nd_func_arg_type : nullptr,
                     fn ? "defined here" : "definition is: " + bfn->to_string())
           .crash();
     }
   }
+}
+
+//
+// is_method:
+//   check if the function is method.
+//
+bool Sema::is_method(Node* func) {
+  return func->nd_func_is_method;
+}
+
+bool Sema::is_method(Builtins::BuiltinFunc const* bf) {
+  return bf->is_method;
 }
 
 //
@@ -663,8 +754,7 @@ Sema::Scope*& Sema::get_cur_scope() {
 //   find scope by predicate.
 //
 Sema::Scope* Sema::find_scope_if(std::function<bool(Scope*)> const& pred,
-                                 Scope* from_this, bool from_root,
-                                 bool reverse) {
+                                 Scope* from_this, bool from_root, bool reverse) {
 
   Scope* scope = nullptr;
 
@@ -699,9 +789,8 @@ Sema::Scope* Sema::find_scope_if(std::function<bool(Scope*)> const& pred,
 Sema::NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
   (void)scope;
 
-  auto res =
-      this->find_name(sr->nd_scope_resol_first,
-                      scope ? scope : this->get_cur_scope(), false, false);
+  auto res = this->find_name(sr->nd_scope_resol_first,
+                             scope ? scope : this->get_cur_scope(), false, false);
 
   for (auto&& id : sr->nd_scope_resol_idlist) {
     switch (res.type) {
@@ -710,8 +799,7 @@ Sema::NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
 
     case NameFindResult::NA_Var:
     case NameFindResult::NA_Func:
-      Error(id->tok,
-            "cannot use scope resolution operator for variable or function")
+      Error(id->tok, "cannot use scope resolution operator for variable or function")
           .crash();
 
     case NameFindResult::NA_Enum:

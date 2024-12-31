@@ -160,6 +160,17 @@ ObjChar* ObjChar::make(char16_t val) {
   return make_obj<ObjChar>(val);
 }
 
-ObjStr* ObjStr::make(std::u16string val) {
+ObjStr* ObjStr::make(std::u16string const& val) {
   return make_obj<ObjStr>(val);
+}
+
+ObjStr* ObjStr::make(string const& val) {
+  return make_obj<ObjStr>(utf::to_utf16(val));
+}
+
+// ----------------------------------------
+//  ObjStr
+// ----------------------------------------
+size_t ObjStr::length() const {
+  return this->val.size();
 }
