@@ -4,15 +4,12 @@ DBGPREFIX	?=	d
 TOPDIR		?= 	$(CURDIR)
 BUILD		:= 	build
 INCLUDE		:= 	include
-SOURCE		:= 	src	\
-				src/AST \
-				src/Evaluator \
+SOURCE		:= 	src \
 				src/Parser \
-				src/Sema \
-				src/VM
+				src/Sema
 
-CC			:=	gcc
-CXX			:=	g++
+CC			:=	clang
+CXX			:=	clang++
 
 OPTI		?=	-O0 -g -D_METRO_DEBUG_
 COMMON		:=	$(OPTI) -Wall -Wextra -Wno-switch $(INCLUDES)
