@@ -51,8 +51,8 @@ Error& Error::emit() {
   if (this->tok) {
     auto& ref = *this->tok->ref;
 
-    cout << COL_YELLOW "     ---> " << COL_CYAN << ref.get_ss().get_path()
-         << ":" << ref.line_num << ":" << ref.pos_in_line << endl
+    cout << COL_YELLOW "     ---> " << COL_CYAN << ref.get_ss().get_path() << ":"
+         << ref.line_num << ":" << ref.pos_in_line << endl
          << COL_YELLOW << utils::format("% 4zu | ", ref.line_num) << COL_WHITE
          << ref.get_line_view() << COL_YELLOW "     |" << COL_RED
          << string(ref.pos_in_line, ' ') << "^" << endl
@@ -62,6 +62,9 @@ Error& Error::emit() {
 
   for (auto&& note : this->notes)
     note.emit();
+
+  if (this->type != ErrorType::Note)
+    cout << endl;
 
   return *this;
 }
@@ -73,8 +76,8 @@ void Error::stop(int code) {
 // --------------------------------------------
 //  Instantiations of set_msg()
 
-#define INST(_K, _Args...)                                                     \
-  template <>                                                                  \
+#define INST(_K, _Args...)                                                               \
+  template <>                                                                            \
   Error& Error::set_msg<_K>(_Args)
 
 using Ek = ErrorKind;
@@ -91,8 +94,7 @@ INST(Ek::TypeMismatch) {
 // UnexpectedType
 //
 INST(Ek::UnexpectedType, string const& expected, string const& found) {
-  this->set_message("expected type '" + expected + "', but found '" + found +
-                    "'");
+  this->set_message("expected type '" + expected + "', but found '" + found + "'");
   return *this;
 }
 
@@ -148,8 +150,8 @@ INST(Ek::NotIterable, string const& type) {
 // InvalidOperatorForType
 //
 INST(Ek::InvalidOperatorForType, TypeInfo const& type, string const& op) {
-  this->set_message("'" + type.to_string() +
-                    "' type does not support operator '" + op + "'");
+  this->set_message("'" + type.to_string() + "' type does not support operator '" + op +
+                    "'");
   return *this;
 }
 

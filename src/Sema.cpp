@@ -555,7 +555,7 @@ TypeInfo Sema::eval_type_ti(Node* node) {
   return ti;
 }
 
-void limit_bf_candidates(Vec<Builtins::BuiltinFunc const*>& vec,
+auto limit_bf_candidates(Vec<Builtins::BuiltinFunc const*>& vec,
                          Vec<TypeInfo> const& args, bool is_method,
                          TypeInfo const* self) {
 
@@ -563,10 +563,8 @@ void limit_bf_candidates(Vec<Builtins::BuiltinFunc const*>& vec,
     if (bf->is_method != is_method)
       return true;
 
-    if (bf->is_method) {
-      if (!self || !self->equals(bf->self_type))
-        return true;
-    }
+    if (bf->is_method && (!self || !self->equals(bf->self_type)))
+      return true;
 
     if (bf->arg_types.size() > args.size() ||
         (!bf->is_variable_args && bf->arg_types.size() < args.size()))
@@ -579,7 +577,7 @@ void limit_bf_candidates(Vec<Builtins::BuiltinFunc const*>& vec,
     return false;
   };
 
-  vec.erase(std::remove_if(vec.begin(), vec.end(), pred), vec.end());
+  return std::remove_if(vec.begin(), vec.end(), pred);
 }
 
 //
@@ -626,14 +624,25 @@ TypeInfo Sema::check_function_call(Node* call) {
     if (Vec<Builtins::BuiltinFunc const*> bfs;
         Builtins::BuiltinFunc::find(bfs, name) != 0) {
 
-      limit_bf_candidates(bfs, call_args, is_method_call, &self_ti);
+      auto iter = limit_bf_candidates(bfs, call_args, is_method_call, &self_ti);
 
-      if (bfs.size() >= 2) {
+      if (auto count = std::distance(bfs.begin(), iter); count >= 2) {
         Error(id, "ambiguous call to builtin function '" + name + strargs + "'").crash();
       }
-      else if (bfs.empty()) {
-        Error(id, "no overload found for builtin-function '" + name + strargs + "'")
-            .crash();
+      else if (count == 0) {
+        Error e{id};
+
+        if (is_method_call)
+          e.set_message("no overload found for builtin method '" + self_ti.to_string() +
+                        "::" + name + strargs + "'");
+        else
+          e.set_message("no overload found for builtin function '" + name + strargs +
+                        "'");
+
+        while (iter != bfs.end())
+          e.add_note("candidate: " + (*iter++)->to_string());
+
+        e.crash();
       }
 
       auto& bf = bfs[0];

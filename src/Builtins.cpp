@@ -128,12 +128,19 @@ Obj BuiltinFunc::call(Evaluator& eval, Vec<Obj>& args) const {
 }
 
 string BuiltinFunc::to_string() const {
-  return this->name + "(" +
-         utils::join(", ", this->arg_types,
-                     [](TypeInfo const& t) -> string {
-                       return t.to_string();
-                     }) +
-         ")";
+  string s;
+
+  if (this->is_method)
+    s += this->self_type.to_string() + "::";
+
+  s += this->name + "(" +
+       utils::join(", ", this->arg_types,
+                   [](TypeInfo const& t) -> string {
+                     return t.to_string();
+                   }) +
+       ")";
+
+  return s;
 }
 
 size_t BuiltinFunc::find(Vec<BuiltinFunc const*>& out, string const& name) {
