@@ -25,7 +25,7 @@ Error& Error::set_message(string const& msg) {
   return *this;
 }
 
-Error& Error::emit() {
+Error const& Error::emit() const {
   using std::cout;
   using std::endl;
 
@@ -45,11 +45,12 @@ Error& Error::emit() {
 
   cout << COL_WHITE << this->msg << endl;
 
-  if (this->node)
-    this->tok = this->node->tok;
+  auto token = this->node ? this->node->tok : this->tok;
 
-  if (this->tok) {
-    auto& ref = *this->tok->ref;
+  if (token) {
+    auto& ref = *token->ref;
+
+    assert(ref.pos < 10000);
 
     cout << COL_YELLOW "     ---> " << COL_CYAN << ref.get_ss().get_path() << ":"
          << ref.line_num << ":" << ref.pos_in_line << endl

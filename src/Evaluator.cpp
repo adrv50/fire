@@ -45,6 +45,9 @@ void Evaluator::pop_stack() {
 
 Evaluator::Evaluator(Node* program)
     : program(program) {
+  if (!program)
+    return;
+
   for (auto&& item : this->program->nd_program_items) {
     if (item->is(ND_Let)) {
       this->global_variables.emplace_back(this->eval_expr(item->nd_let_init));
@@ -52,17 +55,25 @@ Evaluator::Evaluator(Node* program)
   }
 }
 
+Obj& Evaluator::append_global_var(Obj obj) {
+  return this->global_variables.emplace_back(obj);
+}
+
 Obj Evaluator::evaluate() {
   auto& main_stack = this->push_stack();
 
+  (void)main_stack;
   // todo append [argc, argv] to main_stack
 
-  for (auto&& item : this->program->nd_program_main->nd_func_body->nd_elements)
-    this->eval_stmt(item);
+  Obj result = nullptr;
+
+  for (auto&& item : this->program->nd_program_main->nd_func_body->nd_elements) {
+    result = this->eval_stmt(item);
+  }
 
   this->pop_stack();
 
-  return main_stack.result;
+  return result;
 }
 
 Obj Evaluator::eval_expr(Node* node) {
@@ -121,6 +132,10 @@ Obj Evaluator::eval_expr(Node* node) {
       lhs->as_float()->val += rhs->as_float()->val;
       break;
 
+    case TypeKind::String:
+      lhs->as_str()->val += rhs->as_str()->val;
+      break;
+
     default:
       todo_impl;
     }
@@ -156,7 +171,7 @@ Obj Evaluator::eval_call_func(Node* node, Vec<Obj>& args) {
   return result;
 }
 
-void Evaluator::eval_stmt(Node* node) {
+Obj Evaluator::eval_stmt(Node* node) {
   switch (node->kind) {
 
   case ND_Block:
@@ -179,18 +194,23 @@ void Evaluator::eval_stmt(Node* node) {
   }
 
   default:
-    this->eval_expr(node);
-    break;
+    return this->eval_expr(node);
   }
+
+  return nullptr;
 }
 
-void Evaluator::eval_block(Node* node) {
+Obj Evaluator::eval_block(Node* node) {
+  Obj result = nullptr;
+
   for (auto&& item : node->nd_elements) {
-    this->eval_stmt(item);
+    result = this->eval_stmt(item);
 
     if (this->get_current_call_stack().is_returned)
       break;
   }
+
+  return result;
 }
 
 void Evaluator::eval_let(Node* node) {

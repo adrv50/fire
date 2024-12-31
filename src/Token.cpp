@@ -5,15 +5,15 @@ bool Token::is(TokenKind k) const {
 }
 
 bool Token::is_kwd(TokenKwdKind k) const {
-  return is(TokenKind::Keyword) && this->kwd == k;
+  return this->kwd == k;
 }
 
 bool Token::is_op(TokenOperatorKind k) const {
-  return is(TokenKind::Operator) && this->op == k;
+  return this->op == k;
 }
 
 bool Token::is_punct(TokenPunctKind k) const {
-  return is(TokenKind::Punctuator) && this->punct == k;
+  return this->punct == k;
 }
 
 bool Token::is_semi() const {
@@ -21,8 +21,8 @@ bool Token::is_semi() const {
 }
 
 Token* Token::make(TokenKind kind, SourceStorage const* SS, Token* prev,
-                   string const& str, size_t pos, TokenKwdKind kwd,
-                   TokenOperatorKind op, TokenPunctKind punct) {
+                   string const& str, size_t pos, TokenKwdKind kwd, TokenOperatorKind op,
+                   TokenPunctKind punct) {
   auto tok = new Token(kind, SS, prev, str, pos, kwd, op, punct);
 
   if (prev)
@@ -36,27 +36,23 @@ Token* Token::make(TokenKind kind) {
 }
 
 Token* Token::set_kwd(TokenKwdKind k) {
-  this->kind = TokenKind::Keyword;
   this->kwd = k;
   return this;
 }
 
 Token* Token::set_op(TokenOperatorKind k) {
-  this->kind = TokenKind::Operator;
   this->op = k;
   return this;
 }
 
 Token* Token::set_punct(TokenPunctKind k) {
-  this->kind = TokenKind::Punctuator;
   this->punct = k;
   return this;
 }
 
 Token* Token::clone() const {
-  auto cloned =
-      Token::make(this->kind, &this->ref->get_ss(), this->prev, this->str,
-                  this->ref->pos, this->kwd, this->op, this->punct);
+  auto cloned = Token::make(this->kind, &this->ref->get_ss(), this->prev, this->str,
+                            this->ref->pos, this->kwd, this->op, this->punct);
 
   cloned->next = this->next;
   cloned->prev = this->prev;
@@ -64,9 +60,8 @@ Token* Token::clone() const {
   return cloned;
 }
 
-Token::Token(TokenKind kind, SourceStorage const* SS, Token* prev,
-             string const& str, size_t pos, TokenKwdKind kwd,
-             TokenOperatorKind op, TokenPunctKind punct)
+Token::Token(TokenKind kind, SourceStorage const* SS, Token* prev, string const& str,
+             size_t pos, TokenKwdKind kwd, TokenOperatorKind op, TokenPunctKind punct)
     : kind(kind),
       kwd(kwd),
       op(op),
@@ -74,10 +69,12 @@ Token::Token(TokenKind kind, SourceStorage const* SS, Token* prev,
       prev(prev),
       next(nullptr),
       str(str),
-      ref(SS ? SS->make_ref(this, pos, str.length()) : nullptr) {
+      ref(SS ? SS->make_ref(this, pos, str.length()) : nullptr),
+      literal_data({0}),
+      v_str() {
 }
 
 Token::Token(TokenKind kind)
-    : Token(kind, nullptr, nullptr, "", 0, TokenKwdKind::None,
-            TokenOperatorKind::None, TokenPunctKind::None) {
+    : Token(kind, nullptr, nullptr, "", 0, TokenKwdKind::None, TokenOperatorKind::None,
+            TokenPunctKind::None) {
 }

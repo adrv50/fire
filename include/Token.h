@@ -24,10 +24,6 @@ enum class TokenKind : u8 {
   Identifier,
 
   //
-  // Keywords
-  Keyword, // ==> TokenKwdKind
-
-  //
   // Punctuators
   Punctuator,
   Semi,
@@ -147,6 +143,13 @@ enum class TokenOperatorKind : u16 {
   BitOr,  // |
   BitXor, // ^
 
+  BitAndAssign, // &=
+  BitOrAssign,  // |=
+  BitXorAssign, // ^=
+
+  LShiftAssign, // <<=
+  RShiftAssign, // >>=
+
   AddAssign, // +=
   SubAssign, // -=
   MulAssign, // *=
@@ -184,6 +187,9 @@ enum class TokenPunctKind : u8 {
   ArrayBraceClose, // ]
 
   BeginTemplateArgs, // @
+
+  AttributeBegin, // [[
+  AttributeEnd,   // ]]
 };
 
 ///
@@ -225,8 +231,7 @@ struct Token {
   }
 
   static Token* make(TokenKind kind, SourceStorage const* SS, Token* prev,
-                     string const& str, size_t pos,
-                     TokenKwdKind kwd = TokenKwdKind::None,
+                     string const& str, size_t pos, TokenKwdKind kwd = TokenKwdKind::None,
                      TokenOperatorKind op = TokenOperatorKind::None,
                      TokenPunctKind punct = TokenPunctKind::None);
 
@@ -253,8 +258,7 @@ struct Token {
   }
 
   Token(TokenKind kind, SourceStorage const* SS, Token* prev, string const& str,
-        size_t pos, TokenKwdKind kwd, TokenOperatorKind op,
-        TokenPunctKind punct);
+        size_t pos, TokenKwdKind kwd, TokenOperatorKind op, TokenPunctKind punct);
 
   Token(TokenKind kind = TokenKind::Unknown);
 };

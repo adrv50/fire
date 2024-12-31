@@ -10,6 +10,12 @@ struct ObjInt;
 struct ObjFloat;
 struct ObjBool;
 struct ObjStr;
+struct ObjArray;
+struct ObjTuple;
+struct ObjDict;
+struct ObjFunctor;
+
+struct Node;
 
 using Obj = Object*;
 
@@ -76,10 +82,10 @@ struct ObjFloat : Object {
 struct ObjBool : Object {
   bool val;
 
+  ObjBool(bool val);
+
   ObjBool* clone() const override;
   string to_string() const override;
-
-  ObjBool(bool val);
 
   static ObjBool* make(bool val);
 };
@@ -87,10 +93,10 @@ struct ObjBool : Object {
 struct ObjChar : Object {
   char16_t val;
 
+  ObjChar(char16_t val);
+
   string to_string() const override;
   ObjChar* clone() const override;
-
-  ObjChar(char16_t val);
 
   static ObjChar* make(char16_t val);
 };
@@ -98,13 +104,57 @@ struct ObjChar : Object {
 struct ObjStr : Object {
   std::u16string val;
 
+  ObjStr(std::u16string const& val);
+
   string to_string() const override;
   ObjStr* clone() const override;
 
   size_t length() const;
 
-  ObjStr(std::u16string const& val);
-
   static ObjStr* make(std::u16string const& val);
   static ObjStr* make(string const& val);
+};
+
+struct ObjArray : Object {
+  Vec<Obj> val;
+
+  ObjArray(Vec<Obj> const& val);
+
+  string to_string() const override;
+  ObjArray* clone() const override;
+
+  static ObjArray* make(Vec<Obj> const& val = {});
+};
+
+struct ObjTuple : Object {
+  Vec<Obj> val;
+
+  ObjTuple(Vec<Obj> const& val);
+
+  string to_string() const override;
+  ObjTuple* clone() const override;
+
+  static ObjTuple* make(Vec<Obj> const& val = {});
+};
+
+struct ObjDict : Object {
+  Vec<pair<Obj, Obj>> data;
+
+  ObjDict(Vec<pair<Obj, Obj>> const& data);
+
+  string to_string() const override;
+  ObjDict* clone() const override;
+
+  static ObjDict* make(Vec<pair<Obj, Obj>> const& data = {});
+};
+
+struct ObjFunctor : Object {
+  Node* func;
+
+  ObjFunctor(Node* func);
+
+  string to_string() const override;
+  ObjFunctor* clone() const override;
+
+  static ObjFunctor* make(Node* func);
 };

@@ -184,8 +184,14 @@ void Sema::SemaContext::leave() {
 // ---------------------------------
 Sema::Sema(Node* root)
     : root(root),
-      root_scope(Scope::make_scope(root)),
-      ctx(root_scope) {
+      root_scope(),
+      ctx() {
+
+  if (root->is(ND_Program)) {
+    this->root_scope = Scope::make_scope(root);
+
+    this->ctx.cur_scope = this->root_scope;
+  }
 }
 
 // ---------------------------------
@@ -422,6 +428,27 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
   case ND_Value:
     return node->nd.obj->ti;
 
+  case ND_Array: {
+    auto const& elems = node->nd_array_elements;
+
+    if (elems.empty()) {
+      // todo: check type of empty array from near context.
+      todo_impl;
+    }
+
+    TypeInfo ti = this->eval_expr_ti(elems[0]);
+
+    for (size_t i = 1; i < elems.size(); i++)
+      this->err_if_unexpected_type(ti, elems[i]);
+
+    return ti;
+  }
+
+  case ND_Tuple:
+  case ND_Dict:
+    todo_impl;
+    break;
+
   case ND_Identifier:
   case ND_ScopeResol: {
 
@@ -445,7 +472,7 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
       todo_impl;
     }
 
-    Error(node, "cannot find name '" + res.name + "'").crash();
+    Error(res.err_id, "cannot find name '" + res.name + "'").crash();
   }
 
   case ND_Not:
@@ -689,6 +716,16 @@ TypeInfo Sema::check_function_call(Node* call) {
   return this->eval_type_ti(userdef->nd_func_result_type);
 }
 
+void Sema::err_if_unexpected_type(TypeInfo const& expection, Node* to_expect) {
+  if (!to_expect)
+    return;
+
+  if (auto ti = this->eval_expr_ti(to_expect); !expection.equals(ti))
+    Error(to_expect,
+          "expected '" + expection.to_string() + "', but found '" + ti.to_string() + "'")
+        .crash();
+}
+
 //
 // compare_call_arguments
 //
@@ -801,9 +838,15 @@ Sema::NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
   auto res = this->find_name(sr->nd_scope_resol_first,
                              scope ? scope : this->get_cur_scope(), false, false);
 
+  if (!res.is_found()) {
+    res.err_id = sr->nd_scope_resol_first;
+    return res;
+  }
+
   for (auto&& id : sr->nd_scope_resol_idlist) {
     switch (res.type) {
     case NameFindResult::NA_NotFound:
+      res.err_id = id;
       return res;
 
     case NameFindResult::NA_Var:
@@ -856,15 +899,21 @@ Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
       },
       nullptr, from_root, reverse);
 
+  if (result.is_found())
+    return result;
+
   if (reverse) {
     if (scope->parent)
-      return this->find_name(id, scope->parent, false, true);
+      result = this->find_name(id, scope->parent, false, true);
   }
   else {
     for (auto&& child : scope->childs)
       if ((result = this->find_name(id, child, false, false)).is_found())
         break;
   }
+
+  if (!result.is_found())
+    result.err_id = id;
 
   return result;
 }

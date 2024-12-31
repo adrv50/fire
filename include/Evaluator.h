@@ -39,15 +39,20 @@ class Evaluator {
 public:
   Evaluator(Node* program);
 
+  Evaluator(Evaluator&&) = delete;
+  Evaluator(Evaluator const&) = delete;
+
+  Obj& append_global_var(Obj obj);
+
   Obj evaluate();
 
   Obj eval_expr(Node* node);
 
   Obj eval_call_func(Node* node, Vec<Obj>& args);
 
-  void eval_stmt(Node* node);
+  Obj eval_stmt(Node* node);
 
-  void eval_block(Node* node);
+  Obj eval_block(Node* node);
 
   void eval_let(Node* node);
 };

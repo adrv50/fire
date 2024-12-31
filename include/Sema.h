@@ -171,11 +171,13 @@ public:
   TypeInfo check_function_call(Node* call);
 
   void compare_call_arguments(Node* cf, bool is_method, Vec<TypeInfo> const& call,
-                              Vec<TypeInfo> const& func, bool is_variable_args,
-                              Node* fn, Builtins::BuiltinFunc const* bfn);
+                              Vec<TypeInfo> const& func, bool is_variable_args, Node* fn,
+                              Builtins::BuiltinFunc const* bfn);
 
   bool is_method(Node* func);
   bool is_method(Builtins::BuiltinFunc const* bf);
+
+  void err_if_unexpected_type(TypeInfo const& expection, Node* to_expect);
 
 private:
   struct NameFindResult {
@@ -209,6 +211,8 @@ private:
     VarInfo* var = nullptr;
     Node* func = nullptr;
 
+    Node* err_id = nullptr;
+
     NameFindResult(string const& name, Scope* scope = nullptr,
                    NameType type = NA_NotFound)
         : name(name),
@@ -229,8 +233,8 @@ private:
 
   NameFindResult scope_resolution(Node* sr, Scope* scope = nullptr);
 
-  NameFindResult find_name(Node* id, Scope* from_this = nullptr,
-                           bool from_root = false, bool reverse = false);
+  NameFindResult find_name(Node* id, Scope* from_this = nullptr, bool from_root = false,
+                           bool reverse = false);
 
   NameFindResult find_name_wrap(Node* name, Scope* scope = nullptr) {
     return name->is(ND_ScopeResol) ? this->scope_resolution(name, scope)

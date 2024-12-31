@@ -6,6 +6,13 @@
 
 #define nd_value nd.obj
 
+#define nd_array_elements list
+#define nd_tuple_elements list
+
+#define nd_dict_pairs nd.list
+#define nd_dict_pair_key nd.na
+#define nd_dict_pair_value nd.nb
+
 #define nd_variable_is_global nd.b1
 #define nd_variable_offset nd.size
 
@@ -14,7 +21,7 @@
 
 //
 // ND_CallFunc
-#define nd_callfunc_callee nd.na 
+#define nd_callfunc_callee nd.na
 #define nd_callfunc_callee_userdef nd.nb
 #define nd_callfunc_callee_builtin nd.bfun
 #define nd_callfunc_is_method_call nd.b1
@@ -82,8 +89,14 @@ enum NodeKind {
   ND_Identifier,
   ND_ScopeResol,
 
+  ND_Array,
+  ND_Tuple,
+  ND_Dict,
+  ND_DictPair,
+
   ND_Not,
   ND_Ref,
+  ND_Cast,
 
   ND_Subscript,
   ND_MemberAccess,
@@ -205,13 +218,11 @@ struct Node {
 
   static Node* new_node(NodeKind kind, Token* tok);
 
-  static Node* new_node(NodeKind kind, Token* tok, Node* lhs,
-                        Node* rhs = nullptr);
+  static Node* new_node(NodeKind kind, Token* tok, Node* lhs, Node* rhs = nullptr);
 
   static Node* new_value(Token* tok, Object* obj);
 
-  static Node* new_compare(CompareExprKind ck, Token* op, Node* lhs,
-                           Node* rhs) {
+  static Node* new_compare(CompareExprKind ck, Token* op, Node* lhs, Node* rhs) {
     auto nd = Node::new_node(ND_Compare, op, lhs, rhs);
 
     nd->cmp_kind = ck;

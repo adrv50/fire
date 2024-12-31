@@ -2,7 +2,6 @@
 #include "Lexer.h"
 #include "Error.h"
 
-// clang-format off
 using TKop = TokenOperatorKind;
 using TKpunct = TokenPunctKind;
 using TKkwd = TokenKwdKind;
@@ -11,19 +10,19 @@ using TKkwd = TokenKwdKind;
 // all punctuators or operators
 //
 static constexpr char const* all_punct_list[] = {
-  "...", "<<=", ">>=", "<<", ">>", "=>", "<=", ">=", "==", "!=", "..", "+=",
-  "-=",  "*=",  "/=",  "%=", "&=", "^=", "|=", "&&", "||", "->", "::", "<",
-  ">",   "+",   "-",   "/",  "*",  "%",  "=",  ";",  ":",  ",",  ".",  "[",
-  "]",   "(",   ")",   "{",  "}",  "!",  "?",  "&",  "^",  "|",  "@",
+    "...", "<<=", ">>=", "[[", "]]", "<<", ">>", "=>", "<=", ">=", "==", "!=", "..",
+    "+=",  "-=",  "*=",  "/=", "%=", "&=", "^=", "|=", "&&", "||", "->", "::", "<",
+    ">",   "+",   "-",   "/",  "*",  "%",  "=",  ";",  ":",  ",",  ".",  "[",  "]",
+    "(",   ")",   "{",   "}",  "!",  "?",  "&",  "^",  "|",  "@",
 };
 
 //
 // string representation for TokenKind
 //
 static char const* s_kind[] = {
-    "(unknown)",    "decimal",   "float",    "hexadecimal", "binary",
+    "(unknown)",  "decimal",   "float",    "hexadecimal", "binary",
     "string",     "character", "boolean",  "identifier",  "keyword",
-    "punctuator", "\";\"",      "operator", "end",
+    "punctuator", "\";\"",     "operator", "end",
 };
 
 //
@@ -31,38 +30,45 @@ static char const* s_kind[] = {
 //   pairs of TokenOperatorKind and its string representation
 //
 static constexpr std::pair<TKop, char const*> tok_operators[] = {
-  { TKop::None,      "" },
+    {TKop::None, ""},
 
-  { TKop::MemberAccess,      "." },
-  { TKop::SubscriptionOpen,  "[" },
-  { TKop::SubscriptionClose, "]" },
+    {TKop::MemberAccess, "."},
+    {TKop::SubscriptionOpen, "["},
+    {TKop::SubscriptionClose, "]"},
 
-  { TKop::Add,     "+" },
-  { TKop::Sub,     "-" },
-  { TKop::Mul,     "*" },
-  { TKop::Div,     "/" },
-  { TKop::Mod,     "%" },
-  { TKop::Assign,  "=" },
+    {TKop::Add, "+"},
+    {TKop::Sub, "-"},
+    {TKop::Mul, "*"},
+    {TKop::Div, "/"},
+    {TKop::Mod, "%"},
+    {TKop::Assign, "="},
 
-  { TKop::LShift,  "<<" },
-  { TKop::RShift,  ">>" },
+    {TKop::LShift, "<<"},
+    {TKop::RShift, ">>"},
 
-  { TKop::LeftBig,      ">" },
-  { TKop::RightBig,     "<" },
-  { TKop::LeftBigOrEq,  ">=" },
-  { TKop::RightBigOrEq, "<=" },
-  { TKop::Equal,        "==" },
-  { TKop::NotEqual,     "!=" },
+    {TKop::LeftBig, ">"},
+    {TKop::RightBig, "<"},
+    {TKop::LeftBigOrEq, ">="},
+    {TKop::RightBigOrEq, "<="},
+    {TKop::Equal, "=="},
+    {TKop::NotEqual, "!="},
 
-  { TKop::BitAnd,     "&" },
-  { TKop::BitOr,      "|" },
-  { TKop::BitXor,     "^" },
+    {TKop::BitAnd, "&"},
+    {TKop::BitOr, "|"},
+    {TKop::BitXor, "^"},
 
-  { TKop::AddAssign,  "+=" },
-  { TKop::SubAssign,  "-=" },
-  { TKop::MulAssign,  "*=" },
-  { TKop::DivAssign,  "/=" },
-  { TKop::ModAssign,  "%=" },
+    {TKop::BitAndAssign, "&="},
+    {TKop::BitOrAssign, "|="},
+    {TKop::BitXorAssign, "^="},
+
+    {TKop::LShiftAssign, "<<="},
+    {TKop::RShiftAssign, ">>="},
+
+    {TKop::AddAssign, "+="},
+    {TKop::SubAssign, "-="},
+    {TKop::MulAssign, "*="},
+    {TKop::DivAssign, "/="},
+    {TKop::ModAssign, "%="},
 };
 
 //
@@ -70,29 +76,31 @@ static constexpr std::pair<TKop, char const*> tok_operators[] = {
 //    pairs of TokenPunctKind and its string representation
 //
 static constexpr std::pair<TKpunct, char const*> tok_punctuators[] = {
-  { TKpunct::None,         "" },
+    {TKpunct::None, ""},
 
-  { TKpunct::Comma,          "," },
-  { TKpunct::Dot,            "." },
-  
-  { TKpunct::Semi,           ";" },
-  { TKpunct::Colon,          ":" },
+    {TKpunct::Comma, ","},
+    {TKpunct::Dot, "."},
 
-  { TKpunct::ScopeResol,     "::" },
+    {TKpunct::Semi, ";"},
+    {TKpunct::Colon, ":"},
 
-  { TKpunct::ResultTypeSpecifier,    "->" },
+    {TKpunct::ScopeResol, "::"},
 
-  { TKpunct::BraceOpen,        "(" },
-  { TKpunct::BraceClose,       ")" },
-  { TKpunct::BlockBraceOpen,   "{" },
-  { TKpunct::BlockBraceClose,  "}" },
-  { TKpunct::AngleBraceOpen,   "<" },
-  { TKpunct::AngleBraceClose,  ">" },
-  { TKpunct::ArrayBraceOpen,   "[" },
-  { TKpunct::ArrayBraceClose,  "]" },
+    {TKpunct::ResultTypeSpecifier, "->"},
 
-  { TKpunct::BeginTemplateArgs, "@"}, 
+    {TKpunct::BraceOpen, "("},
+    {TKpunct::BraceClose, ")"},
+    {TKpunct::BlockBraceOpen, "{"},
+    {TKpunct::BlockBraceClose, "}"},
+    {TKpunct::AngleBraceOpen, "<"},
+    {TKpunct::AngleBraceClose, ">"},
+    {TKpunct::ArrayBraceOpen, "["},
+    {TKpunct::ArrayBraceClose, "]"},
 
+    {TKpunct::BeginTemplateArgs, "@"},
+
+    {TKpunct::AttributeBegin, "[["},
+    {TKpunct::AttributeEnd, "]]"},
 };
 
 //
@@ -100,60 +108,59 @@ static constexpr std::pair<TKpunct, char const*> tok_punctuators[] = {
 //   pairs of TokenKwdKind and its string representation
 //
 static constexpr pair<TKkwd, char const*> tok_keywords[] = {
-  { TKkwd::None,         "" },
+    {TKkwd::None, ""},
 
-  { TKkwd::Namespace,  "namespace"  },
+    {TKkwd::Namespace, "namespace"},
 
-  // function
-  { TKkwd::Func,       "fn"      },
+    // function
+    {TKkwd::Func, "fn"},
 
-  // type definition
-  { TKkwd::Class,      "class"   },
-  { TKkwd::Struct,     "struct"  },
-  
-  // let statement (variable declaration)
-  { TKkwd::Let,        "let"     },
+    // type definition
+    {TKkwd::Class, "class"},
+    {TKkwd::Struct, "struct"},
 
-  // qualifiers for let-stmt
-  { TKkwd::Mut,        "mut"     },
-  { TKkwd::Ref,        "ref"   },
+    // let statement (variable declaration)
+    {TKkwd::Let, "let"},
 
-  // control flow
-  { TKkwd::If,         "if"      },
-  { TKkwd::Else,       "else"    },
-  { TKkwd::Match,      "match"   },
-  { TKkwd::For,        "for"     },
-  { TKkwd::Loop,       "loop"    },
-  { TKkwd::Do,         "do"      },
-  { TKkwd::While,      "while"   },
-  
-  // return statement
-  { TKkwd::Return,     "return"    },
+    // qualifiers for let-stmt
+    {TKkwd::Mut, "mut"},
+    {TKkwd::Ref, "ref"},
 
-  // break statement
-  { TKkwd::Break,      "break"     },
+    // control flow
+    {TKkwd::If, "if"},
+    {TKkwd::Else, "else"},
+    {TKkwd::Match, "match"},
+    {TKkwd::For, "for"},
+    {TKkwd::Loop, "loop"},
+    {TKkwd::Do, "do"},
+    {TKkwd::While, "while"},
 
-  // continue statement
-  { TKkwd::Continue,   "continue"  },
+    // return statement
+    {TKkwd::Return, "return"},
 
-  // logical operators
-  { TKkwd::Not,        "not"     },
-  { TKkwd::And,        "and"     },
-  { TKkwd::Or,         "or"      },
-  { TKkwd::Cast,       "cast"    },
+    // break statement
+    {TKkwd::Break, "break"},
 
-  // boolean literals
-  { TKkwd::True,       "true"    },
-  { TKkwd::False,      "false"   },
+    // continue statement
+    {TKkwd::Continue, "continue"},
 
-  // primitive types
-  { TKkwd::Int,        "int"     },
-  { TKkwd::Float,      "float"   },
-  { TKkwd::Bool,       "bool"    },
-  { TKkwd::Char,       "char"    },
-  { TKkwd::String,     "string"  },
+    // logical operators
+    {TKkwd::Not, "not"},
+    {TKkwd::And, "and"},
+    {TKkwd::Or, "or"},
+    {TKkwd::Cast, "cast"},
+
+    // boolean literals
+    {TKkwd::True, "true"},
+    {TKkwd::False, "false"},
+
+    // primitive types
+    {TKkwd::Int, "int"},
+    {TKkwd::Float, "float"},
+    {TKkwd::Bool, "bool"},
+    {TKkwd::Char, "char"},
+    {TKkwd::String, "string"},
 };
-// clang-format on
 
 string Token::kind_to_str(TokenKind k) {
   return s_kind[static_cast<size_t>(k)];
@@ -257,6 +264,10 @@ Lexer::Lexer(SourceStorage& SS)
 Token* Lexer::lex() {
   auto top = Token::make();
   auto cur = top;
+
+  this->pos = 0;
+
+  this->pass_space();
 
   while (this->check()) {
 
@@ -373,7 +384,7 @@ Token* Lexer::lex() {
       for (auto&& [k, s] : ::tok_operators)
         if (cur->str == s) {
           cur->set_op(k);
-          goto _set_kind;
+          break;
         }
 
       //
@@ -385,10 +396,8 @@ Token* Lexer::lex() {
           else
             cur->set_punct(k);
 
-          goto _set_kind;
+          break;
         }
-
-    _set_kind:;
     }
 
     this->pass_space();

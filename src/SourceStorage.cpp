@@ -1,5 +1,11 @@
 #include <fstream>
+
+#include "alert.h"
+#include "Utils.h"
+
 #include "SourceStorage.h"
+
+#define _SS_PATH_REPL_ "<repl>"
 
 string_view SourceLoc::get_view() const {
   return {this->SS->data.data() + this->pos, this->length};
@@ -12,6 +18,7 @@ string_view SourceLoc::get_line_view() const {
 }
 
 tuple<size_t, size_t, size_t> SourceLoc::get_line_loc() const {
+
   for (size_t ln = 1; auto&& [_pos, _len] : this->SS->_line_list) {
     if (_pos <= this->pos && this->pos + this->length <= _pos + _len) {
       return {ln, _pos, _len};
@@ -20,20 +27,21 @@ tuple<size_t, size_t, size_t> SourceLoc::get_line_loc() const {
     ln++;
   }
 
-  throw std::logic_error(string("not found pos") + std::to_string(this->pos) +
-                         " in SS->_line_list");
+  throw std::logic_error(string("not found pos=") + std::to_string(this->pos) +
+                         ", len=" + std::to_string(this->length) + " in SS->_line_list");
 }
 
 SourceLoc::SourceLoc()
     : SourceLoc(nullptr, nullptr, 0, 0) {
 }
 
-SourceLoc::SourceLoc(SourceStorage const* SS, Token* owner, size_t pos,
-                     size_t len)
+SourceLoc::SourceLoc(SourceStorage const* SS, Token* owner, size_t pos, size_t len)
     : owner(owner),
       SS(SS),
       pos(pos),
       length(len) {
+
+  (void)this->owner;
 
   auto [ln, begin, end] = this->get_line_loc();
 
@@ -41,10 +49,12 @@ SourceLoc::SourceLoc(SourceStorage const* SS, Token* owner, size_t pos,
   this->pos_in_line = pos - begin + 1;
 }
 
-shared_ptr<SourceLoc> SourceStorage::make_ref(Token* tok, size_t pos,
-                                              size_t len) const {
-  return this->_loc_list.emplace_back(
-      make_shared<SourceLoc>(this, tok, pos, len));
+pair<size_t, size_t>& SourceStorage::append_line(size_t pos, size_t len) {
+  return this->_line_list.emplace_back(pos, len);
+}
+
+shared_ptr<SourceLoc> SourceStorage::make_ref(Token* tok, size_t pos, size_t len) const {
+  return this->_loc_list.emplace_back(make_shared<SourceLoc>(this, tok, pos, len));
 }
 
 string_view SourceStorage::get_view(size_t pos, size_t len) const {
@@ -63,18 +73,36 @@ string SourceStorage::get_path() const {
   return this->path;
 }
 
+SourceStorage SourceStorage::from_line(string const& line) {
+  auto ss = SourceStorage(_SS_PATH_REPL_);
+
+  ss.data = line;
+
+  ss._line_list.emplace_back(0, line.length());
+
+  return ss;
+}
+
 SourceStorage::SourceStorage(string const& path)
-    : path(path) {
+    : _loc_list(),
+      _line_list(),
+      path(path),
+      data() {
+  if (path == _SS_PATH_REPL_)
+    return;
+
   std::ifstream ifs{path};
 
   if (ifs.fail()) {
     throw std::invalid_argument("cannot open path");
   }
 
+  this->data = "";
+
   for (string line; std::getline(ifs, line);) {
     line.push_back('\n');
 
-    this->_line_list.emplace_back(this->data.length(), line.length());
+    this->append_line(this->data.size(), line.length());
 
     this->data.append(line);
   }

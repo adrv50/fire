@@ -4,6 +4,10 @@
 
 class Parser {
 
+  using Kwd = TokenKwdKind;
+  using Punct = TokenPunctKind;
+  using Op = TokenOperatorKind;
+
   Token* cur;
   Token* ate;
 
@@ -11,10 +15,16 @@ class Parser {
     return this->ate = this->cur;
   }
 
+  bool in_repl = false;
+
 public:
   Parser(Token* tok)
       : cur(tok),
         ate(nullptr) {
+  }
+
+  void set_in_repl() {
+    this->in_repl = true;
   }
 
   Node* parse();
@@ -84,8 +94,8 @@ private:
   static Node* new_assign_with_op(NodeKind kind, Token* tok, Node* lhs, Node* rhs);
 
   // ident
-  bool eat_ident(bool allow_kwd = false);
-  Token* expect_ident(bool allow_kwd = false);
+  bool eat_ident();
+  Token* expect_ident();
 
   // semicolon
   bool eat_semi();

@@ -45,6 +45,8 @@ class SourceStorage {
 
   Vec<pair<size_t, size_t /* (pos, len) */>> _line_list;
 
+  pair<size_t, size_t>& append_line(size_t pos, size_t len);
+
   string path;
   string data;
 
@@ -58,6 +60,8 @@ public:
   string get_data() const;
 
   string get_path() const;
+
+  static SourceStorage from_line(string const& line);
 
   SourceStorage(string const& path);
   ~SourceStorage();

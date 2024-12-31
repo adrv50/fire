@@ -6,12 +6,13 @@ BUILD		:= 	build
 INCLUDE		:= 	include
 SOURCE		:= 	src \
 				src/Parser \
-				src/Sema
+				src/Sema \
+				src/Evaluator
 
 CC			:=	clang
 CXX			:=	clang++
 
-OPTI		?=	-O0 -g -D_METRO_DEBUG_
+OPTI		?=	-O0 -g -D_FIRE_DEBUG_
 COMMON		:=	$(OPTI) -Wall -Wextra -Wno-switch $(INCLUDES)
 CFLAGS		:=	$(COMMON) -std=c17
 CXXFLAGS	:=	$(COMMON) -std=c++20

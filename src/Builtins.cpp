@@ -38,7 +38,7 @@ def_builtin_func(print) {
 
   cout << str;
 
-  return ObjInt::make(str.size());
+  return ObjInt::make(str.length());
 }
 
 //
