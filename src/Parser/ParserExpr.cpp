@@ -123,9 +123,9 @@ Node* Parser::p_compare() {
     else if (this->eat(Op::RightBig))
       nd = Node::new_compare(CMP_Bigger, op, this->p_shift(), nd);
     if (this->eat(Op::LeftBigOrEq))
-      nd = Node::new_compare(CMP_BigggerOrEqual, op, nd, this->p_shift());
+      nd = Node::new_compare(CMP_BiggerOrEqual, op, nd, this->p_shift());
     else if (this->eat(Op::RightBigOrEq))
-      nd = Node::new_compare(CMP_BigggerOrEqual, op, this->p_shift(), nd);
+      nd = Node::new_compare(CMP_BiggerOrEqual, op, this->p_shift(), nd);
     else
       break;
   }

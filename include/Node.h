@@ -171,7 +171,7 @@ enum NodeIdentifierKind { // for id or scope-resol
 enum CompareExprKind {
   CMP_None,
   CMP_Bigger,
-  CMP_BigggerOrEqual,
+  CMP_BiggerOrEqual,
 };
 
 struct Node {

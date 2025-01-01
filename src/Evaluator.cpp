@@ -76,6 +76,99 @@ Obj Evaluator::evaluate() {
   return result;
 }
 
+Obj obj_add(Obj lhs, Obj rhs) {
+  if (lhs->ti.is(TypeKind::Int))
+    return ObjInt::make(lhs->as_int()->val + rhs->as_int()->val);
+
+  if (lhs->ti.is(TypeKind::Float))
+    return ObjFloat::make(lhs->as_float()->val + rhs->as_float()->val);
+
+  if (lhs->ti.is(TypeKind::String))
+    return ObjStr::make(lhs->as_str()->val + rhs->as_str()->val);
+
+  todo_impl;
+}
+
+Obj obj_sub(Obj lhs, Obj rhs) {
+  if (lhs->ti.is(TypeKind::Int))
+    return ObjInt::make(lhs->as_int()->val - rhs->as_int()->val);
+
+  if (lhs->ti.is(TypeKind::Float))
+    return ObjFloat::make(lhs->as_float()->val - rhs->as_float()->val);
+
+  todo_impl;
+}
+
+Obj obj_mul(Obj lhs, Obj rhs) {
+  if (lhs->ti.is(TypeKind::Int))
+    return ObjInt::make(lhs->as_int()->val * rhs->as_int()->val);
+
+  if (lhs->ti.is(TypeKind::Float))
+    return ObjFloat::make(lhs->as_float()->val * rhs->as_float()->val);
+
+  todo_impl;
+}
+
+Obj obj_div(Obj lhs, Obj rhs) {
+  if (lhs->ti.is(TypeKind::Int))
+    return ObjInt::make(lhs->as_int()->val / rhs->as_int()->val);
+
+  if (lhs->ti.is(TypeKind::Float))
+    return ObjFloat::make(lhs->as_float()->val / rhs->as_float()->val);
+
+  todo_impl;
+}
+
+Obj obj_mod(Obj lhs, Obj rhs) {
+  debug(assert(lhs->ti.is(TypeKind::Int)));
+
+  return ObjInt::make(lhs->as_int()->val % rhs->as_int()->val);
+}
+
+Obj obj_lshift(Obj lhs, Obj rhs) {
+  return ObjInt::make(lhs->as_int()->val << rhs->as_int()->val);
+}
+
+Obj obj_rshift(Obj lhs, Obj rhs) {
+  return ObjInt::make(lhs->as_int()->val >> rhs->as_int()->val);
+}
+
+Obj obj_compare(CompareExprKind kind, Obj lhs, Obj rhs) {
+  switch (kind) {
+  case CompareExprKind::CMP_Bigger:
+    return ObjBool::make(lhs->as_int()->val > rhs->as_int()->val);
+
+  case CompareExprKind::CMP_BiggerOrEqual:
+    return ObjBool::make(lhs->as_int()->val >= rhs->as_int()->val);
+  }
+
+  return nullptr;
+}
+
+Obj obj_equal(Obj lhs, Obj rhs) {
+  return ObjBool::make(lhs->equals(rhs));
+}
+
+Obj obj_bitand(Obj lhs, Obj rhs) {
+  return ObjInt::make(lhs->as_int()->val & rhs->as_int()->val);
+}
+
+Obj obj_bitor(Obj lhs, Obj rhs) {
+  return ObjInt::make(lhs->as_int()->val | rhs->as_int()->val);
+}
+
+Obj obj_bitxor(Obj lhs, Obj rhs) {
+  return ObjInt::make(lhs->as_int()->val ^ rhs->as_int()->val);
+}
+
+Obj obj_or(Obj lhs, Obj rhs) {
+  return ObjBool::make(lhs->as_bool()->val || rhs->as_bool()->val);
+}
+
+Obj obj_and(Obj lhs, Obj rhs) {
+  return ObjBool::make(lhs->as_bool()->val && rhs->as_bool()->val);
+}
+
 Obj Evaluator::eval_expr(Node* node) {
 
   switch (node->kind) {
@@ -147,33 +240,18 @@ Obj Evaluator::eval_expr(Node* node) {
   auto lhs = this->eval_expr(node->nd_lhs)->clone();
   auto rhs = this->eval_expr(node->nd_rhs);
 
-  switch (node->kind) {
-  case ND_Add:
-    switch (node->nd.tk) {
-    case TypeKind::Int:
-      lhs->as_int()->val += rhs->as_int()->val;
-      break;
+  static const pair<NodeKind, Obj (*)(Obj, Obj)> ndkind_opfunc_table[] = {
+      {ND_Mul, &obj_mul},       {ND_Div, &obj_div},     {ND_Mod, &obj_mod},
+      {ND_Add, &obj_add},       {ND_Sub, &obj_sub},     {ND_LShift, &obj_lshift},
+      {ND_RShift, &obj_rshift}, {ND_Compare, nullptr},  {ND_Equal, &obj_equal},
+      {ND_BitAnd, &obj_bitand}, {ND_BitOr, &obj_bitor}, {ND_BitXor, &obj_bitxor},
+      {ND_Or, &obj_or},         {ND_And, &obj_and},
+  };
 
-    case TypeKind::Float:
-      lhs->as_float()->val += rhs->as_float()->val;
-      break;
+  if (node->kind == ND_Compare)
+    return obj_compare(node->cmp_kind, lhs, rhs);
 
-    case TypeKind::String:
-      lhs->as_str()->val += rhs->as_str()->val;
-      break;
-
-    default:
-      todo_impl;
-    }
-
-  case ND_Equal:
-    return ObjBool::make(lhs->equals(rhs));
-
-  default:
-    todo_impl;
-  }
-
-  return lhs;
+  return ndkind_opfunc_table[static_cast<size_t>(node->kind - ND_Mul)].second(lhs, rhs);
 }
 
 Obj Evaluator::eval_call_func(Node* node, Vec<Obj>& args) {
