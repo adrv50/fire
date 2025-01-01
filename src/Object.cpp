@@ -20,60 +20,86 @@ Object::Object(TypeInfo const& ti)
 // ----------------------------------------
 //  Cast wrappers
 // ----------------------------------------
+ObjNone* Object::as_none() {
+  return this->ti.is(TypeKind::None) ? reinterpret_cast<ObjNone*>(this) : nullptr;
+}
+
 ObjInt* Object::as_int() {
   return reinterpret_cast<ObjInt*>(this);
 }
 
 ObjFloat* Object::as_float() {
-  return reinterpret_cast<ObjFloat*>(this);
+  return this->ti.is(TypeKind::Float) ? reinterpret_cast<ObjFloat*>(this) : nullptr;
 }
 
 ObjBool* Object::as_bool() {
-  return reinterpret_cast<ObjBool*>(this);
+  return this->ti.is(TypeKind::Bool) ? reinterpret_cast<ObjBool*>(this) : nullptr;
+}
+
+ObjChar* Object::as_char() {
+  return this->ti.is(TypeKind::Char) ? reinterpret_cast<ObjChar*>(this) : nullptr;
 }
 
 ObjStr* Object::as_str() {
-  return reinterpret_cast<ObjStr*>(this);
+  return this->ti.is(TypeKind::String) ? reinterpret_cast<ObjStr*>(this) : nullptr;
 }
 
 ObjVector* Object::as_vector() {
-  return reinterpret_cast<ObjVector*>(this);
+  return this->ti.is(TypeKind::Vector) ? reinterpret_cast<ObjVector*>(this) : nullptr;
 }
 
 ObjTuple* Object::as_tuple() {
-  return reinterpret_cast<ObjTuple*>(this);
+  return this->ti.is(TypeKind::Tuple) ? reinterpret_cast<ObjTuple*>(this) : nullptr;
 }
 
 ObjDict* Object::as_dict() {
-  return reinterpret_cast<ObjDict*>(this);
+  return this->ti.is(TypeKind::Dict) ? reinterpret_cast<ObjDict*>(this) : nullptr;
+}
+
+ObjFunctor* Object::as_functor() {
+  return this->ti.is(TypeKind::Functor) ? reinterpret_cast<ObjFunctor*>(this) : nullptr;
+}
+
+ObjNone const* Object::as_none() const {
+  return this->ti.is(TypeKind::None) ? reinterpret_cast<ObjNone const*>(this) : nullptr;
 }
 
 ObjInt const* Object::as_int() const {
-  return reinterpret_cast<ObjInt const*>(this);
+  return this->ti.is(TypeKind::Int) ? reinterpret_cast<ObjInt const*>(this) : nullptr;
 }
 
 ObjFloat const* Object::as_float() const {
-  return reinterpret_cast<ObjFloat const*>(this);
+  return this->ti.is(TypeKind::Float) ? reinterpret_cast<ObjFloat const*>(this) : nullptr;
 }
 
 ObjBool const* Object::as_bool() const {
-  return reinterpret_cast<ObjBool const*>(this);
+  return this->ti.is(TypeKind::Bool) ? reinterpret_cast<ObjBool const*>(this) : nullptr;
+}
+
+ObjChar const* Object::as_char() const {
+  return this->ti.is(TypeKind::Char) ? reinterpret_cast<ObjChar const*>(this) : nullptr;
 }
 
 ObjStr const* Object::as_str() const {
-  return reinterpret_cast<ObjStr const*>(this);
+  return this->ti.is(TypeKind::String) ? reinterpret_cast<ObjStr const*>(this) : nullptr;
 }
 
 ObjVector const* Object::as_vector() const {
-  return reinterpret_cast<ObjVector const*>(this);
+  return this->ti.is(TypeKind::Vector) ? reinterpret_cast<ObjVector const*>(this)
+                                       : nullptr;
 }
 
 ObjTuple const* Object::as_tuple() const {
-  return reinterpret_cast<ObjTuple const*>(this);
+  return this->ti.is(TypeKind::Tuple) ? reinterpret_cast<ObjTuple const*>(this) : nullptr;
 }
 
 ObjDict const* Object::as_dict() const {
-  return reinterpret_cast<ObjDict const*>(this);
+  return this->ti.is(TypeKind::Dict) ? reinterpret_cast<ObjDict const*>(this) : nullptr;
+}
+
+ObjFunctor const* Object::as_functor() const {
+  return this->ti.is(TypeKind::Functor) ? reinterpret_cast<ObjFunctor const*>(this)
+                                        : nullptr;
 }
 
 // ----------------------------------------
@@ -169,7 +195,7 @@ string ObjVector::to_string() const {
   return "[" +
          utils::join(", ", this->list,
                      [](Obj const& obj) -> string {
-                       return obj->to_string_as_element();
+                       return obj->to_string();
                      }) +
          "]";
 }
@@ -289,6 +315,105 @@ ObjTuple* ObjTuple::make(TypeInfo const& elem_ti, Vec<Obj> const& val) {
 ObjDict* ObjDict::make(TypeInfo const& key_ti, TypeInfo const& value_ti,
                        Vec<pair<Obj, Obj>> const& val) {
   return make_obj<ObjDict>(key_ti, value_ti, val);
+}
+
+// ----------------------------------------
+//  compare equality
+// ----------------------------------------
+bool ObjNone::equals(Obj obj) const {
+  if (auto p = obj->as_none())
+    return true;
+
+  return false;
+}
+
+bool ObjInt::equals(Obj obj) const {
+  if (auto p = obj->as_int())
+    return this->val == p->val;
+
+  return false;
+}
+
+bool ObjFloat::equals(Obj obj) const {
+  if (auto p = obj->as_float())
+    return this->val == p->val;
+
+  return false;
+}
+
+bool ObjBool::equals(Obj obj) const {
+  if (auto p = obj->as_bool())
+    return this->val == p->val;
+
+  return false;
+}
+
+bool ObjChar::equals(Obj obj) const {
+  if (auto p = obj->as_char())
+    return this->val == p->val;
+
+  return false;
+}
+
+bool ObjStr::equals(Obj obj) const {
+  if (auto p = obj->as_str())
+    return this->val == p->val;
+
+  return false;
+}
+
+bool ObjVector::equals(Obj obj) const {
+  if (auto p = obj->as_vector()) {
+    if (this->list.size() != p->list.size())
+      return false;
+
+    for (size_t i = 0; i < this->list.size(); i++)
+      if (!this->list[i]->equals(p->list[i]))
+        return false;
+
+    return true;
+  }
+
+  return false;
+}
+
+bool ObjTuple::equals(Obj obj) const {
+  if (auto p = obj->as_tuple()) {
+    if (this->list.size() != p->list.size())
+      return false;
+
+    for (size_t i = 0; i < this->list.size(); i++)
+      if (!this->list[i]->equals(p->list[i]))
+        return false;
+
+    return true;
+  }
+
+  return false;
+}
+
+bool ObjDict::equals(Obj obj) const {
+  if (auto p = obj->as_dict()) {
+    if (this->list.size() != p->list.size())
+      return false;
+
+    for (auto iter = this->list.begin(); auto&& [key, value] : p->list)
+      if (!iter->first->equals(key) || !iter->second->equals(value))
+        return false;
+      else
+        iter++;
+
+    return true;
+  }
+
+  return false;
+}
+
+bool ObjFunctor::equals(Obj obj) const {
+  if (auto p = obj->as_functor())
+    return this->func == p->func;
+
+  return false;
 }
 
 // ----------------------------------------

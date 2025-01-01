@@ -559,7 +559,7 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
     break;
 
   case ND_Equal:
-    break;
+    return TypeKind::Bool;
 
   case ND_Or:
   case ND_And:

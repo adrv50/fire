@@ -20,13 +20,15 @@ public:
   size_t line_num = 0;
   size_t pos_in_line = 0;
 
+  bool is_in_repl() const;
+
   string_view get_view() const;
   string_view get_line_view() const;
 
   tuple<size_t, size_t, size_t> get_line_loc() const;
 
-  SourceStorage const& get_ss() {
-    return *this->SS;
+  SourceStorage const* get_ss() {
+    return this->SS;
   }
 
   SourceLoc();
@@ -50,6 +52,8 @@ class SourceStorage {
   string path;
   string data;
 
+  bool is_in_repl = false;
+
 public:
   shared_ptr<SourceLoc> make_ref(Token* tok, size_t pos, size_t len) const;
 
@@ -60,8 +64,6 @@ public:
   string get_data() const;
 
   string get_path() const;
-
-  static SourceStorage from_line(string const& line);
 
   SourceStorage(string const& path);
   ~SourceStorage();

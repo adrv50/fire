@@ -17,6 +17,8 @@ enum class TypeKind {
   Tuple,
   Dict,
 
+  Functor,
+
   Type, // => the type of a type. (class, struct, enum, etc...)
 
   Instance,

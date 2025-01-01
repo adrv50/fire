@@ -22,5 +22,4 @@ $ ./build.sh -Jd
 - [Zenn](https://zenn.dev/famfencha/books/618e500cbd81f3).
 
 ## Links:
-- [Discord](https://discord.gg/vmzgADwJbp)
-- [Twitter](https://x.com/metrojitinterp)
+- [Discord](https://discord.gg/uHycbdVpQp)

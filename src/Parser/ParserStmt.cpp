@@ -69,7 +69,22 @@ Node* Parser::p_stmt() {
   // if
   //
   else if (this->eat(Kwd::If)) {
+
+    auto node = Node::new_node(ND_If, this->cur);
+
+    node->nd_if_cond = this->p_expr();
+
+    node->nd_if_then = this->p_block();
+
+    if (this->eat(Kwd::Else)) {
+      node->nd_if_else = this->p_block();
+    }
+
+    return node;
   }
+
+  //
+  //
 
   auto expr = this->p_expr();
 

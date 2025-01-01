@@ -9,6 +9,7 @@ struct ObjNone;
 struct ObjInt;
 struct ObjFloat;
 struct ObjBool;
+struct ObjChar;
 struct ObjStr;
 struct ObjVector;
 struct ObjTuple;
@@ -27,24 +28,32 @@ struct Object {
   bool is_marked;
   size_t ref_count;
 
+  ObjNone* as_none();
   ObjInt* as_int();
   ObjFloat* as_float();
   ObjBool* as_bool();
+  ObjChar* as_char();
   ObjStr* as_str();
   ObjVector* as_vector();
   ObjTuple* as_tuple();
   ObjDict* as_dict();
+  ObjFunctor* as_functor();
 
+  ObjNone const* as_none() const;
   ObjInt const* as_int() const;
   ObjFloat const* as_float() const;
   ObjBool const* as_bool() const;
+  ObjChar const* as_char() const;
   ObjStr const* as_str() const;
   ObjVector const* as_vector() const;
   ObjTuple const* as_tuple() const;
   ObjDict const* as_dict() const;
+  ObjFunctor const* as_functor() const;
 
   virtual string to_string() const = 0;
   virtual Obj clone() const = 0;
+
+  virtual bool equals(Obj obj) const = 0;
 
   virtual string to_string_as_element() const;
 
@@ -62,6 +71,8 @@ struct ObjNone : Object {
   string to_string() const override;
   ObjNone* clone() const override;
 
+  bool equals(Obj obj) const override;
+
   static ObjNone* make();
 };
 
@@ -72,6 +83,8 @@ struct ObjInt : Object {
 
   string to_string() const override;
   ObjInt* clone() const override;
+
+  bool equals(Obj obj) const override;
 
   static ObjInt* make(i64 val);
 };
@@ -84,6 +97,8 @@ struct ObjFloat : Object {
   string to_string() const override;
   ObjFloat* clone() const override;
 
+  bool equals(Obj obj) const override;
+
   static ObjFloat* make(f64 val);
 };
 
@@ -94,6 +109,8 @@ struct ObjBool : Object {
 
   ObjBool* clone() const override;
   string to_string() const override;
+
+  bool equals(Obj obj) const override;
 
   static ObjBool* make(bool val);
 };
@@ -107,6 +124,8 @@ struct ObjChar : Object {
   ObjChar* clone() const override;
 
   string to_string_as_element() const override;
+
+  bool equals(Obj obj) const override;
 
   static ObjChar* make(char16_t val);
 };
@@ -123,6 +142,8 @@ struct ObjStr : Object {
 
   size_t length() const;
 
+  bool equals(Obj obj) const override;
+
   static ObjStr* make(std::u16string const& val);
   static ObjStr* make(string const& val);
 };
@@ -135,6 +156,8 @@ struct ObjVector : Object {
   string to_string() const override;
   ObjVector* clone() const override;
 
+  bool equals(Obj obj) const override;
+
   static ObjVector* make(TypeInfo const& elem_ti, Vec<Obj> const& val = {});
 };
 
@@ -145,6 +168,8 @@ struct ObjTuple : Object {
 
   string to_string() const override;
   ObjTuple* clone() const override;
+
+  bool equals(Obj obj) const override;
 
   static ObjTuple* make(TypeInfo const& elem_ti, Vec<Obj> const& val = {});
 };
@@ -161,6 +186,8 @@ struct ObjDict : Object {
   string to_string() const override;
   ObjDict* clone() const override;
 
+  bool equals(Obj obj) const override;
+
   static ObjDict* make(TypeInfo const& key_ti, TypeInfo const& value_ti,
                        Vec<pair<Obj, Obj>> const& data = {});
 };
@@ -172,6 +199,8 @@ struct ObjFunctor : Object {
 
   string to_string() const override;
   ObjFunctor* clone() const override;
+
+  bool equals(Obj obj) const override;
 
   static ObjFunctor* make(Node* func);
 };

@@ -5,8 +5,6 @@
 
 #include "SourceStorage.h"
 
-#define _SS_PATH_REPL_ "<repl>"
-
 string_view SourceLoc::get_view() const {
   return {this->SS->data.data() + this->pos, this->length};
 }
@@ -73,23 +71,15 @@ string SourceStorage::get_path() const {
   return this->path;
 }
 
-SourceStorage SourceStorage::from_line(string const& line) {
-  auto ss = SourceStorage(_SS_PATH_REPL_);
-
-  ss.data = line;
-
-  ss._line_list.emplace_back(0, line.length());
-
-  return ss;
-}
-
 SourceStorage::SourceStorage(string const& path)
     : _loc_list(),
       _line_list(),
       path(path),
       data() {
-  if (path == _SS_PATH_REPL_)
+  if (path.empty()) {
+    this->is_in_repl = true;
     return;
+  }
 
   std::ifstream ifs{path};
 

@@ -48,17 +48,20 @@ Error const& Error::emit() const {
   auto token = this->node ? this->node->tok : this->tok;
 
   if (token) {
-    auto& ref = *token->ref;
+    auto& ref = token->ref;
 
-    assert(ref.pos < 10000);
-
-    cout << COL_YELLOW "     ---> " << COL_CYAN << ref.get_ss().get_path() << ":"
-         << ref.line_num << ":" << ref.pos_in_line << endl
-         << COL_YELLOW << utils::format("% 4zu | ", ref.line_num) << COL_WHITE
-         << ref.get_line_view() << COL_YELLOW "     |" << COL_RED
-         << string(ref.pos_in_line, ' ') << "^" << endl
-         << endl
-         << COL_DEFAULT;
+    if (auto ss = ref->get_ss()) {
+      cout << COL_YELLOW "     ---> " << COL_CYAN << ss->get_path() << ":"
+           << ref->line_num << ":" << ref->pos_in_line << endl
+           << COL_YELLOW << utils::format("% 4zu | ", ref->line_num) << COL_WHITE
+           << ref->get_line_view() << COL_YELLOW "     |" << COL_RED
+           << string(ref->pos_in_line, ' ') << "^" << endl
+           << endl
+           << COL_DEFAULT;
+    }
+    else {
+      cout << this->msg << endl;
+    }
   }
 
   for (auto&& note : this->notes)

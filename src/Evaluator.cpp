@@ -166,8 +166,11 @@ Obj Evaluator::eval_expr(Node* node) {
       todo_impl;
     }
 
+  case ND_Equal:
+    return ObjBool::make(lhs->equals(rhs));
+
   default:
-    break;
+    todo_impl;
   }
 
   return lhs;
@@ -207,6 +210,17 @@ Obj Evaluator::eval_stmt(Node* node) {
   case ND_Let:
     this->eval_let(node);
     break;
+
+  case ND_If: {
+    auto cond = this->eval_expr(node->nd_if_cond);
+
+    if (cond->as_bool()->val)
+      this->eval_block(node->nd_if_then);
+    else if (node->nd_if_else)
+      this->eval_block(node->nd_if_else);
+
+    break;
+  }
 
   case ND_Return: {
     auto& stack = this->get_current_call_stack();

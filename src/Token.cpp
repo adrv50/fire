@@ -51,7 +51,7 @@ Token* Token::set_punct(TokenPunctKind k) {
 }
 
 Token* Token::clone() const {
-  auto cloned = Token::make(this->kind, &this->ref->get_ss(), this->prev, this->str,
+  auto cloned = Token::make(this->kind, this->ref->get_ss(), this->prev, this->str,
                             this->ref->pos, this->kwd, this->op, this->punct);
 
   cloned->next = this->next;
