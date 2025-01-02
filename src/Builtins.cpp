@@ -4,6 +4,10 @@
 #include <cmath>
 
 #include "Utils.h"
+
+#include "Object.h"
+#include "Token.h"
+#include "Node.h"
 #include "Builtins.h"
 
 #define def_builtin_func(_Name)                                                          \

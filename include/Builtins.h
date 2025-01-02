@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include "typedef.h"
 #include "Object.h"
 
 class Evaluator;

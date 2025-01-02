@@ -1,10 +1,12 @@
 #include <iostream>
 
-#include "Utils.h"
-#include "Error.h"
-
-// for coloring error messages
 #include "alert.h"
+#include "Utils.h"
+
+#include "Token.h"
+#include "Node.h"
+
+#include "Error.h"
 
 Error::Error(Token* tok, string const& msg, ErrorType type)
     : type(type),

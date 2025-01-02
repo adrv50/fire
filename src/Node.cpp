@@ -1,4 +1,5 @@
 #include "alert.h"
+#include "Token.h"
 #include "Node.h"
 
 bool Node::is(NodeKind kind) const {
@@ -43,6 +44,29 @@ Node* Node::new_node(NodeKind kind, Token* tok, Node* lhs, Node* rhs) {
 
 Node* Node::new_value(Token* tok, Object* obj) {
   return new Node(ND_Value, tok, obj);
+}
+
+bool Node::walk_node(Node* nd, std::function<bool(Node*)> const& func) {
+  if (!nd)
+    return false;
+
+  if (func(nd))
+    return true;
+
+  if (walk_node(nd->nd.na, func))
+    return true;
+
+  if (walk_node(nd->nd.nb, func))
+    return true;
+
+  if (walk_node(nd->nd.nc, func))
+    return true;
+
+  for (auto& node : nd->list)
+    if (walk_node(node, func))
+      return true;
+
+  return false;
 }
 
 Node::Node(NodeKind kind, Token* tok, Object* obj)

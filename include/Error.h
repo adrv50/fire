@@ -2,8 +2,10 @@
 
 #include <concepts>
 
-#include "Utils.h"
-#include "Node.h"
+#include "typedef.h"
+
+struct Token;
+struct Node;
 
 enum class ErrorKind {
   //

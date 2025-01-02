@@ -45,9 +45,10 @@ enum class TokenKwdKind : u16 {
   None,
 
   //
-  // Define func or types
+  // Define function or user-defined types
   //
   Func,   // "fn"
+  Enum,   // "enum"
   Class,  // "class"
   Struct, // "struct"
 
@@ -102,14 +103,15 @@ enum class TokenKwdKind : u16 {
   //
   // Primitive types
   //
-  Int,    // "int"
-  Float,  // "float"
-  Bool,   // "bool"
-  Char,   // "char"
-  String, // "string"
-  Vector, // "vector"
-  Tuple,  // "tuple"
-  Dict,   // "dict"
+  Int,     // "int"
+  Float,   // "float"
+  Bool,    // "bool"
+  Char,    // "char"
+  String,  // "string"
+  Vector,  // "vector"
+  Tuple,   // "tuple"
+  Dict,    // "dict"
+  Functor, // "func"
 };
 
 //
@@ -188,8 +190,6 @@ enum class TokenPunctKind : u8 {
   AngleBraceClose, // >
   ArrayBraceOpen,  // [
   ArrayBraceClose, // ]
-
-  BeginTemplateArgs, // @
 
   AttributeBegin, // [[
   AttributeEnd,   // ]]

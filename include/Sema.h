@@ -1,7 +1,7 @@
 #pragma once
 
 #include <functional>
-#include "Node.h"
+#include "fire-fwd.h"
 #include "Builtins.h"
 
 //
@@ -158,6 +158,10 @@ public:
 
   void check_full();
 
+  void check_enum(Node* nd_enum);
+  void check_struct(Node* nd_struct);
+  void check_class(Node* nd_class);
+
   void check_func(Node* func);
 
   void check_stmt(Node* stmt);
@@ -236,10 +240,7 @@ private:
   NameFindResult find_name(Node* id, Scope* from_this = nullptr, bool from_root = false,
                            bool reverse = false);
 
-  NameFindResult find_name_wrap(Node* name, Scope* scope = nullptr) {
-    return name->is(ND_ScopeResol) ? this->scope_resolution(name, scope)
-                                   : this->find_name(name, scope);
-  }
+  NameFindResult find_name_wrap(Node* name, Scope* scope = nullptr);
 
   static inline Scope* _cur_func_keep = nullptr;
 };

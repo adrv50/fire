@@ -3,6 +3,10 @@
 
 #include "alert.h"
 
+#include "Token.h"
+#include "Node.h"
+#include "Object.h"
+
 #include "Lexer.h"
 #include "Parser.h"
 #include "Sema.h"

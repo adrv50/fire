@@ -1,6 +1,9 @@
 #pragma once
 
-#include "Token.h"
+#include "typedef.h"
+
+class SourceStorage;
+struct Token;
 
 class Lexer {
 

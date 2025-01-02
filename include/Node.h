@@ -1,7 +1,6 @@
 #pragma once
 
-#include "Token.h"
-#include "Object.h"
+#include <functional>
 #include "Builtins.h"
 
 #define nd_value nd.obj
@@ -71,20 +70,30 @@
 #define nd_return_expr nd.na
 
 #define nd_enum_name nd.tok2
-#define nd_enum_enumerators nd.list
+#define nd_enum_enumerators list
+
+#define nd_enumerator_name tok
+#define nd_enumerator_is_value nd.b1
+#define nd_enumerator_is_struct nd.b2
+#define nd_enumerator_val_type nd.na
+#define nd_enumerator_struct_members list
 
 #define nd_class_name nd.tok2
-#define nd_class_fields nd.na
-#define nd_class_methods nd.nb
+#define nd_class_fields nd.na  // --> ND_Let
+#define nd_class_methods nd.nb // --> ND_Function
 
 #define nd_struct_name nd.tok2
-#define nd_struct_members nd.list
+#define nd_struct_members list
+#define nd_struct_member_name tok
+#define nd_struct_member_type nd.na
 
 #define nd_program_main nd.na
 #define nd_program_items list
 #define nd_program_global_var_size nd.size
 
-enum NodeKind {
+struct Token;
+
+enum NodeKind : u16 {
   ND_Value,
   ND_Identifier,
   ND_ScopeResol,
@@ -149,26 +158,25 @@ enum NodeKind {
 
   ND_Enum,
   ND_DefEnumerator,
-
-  ND_Class,
-  ND_ClassFields,
-  ND_ClassMethods,
+  ND_DefEnumeratorStructFields,
 
   ND_Struct,
-  ND_StructMembers,
+  ND_StructMember,
+
+  ND_Class,
 
   ND_TypeName,
 
   ND_Program,
 };
 
-enum NodeIdentifierKind { // for id or scope-resol
+enum NodeIdentifierKind : u8 { // for id or scope-resol
   ID_None,
   ID_Var,
   ID_Func,
 };
 
-enum CompareExprKind {
+enum CompareExprKind : u8 {
   CMP_None,
   CMP_Bigger,
   CMP_BiggerOrEqual,
@@ -229,6 +237,10 @@ struct Node {
 
     return nd;
   }
+
+  //
+  // stop when func() returns true
+  static bool walk_node(Node* nd, std::function<bool(Node*)> const& func);
 
   Node(NodeKind kind, Token* tok, Object* obj = nullptr);
   Node(NodeKind kind, Token* tok, Node* lhs, Node* rhs);

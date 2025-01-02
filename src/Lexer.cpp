@@ -1,3 +1,4 @@
+#include "utf.h"
 #include "Token.h"
 #include "Lexer.h"
 #include "Error.h"
@@ -29,7 +30,7 @@ static char const* s_kind[] = {
 // tok_operators:
 //   pairs of TokenOperatorKind and its string representation
 //
-static constexpr std::pair<TKop, char const*> tok_operators[] = {
+static constexpr pair<TKop, char const*> tok_operators[] = {
     {TKop::None, ""},
 
     {TKop::MemberAccess, "."},
@@ -75,7 +76,7 @@ static constexpr std::pair<TKop, char const*> tok_operators[] = {
 //  tok_punctuators:
 //    pairs of TokenPunctKind and its string representation
 //
-static constexpr std::pair<TKpunct, char const*> tok_punctuators[] = {
+static constexpr pair<TKpunct, char const*> tok_punctuators[] = {
     {TKpunct::None, ""},
 
     {TKpunct::Comma, ","},
@@ -88,6 +89,8 @@ static constexpr std::pair<TKpunct, char const*> tok_punctuators[] = {
 
     {TKpunct::ResultTypeSpecifier, "->"},
 
+    {TKpunct::CaseMatch, "=>"},
+
     {TKpunct::BraceOpen, "("},
     {TKpunct::BraceClose, ")"},
     {TKpunct::BlockBraceOpen, "{"},
@@ -96,8 +99,6 @@ static constexpr std::pair<TKpunct, char const*> tok_punctuators[] = {
     {TKpunct::AngleBraceClose, ">"},
     {TKpunct::ArrayBraceOpen, "["},
     {TKpunct::ArrayBraceClose, "]"},
-
-    {TKpunct::BeginTemplateArgs, "@"},
 
     {TKpunct::AttributeBegin, "[["},
     {TKpunct::AttributeEnd, "]]"},
@@ -116,8 +117,10 @@ static constexpr pair<TKkwd, char const*> tok_keywords[] = {
     {TKkwd::Func, "fn"},
 
     // type definition
+    {TKkwd::Enum, "enum"},
     {TKkwd::Class, "class"},
     {TKkwd::Struct, "struct"},
+    {TKkwd::Namespace, "namespace"},
 
     // let statement (variable declaration)
     {TKkwd::Let, "let"},
@@ -163,6 +166,7 @@ static constexpr pair<TKkwd, char const*> tok_keywords[] = {
     {TKkwd::Vector, "vector"},
     {TKkwd::Tuple, "tuple"},
     {TKkwd::Dict, "dict"},
+    {TKkwd::Functor, "func"},
 };
 
 string Token::kind_to_str(TokenKind k) {

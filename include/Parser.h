@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Node.h"
+#include "fire-fwd.h"
 
 class Parser {
 
@@ -30,6 +30,16 @@ public:
   Node* parse();
 
   Node* p_root();
+
+  Node* p_enum();
+  Node* p_def_enumerator();
+
+  Node* p_struct();
+  Node* p_struct_member();
+
+  Node* p_class();
+
+  Node* p_namespace();
 
   Node* p_func();
   Node* p_func_arg();

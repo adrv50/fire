@@ -2,7 +2,9 @@
 
 #include <list>
 
-#include "Node.h"
+#include "typedef.h"
+
+struct Node;
 
 class Evaluator {
 

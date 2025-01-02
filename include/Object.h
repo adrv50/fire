@@ -1,22 +1,10 @@
 #pragma once
 
 #include <concepts>
-#include "TypeInfo.h"
 #include "utf.h"
+#include "fire-fwd.h"
 
-struct Object;
-struct ObjNone;
-struct ObjInt;
-struct ObjFloat;
-struct ObjBool;
-struct ObjChar;
-struct ObjStr;
-struct ObjVector;
-struct ObjTuple;
-struct ObjDict;
-struct ObjFunctor;
-
-struct Node;
+#include "TypeInfo.h"
 
 using Obj = Object*;
 

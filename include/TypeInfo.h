@@ -2,7 +2,7 @@
 
 #include "typedef.h"
 
-enum class TypeKind {
+enum class TypeKind : u8 {
   Unknown,
 
   None,
@@ -19,6 +19,8 @@ enum class TypeKind {
 
   Functor,
 
+  Enumerator,
+
   Type, // => the type of a type. (class, struct, enum, etc...)
 
   Instance,
@@ -28,11 +30,12 @@ enum class TypeKind {
 
 struct TypeInfo {
   TypeKind kind;
+  Vec<TypeInfo> template_args;
 
   bool is_reference;
   bool is_mutable;
 
-  Vec<TypeInfo> template_args;
+  size_t enumerator_index = 0;
 
   TypeInfo& append_template_arg(TypeInfo const& ti);
 

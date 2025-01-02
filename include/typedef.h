@@ -38,7 +38,13 @@ using std::make_tuple;
 using std::make_unique;
 
 template <typename T>
-using ptr = shared_ptr<T>;
+using ptr = T*;
+
+struct Object;
+using Obj = ptr<Object>;
+
+template <typename T>
+using ObjPtr = ptr<T>;
 
 template <typename T, typename U>
 ptr<T> ptrcast(ptr<U> p) {

@@ -1,4 +1,10 @@
 #include "alert.h"
+
+#include "TypeInfo.h"
+#include "Object.h"
+#include "Token.h"
+#include "Node.h"
+
 #include "Evaluator.h"
 
 Obj& Evaluator::CallStack::get(size_t index) {
