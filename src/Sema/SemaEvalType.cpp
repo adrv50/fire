@@ -44,17 +44,19 @@ auto limit_bf_candidates(Vec<Builtins::BuiltinFunc const*>& vec,
 // ---------------------------------
 TypeInfo Sema::check_function_call(Node* call) {
 
+  static const auto strargs = [](Vec<TypeInfo> const& _args) -> string {
+    return "(" +
+           utils::join(", ", _args,
+                       [](TypeInfo const& t) -> string {
+                         return t.to_string();
+                       }) +
+           ")";
+  };
+
   Vec<TypeInfo> call_args;
 
   for (auto&& arg : call->nd_callfunc_args)
     call_args.push_back(this->eval_expr_ti(arg));
-
-  string strargs = "(" +
-                   utils::join(", ", call_args,
-                               [](TypeInfo const& t) -> string {
-                                 return t.to_string();
-                               }) +
-                   ")";
 
   // auto res = this->find_name_wrap(call->nd_callfunc_callee);
   auto res =
@@ -85,17 +87,19 @@ TypeInfo Sema::check_function_call(Node* call) {
       auto iter = limit_bf_candidates(bfs, call_args, is_method_call, &self_ti);
 
       if (auto count = std::distance(bfs.begin(), iter); count >= 2) {
-        Error(id, "ambiguous call to builtin function '" + name + strargs + "'").crash();
+        Error(id,
+              "ambiguous call to builtin function '" + name + strargs(call_args) + "'")
+            .crash();
       }
       else if (count == 0) {
         Error e{id};
 
         if (is_method_call)
           e.set_message("no overload found for builtin method '" + self_ti.to_string() +
-                        "::" + name + strargs + "'");
+                        "::" + name + strargs(call_args) + "'");
         else
-          e.set_message("no overload found for builtin function '" + name + strargs +
-                        "'");
+          e.set_message("no overload found for builtin function '" + name +
+                        strargs(call_args) + "'");
 
         while (iter != bfs.end())
           e.add_note("candidate: " + (*iter++)->to_string());
@@ -123,7 +127,7 @@ TypeInfo Sema::check_function_call(Node* call) {
     // 組み込み関数が見つからなかった場合はエラー
     else {
       Error(id->tok, "cannot find the " + string(is_method_call ? "method" : "function") +
-                         " '" + name + strargs + "'")
+                         " '" + name + strargs(call_args) + "'")
           .crash();
     }
   }
@@ -253,9 +257,11 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
                    ? this->find_name(node, this->get_cur_scope(), false, true)
                    : this->scope_resolution(node);
 
+    switch (res.type) {
+
     //
     // Variable
-    if (res.var) {
+    case NameFindResult::NA_Var: {
       if (!res.var->is_type_deducted)
         Error(node, "cannot use variable before type deducted").crash();
 
@@ -272,7 +278,7 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
     //
     // function name
     //   => Create functor
-    else if (res.func) {
+    case NameFindResult::NA_Func: {
       node->id_kind = NodeIdentifierKind::ID_Func;
 
       node->nd_id_target = res.func;
@@ -283,7 +289,7 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
     //
     // enum name
     //   => Create type-info of enum
-    else if (res.nd_enum) {
+    case NameFindResult::NA_Enum: {
       node->id_kind = NodeIdentifierKind::ID_Enum;
 
       node->nd_id_target = res.nd_enum;
@@ -293,6 +299,19 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
       ti.nd_enum = res.nd_enum;
 
       return ti;
+    }
+
+    //
+    // enumerator
+    case NameFindResult::NA_Enumerator: {
+      node->id_kind = NodeIdentifierKind::ID_Enumerator;
+
+      node->nd_id_target = res.nd_enum;
+
+      node->nd_id_enumerator_index = res.enumerator_index;
+
+      return TypeInfo(TypeKind::Enumerator).set_enum(res.nd_enum, res.enumerator_index);
+    }
     }
 
     Error(res.err_id, "cannot find name '" + res.name + "'").crash();

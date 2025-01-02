@@ -199,6 +199,20 @@ struct ObjFunctor : Object {
   static ObjFunctor* make(Node* func);
 };
 
+struct ObjEnumerator : Object {
+  Node* nd_enum;
+  size_t index;
+
+  ObjEnumerator(Node* nd_enum, size_t index);
+
+  string to_string() const override;
+  ObjEnumerator* clone() const override;
+
+  bool equals(Obj obj) const override;
+
+  static ObjEnumerator* make(Node* nd_enum, size_t index);
+};
+
 struct ObjTypeInfo : Object {
   ObjTypeInfo(TypeInfo const& ti);
 

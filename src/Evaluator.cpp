@@ -225,8 +225,7 @@ Obj Evaluator::eval_expr(Node* node) {
     }
 
     case NodeIdentifierKind::ID_Enumerator: {
-      todo_impl;
-      break;
+      return ObjEnumerator::make(node->nd_id_target, node->nd_id_enumerator_index);
     }
 
     case NodeIdentifierKind::ID_Struct:

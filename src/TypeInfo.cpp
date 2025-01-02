@@ -60,6 +60,14 @@ bool TypeInfo::equals(TypeInfo const& ti) const {
   if (this->kind != ti.kind)
     return false;
 
+  if (this->nd_enum != ti.nd_enum)
+    return false;
+
+  if (this->is(TypeKind::Enumerator)) {
+    if (this->enumerator_index != ti.enumerator_index)
+      return false;
+  }
+
   if (this->is_mutable != ti.is_mutable)
     return false;
 

@@ -203,6 +203,8 @@ private:
       NA_Func,
 
       NA_Enum,
+      NA_Enumerator,
+
       NA_Class,
       NA_Struct,
 
@@ -220,6 +222,8 @@ private:
     Node* nd_enum = nullptr;       // => TypeKind::Type
     Node* nd_enumerator = nullptr; // => TypeKind::Enumerator
 
+    size_t enumerator_index = 0;
+
     Node* err_id = nullptr;
 
     NameFindResult(string const& name, Scope* scope = nullptr,
@@ -230,7 +234,7 @@ private:
     }
 
     bool is_found() const {
-      return this->scope != nullptr;
+      return this->type != NA_NotFound;
     }
   };
 

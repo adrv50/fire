@@ -18,6 +18,7 @@
 #define nd_id_name tok
 #define nd_id_template_args list
 #define nd_id_target nd.na
+#define nd_id_enumerator_index nd.size
 
 //
 // ND_CallFunc

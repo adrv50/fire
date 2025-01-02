@@ -2,6 +2,8 @@
 #include "Object.h"
 #include "utf.h"
 #include "Utils.h"
+#include "Token.h"
+#include "Node.h"
 
 template <std::derived_from<Object> T, typename... Args>
 requires std::constructible_from<T, Args...>
@@ -60,6 +62,11 @@ ObjFunctor* Object::as_functor() {
   return this->ti.is(TypeKind::Functor) ? reinterpret_cast<ObjFunctor*>(this) : nullptr;
 }
 
+ObjEnumerator* Object::as_enumerator() {
+  return this->ti.is(TypeKind::Enumerator) ? reinterpret_cast<ObjEnumerator*>(this)
+                                           : nullptr;
+}
+
 ObjTypeInfo* Object::as_typeinfo() {
   return this->ti.is(TypeKind::Type) ? reinterpret_cast<ObjTypeInfo*>(this) : nullptr;
 }
@@ -104,6 +111,11 @@ ObjDict const* Object::as_dict() const {
 ObjFunctor const* Object::as_functor() const {
   return this->ti.is(TypeKind::Functor) ? reinterpret_cast<ObjFunctor const*>(this)
                                         : nullptr;
+}
+
+ObjEnumerator const* Object::as_enumerator() const {
+  return this->ti.is(TypeKind::Enumerator) ? reinterpret_cast<ObjEnumerator const*>(this)
+                                           : nullptr;
 }
 
 ObjTypeInfo const* Object::as_typeinfo() const {
@@ -164,6 +176,12 @@ ObjDict::ObjDict(TypeInfo const& key_ti, TypeInfo const& value_ti,
 ObjFunctor::ObjFunctor(Node* func)
     : Object(TypeInfo(TypeKind::Functor)),
       func(func) {
+}
+
+ObjEnumerator::ObjEnumerator(Node* nd_enum, size_t index)
+    : Object(TypeInfo(TypeKind::Enumerator).set_enum(nd_enum, index)),
+      nd_enum(nd_enum),
+      index(index) {
 }
 
 ObjTypeInfo::ObjTypeInfo(TypeInfo const& ti)
@@ -241,6 +259,13 @@ string ObjFunctor::to_string() const {
   return "functor";
 }
 
+string ObjEnumerator::to_string() const {
+  auto e = this->nd_enum;
+
+  return e->nd_enum_name->str +
+         "::" + e->nd_enum_enumerators[this->index]->nd_enumerator_name->str;
+}
+
 string ObjTypeInfo::to_string() const {
   return "<typeinfo of " + this->ti.to_string() + ">";
 }
@@ -303,6 +328,10 @@ ObjFunctor* ObjFunctor::clone() const {
   return make_obj<ObjFunctor>(this->func);
 }
 
+ObjEnumerator* ObjEnumerator::clone() const {
+  return make_obj<ObjEnumerator>(this->nd_enum, this->index);
+}
+
 ObjTypeInfo* ObjTypeInfo::clone() const {
   return make_obj<ObjTypeInfo>(this->ti);
 }
@@ -353,6 +382,10 @@ ObjDict* ObjDict::make(TypeInfo const& key_ti, TypeInfo const& value_ti,
 
 ObjFunctor* ObjFunctor::make(Node* func) {
   return make_obj<ObjFunctor>(func);
+}
+
+ObjEnumerator* ObjEnumerator::make(Node* nd_enum, size_t index) {
+  return make_obj<ObjEnumerator>(nd_enum, index);
 }
 
 ObjTypeInfo* ObjTypeInfo::make(TypeInfo const& ti) {
@@ -454,6 +487,13 @@ bool ObjDict::equals(Obj obj) const {
 bool ObjFunctor::equals(Obj obj) const {
   if (auto p = obj->as_functor())
     return this->func == p->func;
+
+  return false;
+}
+
+bool ObjEnumerator::equals(Obj obj) const {
+  if (auto p = obj->as_enumerator())
+    return this->nd_enum == p->nd_enum && this->index == p->index;
 
   return false;
 }

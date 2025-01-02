@@ -106,7 +106,7 @@ Sema::NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
   (void)scope;
 
   auto res = this->find_name(sr->nd_scope_resol_first,
-                             scope ? scope : this->get_cur_scope(), false, false);
+                             scope ? scope : this->get_cur_scope(), false, true);
 
   if (!res.is_found()) {
     res.err_id = sr->nd_scope_resol_first;
@@ -114,6 +114,8 @@ Sema::NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
   }
 
   for (auto&& id : sr->nd_scope_resol_idlist) {
+    string const& name = id->nd_id_name->str;
+
     switch (res.type) {
     case NameFindResult::NA_NotFound:
       res.err_id = id;
@@ -121,12 +123,24 @@ Sema::NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
 
     case NameFindResult::NA_Var:
     case NameFindResult::NA_Func:
-      Error(id->tok, "cannot use scope resolution operator for variable or function")
-          .crash();
+    case NameFindResult::NA_Enumerator:
+      Error(id->tok, "invalid use of scope resolution operator").crash();
 
-    case NameFindResult::NA_Enum:
-      todo_impl;
+    case NameFindResult::NA_Enum: {
+
+      for (size_t i = 0; i < res.nd_enum->nd_enum_enumerators.size(); ++i) {
+        auto e = res.nd_enum->nd_enum_enumerators[i];
+
+        if (e->nd_enumerator_name->str == name) {
+          res.type = NameFindResult::NA_Enumerator;
+          res.nd_enumerator = e;
+          res.enumerator_index = i;
+          goto _sr_found;
+        }
+      }
+
       break;
+    }
 
     case NameFindResult::NA_Class:
     case NameFindResult::NA_Struct:
@@ -135,6 +149,8 @@ Sema::NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
     }
 
     res = this->find_name(id, res.scope, false, false);
+
+  _sr_found:;
   }
 
   return res;
@@ -174,7 +190,6 @@ Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
         if (auto en = scope->find_if([](Scope* S) -> bool {
               return S->type == SC_Enum;
             })) {
-          alert;
           result.type = NameFindResult::NA_Enum;
           result.scope = en;
           result.nd_enum = en->node;
