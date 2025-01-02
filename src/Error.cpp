@@ -55,7 +55,8 @@ Error const& Error::emit() const {
     if (auto ss = ref->get_ss()) {
       cout << COL_YELLOW "     ---> " << COL_CYAN << ss->get_path() << ":"
            << ref->line_num << ":" << ref->pos_in_line << endl
-           << COL_YELLOW << utils::format("% 4zu | ", ref->line_num) << COL_WHITE
+           << COL_YELLOW << "     |" << endl
+           << utils::format("% 4zu | ", ref->line_num) << COL_WHITE
            << ref->get_line_view() << COL_YELLOW "     |" << COL_RED
            << string(ref->pos_in_line, ' ') << "^" << endl
            << endl
