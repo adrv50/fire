@@ -125,6 +125,9 @@ Sema::NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
           .crash();
 
     case NameFindResult::NA_Enum:
+      todo_impl;
+      break;
+
     case NameFindResult::NA_Class:
     case NameFindResult::NA_Struct:
     case NameFindResult::NA_Namespace:
@@ -152,16 +155,29 @@ Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
 
   this->find_scope_if(
       [&](Scope* scope) -> bool {
+        // variable
         if ((result.var = scope->find_var(id->tok->str))) {
           result.type = NameFindResult::NA_Var;
           result.scope = scope;
           return true;
         }
 
+        // function
         if (auto fn = scope->find_func(id->tok->str)) {
           result.type = NameFindResult::NA_Func;
           result.scope = fn;
           result.func = fn->node;
+          return true;
+        }
+
+        // enum
+        if (auto en = scope->find_if([](Scope* S) -> bool {
+              return S->type == SC_Enum;
+            })) {
+          alert;
+          result.type = NameFindResult::NA_Enum;
+          result.scope = en;
+          result.nd_enum = en->node;
           return true;
         }
 

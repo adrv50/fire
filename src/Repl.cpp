@@ -50,11 +50,14 @@ string input_line(string const& prompt) {
 }
 
 Token* lex_line(string const& line) {
+  (void)line;
 
   return nullptr;
 }
 
 Obj execute_line(string const& line) {
+  (void)line;
+
   return nullptr;
 }
 
@@ -85,6 +88,8 @@ void run() {
     }
 
     auto tok = lex_line(line);
+
+    (void)tok;
 
     if (auto result = execute_line(line))
       cout << result->to_string() << endl;

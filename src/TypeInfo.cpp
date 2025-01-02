@@ -1,7 +1,11 @@
 #include <functional>
 
+#include "alert.h"
 #include "Utils.h"
 #include "TypeInfo.h"
+
+#include "Token.h"
+#include "Node.h"
 
 using TK = TypeKind;
 
@@ -16,8 +20,11 @@ static Vec<pair<TypeKind, char const*>> const kind_and_name_table = {
   { TK::Vector,     "vector" },
   { TK::Tuple,      "tuple" },
   { TK::Dict,       "dict" },
+  { TK::Functor,    "functor" },
+  { TK::Enumerator, "enumerator" },
   { TK::Type,       "type" },
   { TK::Instance,   "instance" },
+  { TK::Any,        "any" },
 };
 // clang-format on
 
@@ -67,7 +74,20 @@ bool TypeInfo::equals(TypeInfo const& ti) const {
 }
 
 string TypeInfo::to_string() const {
-  auto str = get_name_of_kind(this->kind);
+  string str;
+
+  if (this->kind == TK::Enumerator) {
+    str = this->nd_enum->nd_enum_enumerators[this->enumerator_index]
+              ->nd_enumerator_name->str;
+  }
+  else if (this->kind == TK::Type) {
+    if (this->nd_enum)
+      str = this->nd_enum->nd_enum_name->str;
+    else
+      todo_impl;
+  }
+  else
+    str = get_name_of_kind(this->kind);
 
   if (this->is_template()) {
     str += "<" +
@@ -85,6 +105,13 @@ string TypeInfo::to_string() const {
     str += " mut";
 
   return str;
+}
+
+TypeInfo& TypeInfo::set_enum(Node* nd_enum, size_t index) {
+  this->nd_enum = nd_enum;
+  this->enumerator_index = index;
+
+  return *this;
 }
 
 string TypeInfo::get_name_of_kind(TypeKind kind) {
@@ -115,7 +142,7 @@ TypeInfo::TypeInfo(TypeKind kind)
 
 TypeInfo::TypeInfo(TypeKind kind, Vec<TypeInfo> template_args, bool is_ref, bool is_mut)
     : kind(kind),
+      template_args(std::move(template_args)),
       is_reference(is_ref),
-      is_mutable(is_mut),
-      template_args(std::move(template_args)) {
+      is_mutable(is_mut) {
 }

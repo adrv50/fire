@@ -17,6 +17,7 @@
 
 #define nd_id_name tok
 #define nd_id_template_args list
+#define nd_id_target nd.na
 
 //
 // ND_CallFunc
@@ -170,10 +171,19 @@ enum NodeKind : u16 {
   ND_Program,
 };
 
+// -------------------------------------
+//  NodeIdentifierKind:
+//    The kind of identifier decided in Sema.
+// -------------------------------------
 enum NodeIdentifierKind : u8 { // for id or scope-resol
   ID_None,
   ID_Var,
   ID_Func,
+  ID_Enum,
+  ID_Enumerator,
+  ID_Struct,
+  ID_Class,
+  ID_Namespace,
 };
 
 enum CompareExprKind : u8 {

@@ -253,6 +253,8 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
                    ? this->find_name(node, this->get_cur_scope(), false, true)
                    : this->scope_resolution(node);
 
+    //
+    // Variable
     if (res.var) {
       if (!res.var->is_type_deducted)
         Error(node, "cannot use variable before type deducted").crash();
@@ -262,11 +264,35 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
       node->nd_variable_offset = res.var->index;
       node->nd_variable_is_global = (res.scope == this->root_scope);
 
+      node->nd_id_target = res.var->decl;
+
       return res.var->ti;
     }
 
+    //
+    // function name
+    //   => Create functor
     else if (res.func) {
+      node->id_kind = NodeIdentifierKind::ID_Func;
+
+      node->nd_id_target = res.func;
+
       todo_impl;
+    }
+
+    //
+    // enum name
+    //   => Create type-info of enum
+    else if (res.nd_enum) {
+      node->id_kind = NodeIdentifierKind::ID_Enum;
+
+      node->nd_id_target = res.nd_enum;
+
+      TypeInfo ti = TypeKind::Type;
+
+      ti.nd_enum = res.nd_enum;
+
+      return ti;
     }
 
     Error(res.err_id, "cannot find name '" + res.name + "'").crash();

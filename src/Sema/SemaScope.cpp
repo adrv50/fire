@@ -107,6 +107,20 @@ Sema::Scope* Sema::Scope::find_func(string const& name) {
   return nullptr;
 }
 
+Sema::Scope* Sema::Scope::find_if(std::function<bool(Scope*)> const& pred,
+                                  bool recursive) {
+  for (auto& child : this->childs) {
+    if (pred(child))
+      return child;
+
+    if (recursive)
+      if (auto found = child->find_if(pred, recursive))
+        return found;
+  }
+
+  return nullptr;
+}
+
 Sema::Scope* Sema::Scope::make_scope(Node* node) {
   switch (node->kind) {
   case ND_Program:
@@ -120,9 +134,9 @@ Sema::Scope* Sema::Scope::make_scope(Node* node) {
     return scope;
   }
 
-  case ND_Enum:
-    todo_impl;
-    break;
+  case ND_Enum: {
+    return new Scope(SC_Enum, node);
+  }
 
   case ND_Struct:
     todo_impl;
@@ -131,17 +145,16 @@ Sema::Scope* Sema::Scope::make_scope(Node* node) {
   case ND_Class:
     todo_impl;
     break;
+
+  default:
+    return nullptr;
   }
 
   auto scope = new Scope(SC_Global, node);
 
   for (auto&& item : node->nd_items) {
-    if (item->is(ND_Function)) {
-      auto fnscope = Scope::make_scope(item);
-
-      scope->append(fnscope);
-      scope->functions.emplace_back(fnscope);
-    }
+    if (auto childscope = Scope::make_scope(item))
+      scope->append(childscope);
   }
 
   return scope;

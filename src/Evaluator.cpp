@@ -220,6 +220,27 @@ Obj Evaluator::eval_expr(Node* node) {
     case NodeIdentifierKind::ID_Func:
       todo_impl;
 
+    case NodeIdentifierKind::ID_Enum: {
+      return ObjTypeInfo::make(TypeInfo(TypeKind::Type).set_enum(node->nd_id_target));
+    }
+
+    case NodeIdentifierKind::ID_Enumerator: {
+      todo_impl;
+      break;
+    }
+
+    case NodeIdentifierKind::ID_Struct:
+      todo_impl;
+      break;
+
+    case NodeIdentifierKind::ID_Class:
+      todo_impl;
+      break;
+
+    case NodeIdentifierKind::ID_Namespace:
+      todo_impl;
+      break;
+
     default:
       todo_impl;
     }

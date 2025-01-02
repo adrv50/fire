@@ -26,6 +26,9 @@ struct Object {
   ObjTuple* as_tuple();
   ObjDict* as_dict();
   ObjFunctor* as_functor();
+  ObjEnumerator* as_enumerator();
+  ObjInstance* as_instance();
+  ObjTypeInfo* as_typeinfo();
 
   ObjNone const* as_none() const;
   ObjInt const* as_int() const;
@@ -37,6 +40,9 @@ struct Object {
   ObjTuple const* as_tuple() const;
   ObjDict const* as_dict() const;
   ObjFunctor const* as_functor() const;
+  ObjEnumerator const* as_enumerator() const;
+  ObjInstance const* as_instance() const;
+  ObjTypeInfo const* as_typeinfo() const;
 
   virtual string to_string() const = 0;
   virtual Obj clone() const = 0;
@@ -191,4 +197,15 @@ struct ObjFunctor : Object {
   bool equals(Obj obj) const override;
 
   static ObjFunctor* make(Node* func);
+};
+
+struct ObjTypeInfo : Object {
+  ObjTypeInfo(TypeInfo const& ti);
+
+  string to_string() const override;
+  ObjTypeInfo* clone() const override;
+
+  bool equals(Obj obj) const override;
+
+  static ObjTypeInfo* make(TypeInfo const& ti);
 };

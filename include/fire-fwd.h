@@ -18,6 +18,7 @@ struct ObjDict;
 struct ObjFunctor;
 struct ObjEnumerator;
 struct ObjInstance;
+struct ObjTypeInfo;
 
 enum class TokenKind : u8;
 enum class TokenOperatorKind : u16;

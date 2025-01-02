@@ -124,6 +124,8 @@ class Sema {
 
     Scope* find_func(string const& name);
 
+    Scope* find_if(std::function<bool(Scope*)> const& pred, bool recursive = false);
+
     static Scope* make_scope(Node* node);
 
     Scope(ScopeType type, Node* node);
@@ -214,6 +216,9 @@ private:
 
     VarInfo* var = nullptr;
     Node* func = nullptr;
+
+    Node* nd_enum = nullptr;       // => TypeKind::Type
+    Node* nd_enumerator = nullptr; // => TypeKind::Enumerator
 
     Node* err_id = nullptr;
 

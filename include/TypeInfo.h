@@ -28,6 +28,7 @@ enum class TypeKind : u8 {
   Any,
 };
 
+struct Node;
 struct TypeInfo {
   TypeKind kind;
   Vec<TypeInfo> template_args;
@@ -35,6 +36,7 @@ struct TypeInfo {
   bool is_reference;
   bool is_mutable;
 
+  Node* nd_enum = nullptr;
   size_t enumerator_index = 0;
 
   TypeInfo& append_template_arg(TypeInfo const& ti);
@@ -49,6 +51,8 @@ struct TypeInfo {
   bool equals(TypeInfo const& ti) const;
 
   string to_string() const;
+
+  TypeInfo& set_enum(Node* nd_enum, size_t index = 0);
 
   static string get_name_of_kind(TypeKind kind);
 

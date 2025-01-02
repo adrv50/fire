@@ -60,6 +60,10 @@ ObjFunctor* Object::as_functor() {
   return this->ti.is(TypeKind::Functor) ? reinterpret_cast<ObjFunctor*>(this) : nullptr;
 }
 
+ObjTypeInfo* Object::as_typeinfo() {
+  return this->ti.is(TypeKind::Type) ? reinterpret_cast<ObjTypeInfo*>(this) : nullptr;
+}
+
 ObjNone const* Object::as_none() const {
   return this->ti.is(TypeKind::None) ? reinterpret_cast<ObjNone const*>(this) : nullptr;
 }
@@ -100,6 +104,11 @@ ObjDict const* Object::as_dict() const {
 ObjFunctor const* Object::as_functor() const {
   return this->ti.is(TypeKind::Functor) ? reinterpret_cast<ObjFunctor const*>(this)
                                         : nullptr;
+}
+
+ObjTypeInfo const* Object::as_typeinfo() const {
+  return this->ti.is(TypeKind::Type) ? reinterpret_cast<ObjTypeInfo const*>(this)
+                                     : nullptr;
 }
 
 // ----------------------------------------
@@ -150,6 +159,15 @@ ObjDict::ObjDict(TypeInfo const& key_ti, TypeInfo const& value_ti,
       key_ti(this->ti.template_args[0]),
       value_ti(this->ti.template_args[1]),
       list(val) {
+}
+
+ObjFunctor::ObjFunctor(Node* func)
+    : Object(TypeInfo(TypeKind::Functor)),
+      func(func) {
+}
+
+ObjTypeInfo::ObjTypeInfo(TypeInfo const& ti)
+    : Object(ti) {
 }
 
 // ----------------------------------------
@@ -219,6 +237,14 @@ string ObjDict::to_string() const {
          "}";
 }
 
+string ObjFunctor::to_string() const {
+  return "functor";
+}
+
+string ObjTypeInfo::to_string() const {
+  return "<typeinfo of " + this->ti.to_string() + ">";
+}
+
 // ----------------------------------------
 //  clone
 // ----------------------------------------
@@ -273,6 +299,14 @@ ObjDict* ObjDict::clone() const {
   return make_obj<ObjDict>(this->key_ti, this->value_ti, cloned);
 }
 
+ObjFunctor* ObjFunctor::clone() const {
+  return make_obj<ObjFunctor>(this->func);
+}
+
+ObjTypeInfo* ObjTypeInfo::clone() const {
+  return make_obj<ObjTypeInfo>(this->ti);
+}
+
 // ----------------------------------------
 //  Constructor wrappers
 // ----------------------------------------
@@ -315,6 +349,14 @@ ObjTuple* ObjTuple::make(TypeInfo const& elem_ti, Vec<Obj> const& val) {
 ObjDict* ObjDict::make(TypeInfo const& key_ti, TypeInfo const& value_ti,
                        Vec<pair<Obj, Obj>> const& val) {
   return make_obj<ObjDict>(key_ti, value_ti, val);
+}
+
+ObjFunctor* ObjFunctor::make(Node* func) {
+  return make_obj<ObjFunctor>(func);
+}
+
+ObjTypeInfo* ObjTypeInfo::make(TypeInfo const& ti) {
+  return make_obj<ObjTypeInfo>(ti);
 }
 
 // ----------------------------------------
@@ -412,6 +454,13 @@ bool ObjDict::equals(Obj obj) const {
 bool ObjFunctor::equals(Obj obj) const {
   if (auto p = obj->as_functor())
     return this->func == p->func;
+
+  return false;
+}
+
+bool ObjTypeInfo::equals(Obj obj) const {
+  if (auto p = obj->as_typeinfo())
+    return this->ti.equals(p->ti);
 
   return false;
 }
