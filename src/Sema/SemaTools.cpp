@@ -1,6 +1,7 @@
 #include <cassert>
 
 #include "alert.h"
+#include "Utils.h"
 
 #include "Builtins.h"
 #include "TypeInfo.h"
@@ -117,35 +118,35 @@ Sema::NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
     string const& name = id->nd_id_name->str;
 
     switch (res.type) {
-    case NameFindResult::NA_NotFound:
-      res.err_id = id;
-      return res;
+      case NameFindResult::NA_NotFound:
+        res.err_id = id;
+        return res;
 
-    case NameFindResult::NA_Var:
-    case NameFindResult::NA_Func:
-    case NameFindResult::NA_Enumerator:
-      Error(id->tok, "invalid use of scope resolution operator").crash();
+      case NameFindResult::NA_Var:
+      case NameFindResult::NA_Func:
+      case NameFindResult::NA_Enumerator:
+        Error(id->tok, "invalid use of scope resolution operator").crash();
 
-    case NameFindResult::NA_Enum: {
+      case NameFindResult::NA_Enum: {
 
-      for (size_t i = 0; i < res.nd_enum->nd_enum_enumerators.size(); ++i) {
-        auto e = res.nd_enum->nd_enum_enumerators[i];
+        for (size_t i = 0; i < res.nd_enum->nd_enum_enumerators.size(); ++i) {
+          auto e = res.nd_enum->nd_enum_enumerators[i];
 
-        if (e->nd_enumerator_name->str == name) {
-          res.type = NameFindResult::NA_Enumerator;
-          res.nd_enumerator = e;
-          res.enumerator_index = i;
-          goto _sr_found;
+          if (e->nd_enumerator_name->str == name) {
+            res.type = NameFindResult::NA_Enumerator;
+            res.nd_enumerator = e;
+            res.enumerator_index = i;
+            goto _sr_found;
+          }
         }
+
+        break;
       }
 
-      break;
-    }
-
-    case NameFindResult::NA_Class:
-    case NameFindResult::NA_Struct:
-    case NameFindResult::NA_Namespace:
-      break;
+      case NameFindResult::NA_Class:
+      case NameFindResult::NA_Struct:
+      case NameFindResult::NA_Namespace:
+        break;
     }
 
     res = this->find_name(id, res.scope, false, false);
@@ -187,8 +188,8 @@ Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
         }
 
         // enum
-        if (auto en = scope->find_if([](Scope* S) -> bool {
-              return S->type == SC_Enum;
+        if (auto en = scope->find_if([&](Scope* S) -> bool {
+              return S->type == SC_Enum && S->node->nd_enum_name->str == id->tok->str;
             })) {
           result.type = NameFindResult::NA_Enum;
           result.scope = en;
@@ -222,4 +223,30 @@ Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
 Sema::NameFindResult Sema::find_name_wrap(Node* name, Scope* scope) {
   return name->is(ND_ScopeResol) ? this->scope_resolution(name, scope)
                                  : this->find_name(name, scope);
+}
+
+TypeInfo Sema::make_functor_ti(Vec<TypeInfo> const& arg_types, TypeInfo const& ret_type) {
+  TypeInfo ti(TypeKind::Functor);
+
+  // { ret_type, arg_types... }
+  ti.template_args = arg_types;
+  ti.template_args.insert(ti.template_args.begin(), ret_type);
+
+  return ti;
+}
+
+string Sema::get_full_name(Node* id_or_sr) {
+  debug(assert(id_or_sr->is_id_or_sr()));
+
+  if (id_or_sr->is(ND_ScopeResol)) {
+    return get_full_name(id_or_sr->nd_scope_resol_first) +
+           "::" + utils::join("::", id_or_sr->nd_scope_resol_idlist, get_full_name);
+  }
+
+  auto s = id_or_sr->get_name();
+
+  if (!id_or_sr->nd_id_template_args.empty())
+    s += "<" + utils::join(", ", id_or_sr->nd_id_template_args, get_full_name) + ">";
+
+  return s;
 }

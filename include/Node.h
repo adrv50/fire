@@ -17,8 +17,16 @@
 
 #define nd_id_name tok
 #define nd_id_template_args list
-#define nd_id_target nd.na
+#define nd_id_target nd.nb
 #define nd_id_enumerator_index nd.size
+
+//
+// if name of enumerator needing initializers,
+// pointer to call-func expression.
+#define nd_id_enumerator_callctor nd.nb // => ND_CallFunc
+
+#define nd_scope_resol_first nd.na
+#define nd_scope_resol_idlist list
 
 //
 // ND_CallFunc
@@ -28,6 +36,8 @@
 #define nd_callfunc_is_method_call nd.b1
 #define nd_callfunc_method_self nd.nc
 #define nd_callfunc_args list
+#define nd_callfunc_enum_ctor_enum nd.nb
+#define nd_callfunc_enum_ctor_index nd.size
 
 #define nd_type_is_mut nd.b1
 #define nd_type_is_ref nd.b2
@@ -65,9 +75,6 @@
 
 #define nd_lhs nd.na
 #define nd_rhs nd.nb
-
-#define nd_scope_resol_first nd.na
-#define nd_scope_resol_idlist list
 
 #define nd_return_expr nd.na
 
@@ -113,6 +120,9 @@ enum NodeKind : u16 {
   ND_MemberAccess,
   ND_CallFunc,
 
+  ND_ConstructEnumeratorValue,
+  ND_ConstructEnumeratorStruct,
+
   ND_Mul,
   ND_Div,
   ND_Mod,
@@ -142,6 +152,7 @@ enum NodeKind : u16 {
 
   ND_Let,
   ND_If,
+  ND_IfLet,
   ND_Match,
 
   ND_While,
@@ -200,6 +211,9 @@ struct Node {
   Token* tok;
   Vec<Node*> list;
 
+  Token* first_tok = nullptr;
+  Token* last_tok = nullptr;
+
   union {
     void* __data[10]{0};
 
@@ -231,9 +245,17 @@ struct Node {
 
   bool is(NodeKind kind) const;
 
+  bool is_id_or_sr() const {
+    return this->is(ND_Identifier) || this->is(ND_ScopeResol);
+  }
+
   string get_name() const;
 
   Node*& append(Node* node);
+
+  Node* get_enumerator(size_t index) const {
+    return this->nd_enum_enumerators[index];
+  }
 
   static Node* new_node(NodeKind kind, Token* tok);
 

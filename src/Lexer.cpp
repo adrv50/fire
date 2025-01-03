@@ -189,8 +189,8 @@ bool Lexer::check(int add) const {
   return this->pos + add <= this->len;
 }
 
-char Lexer::peek() const {
-  return this->SS.get_data()[this->pos];
+char Lexer::peek(int offset) const {
+  return this->SS.get_data()[this->pos + offset];
 }
 
 string_view Lexer::get(int len) const {
@@ -304,7 +304,9 @@ Token* Lexer::lex() {
       cur = Token::make(TokenKind::Decimal, &this->SS, cur, this->trim_decimal(), _pos);
 
       // if eat dot, it is a float
-      if (this->eat(".")) {
+      if (this->match(".") && isdigit(this->peek(1))) {
+        this->pos++;
+
         cur->kind = TokenKind::Float;
         cur->str += "." + this->trim_decimal();
         cur->literal_data.v_float = std::stod(cur->str);

@@ -11,8 +11,12 @@
 Node* Parser::parse() {
   auto node = Node::new_node(ND_Program, this->cur);
 
+  node->first_tok = this->cur;
+
   while (this->check())
     node->append(this->p_root());
+
+  node->last_tok = this->cur->prev;
 
   return node;
 }
@@ -64,6 +68,8 @@ Node* Parser::p_enum() {
   if (this->eat(Kwd::Enum)) {
     auto node = Node::new_node(ND_Enum, this->cur);
 
+    node->first_tok = this->cur;
+
     node->nd_enum_name = this->expect_ident();
 
     this->expect(Punct::BlockBraceOpen);
@@ -71,6 +77,8 @@ Node* Parser::p_enum() {
     do {
       node->append(this->p_def_enumerator());
     } while (this->eat(Punct::Comma));
+
+    node->last_tok = this->cur;
 
     this->expect(Punct::BlockBraceClose);
 
@@ -99,7 +107,11 @@ Node* Parser::p_enum() {
 //     ident ":" type
 // -----------------------------------------------
 Node* Parser::p_def_enumerator() {
+  auto tok = this->cur;
+
   auto node = Node::new_node(ND_DefEnumerator, this->cur);
+
+  node->first_tok = tok;
 
   node->nd_enumerator_name = this->expect_ident();
 
@@ -122,6 +134,8 @@ Node* Parser::p_def_enumerator() {
 
     this->expect(Punct::BraceClose);
   }
+
+  node->last_tok = this->cur->prev;
 
   return node;
 }

@@ -141,11 +141,11 @@ Obj obj_rshift(Obj lhs, Obj rhs) {
 
 Obj obj_compare(CompareExprKind kind, Obj lhs, Obj rhs) {
   switch (kind) {
-  case CompareExprKind::CMP_Bigger:
-    return ObjBool::make(lhs->as_int()->val > rhs->as_int()->val);
+    case CompareExprKind::CMP_Bigger:
+      return ObjBool::make(lhs->as_int()->val > rhs->as_int()->val);
 
-  case CompareExprKind::CMP_BiggerOrEqual:
-    return ObjBool::make(lhs->as_int()->val >= rhs->as_int()->val);
+    case CompareExprKind::CMP_BiggerOrEqual:
+      return ObjBool::make(lhs->as_int()->val >= rhs->as_int()->val);
   }
 
   return nullptr;
@@ -179,88 +179,97 @@ Obj Evaluator::eval_expr(Node* node) {
 
   switch (node->kind) {
 
-  case ND_Value:
-    return node->nd_value;
+    case ND_Value:
+      return node->nd_value;
 
-  case ND_Array: {
-    auto obj = ObjVector::make({});
+    case ND_Array: {
+      auto obj = ObjVector::make({});
 
-    for (auto&& item : node->nd_array_elements)
-      obj->list.emplace_back(this->eval_expr(item));
+      for (auto&& item : node->nd_array_elements)
+        obj->list.emplace_back(this->eval_expr(item));
 
-    if (!obj->list.empty())
-      obj->ti.template_args[0] = obj->list[0]->ti;
+      if (!obj->list.empty())
+        obj->ti.template_args[0] = obj->list[0]->ti;
 
-    return obj;
-  }
-
-  case ND_Tuple: {
-    auto obj = ObjTuple::make({});
-
-    for (auto&& item : node->nd_tuple_elements) {
-      auto elem = this->eval_expr(item);
-
-      obj->ti.append_template_arg(elem->ti);
-
-      obj->list.emplace_back(elem);
+      return obj;
     }
 
-    return obj;
-  }
+    case ND_Tuple: {
+      auto obj = ObjTuple::make({});
 
-  case ND_Identifier:
-  case ND_ScopeResol:
-    switch (node->id_kind) {
-    case NodeIdentifierKind::ID_Var:
-      if (node->nd_variable_is_global)
-        return this->global_variables[node->nd_variable_offset];
+      for (auto&& item : node->nd_tuple_elements) {
+        auto elem = this->eval_expr(item);
 
-      return this->get_current_call_stack().get(node->nd_variable_offset);
+        obj->ti.append_template_arg(elem->ti);
 
-    case NodeIdentifierKind::ID_Func:
-      todo_impl;
+        obj->list.emplace_back(elem);
+      }
 
-    case NodeIdentifierKind::ID_Enum: {
-      return ObjTypeInfo::make(TypeInfo(TypeKind::Type).set_enum(node->nd_id_target));
+      return obj;
     }
 
-    case NodeIdentifierKind::ID_Enumerator: {
-      return ObjEnumerator::make(node->nd_id_target, node->nd_id_enumerator_index);
+    case ND_Identifier:
+    case ND_ScopeResol:
+      switch (node->id_kind) {
+        case NodeIdentifierKind::ID_Var:
+          if (node->nd_variable_is_global)
+            return this->global_variables[node->nd_variable_offset];
+
+          return this->get_current_call_stack().get(node->nd_variable_offset);
+
+        case NodeIdentifierKind::ID_Func:
+          todo_impl;
+
+        case NodeIdentifierKind::ID_Enum: {
+          return ObjTypeInfo::make(TypeInfo(TypeKind::Type).set_enum(node->nd_id_target));
+        }
+
+        case NodeIdentifierKind::ID_Enumerator: {
+          return ObjEnumerator::make(node->nd_id_target, node->nd_id_enumerator_index);
+        }
+
+        case NodeIdentifierKind::ID_Struct:
+          todo_impl;
+          break;
+
+        case NodeIdentifierKind::ID_Class:
+          todo_impl;
+          break;
+
+        case NodeIdentifierKind::ID_Namespace:
+          todo_impl;
+          break;
+
+        default:
+          todo_impl;
+      }
+
+      break;
+
+    case ND_CallFunc: {
+      Vec<Obj> args;
+
+      // if (node->nd_callfunc_is_method_call) {
+      //   args.emplace_back(this->eval_expr(node->nd_callfunc_method_self));
+      // }
+
+      for (auto&& item : node->nd_callfunc_args)
+        args.emplace_back(this->eval_expr(item));
+
+      return this->eval_call_func(node, args);
     }
 
-    case NodeIdentifierKind::ID_Struct:
-      todo_impl;
-      break;
+    case ND_ConstructEnumeratorValue: {
+      auto obj = ObjEnumerator::make(node->nd_callfunc_enum_ctor_enum,
+                                     node->nd_callfunc_enum_ctor_index);
 
-    case NodeIdentifierKind::ID_Class:
-      todo_impl;
-      break;
+      obj->data.emplace_back(this->eval_expr(node->nd_callfunc_args[0]));
 
-    case NodeIdentifierKind::ID_Namespace:
-      todo_impl;
-      break;
+      return obj;
+    }
 
     default:
-      todo_impl;
-    }
-
-    break;
-
-  case ND_CallFunc: {
-    Vec<Obj> args;
-
-    if (node->nd_callfunc_is_method_call) {
-      args.emplace_back(this->eval_expr(node->nd_callfunc_method_self));
-    }
-
-    for (auto&& item : node->nd_callfunc_args)
-      args.emplace_back(this->eval_expr(item));
-
-    return this->eval_call_func(node, args);
-  }
-
-  default:
-    break;
+      break;
   }
 
   auto lhs = this->eval_expr(node->nd_lhs)->clone();
@@ -286,7 +295,9 @@ Obj Evaluator::eval_call_func(Node* node, Vec<Obj>& args) {
   if (!callee) {
     // => no pointer to user-defined function, call builtin
 
-    return node->nd_callfunc_callee_builtin->call(*this, args);
+    assert(node->nd_callfunc_callee_builtin);
+
+    return node->nd_callfunc_callee_builtin->call(*this, node, args);
   }
 
   // if got pointer, call user-defined function
@@ -307,38 +318,38 @@ Obj Evaluator::eval_call_func(Node* node, Vec<Obj>& args) {
 Obj Evaluator::eval_stmt(Node* node) {
   switch (node->kind) {
 
-  case ND_Block:
-    this->eval_block(node);
-    break;
+    case ND_Block:
+      this->eval_block(node);
+      break;
 
-  case ND_Let:
-    this->eval_let(node);
-    break;
+    case ND_Let:
+      this->eval_let(node);
+      break;
 
-  case ND_If: {
-    auto cond = this->eval_expr(node->nd_if_cond);
+    case ND_If: {
+      auto cond = this->eval_expr(node->nd_if_cond);
 
-    if (cond->as_bool()->val)
-      this->eval_block(node->nd_if_then);
-    else if (node->nd_if_else)
-      this->eval_block(node->nd_if_else);
+      if (cond->as_bool()->val)
+        this->eval_block(node->nd_if_then);
+      else if (node->nd_if_else)
+        this->eval_block(node->nd_if_else);
 
-    break;
-  }
+      break;
+    }
 
-  case ND_Return: {
-    auto& stack = this->get_current_call_stack();
+    case ND_Return: {
+      auto& stack = this->get_current_call_stack();
 
-    stack.is_returned = true;
+      stack.is_returned = true;
 
-    if (node->nd_return_expr)
-      stack.result = this->eval_expr(node->nd_return_expr);
+      if (node->nd_return_expr)
+        stack.result = this->eval_expr(node->nd_return_expr);
 
-    break;
-  }
+      break;
+    }
 
-  default:
-    return this->eval_expr(node);
+    default:
+      return this->eval_expr(node);
   }
 
   return nullptr;

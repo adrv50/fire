@@ -8,11 +8,16 @@
 #include "Object.h"
 #include "Token.h"
 #include "Node.h"
+
 #include "Builtins.h"
+#include "Error.h"
 
 #define def_builtin_func(_Name)                                                          \
-  static Obj b_##_Name([[maybe_unused]] Evaluator& eval,                                 \
+  static Obj b_##_Name([[maybe_unused]] Evaluator& eval, [[maybe_unused]] Node* node,    \
                        [[maybe_unused]] Vec<Obj> const& args)
+
+#define ArgError(_arg_index, _msg)                                                       \
+  Error(node->nd_callfunc_args[_arg_index], _msg, ErrorType::RunTime).crash()
 
 namespace Builtins {
 
@@ -52,7 +57,7 @@ def_builtin_func(print) {
 // println(...) -> int
 //
 def_builtin_func(println) {
-  auto res = b_print(eval, args);
+  auto res = b_print(eval, node, args);
 
   cout << endl;
   res->as_int()->val++;
@@ -70,6 +75,22 @@ def_builtin_func(exit) {
 }
 
 //
+// string::insert(self, pos: int, value: string) -> string
+//
+def_builtin_func(string_insert) {
+  ObjPtr<ObjStr> str = args[0]->as_str();
+
+  i64 pos = args[1]->as_int()->val;
+
+  ObjPtr<ObjStr> value = args[2]->as_str();
+
+  if (pos < 0 || static_cast<size_t>(pos) > str->length())
+    ArgError(1, "index out of range");
+
+  return ObjStr::make(str->val.insert(static_cast<size_t>(pos), value->val));
+}
+
+//
 // string::substr(self, pos: int) -> string
 //
 def_builtin_func(substr_1) {
@@ -77,11 +98,14 @@ def_builtin_func(substr_1) {
 
   i64 start = args[1]->as_int()->val;
 
+  if (start < 0 || static_cast<size_t>(start) > str->length())
+    ArgError(1, "index out of range");
+
   return ObjStr::make(str->val.substr(static_cast<size_t>(start)));
 }
 
 //
-// string::substr(self, pos: int, len: int = -1) -> string
+// string::substr(self, pos: int, len: int) -> string
 //
 def_builtin_func(substr_2) {
   ObjPtr<ObjStr> str = args[0]->as_str();
@@ -89,8 +113,11 @@ def_builtin_func(substr_2) {
   i64 start = args[1]->as_int()->val;
   i64 len = args[2]->as_int()->val;
 
-  if (len == -1)
-    len = (i64)str->length() - start;
+  if (start < 0 || static_cast<size_t>(start) > str->length())
+    ArgError(1, "index out of range");
+
+  if (len < 0)
+    ArgError(2, "length must be positive");
 
   return ObjStr::make(
       str->val.substr(static_cast<size_t>(start), static_cast<size_t>(len)));
@@ -123,6 +150,22 @@ def_builtin_func(vector_append) {
   vec->list.emplace_back(args[1]);
 
   return vec;
+}
+
+//
+// vector::pop(self) -> any
+//
+def_builtin_func(vector_pop) {
+  ObjPtr<ObjVector> vec = args[0]->as_vector();
+
+  if (vec->list.empty())
+    ArgError(0, "vector is empty");
+
+  auto res = vec->list.back();
+
+  vec->list.pop_back();
+
+  return res;
 }
 
 //
@@ -175,20 +218,36 @@ def_builtin_func(pow) {
 //
 // int::fib(self) -> int
 //
-def_builtin_func(fib) {
-  ObjPtr<ObjInt> obj = args[0]->as_int();
+static i64 fib_impl(i64 n) {
+  if (n < 2)
+    return 1;
 
-  if (auto n = obj->val; n < 2)
-    return ObjInt::make(1);
-  else
-    return ObjInt::make(b_fib(eval, {ObjInt::make(n - 1)})->as_int()->val +
-                        b_fib(eval, {ObjInt::make(n - 2)})->as_int()->val);
+  return fib_impl(n - 1) + fib_impl(n - 2);
+}
+
+def_builtin_func(fib) {
+  return ObjInt::make(fib_impl(args[0]->as_int()->val));
 }
 
 //
-// (any)::to_string(self) -> string
+// int::chr(self) -> char
 //
-def_builtin_func(to_string) {
+def_builtin_func(int_chr) {
+  return ObjChar::make(
+      std::u16string(1, static_cast<char16_t>(args[0]->as_int()->val))[0]);
+}
+
+//
+// char::ord(self) -> int
+//
+def_builtin_func(char_ord) {
+  return ObjInt::make(static_cast<i64>(args[0]->as_char()->val));
+}
+
+//
+// (any)::to_str(self) -> string
+//
+def_builtin_func(to_str) {
   return ObjStr::make(args[0]->to_string());
 }
 
@@ -204,6 +263,10 @@ static BuiltinFunc const builtins[] = {
 
     // exit
     BuiltinFunc("exit", {TypeKind::Int}, false, TypeKind::None, b_exit),
+
+    // string::insert
+    BuiltinFunc("insert", TypeKind::String, {TypeKind::Int, TypeKind::String}, false,
+                TypeKind::String, b_string_insert),
 
     // string::substr
     BuiltinFunc("substr", TypeKind::String, {TypeKind::Int}, false, TypeKind::String,
@@ -222,6 +285,9 @@ static BuiltinFunc const builtins[] = {
     // vector::append
     BuiltinFunc("append", TypeKind::Vector, {TypeKind::Any}, false, TypeKind::Vector,
                 b_vector_append),
+
+    // vector::pop
+    BuiltinFunc("pop", TypeKind::Vector, {}, false, TypeKind::Any, b_vector_pop),
 
     // float::abs
     BuiltinFunc("abs", TypeKind::Float, {}, false, TypeKind::Float, b_float_abs),
@@ -244,12 +310,18 @@ static BuiltinFunc const builtins[] = {
     // int::fib
     BuiltinFunc("fib", TypeKind::Int, {}, false, TypeKind::Int, b_fib),
 
-    // (any)::to_string
-    BuiltinFunc("to_string", TypeKind::Any, {}, false, TypeKind::String, b_to_string),
+    // int::chr
+    BuiltinFunc("chr", TypeKind::Int, {}, false, TypeKind::Char, b_int_chr),
+
+    // char::ord
+    BuiltinFunc("ord", TypeKind::Char, {}, false, TypeKind::Int, b_char_ord),
+
+    // (any)::to_str
+    BuiltinFunc("to_str", TypeKind::Any, {}, false, TypeKind::String, b_to_str),
 };
 
-Obj BuiltinFunc::call(Evaluator& eval, Vec<Obj> const& args) const {
-  return impl(eval, args);
+Obj BuiltinFunc::call(Evaluator& eval, Node* node, Vec<Obj> const& args) const {
+  return impl(eval, node, args);
 }
 
 string BuiltinFunc::to_string() const {

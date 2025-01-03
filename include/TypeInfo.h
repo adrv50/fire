@@ -2,6 +2,10 @@
 
 #include "typedef.h"
 
+namespace Builtins {
+struct BuiltinFunc;
+}
+
 enum class TypeKind : u8 {
   Unknown,
 
@@ -39,6 +43,9 @@ struct TypeInfo {
   Node* nd_enum = nullptr;
   size_t enumerator_index = 0;
 
+  Node* ftor_node = nullptr; // when TypeKind::Functor, ptr to user-defined function
+  Builtins::BuiltinFunc const* ftor_blt = nullptr; // not uder-def but if builtin
+
   TypeInfo& append_template_arg(TypeInfo const& ti);
 
   bool is(TypeKind k) const;
@@ -53,6 +60,9 @@ struct TypeInfo {
   string to_string() const;
 
   TypeInfo& set_enum(Node* nd_enum, size_t index = 0);
+
+  TypeInfo& set_ftor_bfun(Builtins::BuiltinFunc const* bf);
+  TypeInfo& set_ftor_node(Node* node);
 
   static string get_name_of_kind(TypeKind kind);
 

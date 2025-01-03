@@ -14,7 +14,7 @@ class Lexer {
 
   bool check(int add = 1) const;
 
-  char peek() const;
+  char peek(int offset = 0) const;
 
   string_view get(int len) const;
 

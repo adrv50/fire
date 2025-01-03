@@ -3,6 +3,7 @@
 #include "alert.h"
 #include "Utils.h"
 
+#include "Object.h"
 #include "Token.h"
 #include "Node.h"
 
@@ -53,102 +54,79 @@ TypeInfo Sema::check_function_call(Node* call) {
            ")";
   };
 
+  (void)strargs;
+
   Vec<TypeInfo> call_args;
 
   for (auto&& arg : call->nd_callfunc_args)
     call_args.push_back(this->eval_expr_ti(arg));
 
-  // auto res = this->find_name_wrap(call->nd_callfunc_callee);
-  auto res =
-      this->find_name(call->nd_callfunc_callee, this->get_cur_scope(), false, true);
+  EvalContext E{.call_func = call, .cf_args_vt = &call_args};
 
-  auto userdef = res.func;
+  TypeInfo self_ti;
 
-  // if not found user-defined, find builtin function
-  // ユーザー定義関数がない場合は組み込み関数を探す
-  if (!userdef) {
-    auto id = call->nd_callfunc_callee->get_last_id();
+  if (call->nd_callfunc_is_method_call) {
+    E.method_self = call->nd_callfunc_method_self;
 
-    auto name = id->tok->str;
+    self_ti = this->eval_expr_ti(call->nd_callfunc_method_self);
 
-    auto is_method_call = call->nd_callfunc_is_method_call;
-
-    TypeInfo self_ti;
-
-    if (is_method_call) {
-      self_ti = this->eval_expr_ti(call->nd_callfunc_method_self);
-    }
-
-    // if found builtin function, set pointer
-    // 組み込み関数が存在する
-    if (Vec<Builtins::BuiltinFunc const*> bfs;
-        Builtins::BuiltinFunc::find(bfs, name) != 0) {
-
-      auto iter = limit_bf_candidates(bfs, call_args, is_method_call, &self_ti);
-
-      if (auto count = std::distance(bfs.begin(), iter); count >= 2) {
-        Error(id,
-              "ambiguous call to builtin function '" + name + strargs(call_args) + "'")
-            .crash();
-      }
-      else if (count == 0) {
-        Error e{id};
-
-        if (is_method_call)
-          e.set_message("no overload found for builtin method '" + self_ti.to_string() +
-                        "::" + name + strargs(call_args) + "'");
-        else
-          e.set_message("no overload found for builtin function '" + name +
-                        strargs(call_args) + "'");
-
-        while (iter != bfs.end())
-          e.add_note("candidate: " + (*iter++)->to_string());
-
-        e.crash();
-      }
-
-      auto& bf = bfs[0];
-
-      // compare arguments
-      // 引数を比較する
-      this->compare_call_arguments(call, this->is_method(bf), call_args, bf->arg_types,
-                                   bf->is_variable_args, nullptr, bf);
-
-      // set pointer
-      // ポインタを設定する
-      call->nd_callfunc_callee_builtin = bf;
-
-      // return type
-      // 戻り値の型を返す
-      return bf->ret_type;
-    }
-
-    // if not found builtin function, error
-    // 組み込み関数が見つからなかった場合はエラー
-    else {
-      Error(id->tok, "cannot find the " + string(is_method_call ? "method" : "function") +
-                         " '" + name + strargs(call_args) + "'")
-          .crash();
-    }
+    E.method_self_ti = &self_ti;
   }
 
-  // --------
-  // exist user-defined function same name
-  // 同じ名前のユーザー定義関数が存在する
+  auto callee_ti = this->eval_expr_ti(call->nd_callfunc_callee, &E);
 
-  // compare arguments
-  // 引数を比較する
-  this->compare_call_arguments(call, this->is_method(userdef), call_args,
-                               res.scope->arg_types, userdef->nd_func_is_variable_args,
-                               userdef, nullptr);
+  switch (callee_ti.kind) {
+    case TypeKind::Functor: {
+      if (callee_ti.ftor_blt)
+        call->nd_callfunc_callee_builtin = callee_ti.ftor_blt;
+      else
+        call->nd_callfunc_callee_userdef = callee_ti.ftor_node;
 
-  // set pointer
-  // ポインタを設定する
-  call->nd_callfunc_callee_userdef = userdef;
+      return callee_ti.template_args[0];
+    }
 
-  // return type
-  // 戻り値の型を返す
-  return this->eval_type_ti(userdef->nd_func_result_type);
+    case TypeKind::Enumerator: {
+
+      auto nd_enumerator = callee_ti.nd_enum->get_enumerator(callee_ti.enumerator_index);
+
+      if (nd_enumerator->nd_enumerator_is_value) {
+        if (call_args.empty())
+          Error(call->tok, "expected 1 argument, but found 0").crash();
+        else if (call_args.size() > 1)
+          Error(call->tok, "too many arguments to construct enumerator '" +
+                               callee_ti.nd_enum->nd_enum_name->str +
+                               "::" + nd_enumerator->tok->str + "'")
+              .crash();
+
+        auto expected_type = this->eval_type_ti(nd_enumerator->nd_enumerator_val_type);
+
+        if (!expected_type.equals(call_args[0]))
+          Error(call->tok, "expected '" + expected_type.to_string() +
+                               " type expression, but found '" +
+                               call_args[0].to_string() + "'")
+              .crash();
+
+        call->kind = ND_ConstructEnumeratorValue;
+
+        call->nd_callfunc_enum_ctor_enum = callee_ti.nd_enum;
+        call->nd_callfunc_enum_ctor_index = callee_ti.enumerator_index;
+
+        return callee_ti;
+      }
+
+      else {
+        todo_impl;
+      }
+
+      break;
+    }
+
+    default:
+      Error(call->tok, "expected callable type expression, but found '" +
+                           callee_ti.to_string() + "'")
+          .crash();
+      break;
+  }
 }
 
 // ---------------------------------
@@ -201,143 +179,192 @@ void Sema::compare_call_arguments(Node* cf, bool is_method, Vec<TypeInfo> const&
 }
 
 // ---------------------------------
-//  eval_expr_ti
+//  eval_expr_ti:
 //    evaluate expression type info.
 // ---------------------------------
-TypeInfo Sema::eval_expr_ti(Node* node) {
+TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
 
   switch (node->kind) {
 
-  case ND_Value:
-    return node->nd.obj->ti;
+    // value
+    case ND_Value:
+      return node->nd.obj->ti;
 
-  case ND_Array: {
-    auto const& elems = node->nd_array_elements;
+    // array
+    case ND_Array: {
+      auto const& elems = node->nd_array_elements;
 
-    if (elems.empty()) {
-      // todo: check type of empty array from near context.
-      todo_impl;
-    }
+      if (elems.empty()) {
+        // todo: check type of empty array from near context.
+        todo_impl;
+      }
 
-    TypeInfo ti = this->eval_expr_ti(elems[0]);
+      TypeInfo ti = this->eval_expr_ti(elems[0]);
 
-    for (size_t i = 1; i < elems.size(); i++)
-      this->err_if_unexpected_type(ti, elems[i]);
-
-    return ti;
-  }
-
-  case ND_Tuple: {
-    auto const& elems = node->nd_tuple_elements;
-
-#if _FIRE_DEBUG_
-    if (elems.empty()) {
-      // Why empty!?? may parser have bugs.
-      panic;
-    }
-#endif
-
-    TypeInfo ti{TypeKind::Tuple};
-
-    for (auto&& elem : elems)
-      ti.append_template_arg(this->eval_expr_ti(elem));
-
-    return ti;
-  }
-
-  case ND_Dict: {
-    return TypeInfo(TypeKind::Dict, {this->eval_expr_ti(node->nd_dict_pair_key),
-                                     this->eval_expr_ti(node->nd_dict_pair_value)});
-  }
-
-  case ND_Identifier:
-  case ND_ScopeResol: {
-
-    auto res = node->is(ND_Identifier)
-                   ? this->find_name(node, this->get_cur_scope(), false, true)
-                   : this->scope_resolution(node);
-
-    switch (res.type) {
-
-    //
-    // Variable
-    case NameFindResult::NA_Var: {
-      if (!res.var->is_type_deducted)
-        Error(node, "cannot use variable before type deducted").crash();
-
-      node->id_kind = NodeIdentifierKind::ID_Var;
-
-      node->nd_variable_offset = res.var->index;
-      node->nd_variable_is_global = (res.scope == this->root_scope);
-
-      node->nd_id_target = res.var->decl;
-
-      return res.var->ti;
-    }
-
-    //
-    // function name
-    //   => Create functor
-    case NameFindResult::NA_Func: {
-      node->id_kind = NodeIdentifierKind::ID_Func;
-
-      node->nd_id_target = res.func;
-
-      todo_impl;
-    }
-
-    //
-    // enum name
-    //   => Create type-info of enum
-    case NameFindResult::NA_Enum: {
-      node->id_kind = NodeIdentifierKind::ID_Enum;
-
-      node->nd_id_target = res.nd_enum;
-
-      TypeInfo ti = TypeKind::Type;
-
-      ti.nd_enum = res.nd_enum;
+      for (size_t i = 1; i < elems.size(); i++)
+        this->err_if_unexpected_type(ti, elems[i]);
 
       return ti;
     }
 
     //
-    // enumerator
-    case NameFindResult::NA_Enumerator: {
-      node->id_kind = NodeIdentifierKind::ID_Enumerator;
+    // tuple
+    case ND_Tuple: {
+      auto const& elems = node->nd_tuple_elements;
 
-      node->nd_id_target = res.nd_enum;
+#if _FIRE_DEBUG_
+      if (elems.empty()) {
+        // Why empty!?? may parser have bugs.
+        panic;
+      }
+#endif
 
-      node->nd_id_enumerator_index = res.enumerator_index;
+      TypeInfo ti{TypeKind::Tuple};
 
-      return TypeInfo(TypeKind::Enumerator).set_enum(res.nd_enum, res.enumerator_index);
+      for (auto&& elem : elems)
+        ti.append_template_arg(this->eval_expr_ti(elem));
+
+      return ti;
     }
+
+    //
+    // dict
+    case ND_Dict: {
+      return TypeInfo(TypeKind::Dict, {this->eval_expr_ti(node->nd_dict_pair_key),
+                                       this->eval_expr_ti(node->nd_dict_pair_value)});
     }
 
-    Error(res.err_id, "cannot find name '" + res.name + "'").crash();
-  }
+    //
+    // ---------
+    // identifier
+    // scope resolution
+    //
+    case ND_Identifier:
+    case ND_ScopeResol: {
 
-  case ND_Not:
-    todo_impl;
-    break;
+      auto res = node->is(ND_Identifier)
+                     ? this->find_name(node, this->get_cur_scope(), false, true)
+                     : this->scope_resolution(node);
 
-  case ND_Ref:
-    todo_impl;
-    break;
+      switch (res.type) {
 
-  case ND_Subscript:
-    todo_impl;
-    break;
+        //
+        // Variable
+        case NameFindResult::NA_Var: {
+          if (!res.var->is_type_deducted)
+            Error(node, "cannot use variable before type deducted").crash();
 
-  case ND_MemberAccess:
-    todo_impl;
-    break;
+          node->id_kind = NodeIdentifierKind::ID_Var;
 
-  case ND_CallFunc:
-    return this->check_function_call(node);
+          node->nd_variable_offset = res.var->index;
+          node->nd_variable_is_global = (res.scope == this->root_scope);
 
-  default:
-    break;
+          node->nd_id_target = res.var->decl;
+
+          return res.var->ti;
+        }
+
+        //
+        // function name
+        //   => Create functor
+        case NameFindResult::NA_Func: {
+          node->id_kind = NodeIdentifierKind::ID_Func;
+
+          node->nd_id_target = res.func;
+
+          return make_functor_ti(res.scope->arg_types,
+                                 this->eval_type_ti(res.func->nd_func_result_type));
+        }
+
+        //
+        // enum name
+        //   => Create type-info of enum
+        case NameFindResult::NA_Enum: {
+          node->id_kind = NodeIdentifierKind::ID_Enum;
+
+          node->nd_id_target = res.nd_enum;
+
+          TypeInfo ti = TypeKind::Type;
+
+          ti.nd_enum = res.nd_enum;
+
+          return ti;
+        }
+
+        //
+        // enumerator
+        case NameFindResult::NA_Enumerator: {
+          node->id_kind = NodeIdentifierKind::ID_Enumerator;
+
+          node->nd_id_target = res.nd_enum;
+
+          node->nd_id_enumerator_index = res.enumerator_index;
+
+          if (res.nd_enum->get_enumerator(res.enumerator_index)->nd_enumerator_is_value &&
+              (!evalctx || !evalctx->call_func)) {
+            Error(node, "cannot use enumerator '" + this->get_full_name(node) +
+                            "' without initializer")
+                .crash();
+          }
+
+          return TypeInfo(TypeKind::Enumerator)
+              .set_enum(res.nd_enum, res.enumerator_index);
+        }
+
+        default: {
+          // no found
+          // => find builtin function
+
+          if (node->is(ND_ScopeResol))
+            break;
+
+          Vec<Builtins::BuiltinFunc const*> bfs;
+
+          size_t const found = Builtins::BuiltinFunc::find(bfs, res.name);
+
+          if (found == 0)
+            break;
+
+          if (found >= 2) {
+            if (evalctx && evalctx->call_func) {
+              todo_impl; // limit candidates
+            }
+            else
+              Error(node, "ambiguous builtin-function name '" + res.name + "'").crash();
+          }
+
+          return Sema::make_functor_ti(bfs[0]->arg_types, bfs[0]->ret_type)
+              .set_ftor_bfun(bfs[0]);
+        }
+      }
+
+      Error(res.err_id, "cannot find name '" + this->get_full_name(node) + "'")
+          .append_msg_if(evalctx && evalctx->method_self_ti,
+                         " in type '" + evalctx->method_self_ti->to_string() + "'")
+          .crash();
+    }
+
+    case ND_Not:
+      todo_impl;
+      break;
+
+    case ND_Ref:
+      todo_impl;
+      break;
+
+    case ND_Subscript:
+      todo_impl;
+      break;
+
+    case ND_MemberAccess:
+      todo_impl;
+      break;
+
+    case ND_CallFunc:
+      return this->check_function_call(node);
+
+    default:
+      break;
   }
 
   auto lhs = this->eval_expr_ti(node->nd_lhs);
@@ -349,50 +376,50 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
   node->nd.tk = lhs.kind;
 
   switch (node->kind) {
-  case ND_Add:
-    if (lhs.is(TypeKind::String))
+    case ND_Add:
+      if (lhs.is(TypeKind::String))
+        break;
+      // fallthrough
+
+    case ND_Sub:
+    case ND_Mul:
+    case ND_Div:
+      if (!lhs.is_numeric())
+        Error(node->tok,
+              "cannot use arithmetic operator for type '" + lhs.to_string() + "'")
+            .crash();
       break;
-    // fallthrough
 
-  case ND_Sub:
-  case ND_Mul:
-  case ND_Div:
-    if (!lhs.is_numeric())
-      Error(node->tok,
-            "cannot use arithmetic operator for type '" + lhs.to_string() + "'")
-          .crash();
-    break;
+    case ND_Mod:
+    case ND_BitAnd:
+    case ND_BitOr:
+    case ND_BitXor:
+    case ND_LShift:
+    case ND_RShift:
+      if (!lhs.is(TypeKind::Int))
+        Error(node->tok, "cannot use operator '" + node->tok->str + "' for type '" +
+                             lhs.to_string() + "'")
+            .crash();
+      break;
 
-  case ND_Mod:
-  case ND_BitAnd:
-  case ND_BitOr:
-  case ND_BitXor:
-  case ND_LShift:
-  case ND_RShift:
-    if (!lhs.is(TypeKind::Int))
-      Error(node->tok, "cannot use operator '" + node->tok->str + "' for type '" +
-                           lhs.to_string() + "'")
-          .crash();
-    break;
+    case ND_Compare:
+      if (!lhs.is_numeric())
+        Error(node->tok,
+              "comparing objects of type '" + lhs.to_string() + "' is not valid.")
+            .crash();
+      break;
 
-  case ND_Compare:
-    if (!lhs.is_numeric())
-      Error(node->tok,
-            "comparing objects of type '" + lhs.to_string() + "' is not valid.")
-          .crash();
-    break;
+    case ND_Equal:
+      return TypeKind::Bool;
 
-  case ND_Equal:
-    return TypeKind::Bool;
+    case ND_Or:
+    case ND_And:
+      if (!lhs.is(TypeKind::Bool))
+        Error(node->tok, "only can use operator 'or' or 'and' for bool type").crash();
+      break;
 
-  case ND_Or:
-  case ND_And:
-    if (!lhs.is(TypeKind::Bool))
-      Error(node->tok, "only can use operator 'or' or 'and' for bool type").crash();
-    break;
-
-  case ND_Assign:
-    break;
+    case ND_Assign:
+      break;
   }
 
   return lhs;
@@ -422,4 +449,32 @@ TypeInfo Sema::eval_type_ti(Node* node) {
   ti.is_reference = node->nd_type_is_ref;
 
   return ti;
+}
+
+// ---------------------------------
+//  eval_as_functor
+//    evaluate node as functor.
+// ---------------------------------
+Sema::FunctorEvalResult Sema::eval_as_functor(Node* node) {
+
+  if (node->is_id_or_sr()) {
+    auto res = this->find_name(node, this->get_cur_scope(), false, true);
+
+    if (res.func)
+      return FunctorEvalResult(node, res.func, this->eval_expr_ti(node));
+  }
+
+  auto ti = this->eval_expr_ti(node);
+
+  if (ti.is(TypeKind::Functor)) {
+    todo_impl;
+  }
+
+  else {
+    Error(node->tok,
+          "expected callable type expression, but found '" + ti.to_string() + "'")
+        .crash();
+  }
+
+  return FunctorEvalResult(node, nullptr, ti);
 }

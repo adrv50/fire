@@ -53,12 +53,21 @@ enum class ErrorKind {
   //    "cannot use 'break' outside of loop"
   //    ...
   NotAllowedInThisContext,
+
+  //
+  // runtime error
+  //
+  //  usage:
+  //    "index out of range"
+  //    ...
+  RunTimeError,
 };
 
 enum class ErrorType {
   Err,
   Warn,
   Note,
+  RunTime,
 };
 
 class Error {
@@ -83,9 +92,25 @@ public:
 
   template <ErrorKind K, typename... Args>
   Error& set_msg(Args&&... args);
-  // => instantiated in Error.cpp
 
   Error& set_message(string const& msg);
+
+  Error& set_kind(ErrorKind kind) {
+    this->kind = kind;
+    return *this;
+  }
+
+  Error& append_msg(string const& msg) {
+    this->msg += msg;
+    return *this;
+  }
+
+  Error& append_msg_if(bool cd, string const& msg) {
+    if (cd)
+      this->msg += msg;
+
+    return *this;
+  }
 
   template <typename... Args>
   requires std::constructible_from<Error, Args...>

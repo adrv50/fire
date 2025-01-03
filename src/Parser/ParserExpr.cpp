@@ -1,8 +1,12 @@
 #include "alert.h"
+
+#include "TypeInfo.h"
+#include "Object.h"
 #include "Token.h"
 #include "Node.h"
-#include "Error.h"
+
 #include "Parser.h"
+#include "Error.h"
 
 // ------------
 // expr ::=
@@ -17,7 +21,11 @@ Node* Parser::p_expr() {
 //   add (("=" | "+=" | "-=" | "*=" | "/=" | "%=") add)*
 //
 Node* Parser::p_assign() {
+  auto tok = this->cur;
+
   auto nd = this->p_logical();
+
+  nd->first_tok = tok;
 
   auto op = this->cur;
 
@@ -39,6 +47,8 @@ Node* Parser::p_assign() {
   else if (this->eat(Op::ModAssign))
     nd = Parser::new_assign_with_op(ND_Mod, op, nd, this->p_assign());
 
+  nd->last_tok = this->cur->prev;
+
   return nd;
 }
 
@@ -47,7 +57,11 @@ Node* Parser::p_assign() {
 //   bit_calc (("&&" | "||") bit_calc)*
 //
 Node* Parser::p_logical() {
+  auto tok = this->cur;
+
   auto nd = this->p_bit_calc();
+
+  nd->first_tok = tok;
 
   while (this->check()) {
     auto op = this->cur;
@@ -60,11 +74,17 @@ Node* Parser::p_logical() {
       break;
   }
 
+  nd->last_tok = this->cur->prev;
+
   return nd;
 }
 
 Node* Parser::p_bit_calc() {
+  auto tok = this->cur;
+
   auto nd = this->p_equality();
+
+  nd->first_tok = tok;
 
   while (this->check()) {
     auto op = this->cur;
@@ -79,6 +99,8 @@ Node* Parser::p_bit_calc() {
       break;
   }
 
+  nd->last_tok = this->cur->prev;
+
   return nd;
 }
 
@@ -87,8 +109,11 @@ Node* Parser::p_bit_calc() {
 //   compare (("==" | "!=") compare)*
 //
 Node* Parser::p_equality() {
+  auto tok = this->cur;
 
   auto nd = this->p_compare();
+
+  nd->first_tok = tok;
 
   while (this->check()) {
     auto op = this->cur;
@@ -107,6 +132,8 @@ Node* Parser::p_equality() {
       break;
   }
 
+  nd->last_tok = this->cur->prev;
+
   return nd;
 }
 
@@ -115,7 +142,11 @@ Node* Parser::p_equality() {
 //   shift (("<" | ">" | "<=" | ">=") shift)*
 //
 Node* Parser::p_compare() {
+  auto tok = this->cur;
+
   auto nd = this->p_shift();
+
+  nd->first_tok = tok;
 
   while (this->check()) {
     auto op = this->cur;
@@ -132,6 +163,8 @@ Node* Parser::p_compare() {
       break;
   }
 
+  nd->last_tok = this->cur->prev;
+
   return nd;
 }
 
@@ -140,7 +173,11 @@ Node* Parser::p_compare() {
 //   add (("<<" | ">>") add)*
 //
 Node* Parser::p_shift() {
+  auto tok = this->cur;
+
   auto nd = this->p_add();
+
+  nd->first_tok = tok;
 
   while (this->check()) {
     auto op = this->cur;
@@ -153,6 +190,8 @@ Node* Parser::p_shift() {
       break;
   }
 
+  nd->last_tok = this->cur->prev;
+
   return nd;
 }
 
@@ -161,7 +200,11 @@ Node* Parser::p_shift() {
 //   mul (("+" | "-") mul)*
 //
 Node* Parser::p_add() {
+  auto tok = this->cur;
+
   auto nd = this->p_mul();
+
+  nd->first_tok = tok;
 
   while (this->check()) {
     auto op = this->cur;
@@ -174,6 +217,8 @@ Node* Parser::p_add() {
       break;
   }
 
+  nd->last_tok = this->cur->prev;
+
   return nd;
 }
 
@@ -182,7 +227,11 @@ Node* Parser::p_add() {
 //   factor (("*" | "/" | "%") factor)*
 //
 Node* Parser::p_mul() {
+  auto tok = this->cur;
+
   auto nd = this->p_unary();
+
+  nd->first_tok = tok;
 
   while (this->check()) {
     auto op = this->cur;
@@ -197,6 +246,8 @@ Node* Parser::p_mul() {
       break;
   }
 
+  nd->last_tok = this->cur->prev;
+
   return nd;
 }
 
@@ -205,34 +256,42 @@ Node* Parser::p_mul() {
 //   ("+" | "-" | "not" | "ref") factor
 //
 Node* Parser::p_unary() {
-  auto op = this->cur;
+  auto tok = this->cur;
+
+  Node* nd = nullptr;
 
   //
   // forward plus
   //
   if (this->eat(Op::Add))
-    return this->p_subscript();
+    nd = this->p_subscript();
 
   //
   // forward minus
   //   -A --> 0 - A
   //
   else if (this->eat(Op::Sub))
-    return Node::new_node(ND_Sub, op, Parser::new_zero(), this->p_subscript());
+    nd = Node::new_node(ND_Sub, tok, Parser::new_zero(), this->p_subscript());
 
   //
   // not
   //
   else if (this->eat(Kwd::Not))
-    return Node::new_node(ND_Not, op, this->p_subscript(), nullptr);
+    nd = Node::new_node(ND_Not, tok, this->p_subscript(), nullptr);
 
   //
   // ref
   //
   else if (this->eat(Kwd::Ref))
-    return Node::new_node(ND_Ref, op, this->p_subscript(), nullptr);
+    nd = Node::new_node(ND_Ref, tok, this->p_subscript(), nullptr);
 
-  return this->p_subscript();
+  else
+    nd = this->p_subscript();
+
+  nd->first_tok = tok;
+  nd->last_tok = this->cur->prev;
+
+  return nd;
 }
 
 // ------------
@@ -240,7 +299,11 @@ Node* Parser::p_unary() {
 //   unary ("[" expr "]" | "." unary | "(" expr ("," expr)* ")")*
 //
 Node* Parser::p_subscript() {
-  auto nd = this->p_call_func();
+  auto tok = this->cur;
+
+  auto nd = this->p_scope_resol();
+
+  nd->first_tok = tok;
 
   while (this->check()) {
     auto op = this->cur;
@@ -254,56 +317,48 @@ Node* Parser::p_subscript() {
     }
 
     //
-    // member access (or method call)
+    // member access
     //
     else if (this->eat(Op::MemberAccess)) {
-      auto rhs = this->p_call_func();
+      nd = Node::new_node(ND_MemberAccess, op, nd, this->p_scope_resol());
+    }
 
-      // if rhs is call function, set method call flag
-      // and left side is use for "self"
-      if (rhs->is(ND_CallFunc)) {
-        rhs->nd_callfunc_is_method_call = true;
-        rhs->nd_callfunc_method_self = nd;
+    //
+    // Call func
+    else if (this->eat(Punct::BraceOpen)) {
+      auto cf = Node::new_node(ND_CallFunc, op, nullptr);
 
-        nd = rhs;
+      cf->nd_callfunc_callee = nd;
+
+      // A.B()
+      //  --> B(A)  (replaced in Sema)
+      if (nd->is(ND_MemberAccess)) {
+        cf->nd_callfunc_is_method_call = true;
+
+        cf->nd_callfunc_method_self = nd->nd_lhs;
+
+        cf->nd_callfunc_callee = nd->nd_rhs;
+
+        cf->nd_callfunc_args.insert(cf->nd_callfunc_args.begin(),
+                                    cf->nd_callfunc_method_self);
       }
-      else {
-        nd = Node::new_node(ND_MemberAccess, op, nd, rhs);
+
+      if (!this->eat(Punct::BraceClose)) {
+        do {
+          cf->append(this->p_expr());
+        } while (this->eat(Punct::Comma));
+
+        this->expect(Punct::BraceClose);
       }
+
+      nd = cf;
     }
 
     else
       break;
   }
 
-  return nd;
-}
-
-//
-// call_func ::=
-//   ident "(" expr ("," expr)* ")"
-//
-Node* Parser::p_call_func() {
-  auto nd = this->p_scope_resol();
-
-  if (auto tok = this->cur; this->eat(Punct::BraceOpen)) {
-    if (!nd->is(ND_Identifier) && !nd->is(ND_ScopeResol))
-      Error(tok, "invalid syntax").crash();
-
-    auto cf = Node::new_node(ND_CallFunc, tok, nullptr);
-
-    cf->nd_callfunc_callee = nd;
-
-    if (!this->eat(Punct::BraceClose)) {
-      do {
-        cf->append(this->p_expr());
-      } while (this->eat(Punct::Comma));
-
-      this->expect(Punct::BraceClose);
-    }
-
-    return cf;
-  }
+  nd->last_tok = this->cur->prev;
 
   return nd;
 }
@@ -313,8 +368,10 @@ Node* Parser::p_call_func() {
 //   ident ("::" ident)*
 //
 Node* Parser::p_scope_resol() {
-
+  auto tok = this->cur;
   auto nd = this->p_factor();
+
+  nd->first_tok = tok;
 
   if (this->match(TokenPunctKind::ScopeResol)) {
     if (!nd->is(ND_Identifier))
@@ -328,8 +385,10 @@ Node* Parser::p_scope_resol() {
       sr->append(this->p_expect_identifier(true));
     }
 
-    return sr;
+    nd = sr;
   }
+
+  nd->last_tok = this->cur->prev;
 
   return nd;
 }
@@ -339,7 +398,6 @@ Node* Parser::p_scope_resol() {
 //   literal | ident | "(" expr ")"
 //
 Node* Parser::p_factor() {
-
   auto tok = this->cur;
 
   //
@@ -347,11 +405,15 @@ Node* Parser::p_factor() {
   if (this->eat(Punct::ArrayBraceOpen)) {
     auto arr = Node::new_node(ND_Array, tok, nullptr);
 
+    arr->first_tok = tok;
+
     do {
       arr->append(this->p_expr());
     } while (this->eat(Punct::Comma));
 
     this->expect(Punct::ArrayBraceClose);
+
+    arr->last_tok = this->cur->prev;
 
     return arr;
   }
@@ -360,6 +422,8 @@ Node* Parser::p_factor() {
   // expr (wrapped by brace)
   if (this->eat(Punct::BraceOpen)) {
     auto nd = this->p_expr();
+
+    nd->first_tok = tok;
 
     //
     // if eat comma, parse as raw tuple
@@ -377,6 +441,8 @@ Node* Parser::p_factor() {
 
     this->expect(Punct::BraceClose);
 
+    nd->last_tok = this->cur->prev;
+
     return nd;
   }
 
@@ -386,6 +452,8 @@ Node* Parser::p_factor() {
   //   pair ::= expr ":" expr
   if (this->eat(Punct::BlockBraceOpen)) {
     auto dict = Node::new_node(ND_Dict, tok, nullptr);
+
+    dict->first_tok = tok;
 
     do {
       // make pair
@@ -401,51 +469,60 @@ Node* Parser::p_factor() {
 
     this->expect(Punct::BlockBraceClose);
 
+    dict->last_tok = this->cur->prev;
+
     return dict;
   }
 
+  Node* nd = nullptr;
+
   if (this->eat(Kwd::True))
-    return Node::new_value(this->cur, ObjBool::make(true));
+    nd = Node::new_value(this->cur, ObjBool::make(true));
 
-  if (this->eat(Kwd::False))
-    return Node::new_value(this->cur, ObjBool::make(false));
+  else if (this->eat(Kwd::False))
+    nd = Node::new_value(this->cur, ObjBool::make(false));
 
-  if (this->match(TokenKind::Identifier)) {
-    return this->p_expect_identifier(true);
+  else if (this->match(TokenKind::Identifier)) {
+    nd = this->p_expect_identifier(true);
   }
 
-  if (auto nd = this->p_literal()) {
+  else if ((nd = this->p_literal())) {
     this->next();
-    return nd;
   }
 
-  Error(this->cur, "invalid syntax").crash();
+  else
+    Error(this->cur, "invalid syntax").crash();
+
+  nd->first_tok = tok;
+  nd->last_tok = this->cur->prev;
+
+  return nd;
 }
 
 Node* Parser::p_literal() {
   auto tok = this->cur;
 
   switch (tok->kind) {
-  case TokenKind::Decimal:
-    return Node::new_value(tok, ObjInt::make(tok->literal_data.v_int));
+    case TokenKind::Decimal:
+      return Node::new_value(tok, ObjInt::make(tok->literal_data.v_int));
 
-  case TokenKind::Hexadecimal:
-    return Node::new_value(tok, ObjInt::make(tok->literal_data.v_hex));
+    case TokenKind::Hexadecimal:
+      return Node::new_value(tok, ObjInt::make(tok->literal_data.v_hex));
 
-  case TokenKind::Binary:
-    return Node::new_value(tok, ObjInt::make(tok->literal_data.v_bin));
+    case TokenKind::Binary:
+      return Node::new_value(tok, ObjInt::make(tok->literal_data.v_bin));
 
-  case TokenKind::Float:
-    return Node::new_value(tok, ObjFloat::make(tok->literal_data.v_float));
+    case TokenKind::Float:
+      return Node::new_value(tok, ObjFloat::make(tok->literal_data.v_float));
 
-  case TokenKind::Boolean:
-    return Node::new_value(tok, ObjBool::make(tok->literal_data.v_bool));
+    case TokenKind::Boolean:
+      return Node::new_value(tok, ObjBool::make(tok->literal_data.v_bool));
 
-  case TokenKind::Character:
-    return Node::new_value(tok, ObjChar::make(tok->literal_data.v_char));
+    case TokenKind::Character:
+      return Node::new_value(tok, ObjChar::make(tok->literal_data.v_char));
 
-  case TokenKind::String:
-    return Node::new_value(tok, ObjStr::make(tok->v_str));
+    case TokenKind::String:
+      return Node::new_value(tok, ObjStr::make(tok->v_str));
   }
 
   return nullptr;

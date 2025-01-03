@@ -1,4 +1,5 @@
 #include <functional>
+#include <span>
 
 #include "alert.h"
 #include "Utils.h"
@@ -81,29 +82,51 @@ bool TypeInfo::equals(TypeInfo const& ti) const {
   return true;
 }
 
+static string get_kind_str_wrap(TypeInfo const* t) {
+  switch (t->kind) {
+    case TK::Enumerator:
+      return t->nd_enum->nd_enum_name->str + "::" +
+             t->nd_enum->get_enumerator(t->enumerator_index)->nd_enumerator_name->str;
+
+    case TK::Type:
+      if (t->nd_enum)
+        return t->nd_enum->nd_enum_name->str;
+      else
+        todo_impl;
+
+    default:
+      return TypeInfo::get_name_of_kind(t->kind);
+  }
+}
+
+// -----------------------------------------------
+//  to_string
+// -----------------------------------------------
 string TypeInfo::to_string() const {
+
   string str;
 
-  if (this->kind == TK::Enumerator) {
-    str = this->nd_enum->nd_enum_enumerators[this->enumerator_index]
-              ->nd_enumerator_name->str;
+  if (this->is(TK::Functor)) {
+    str = "functor<(" +
+          utils::join(
+              ", ",
+              std::span(this->template_args).subspan(1, this->template_args.size() - 1),
+              [](TypeInfo const& t) -> string {
+                return t.to_string();
+              }) +
+          ") -> " + this->template_args[0].to_string() + ">";
   }
-  else if (this->kind == TK::Type) {
-    if (this->nd_enum)
-      str = this->nd_enum->nd_enum_name->str;
-    else
-      todo_impl;
-  }
-  else
-    str = get_name_of_kind(this->kind);
+  else {
+    str = get_kind_str_wrap(this);
 
-  if (this->is_template()) {
-    str += "<" +
-           utils::join(", ", this->template_args,
-                       [](TypeInfo const& t) -> string {
-                         return t.to_string();
-                       }) +
-           ">";
+    if (this->is_template()) {
+      str += "<" +
+             utils::join(", ", this->template_args,
+                         [](TypeInfo const& t) -> string {
+                           return t.to_string();
+                         }) +
+             ">";
+    }
   }
 
   if (this->is_reference)
@@ -119,6 +142,16 @@ TypeInfo& TypeInfo::set_enum(Node* nd_enum, size_t index) {
   this->nd_enum = nd_enum;
   this->enumerator_index = index;
 
+  return *this;
+}
+
+TypeInfo& TypeInfo::set_ftor_bfun(Builtins::BuiltinFunc const* bf) {
+  this->ftor_blt = bf;
+  return *this;
+}
+
+TypeInfo& TypeInfo::set_ftor_node(Node* node) {
+  this->ftor_node = node;
   return *this;
 }
 

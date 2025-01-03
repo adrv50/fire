@@ -1,4 +1,5 @@
 #include "alert.h"
+#include "Object.h"
 #include "Token.h"
 #include "Node.h"
 #include "Error.h"
@@ -172,7 +173,11 @@ Token* Parser::expect_template_args_close() {
 }
 
 Node* Parser::p_expect_type() {
+  auto tok = this->cur;
+
   auto node = Node::new_node(ND_TypeName, this->expect_ident());
+
+  node->first_tok = tok;
 
   if (this->eat_template_args_open()) {
     do {
@@ -182,11 +187,17 @@ Node* Parser::p_expect_type() {
     this->expect_template_args_close();
   }
 
+  node->last_tok = this->cur->prev;
+
   return node;
 }
 
 Node* Parser::p_expect_identifier(bool allow_qualifier) {
+  auto tok = this->cur;
+
   auto node = Node::new_node(ND_Identifier, this->expect_ident());
+
+  node->first_tok = node->last_tok = tok;
 
   if (allow_qualifier)
     this->p_parse_id_qualifier(node);
@@ -201,10 +212,12 @@ void Parser::p_parse_id_qualifier(Node* nd) {
   try {
     if (this->eat_template_args_open()) { // eat '<'
       do {
-        nd->append(this->p_expect_type());
+        nd->append(this->p_scope_resol());
       } while (this->eat(Punct::Comma));
 
       this->expect_template_args_close();
+
+      nd->last_tok = this->cur->prev;
     }
   }
 

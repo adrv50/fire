@@ -3,6 +3,7 @@
 #include <functional>
 #include "fire-fwd.h"
 #include "Builtins.h"
+#include "TypeInfo.h"
 
 //
 // for Sema::Scope::*
@@ -146,6 +147,19 @@ class Sema {
     }
   };
 
+  struct EvalContext {
+    //
+    // call-func
+    Node* call_func = nullptr;
+    // TypeInfo* cf_ret_ti = nullptr;
+    Vec<TypeInfo>* cf_args_vt = nullptr;
+
+    //
+    // method-call
+    Node* method_self = nullptr;
+    TypeInfo* method_self_ti = nullptr;
+  };
+
   Node* root;
 
   Scope* root_scope;
@@ -170,7 +184,7 @@ public:
   void check_let(Node* let);
   void check_block(Node* block);
 
-  TypeInfo eval_expr_ti(Node* node);
+  TypeInfo eval_expr_ti(Node* node, EvalContext* evalctx = nullptr);
 
   TypeInfo eval_type_ti(Node* nd_type);
 
@@ -202,6 +216,8 @@ private:
       //   .scope = function scope
       NA_Func,
 
+      NA_BuiltinFunc,
+
       NA_Enum,
       NA_Enumerator,
 
@@ -224,6 +240,8 @@ private:
 
     size_t enumerator_index = 0;
 
+    Builtins::BuiltinFunc const* bfun = nullptr;
+
     Node* err_id = nullptr;
 
     NameFindResult(string const& name, Scope* scope = nullptr,
@@ -238,6 +256,20 @@ private:
     }
   };
 
+  struct FunctorEvalResult {
+    Node* node;
+    Node* function;
+    TypeInfo result;
+
+    FunctorEvalResult(Node* node, Node* function, TypeInfo const& result)
+        : node(node),
+          function(function),
+          result(result) {
+    }
+  };
+
+  FunctorEvalResult eval_as_functor(Node* node);
+
   Scope*& get_cur_scope();
 
   Scope* find_scope_if(std::function<bool(Scope*)> const& pred,
@@ -250,6 +282,11 @@ private:
                            bool reverse = false);
 
   NameFindResult find_name_wrap(Node* name, Scope* scope = nullptr);
+
+  static TypeInfo make_functor_ti(Vec<TypeInfo> const& arg_types,
+                                  TypeInfo const& ret_type);
+
+  static string get_full_name(Node* id_or_sr);
 
   static inline Scope* _cur_func_keep = nullptr;
 };

@@ -71,7 +71,6 @@ public:
   Node* p_mul();
   Node* p_unary();
   Node* p_subscript();
-  Node* p_call_func();
 
   Node* p_scope_resol();
   Node* p_factor();

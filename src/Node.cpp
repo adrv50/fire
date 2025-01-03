@@ -1,6 +1,7 @@
 #include "alert.h"
 #include "Token.h"
 #include "Node.h"
+#include "Object.h"
 
 bool Node::is(NodeKind kind) const {
   return this->kind == kind;
@@ -8,23 +9,23 @@ bool Node::is(NodeKind kind) const {
 
 string Node::get_name() const {
   switch (this->kind) {
-  case ND_Identifier:
-    return this->tok->str;
+    case ND_Identifier:
+      return this->tok->str;
 
-  case ND_Function:
-    return this->nd_func_name->str;
+    case ND_Function:
+      return this->nd_func_name->str;
 
-  case ND_Enum:
-    return this->nd_enum_name->str;
+    case ND_Enum:
+      return this->nd_enum_name->str;
 
-  case ND_Class:
-    return this->nd_class_name->str;
+    case ND_Class:
+      return this->nd_class_name->str;
 
-  case ND_Struct:
-    return this->nd_struct_name->str;
+    case ND_Struct:
+      return this->nd_struct_name->str;
 
-  default:
-    todo_impl;
+    default:
+      todo_impl;
   }
 
   return "";
@@ -83,8 +84,8 @@ Node::Node(NodeKind kind, Token* tok, Node* lhs, Node* rhs)
 
 Node::~Node() {
   switch (this->kind) {
-  case ND_Value:
-    delete this->nd.obj;
-    break;
+    case ND_Value:
+      delete this->nd.obj;
+      break;
   }
 }

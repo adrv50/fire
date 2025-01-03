@@ -31,34 +31,34 @@ void Sema::check_full() {
 
   for (auto&& item : this->root->nd_items) {
     switch (item->kind) {
-    case ND_Let:
-      this->check_let(item);
-      break;
+      case ND_Let:
+        this->check_let(item);
+        break;
 
-    case ND_Function:
-      if (item->nd_func_name->str == "main") {
-        is_defined_main = true;
-        this->root->nd_program_main = item;
-      }
+      case ND_Function:
+        if (item->nd_func_name->str == "main") {
+          is_defined_main = true;
+          this->root->nd_program_main = item;
+        }
 
-      this->check_func(item);
-      break;
+        this->check_func(item);
+        break;
 
-    case ND_Enum:
-      this->check_enum(item);
-      break;
+      case ND_Enum:
+        this->check_enum(item);
+        break;
 
-    case ND_Struct:
-      this->check_struct(item);
-      break;
+      case ND_Struct:
+        this->check_struct(item);
+        break;
 
-    case ND_Class:
-      this->check_class(item);
-      break;
+      case ND_Class:
+        this->check_class(item);
+        break;
 
-    default:
-      todo_impl;
-      break;
+      default:
+        todo_impl;
+        break;
     }
   }
 
@@ -89,6 +89,8 @@ void Sema::check_enum(Node* nd_enum) {
 //   check struct.
 //
 void Sema::check_struct(Node* nd_struct) {
+  (void)nd_struct;
+
   todo_impl;
 }
 
@@ -97,6 +99,8 @@ void Sema::check_struct(Node* nd_struct) {
 //   check class.
 //
 void Sema::check_class(Node* nd_class) {
+  (void)nd_class;
+
   todo_impl;
 }
 
@@ -147,80 +151,81 @@ void Sema::check_stmt(Node* stmt) {
 
   switch (stmt->kind) {
 
-  case ND_Let:
-    this->check_let(stmt);
-    break;
+    case ND_Let:
+      this->check_let(stmt);
+      break;
 
-  //
-  // if-statement
-  case ND_If:
-    if (!this->eval_expr_ti(stmt->nd_if_cond).is(TypeKind::Bool))
-      Error(stmt->tok, "if condition must be bool type").crash();
+    //
+    // if-statement
+    case ND_If:
+      if (!this->eval_expr_ti(stmt->nd_if_cond).is(TypeKind::Bool))
+        Error(stmt->tok, "if condition must be bool type").crash();
 
-    this->check_block(stmt->nd_if_then);
+      this->check_block(stmt->nd_if_then);
 
-    if (stmt->nd_if_else)
-      this->check_block(stmt->nd_if_else);
+      if (stmt->nd_if_else)
+        this->check_block(stmt->nd_if_else);
 
-    break;
+      break;
 
-  //
-  // while-statement
-  case ND_While:
-    if (!this->eval_expr_ti(stmt->nd_while_cond).is(TypeKind::Bool))
-      Error(stmt->tok, "while condition must be bool type").crash();
+    //
+    // while-statement
+    case ND_While:
+      if (!this->eval_expr_ti(stmt->nd_while_cond).is(TypeKind::Bool))
+        Error(stmt->tok, "while condition must be bool type").crash();
 
-    this->check_block(stmt->nd_while_body);
+      this->check_block(stmt->nd_while_body);
 
-    break;
+      break;
 
-  case ND_Block:
-    this->check_block(stmt);
-    break;
+    case ND_Block:
+      this->check_block(stmt);
+      break;
 
-  //
-  // return-statement
-  case ND_Return: {
-    auto cur_fn = this->ctx.cur_func;
+    //
+    // return-statement
+    case ND_Return: {
+      auto cur_fn = this->ctx.cur_func;
 
-    if (!cur_fn) {
-      Error(stmt->tok, "cannot use 'return' outside of function").crash();
-    }
-
-    cur_fn->ret_stmt_list.emplace_back(stmt);
-
-    auto const& expected = cur_fn->fnscope_ret_type;
-
-    // take value
-    if (stmt->nd_return_expr) {
-      auto retval = this->eval_expr_ti(stmt->nd_return_expr);
-
-      //
-      // don't match to specified type
-      if (!retval.equals(expected))
-        Error(stmt->tok, "expected '" + expected.to_string() +
-                             "' type expression, but found '" + retval.to_string() + "'")
-            .crash();
-    }
-
-    // don't take value
-    else {
-      // => is func side unspecified or None ?
-
-      if (cur_fn->node->nd_func_result_type && !expected.equals(TypeKind::None)) {
-        Error(stmt->tok, "cannot take value in return statement. (function '" +
-                             cur_fn->node->nd_func_name->str + "' must return none)")
-            .crash();
+      if (!cur_fn) {
+        Error(stmt->tok, "cannot use 'return' outside of function").crash();
       }
+
+      cur_fn->ret_stmt_list.emplace_back(stmt);
+
+      auto const& expected = cur_fn->fnscope_ret_type;
+
+      // take value
+      if (stmt->nd_return_expr) {
+        auto retval = this->eval_expr_ti(stmt->nd_return_expr);
+
+        //
+        // don't match to specified type
+        if (!retval.equals(expected))
+          Error(stmt->tok, "expected '" + expected.to_string() +
+                               "' type expression, but found '" + retval.to_string() +
+                               "'")
+              .crash();
+      }
+
+      // don't take value
+      else {
+        // => is func side unspecified or None ?
+
+        if (cur_fn->node->nd_func_result_type && !expected.equals(TypeKind::None)) {
+          Error(stmt->tok, "cannot take value in return statement. (function '" +
+                               cur_fn->node->nd_func_name->str + "' must return none)")
+              .crash();
+        }
+      }
+
+      break;
     }
 
-    break;
-  }
-
-  //
-  // expression statement
-  default:
-    this->eval_expr_ti(stmt);
+    //
+    // expression statement
+    default:
+      this->eval_expr_ti(stmt);
   }
 }
 

@@ -262,8 +262,18 @@ string ObjFunctor::to_string() const {
 string ObjEnumerator::to_string() const {
   auto e = this->nd_enum;
 
-  return e->nd_enum_name->str +
-         "::" + e->nd_enum_enumerators[this->index]->nd_enumerator_name->str;
+  auto s = e->nd_enum_name->str +
+           "::" + e->nd_enum_enumerators[this->index]->nd_enumerator_name->str;
+
+  if (!this->data.empty())
+    s += "(" +
+         utils::join(", ", this->data,
+                     [](Obj const& obj) -> string {
+                       return obj->to_string_as_element();
+                     }) +
+         ")";
+
+  return s;
 }
 
 string ObjTypeInfo::to_string() const {

@@ -24,8 +24,7 @@ Vec<T>::const_iterator find(Vec<T> const& v, T const& item) {
 
 //
 // join
-template <typename T>
-string join(string const& str, Vec<T> const& v, auto to_str_fn) {
+string join(string const& str, auto const& v, auto to_str_fn) {
   string s;
 
   for (size_t i = 0; i < v.size(); i++) {

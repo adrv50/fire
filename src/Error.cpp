@@ -32,39 +32,43 @@ Error const& Error::emit() const {
   using std::endl;
 
   switch (this->type) {
-  case ErrorType::Err:
-    cout << COL_BOLD COL_RED << "error: ";
-    break;
+    case ErrorType::Err:
+      cout << COL_BOLD COL_RED << "error: ";
+      break;
 
-  case ErrorType::Warn:
-    cout << COL_BOLD COL_MAGENTA << "warning: ";
-    break;
+    case ErrorType::Warn:
+      cout << COL_BOLD COL_MAGENTA << "warning: ";
+      break;
 
-  case ErrorType::Note:
-    cout << COL_BOLD COL_GREEN << "note: ";
-    break;
+    case ErrorType::Note:
+      cout << COL_BOLD COL_GREEN << "note: ";
+      break;
+
+    case ErrorType::RunTime:
+      cout << COL_BOLD COL_RED << "runtime error: ";
+      break;
   }
 
   cout << COL_WHITE << this->msg << endl;
 
-  auto token = this->node ? this->node->tok : this->tok;
+  auto tok = this->tok;
 
-  if (token) {
-    auto& ref = token->ref;
+  if (!tok)
+    tok = this->node->first_tok;
 
-    if (auto ss = ref->get_ss()) {
-      cout << COL_YELLOW "     ---> " << COL_CYAN << ss->get_path() << ":"
-           << ref->line_num << ":" << ref->pos_in_line << endl
-           << COL_YELLOW << "     |" << endl
-           << utils::format("% 4zu | ", ref->line_num) << COL_WHITE
-           << ref->get_line_view() << COL_YELLOW "     |" << COL_RED
-           << string(ref->pos_in_line, ' ') << "^" << endl
-           << endl
-           << COL_DEFAULT;
-    }
-    else {
-      cout << this->msg << endl;
-    }
+  auto& ref = tok->ref;
+
+  if (auto ss = ref->get_ss()) {
+    cout << COL_YELLOW "     ---> " << COL_CYAN << ss->get_path() << ":" << ref->line_num
+         << ":" << ref->pos_in_line << endl
+         << COL_YELLOW << "     |" << endl
+         << utils::format("% 4zu | ", ref->line_num) << COL_WHITE << ref->get_line_view()
+         << COL_YELLOW "     |" << COL_RED << string(ref->pos_in_line, ' ') << "^" << endl
+         << endl
+         << COL_DEFAULT;
+  }
+  else {
+    cout << this->msg << endl;
   }
 
   for (auto&& note : this->notes)

@@ -202,6 +202,7 @@ struct ObjFunctor : Object {
 struct ObjEnumerator : Object {
   Node* nd_enum;
   size_t index;
+  Vec<Obj> data;
 
   ObjEnumerator(Node* nd_enum, size_t index);
 

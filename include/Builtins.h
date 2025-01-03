@@ -2,7 +2,7 @@
 
 #include <functional>
 #include "typedef.h"
-#include "Object.h"
+#include "TypeInfo.h"
 
 class Evaluator;
 
@@ -12,7 +12,7 @@ namespace Builtins {
 //   builtin namespace
 
 struct BuiltinFunc {
-  using Impl = std::function<Obj(Evaluator&, Vec<Obj> const&)>;
+  using Impl = std::function<Obj(Evaluator&, Node* node, Vec<Obj> const&)>;
 
   string name;
 
@@ -26,7 +26,7 @@ struct BuiltinFunc {
 
   Impl impl;
 
-  Obj call(Evaluator& eval, Vec<Obj> const& args) const;
+  Obj call(Evaluator& eval, Node* node, Vec<Obj> const& args) const;
 
   string to_string() const;
 

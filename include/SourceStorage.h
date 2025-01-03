@@ -59,6 +59,8 @@ public:
 
   string_view get_view(size_t pos, size_t len) const;
 
+  string_view get_line_view(size_t index) const;
+
   size_t get_length() const;
 
   string get_data() const;
