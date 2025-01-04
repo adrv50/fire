@@ -66,9 +66,11 @@ TypeInfo Sema::check_function_call(Node* call) {
 
   EvalContext E{
       .call_func = call,
-      .cf_args_vt = &call_args,
+      .cf_args_list_ptr = &call_args,
       .fn_candidates_out = &fn_candidates,
   };
+
+  static auto _keep = this->ctx.evalctx;
 
   this->ctx.evalctx = &E;
 
@@ -84,20 +86,20 @@ TypeInfo Sema::check_function_call(Node* call) {
 
   auto callee_ti = this->eval_expr_ti(call->nd_callfunc_callee, &E);
 
-  this->ctx.evalctx = nullptr;
+  this->ctx.evalctx = _keep;
 
   switch (callee_ti.kind) {
     case TypeKind::Functor: {
-      if (callee_ti.ftor_blt)
+      if (callee_ti.ftor_blt) {
         call->nd_callfunc_callee_builtin = callee_ti.ftor_blt;
-      else {
-        // call->nd_callfunc_callee_userdef = callee_ti.ftor_node;
-
-        for (auto&& cd : fn_candidates) {
-        }
+        return callee_ti.template_args[0];
       }
 
-      return callee_ti.template_args[0];
+      assert(callee_ti.ftor_node);
+
+      call->nd_callfunc_callee_userdef = callee_ti.ftor_node;
+
+      return *((TypeInfo*)callee_ti.ftor_node->nd_func_result_ti);
     }
 
     case TypeKind::Enumerator: {
@@ -284,11 +286,38 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
         //   => Create functor
         case NameFindResult::NA_Func: {
 
+          if (evalctx && evalctx->call_func) {
+            auto iter = std::remove_if(
+                res.fn_candidates.begin(), res.fn_candidates.end(),
+                [&](Scope* scope) -> bool {
+                  auto cd = scope->node;
+
+                  auto res = this->compare_type_list(
+                      *((Vec<TypeInfo>*)cd->nd_func_args_ti), *evalctx->cf_args_list_ptr);
+
+                  return (res & TLC_Many) ? !cd->nd_func_is_variable_args
+                                          : (res & TLC_Few) || (res & TLC_Mismatch);
+                });
+
+            if (iter == res.fn_candidates.begin()) {
+              Error e{node, "mismatched arguments to call function '" +
+                                this->get_full_name(node) + "'"};
+
+              if (res.fn_candidates.size() > 1)
+                for (auto&& cd : res.fn_candidates)
+                  e.add_note(cd->node->tok, "candidate:");
+              else
+                e.add_note(res.fn_candidates[0]->node->tok, "defined here");
+
+              e.crash();
+            }
+
+            alertmsg(res.fn_candidates.size());
+            alertmsg(std::distance(res.fn_candidates.begin(), iter));
+          }
+
           if (res.fn_candidates.size() >= 2) {
-            if (evalctx || !evalctx->call_func)
-              Error(node, "ambiguous function name '" + res.name + "'").crash();
-            else
-              return {}; // => pass to case ND_CallFunc (for limit candidates)
+            Error(node, "ambiguous function name '" + res.name + "'").crash();
           }
 
           auto fn = res.fn_candidates[0];
@@ -298,7 +327,8 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
           node->nd_id_target = fn->node;
 
           return make_functor_ti(fn->arg_types,
-                                 this->eval_type_ti(fn->node->nd_func_result_type));
+                                 this->eval_type_ti(fn->node->nd_func_result_type))
+              .set_ftor_node(fn->node);
         }
 
         //

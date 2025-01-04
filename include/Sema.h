@@ -158,9 +158,7 @@ class Sema {
     //
     // call-func
     Node* call_func = nullptr;
-    // TypeInfo* cf_ret_ti = nullptr;
-    Vec<TypeInfo>* cf_args_vt = nullptr;
-
+    Vec<TypeInfo>* cf_args_list_ptr = nullptr;
     Vec<Node*>* fn_candidates_out = nullptr;
     bool limit_cd = false;
 
@@ -168,6 +166,10 @@ class Sema {
     // method-call
     Node* method_self = nullptr;
     TypeInfo* method_self_ti = nullptr;
+
+    //
+    // "of" operator
+    Node* of_expr = nullptr;
   };
 
   Node* root;
