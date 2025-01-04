@@ -286,7 +286,11 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
         //   => Create functor
         case NameFindResult::NA_Func: {
 
+          ///
+          /// if in context of call-function
           if (evalctx && evalctx->call_func) {
+            ///
+            /// limit candidates (Not erased)
             auto iter = std::remove_if(
                 res.fn_candidates.begin(), res.fn_candidates.end(),
                 [&](Scope* scope) -> bool {
@@ -299,6 +303,9 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
                                           : (res & TLC_Few) || (res & TLC_Mismatch);
                 });
 
+            ///
+            /// if no candidates:
+            ///  => Error
             if (iter == res.fn_candidates.begin()) {
               Error e{node, "mismatched arguments to call function '" +
                                 this->get_full_name(node) + "'"};
@@ -311,13 +318,15 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
 
               e.crash();
             }
-
-            alertmsg(res.fn_candidates.size());
-            alertmsg(std::distance(res.fn_candidates.begin(), iter));
           }
 
           if (res.fn_candidates.size() >= 2) {
-            Error(node, "ambiguous function name '" + res.name + "'").crash();
+            Error e{node, "ambiguous function name '" + res.name + "'"};
+
+            for (auto&& cd : res.fn_candidates)
+              e.add_note(cd->node->tok, "candidate:");
+
+            e.crash();
           }
 
           auto fn = res.fn_candidates[0];

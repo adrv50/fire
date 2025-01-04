@@ -99,6 +99,8 @@ class Sema {
 
     bool is_named;
 
+    bool checked = false;
+
     Scope*& append(Scope* scope) {
       scope->parent = this;
 
@@ -298,6 +300,15 @@ private:
 
   size_t limit_function_candidates(Vec<Node*>& vec, Vec<TypeInfo> const& args);
 
+  //
+  // find function same name in scope
+  // (only perfectly matched)
+  //
+  // for: detect duplicate definition
+  size_t find_function(Vec<Scope*>& out, Scope* in, string const& name,
+                       Vec<TypeInfo> const& args, TypeInfo const& ret_type,
+                       Scope* ignore_func);
+
   static TypeInfo make_functor_ti(Vec<TypeInfo> const& arg_types,
                                   TypeInfo const& ret_type);
 
@@ -311,6 +322,9 @@ private:
     TLC_Mismatch = BIT(2),
     TLC_Many = BIT(3), // A < B
     TLC_Few = BIT(4),  // A > B
+    TLC_SameCount = BIT(5),
+
+    TLC_PerfectMatch = TLC_Matched | TLC_SameCount,
   };
 
   TypeListCompareResult compare_type_list(Vec<TypeInfo> const& A, Vec<TypeInfo> const& B);

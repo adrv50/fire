@@ -146,6 +146,16 @@ void Sema::check_func(Node* func) {
     func->nd_func_result_ti = &fnscope->ti;
   }
 
+  alert;
+  if (Vec<Scope*> chk_duplicate;
+      this->find_function(chk_duplicate, fnscope->parent, func->nd_func_name->str,
+                          fnscope->arg_types, fnscope->ti, fnscope) != 0) {
+    Error(func, "redefinition of function name '" + func->nd_func_name->str +
+                    "' with same signature")
+        .add_note(chk_duplicate[0]->node->tok, "defined here")
+        .crash();
+  }
+
   // check function body
   this->check_block(func->nd_func_body);
 
@@ -156,6 +166,8 @@ void Sema::check_func(Node* func) {
   }
 
   this->leave_func(func);
+
+  fnscope->checked = true;
 }
 
 // ----------------------------------

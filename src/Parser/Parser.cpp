@@ -221,7 +221,11 @@ Node* Parser::p_namespace() {
 // ---------------------------------
 Node* Parser::p_func() {
   if (this->eat(Kwd::Func)) {
+    auto tok = this->cur;
+
     auto node = Node::new_node(ND_Function, this->cur);
+
+    node->first_tok = tok;
 
     node->nd_func_name = this->expect_ident();
 
@@ -240,6 +244,8 @@ Node* Parser::p_func() {
     }
 
     node->nd_func_body = this->p_block(true);
+
+    node->last_tok = this->cur->prev;
 
     return node;
   }

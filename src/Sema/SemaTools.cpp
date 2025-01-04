@@ -262,9 +262,10 @@ Sema::TypeListCompareResult Sema::compare_type_list(Vec<TypeInfo> const& A,
 
   if (A.size() > B.size())
     res = static_cast<TypeListCompareResult>(res | TLC_Many);
-
-  if (A.size() < B.size())
+  else if (A.size() < B.size())
     res = static_cast<TypeListCompareResult>(res | TLC_Few);
+  else
+    res = static_cast<TypeListCompareResult>(res | TLC_SameCount);
 
   for (size_t i = 0; i < std::min(A.size(), B.size()); i++) {
     if (!A[i].equals(B[i]))
@@ -272,4 +273,36 @@ Sema::TypeListCompareResult Sema::compare_type_list(Vec<TypeInfo> const& A,
   }
 
   return static_cast<TypeListCompareResult>(res | TLC_Matched);
+}
+
+size_t Sema::find_function(Vec<Scope*>& out, Scope* in, string const& name,
+                           Vec<TypeInfo> const& args, TypeInfo const& ret_type,
+                           Scope* ignore_func) {
+  for (auto&& func : in->functions) {
+
+    auto fn = func->node;
+
+    alert;
+    if (func == ignore_func)
+      continue;
+
+    alert;
+    if (!func->checked || func->get_name() != name)
+      continue;
+
+    alert;
+    if (ignore_func->node->nd_func_is_variable_args != fn->nd_func_is_variable_args)
+      continue;
+
+    alert;
+    if (!((TypeInfo*)ignore_func->node->nd_func_result_ti)->equals(func->ti))
+      continue;
+
+    auto res = this->compare_type_list(func->arg_types, args);
+
+    if (res & TLC_PerfectMatch)
+      out.push_back(func);
+  }
+
+  return out.size();
 }
