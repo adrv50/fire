@@ -121,9 +121,6 @@ void Sema::check_class(Node* nd_class) {
 void Sema::check_func(Node* func) {
   auto fnscope = this->enter_func(func);
 
-  // check function name duplicate
-  // todo
-
   // check function args
   for (auto&& arg : func->nd_func_args) {
     auto argtype = this->eval_type_ti(arg->nd_func_arg_type);
@@ -146,7 +143,7 @@ void Sema::check_func(Node* func) {
     func->nd_func_result_ti = &fnscope->ti;
   }
 
-  alert;
+  // check duplicate of name
   if (Vec<Scope*> chk_duplicate;
       this->find_function(chk_duplicate, fnscope->parent, func->nd_func_name->str,
                           fnscope->arg_types, fnscope->ti, fnscope) != 0) {

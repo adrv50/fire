@@ -1,6 +1,6 @@
 # Fire: Interpreter Programming Language
 
-Rust の簡易版みたいなものに、C++ みたいな機能を混ぜたもの。
+Rust の簡易版みたいなものに、C# と C++ の機能を混ぜて、インタプリタにしたような言語。
 
 ## Build and Hello World:
 Create source file as `a.flame`
