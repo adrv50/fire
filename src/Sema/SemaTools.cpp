@@ -180,10 +180,15 @@ Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
         }
 
         // function
-        if (auto fn = scope->find_func(id->tok->str)) {
+        if (scope->find_func(result.fn_candidates, id->tok->str) >= 1) {
           result.type = NameFindResult::NA_Func;
-          result.scope = fn;
-          result.func = fn->node;
+          result.scope = scope;
+
+          if (auto E = this->ctx.evalctx; E && E->fn_candidates_out) {
+            for (auto&& cd : result.fn_candidates)
+              E->fn_candidates_out->push_back(cd->node);
+          }
+
           return true;
         }
 
@@ -249,4 +254,22 @@ string Sema::get_full_name(Node* id_or_sr) {
     s += "<" + utils::join(", ", id_or_sr->nd_id_template_args, get_full_name) + ">";
 
   return s;
+}
+
+Sema::TypeListCompareResult Sema::compare_type_list(Vec<TypeInfo> const& A,
+                                                    Vec<TypeInfo> const& B) {
+  TypeListCompareResult res = TLC_None;
+
+  if (A.size() > B.size())
+    res = static_cast<TypeListCompareResult>(res | TLC_Many);
+
+  if (A.size() < B.size())
+    res = static_cast<TypeListCompareResult>(res | TLC_Few);
+
+  for (size_t i = 0; i < std::min(A.size(), B.size()); i++) {
+    if (!A[i].equals(B[i]))
+      return static_cast<TypeListCompareResult>(res | TLC_Mismatch);
+  }
+
+  return static_cast<TypeListCompareResult>(res | TLC_Matched);
 }

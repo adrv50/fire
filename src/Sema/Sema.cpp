@@ -37,8 +37,15 @@ void Sema::check_full() {
 
       case ND_Function:
         if (item->nd_func_name->str == "main") {
+          if (item->nd_func_is_template)
+            Error(item->tok, "entry point 'main' cannot be templated").crash();
+
           is_defined_main = true;
           this->root->nd_program_main = item;
+        }
+
+        if (item->nd_func_is_template) {
+          todo_impl;
         }
 
         this->check_func(item);
@@ -55,6 +62,9 @@ void Sema::check_full() {
       case ND_Class:
         this->check_class(item);
         break;
+
+      case ND_Namespace:
+        todo_impl;
 
       default:
         todo_impl;
@@ -127,9 +137,14 @@ void Sema::check_func(Node* func) {
     fnscope->arg_types.emplace_back(argtype);
   }
 
+  func->nd_func_args_ti = &fnscope->arg_types;
+
   // check result type
-  if (func->nd_func_result_type)
+  if (func->nd_func_result_type) {
     fnscope->ti = this->eval_type_ti(func->nd_func_result_type);
+
+    func->nd_func_result_ti = &fnscope->ti;
+  }
 
   // check function body
   this->check_block(func->nd_func_body);

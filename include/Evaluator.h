@@ -11,9 +11,9 @@ class Evaluator {
   struct CallStack {
     Vec<Obj> objects;
 
-    Obj result;
+    Obj result = nullptr;
 
-    bool is_returned;
+    bool pass = false; // pass to end of function body.
 
     Obj& get(size_t index);
 

@@ -98,28 +98,52 @@ private:
   Token* expect(TokenOperatorKind k);
   Token* expect(TokenKwdKind k);
 
+  //
   // node create wrapper
   static Node* new_zero();
   static Node* new_assign_with_op(NodeKind kind, Token* tok, Node* lhs, Node* rhs);
 
-  // ident
+  //
+  // token eat/expect wrapper
   bool eat_ident();
-  Token* expect_ident();
-
-  // semicolon
   bool eat_semi();
+  bool eat_colon();
+  bool eat_comma();
+  bool eat_brace_open();
+  bool eat_brace_close();
+  Token* expect_ident();
   Token* expect_semi();
+  Token* expect_colon();
+  Token* expect_comma();
+  Token* expect_brace_open();
+  Token* expect_brace_close();
 
+  Token* expect_block_open();
+  Token* expect_block_close();
+
+  //
   // template args
   bool eat_template_args_open();
   bool eat_template_args_close();
   Token* expect_template_args_open();
   Token* expect_template_args_close();
 
+  //
   // type name
   Node* p_expect_type();
 
+  //
   // identifier (with qualifier)
   Node* p_expect_identifier(bool allow_qualifier = false);
   void p_parse_id_qualifier(Node* nd);
+
+  //
+  // expect pair of name and type
+  //  => "a: T"
+  Node* p_expect_pair_name_and_type();
+
+  //
+  // expect intializer list
+  //  => "{a: 1, b: 2, ...}"
+  Node* p_expect_initializer_list();
 };

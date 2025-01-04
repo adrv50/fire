@@ -116,7 +116,7 @@ Node* Parser::p_def_enumerator() {
   node->nd_enumerator_name = this->expect_ident();
 
   // have a data
-  if (this->eat(Punct::BraceOpen)) {
+  if (this->eat_brace_open()) {
 
     // struct members
     if (this->cur->next->is_punct(Punct::Colon)) {
@@ -124,7 +124,7 @@ Node* Parser::p_def_enumerator() {
 
       do {
         node->append(this->p_struct_member());
-      } while (this->eat(Punct::Comma));
+      } while (this->eat_comma());
     }
     else {
       // only type
@@ -132,7 +132,7 @@ Node* Parser::p_def_enumerator() {
       node->nd_enumerator_val_type = this->p_expect_type();
     }
 
-    this->expect(Punct::BraceClose);
+    this->expect_brace_close();
   }
 
   node->last_tok = this->cur->prev;
@@ -150,13 +150,13 @@ Node* Parser::p_struct() {
 
     node->nd_struct_name = this->expect_ident();
 
-    this->expect(Punct::BlockBraceOpen);
+    this->expect_brace_open();
 
     do {
       node->append(this->p_struct_member());
-    } while (this->eat(Punct::Comma));
+    } while (this->eat_comma());
 
-    this->expect(Punct::BlockBraceClose);
+    this->expect_brace_close();
   }
 
   return nullptr;
@@ -167,7 +167,7 @@ Node* Parser::p_struct_member() {
 
   member->nd_struct_member_name = this->expect_ident();
 
-  this->expect(Punct::Colon);
+  this->expect_colon();
 
   member->nd_struct_member_type = this->p_expect_type();
 
@@ -184,9 +184,9 @@ Node* Parser::p_class() {
 
     node->nd_class_name = this->expect_ident();
 
-    this->expect(Punct::BlockBraceOpen);
+    this->expect_brace_open();
 
-    while (!this->eat(Punct::BlockBraceClose)) {
+    while (!this->eat_brace_close()) {
       if (auto fn = this->p_func()) {
         node->append(fn);
         continue;
@@ -225,14 +225,14 @@ Node* Parser::p_func() {
 
     node->nd_func_name = this->expect_ident();
 
-    this->expect(Punct::BraceOpen);
+    this->expect_brace_open();
 
-    if (!this->eat(Punct::BraceClose)) {
+    if (!this->eat_brace_close()) {
       do {
         node->append(this->p_func_arg());
-      } while (this->eat(Punct::Comma));
+      } while (this->eat_comma());
 
-      this->expect(Punct::BraceClose);
+      this->expect_brace_close();
     }
 
     if (this->eat(Punct::ResultTypeSpecifier)) {
@@ -256,7 +256,7 @@ Node* Parser::p_func_arg() {
 
   node->nd_func_arg_name = this->expect_ident();
 
-  this->expect(Punct::Colon);
+  this->expect_colon();
 
   node->nd_func_arg_type = this->p_expect_type();
 

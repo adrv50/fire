@@ -67,17 +67,17 @@ Sema::VarList::VarList(Vec<VarInfo> const& variables)
 //
 string Sema::Scope::get_name() const {
   switch (this->type) {
-  case SC_Function:
-    return this->node->nd_func_name->str;
+    case SC_Function:
+      return this->node->nd_func_name->str;
 
-  case SC_Enum:
-    return this->node->nd_enum_name->str;
+    case SC_Enum:
+      return this->node->nd_enum_name->str;
 
-  case SC_Class:
-    return this->node->nd_class_name->str;
+    case SC_Class:
+      return this->node->nd_class_name->str;
 
-  case SC_Struct:
-    return this->node->nd_struct_name->str;
+    case SC_Struct:
+      return this->node->nd_struct_name->str;
   }
 
   return "";
@@ -99,12 +99,12 @@ Sema::VarInfo* Sema::Scope::find_var(string const& name) {
 // Scope::find_func:
 //   find function by name.
 //
-Sema::Scope* Sema::Scope::find_func(string const& name) {
+size_t Sema::Scope::find_func(Vec<Scope*>& out, string const& name) {
   for (auto& func : this->functions)
     if (func->get_name() == name)
-      return func;
+      out.push_back(func);
 
-  return nullptr;
+  return out.size();
 }
 
 Sema::Scope* Sema::Scope::find_if(std::function<bool(Scope*)> const& pred,
@@ -123,38 +123,42 @@ Sema::Scope* Sema::Scope::find_if(std::function<bool(Scope*)> const& pred,
 
 Sema::Scope* Sema::Scope::make_scope(Node* node) {
   switch (node->kind) {
-  case ND_Program:
-    break;
+    case ND_Program:
+      break;
 
-  case ND_Function: {
-    auto scope = new Scope(SC_Function, node);
+    case ND_Function: {
+      auto scope = new Scope(SC_Function, node);
 
-    scope->node = node;
+      scope->node = node;
 
-    return scope;
-  }
+      return scope;
+    }
 
-  case ND_Enum: {
-    return new Scope(SC_Enum, node);
-  }
+    case ND_Enum: {
+      return new Scope(SC_Enum, node);
+    }
 
-  case ND_Struct:
-    todo_impl;
-    break;
+    case ND_Struct:
+      todo_impl;
+      break;
 
-  case ND_Class:
-    todo_impl;
-    break;
+    case ND_Class:
+      todo_impl;
+      break;
 
-  default:
-    return nullptr;
+    default:
+      return nullptr;
   }
 
   auto scope = new Scope(SC_Global, node);
 
   for (auto&& item : node->nd_items) {
-    if (auto childscope = Scope::make_scope(item))
-      scope->append(childscope);
+    if (auto s = Scope::make_scope(item)) {
+      if (s->type == SC_Function)
+        scope->append_func(s);
+      else
+        scope->append(s);
+    }
   }
 
   return scope;

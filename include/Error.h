@@ -1,6 +1,7 @@
 #pragma once
 
 #include <concepts>
+#include <functional>
 
 #include "typedef.h"
 
@@ -105,9 +106,8 @@ public:
     return *this;
   }
 
-  Error& append_msg_if(bool cd, string const& msg) {
-    if (cd)
-      this->msg += msg;
+  Error& append_msg_if(std::function<void(string&)> const& msg_fn) {
+    msg_fn(this->msg);
 
     return *this;
   }

@@ -116,6 +116,10 @@ class Sema {
         if (child->node == node)
           return child;
 
+      for (auto&& func : this->functions)
+        if (func->node == node)
+          return func;
+
       return nullptr;
     }
 
@@ -123,7 +127,7 @@ class Sema {
 
     VarInfo* find_var(string const& name);
 
-    Scope* find_func(string const& name);
+    size_t find_func(Vec<Scope*>& out, string const& name);
 
     Scope* find_if(std::function<bool(Scope*)> const& pred, bool recursive = false);
 
@@ -132,12 +136,15 @@ class Sema {
     Scope(ScopeType type, Node* node);
   };
 
+  struct EvalContext;
   struct SemaContext {
     Scope* cur_scope;
 
     bool is_in_func = false;
 
     Scope* cur_func = nullptr;
+
+    EvalContext* evalctx = nullptr;
 
     Scope* enter(Node* node);
     void leave();
@@ -153,6 +160,9 @@ class Sema {
     Node* call_func = nullptr;
     // TypeInfo* cf_ret_ti = nullptr;
     Vec<TypeInfo>* cf_args_vt = nullptr;
+
+    Vec<Node*>* fn_candidates_out = nullptr;
+    bool limit_cd = false;
 
     //
     // method-call
@@ -234,6 +244,7 @@ private:
 
     VarInfo* var = nullptr;
     Node* func = nullptr;
+    Vec<Scope*> fn_candidates;
 
     Node* nd_enum = nullptr;       // => TypeKind::Type
     Node* nd_enumerator = nullptr; // => TypeKind::Enumerator
@@ -283,10 +294,22 @@ private:
 
   NameFindResult find_name_wrap(Node* name, Scope* scope = nullptr);
 
+  size_t limit_function_candidates(Vec<Node*>& vec, Vec<TypeInfo> const& args);
+
   static TypeInfo make_functor_ti(Vec<TypeInfo> const& arg_types,
                                   TypeInfo const& ret_type);
 
   static string get_full_name(Node* id_or_sr);
 
   static inline Scope* _cur_func_keep = nullptr;
+
+  enum TypeListCompareResult : u8 {
+    TLC_None = 0,
+    TLC_Matched = BIT(1),
+    TLC_Mismatch = BIT(2),
+    TLC_Many = BIT(3), // A < B
+    TLC_Few = BIT(4),  // A > B
+  };
+
+  TypeListCompareResult compare_type_list(Vec<TypeInfo> const& A, Vec<TypeInfo> const& B);
 };

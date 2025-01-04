@@ -136,18 +136,100 @@ Token* Parser::expect_ident() {
   return this->expect(TokenKind::Identifier);
 }
 
+// -----------------
+//  Parser::eat_semi
+// ----------------------------------
 bool Parser::eat_semi() {
   return this->eat(TokenKind::Semi);
 }
 
+// -----------------
+//  Parser::eat_colon
+// ----------------------------------
+bool Parser::eat_colon() {
+  return this->eat(TokenPunctKind::Colon);
+}
+
+// -----------------
+//  Parser::eat_comma
+// ----------------------------------
+bool Parser::eat_comma() {
+  return this->eat(TokenPunctKind::Comma);
+}
+
+// -----------------
+//  Parser::eat_brace_open
+// ----------------------------------
+bool Parser::eat_brace_open() {
+  return this->eat(TokenPunctKind::BraceOpen);
+}
+
+// -----------------
+//  Parser::eat_brace_close
+// ----------------------------------
+bool Parser::eat_brace_close() {
+  return this->eat(TokenPunctKind::BraceClose);
+}
+
+// -----------------
+//  Parser::expect_semi
+// ----------------------------------
 Token* Parser::expect_semi() {
   return this->expect(TokenKind::Semi);
 }
 
-bool Parser::eat_template_args_open() {
-  return this->eat(Punct::AngleBraceOpen);
+// -----------------
+//  Parser::expect_colon
+// ----------------------------------
+Token* Parser::expect_colon() {
+  return this->expect(TokenPunctKind::Colon);
 }
 
+// -----------------
+//  Parser::expect_comma
+// ----------------------------------
+Token* Parser::expect_comma() {
+  return this->expect(TokenPunctKind::Comma);
+}
+
+// -----------------
+//  Parser::expect_brace_open
+// ----------------------------------
+Token* Parser::expect_brace_open() {
+  return this->expect(TokenPunctKind::BraceOpen);
+}
+
+// -----------------
+//  Parser::expect_brace_close
+// ----------------------------------
+Token* Parser::expect_brace_close() {
+  return this->expect(TokenPunctKind::BraceClose);
+}
+
+// -----------------
+//  Parser::expect_block_open
+// ----------------------------------
+Token* Parser::expect_block_open() {
+  return this->expect(TokenPunctKind::BlockBraceOpen);
+}
+
+// -----------------
+//  Parser::expect_block_close
+// ----------------------------------
+Token* Parser::expect_block_close() {
+  return this->expect(TokenPunctKind::BlockBraceClose);
+}
+
+// -----------------
+//  Parser::eat_template_args_open
+// ----------------------------------
+bool Parser::eat_template_args_open() {
+  return this->eat(TokenPunctKind::AngleBraceOpen);
+}
+
+// -----------------
+//  Parser::eat_template_args_close
+// ----------------------------------
 bool Parser::eat_template_args_close() {
   if (this->match(Op::RShift)) {
     this->cur->set_punct(Punct::AngleBraceClose);
@@ -158,6 +240,9 @@ bool Parser::eat_template_args_close() {
   return this->eat(Punct::AngleBraceClose);
 }
 
+// -----------------
+//  Parser::expect_template_args_open
+// ----------------------------------
 Token* Parser::expect_template_args_open() {
   if (!this->eat_template_args_open())
     Error(this->cur, "expected '<' but found '" + this->cur->str + "'").crash();
@@ -165,64 +250,12 @@ Token* Parser::expect_template_args_open() {
   return this->cur->prev;
 }
 
+// -----------------
+//  Parser::expect_template_args_close
+// ----------------------------------
 Token* Parser::expect_template_args_close() {
   if (!this->eat_template_args_close())
     Error(this->cur, "expected '>' but found '" + this->cur->str + "'").crash();
 
   return this->cur->prev;
-}
-
-Node* Parser::p_expect_type() {
-  auto tok = this->cur;
-
-  auto node = Node::new_node(ND_TypeName, this->expect_ident());
-
-  node->first_tok = tok;
-
-  if (this->eat_template_args_open()) {
-    do {
-      node->append(this->p_expect_type());
-    } while (this->eat(Punct::Comma));
-
-    this->expect_template_args_close();
-  }
-
-  node->last_tok = this->cur->prev;
-
-  return node;
-}
-
-Node* Parser::p_expect_identifier(bool allow_qualifier) {
-  auto tok = this->cur;
-
-  auto node = Node::new_node(ND_Identifier, this->expect_ident());
-
-  node->first_tok = node->last_tok = tok;
-
-  if (allow_qualifier)
-    this->p_parse_id_qualifier(node);
-
-  return node;
-}
-
-void Parser::p_parse_id_qualifier(Node* nd) {
-  auto save1 = this->cur;
-  auto save2 = this->ate;
-
-  try {
-    if (this->eat_template_args_open()) { // eat '<'
-      do {
-        nd->append(this->p_scope_resol());
-      } while (this->eat(Punct::Comma));
-
-      this->expect_template_args_close();
-
-      nd->last_tok = this->cur->prev;
-    }
-  }
-
-  catch (Error const& e) { // --> compare operator '<'
-    this->cur = save1;
-    this->ate = save2;
-  }
 }

@@ -3,104 +3,108 @@
 #include <functional>
 #include "Builtins.h"
 
-#define nd_value nd.obj
+#define nd_value obj
 
 #define nd_array_elements list
 #define nd_tuple_elements list
 
-#define nd_dict_pairs nd.list
-#define nd_dict_pair_key nd.na
-#define nd_dict_pair_value nd.nb
+#define nd_dict_pairs list
+#define nd_dict_pair_key na
+#define nd_dict_pair_value nb
 
-#define nd_variable_is_global nd.b1
-#define nd_variable_offset nd.size
+#define nd_variable_is_global b1
+#define nd_variable_offset size
 
 #define nd_id_name tok
 #define nd_id_template_args list
-#define nd_id_target nd.nb
-#define nd_id_enumerator_index nd.size
+#define nd_id_target nb
+#define nd_id_enumerator_index size
 
 //
 // if name of enumerator needing initializers,
 // pointer to call-func expression.
-#define nd_id_enumerator_callctor nd.nb // => ND_CallFunc
+#define nd_id_enumerator_callctor nb // => ND_CallFunc
 
-#define nd_scope_resol_first nd.na
+#define nd_scope_resol_first na
 #define nd_scope_resol_idlist list
 
 //
 // ND_CallFunc
-#define nd_callfunc_callee nd.na
-#define nd_callfunc_callee_userdef nd.nb
-#define nd_callfunc_callee_builtin nd.bfun
-#define nd_callfunc_is_method_call nd.b1
-#define nd_callfunc_method_self nd.nc
+#define nd_callfunc_callee na
+#define nd_callfunc_callee_userdef nb
+#define nd_callfunc_callee_builtin bfun
+#define nd_callfunc_is_method_call b1
+#define nd_callfunc_method_self nc
 #define nd_callfunc_args list
-#define nd_callfunc_enum_ctor_enum nd.nb
-#define nd_callfunc_enum_ctor_index nd.size
+#define nd_callfunc_enum_ctor_enum nd
+#define nd_callfunc_enum_ctor_index size
 
-#define nd_type_is_mut nd.b1
-#define nd_type_is_ref nd.b2
+#define nd_type_is_mut b1
+#define nd_type_is_ref b2
 #define nd_type_template_args list
 
 #define nd_items list
 #define nd_elements list
 
 // if
-#define nd_if_cond nd.na
-#define nd_if_then nd.nb
-#define nd_if_else nd.nc
+#define nd_if_cond na
+#define nd_if_then nb
+#define nd_if_else nc
 
 // while
-#define nd_while_cond nd.na
-#define nd_while_body nd.nb
+#define nd_while_cond na
+#define nd_while_body nb
 
 // loop
-#define nd_loop_body nd.na
+#define nd_loop_body na
 
 // let
-#define nd_let_name nd.tok2
-#define nd_let_type nd.na
-#define nd_let_init nd.nb
+#define nd_let_name tok2
+#define nd_let_type na
+#define nd_let_init nb
 
-#define nd_func_name nd.tok2
-#define nd_func_is_method nd.b2
+#define nd_func_name tok2
+#define nd_func_is_method b2
+#define nd_func_is_template b3
 #define nd_func_args list
-#define nd_func_result_type nd.na
-#define nd_func_is_variable_args nd.b1
-#define nd_func_body nd.nb
+#define nd_func_result_type na
+#define nd_func_is_variable_args b1
+#define nd_func_body nb
+#define nd_func_args_ti v1   // => Vec<TypeInfo>*
+#define nd_func_result_ti v2 // => TypeInfo*
 
 #define nd_func_arg_name tok
-#define nd_func_arg_type nd.na
+#define nd_func_arg_type na
 
-#define nd_lhs nd.na
-#define nd_rhs nd.nb
+#define nd_lhs na
+#define nd_rhs nb
 
-#define nd_return_expr nd.na
+#define nd_return_expr na
 
-#define nd_enum_name nd.tok2
+#define nd_enum_name tok2
 #define nd_enum_enumerators list
 
 #define nd_enumerator_name tok
-#define nd_enumerator_is_value nd.b1
-#define nd_enumerator_is_struct nd.b2
-#define nd_enumerator_val_type nd.na
+#define nd_enumerator_is_value b1
+#define nd_enumerator_is_struct b2
+#define nd_enumerator_val_type na
 #define nd_enumerator_struct_members list
 
-#define nd_class_name nd.tok2
-#define nd_class_fields nd.na  // --> ND_Let
-#define nd_class_methods nd.nb // --> ND_Function
+#define nd_class_name tok2
+#define nd_class_fields na  // --> ND_Let
+#define nd_class_methods nb // --> ND_Function
 
-#define nd_struct_name nd.tok2
+#define nd_struct_name tok2
 #define nd_struct_members list
 #define nd_struct_member_name tok
-#define nd_struct_member_type nd.na
+#define nd_struct_member_type na
 
-#define nd_program_main nd.na
+#define nd_program_main na
 #define nd_program_items list
-#define nd_program_global_var_size nd.size
+#define nd_program_global_var_size size
 
-struct Token;
+#define nd_nametype_pair_name tok
+#define nd_nametype_pair_type na
 
 enum NodeKind : u16 {
   ND_Value,
@@ -178,9 +182,17 @@ enum NodeKind : u16 {
 
   ND_Class,
 
-  ND_TypeName,
+  ND_Namespace,
 
   ND_Program,
+
+  ND_TypeName,
+
+  //
+  // part of any nodes
+  //
+  ND_PairNameAndType, // "a: T"
+  ND_InitializerList, // "{a: 1, b: 2, ...}"  (repeat ND_PairNameAndType)
 };
 
 // -------------------------------------
@@ -204,6 +216,7 @@ enum CompareExprKind : u8 {
   CMP_BiggerOrEqual,
 };
 
+struct Token;
 struct Node {
   NodeKind kind;
   NodeIdentifierKind id_kind = ID_None;
@@ -214,34 +227,32 @@ struct Node {
   Token* first_tok = nullptr;
   Token* last_tok = nullptr;
 
-  union {
-    void* __data[10]{0};
+  TypeKind tk = TypeKind::None;
 
-    struct {
-      Node* ln;
-      Node* rn;
-      TypeKind tk;
-    };
+  Node* na = nullptr;
+  Node* nb = nullptr;
+  Node* nc = nullptr;
+  Node* nd = nullptr;
+  Node* ne = nullptr;
+  Node* nf = nullptr;
 
-    struct {
-      Node* na;
-      Node* nb;
-      Node* nc;
-      Object* obj;
-      Token* tok2;
-      Token* tok3;
-      bool b1;
-      bool b2;
-      bool b3;
-    };
+  Object* obj = nullptr;
+  Token* tok2 = nullptr;
+  Token* tok3 = nullptr;
+  bool b1 = false;
+  bool b2 = false;
+  bool b3 = false;
+  bool b4 = false;
 
-    struct {
-      Node* nx;
-      Node* ny;
-      size_t size;
-      Builtins::BuiltinFunc const* bfun;
-    };
-  } nd;
+  void* v1 = nullptr;
+  void* v2 = nullptr;
+  void* v3 = nullptr;
+  void* v4 = nullptr;
+
+  size_t size = 0;
+  size_t size2 = 0;
+
+  Builtins::BuiltinFunc const* bfun;
 
   bool is(NodeKind kind) const;
 

@@ -325,7 +325,7 @@ Node* Parser::p_subscript() {
 
     //
     // Call func
-    else if (this->eat(Punct::BraceOpen)) {
+    else if (this->eat_brace_open()) {
       auto cf = Node::new_node(ND_CallFunc, op, nullptr);
 
       cf->nd_callfunc_callee = nd;
@@ -343,12 +343,12 @@ Node* Parser::p_subscript() {
                                     cf->nd_callfunc_method_self);
       }
 
-      if (!this->eat(Punct::BraceClose)) {
+      if (!this->eat_brace_close()) {
         do {
           cf->append(this->p_expr());
-        } while (this->eat(Punct::Comma));
+        } while (this->eat_comma());
 
-        this->expect(Punct::BraceClose);
+        this->expect_brace_close();
       }
 
       nd = cf;

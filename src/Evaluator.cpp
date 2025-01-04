@@ -7,81 +7,6 @@
 
 #include "Evaluator.h"
 
-Obj& Evaluator::CallStack::get(size_t index) {
-  return this->objects[index];
-}
-
-Obj& Evaluator::CallStack::append(Obj obj) {
-  return this->objects.emplace_back(obj);
-}
-
-Evaluator::CallStack::CallStack()
-    : objects(),
-      result(nullptr),
-      is_returned(false) {
-}
-
-Evaluator::CallStack::~CallStack() {
-  this->objects.clear();
-}
-
-Evaluator::CallStack& Evaluator::get_current_call_stack() {
-  return this->call_stack.back();
-}
-
-Obj& Evaluator::push(Obj obj) {
-  return this->get_current_call_stack().append(obj);
-}
-
-Obj Evaluator::pop() {
-  auto obj = this->get_current_call_stack().objects.back();
-
-  this->get_current_call_stack().objects.pop_back();
-
-  return obj;
-}
-
-Evaluator::CallStack& Evaluator::push_stack() {
-  return this->call_stack.emplace_back();
-}
-
-void Evaluator::pop_stack() {
-  this->call_stack.pop_back();
-}
-
-Evaluator::Evaluator(Node* program)
-    : program(program) {
-  if (!program)
-    return;
-
-  for (auto&& item : this->program->nd_program_items) {
-    if (item->is(ND_Let)) {
-      this->global_variables.emplace_back(this->eval_expr(item->nd_let_init));
-    }
-  }
-}
-
-Obj& Evaluator::append_global_var(Obj obj) {
-  return this->global_variables.emplace_back(obj);
-}
-
-Obj Evaluator::evaluate() {
-  auto& main_stack = this->push_stack();
-
-  (void)main_stack;
-  // todo append [argc, argv] to main_stack
-
-  Obj result = nullptr;
-
-  for (auto&& item : this->program->nd_program_main->nd_func_body->nd_elements) {
-    result = this->eval_stmt(item);
-  }
-
-  this->pop_stack();
-
-  return result;
-}
-
 Obj obj_add(Obj lhs, Obj rhs) {
   if (lhs->ti.is(TypeKind::Int))
     return ObjInt::make(lhs->as_int()->val + rhs->as_int()->val);
@@ -175,6 +100,128 @@ Obj obj_and(Obj lhs, Obj rhs) {
   return ObjBool::make(lhs->as_bool()->val && rhs->as_bool()->val);
 }
 
+//
+// ND_Compare => Call directly
+//
+static const pair<NodeKind, Obj (*)(Obj, Obj)> ndkind_opfunc_table[] = {
+    {ND_Mul, &obj_mul},       {ND_Div, &obj_div},     {ND_Mod, &obj_mod},
+    {ND_Add, &obj_add},       {ND_Sub, &obj_sub},     {ND_LShift, &obj_lshift},
+    {ND_RShift, &obj_rshift}, {ND_Compare, nullptr},  {ND_Equal, &obj_equal},
+    {ND_BitAnd, &obj_bitand}, {ND_BitOr, &obj_bitor}, {ND_BitXor, &obj_bitxor},
+    {ND_Or, &obj_or},         {ND_And, &obj_and},
+};
+
+// -----------------
+//  Evaluator::CallStack::get
+// ----------------------------------
+Obj& Evaluator::CallStack::get(size_t index) {
+  return this->objects[index];
+}
+
+// -----------------
+//  Evaluator::CallStack::append
+// ----------------------------------
+Obj& Evaluator::CallStack::append(Obj obj) {
+  return this->objects.emplace_back(obj);
+}
+
+// -----------------
+//  Evaluator::CallStack::CallStack
+// ----------------------------------
+Evaluator::CallStack::CallStack() {
+}
+
+// -----------------
+//  Evaluator::CallStack::~CallStack
+// ----------------------------------
+Evaluator::CallStack::~CallStack() {
+  this->objects.clear();
+}
+
+// -----------------
+//  Evaluator::get_current_call_stack
+// ----------------------------------
+Evaluator::CallStack& Evaluator::get_current_call_stack() {
+  return this->call_stack.back();
+}
+
+// -----------------
+//  Evaluator::push
+// ----------------------------------
+Obj& Evaluator::push(Obj obj) {
+  return this->get_current_call_stack().append(obj);
+}
+
+// -----------------
+//  Evaluator::pop
+// ----------------------------------
+Obj Evaluator::pop() {
+  auto obj = this->get_current_call_stack().objects.back();
+
+  this->get_current_call_stack().objects.pop_back();
+
+  return obj;
+}
+
+// -----------------
+//  Evaluator::push_stack
+// ----------------------------------
+Evaluator::CallStack& Evaluator::push_stack() {
+  return this->call_stack.emplace_back();
+}
+
+// -----------------
+//  Evaluator::pop_stack
+// ----------------------------------
+void Evaluator::pop_stack() {
+  this->call_stack.pop_back();
+}
+
+// -----------------
+//  Evaluator::Evaluator
+// ----------------------------------
+Evaluator::Evaluator(Node* program)
+    : program(program) {
+  if (!program)
+    return;
+
+  for (auto&& item : this->program->nd_program_items) {
+    if (item->is(ND_Let)) {
+      this->global_variables.emplace_back(this->eval_expr(item->nd_let_init));
+    }
+  }
+}
+
+// -----------------
+//  Evaluator::append_global_var
+// ----------------------------------
+Obj& Evaluator::append_global_var(Obj obj) {
+  return this->global_variables.emplace_back(obj);
+}
+
+// -----------------
+//  Evaluator::evaluate
+// ----------------------------------
+Obj Evaluator::evaluate() {
+  auto& main_stack = this->push_stack();
+
+  (void)main_stack;
+  // todo append [argc, argv] to main_stack
+
+  Obj result = nullptr;
+
+  for (auto&& item : this->program->nd_program_main->nd_func_body->nd_elements) {
+    result = this->eval_stmt(item);
+  }
+
+  this->pop_stack();
+
+  return result;
+}
+
+// -----------------
+//  Evaluator::eval_expr
+// ----------------------------------
 Obj Evaluator::eval_expr(Node* node) {
 
   switch (node->kind) {
@@ -246,12 +293,11 @@ Obj Evaluator::eval_expr(Node* node) {
 
       break;
 
+    //
+    // Call function
+    //
     case ND_CallFunc: {
       Vec<Obj> args;
-
-      // if (node->nd_callfunc_is_method_call) {
-      //   args.emplace_back(this->eval_expr(node->nd_callfunc_method_self));
-      // }
 
       for (auto&& item : node->nd_callfunc_args)
         args.emplace_back(this->eval_expr(item));
@@ -259,11 +305,15 @@ Obj Evaluator::eval_expr(Node* node) {
       return this->eval_call_func(node, args);
     }
 
+    //
+    // Contruct enumerator with intializers
+    //
     case ND_ConstructEnumeratorValue: {
       auto obj = ObjEnumerator::make(node->nd_callfunc_enum_ctor_enum,
                                      node->nd_callfunc_enum_ctor_index);
 
-      obj->data.emplace_back(this->eval_expr(node->nd_callfunc_args[0]));
+      for (auto&& arg : node->nd_callfunc_args)
+        obj->data.emplace_back(this->eval_expr(arg));
 
       return obj;
     }
@@ -275,20 +325,15 @@ Obj Evaluator::eval_expr(Node* node) {
   auto lhs = this->eval_expr(node->nd_lhs)->clone();
   auto rhs = this->eval_expr(node->nd_rhs);
 
-  static const pair<NodeKind, Obj (*)(Obj, Obj)> ndkind_opfunc_table[] = {
-      {ND_Mul, &obj_mul},       {ND_Div, &obj_div},     {ND_Mod, &obj_mod},
-      {ND_Add, &obj_add},       {ND_Sub, &obj_sub},     {ND_LShift, &obj_lshift},
-      {ND_RShift, &obj_rshift}, {ND_Compare, nullptr},  {ND_Equal, &obj_equal},
-      {ND_BitAnd, &obj_bitand}, {ND_BitOr, &obj_bitor}, {ND_BitXor, &obj_bitxor},
-      {ND_Or, &obj_or},         {ND_And, &obj_and},
-  };
-
   if (node->kind == ND_Compare)
     return obj_compare(node->cmp_kind, lhs, rhs);
 
   return ndkind_opfunc_table[static_cast<size_t>(node->kind - ND_Mul)].second(lhs, rhs);
 }
 
+// -----------------
+//  Evaluator::eval_call_func
+// ----------------------------------
 Obj Evaluator::eval_call_func(Node* node, Vec<Obj>& args) {
   auto callee = node->nd_callfunc_callee_userdef;
 
@@ -315,17 +360,29 @@ Obj Evaluator::eval_call_func(Node* node, Vec<Obj>& args) {
   return result;
 }
 
+// -----------------
+//  Evaluator::eval_stmt
+// ----------------------------------
 Obj Evaluator::eval_stmt(Node* node) {
   switch (node->kind) {
 
+    //
+    // Block
+    //
     case ND_Block:
       this->eval_block(node);
       break;
 
+    //
+    // Let
+    //
     case ND_Let:
       this->eval_let(node);
       break;
 
+    //
+    // If
+    //
     case ND_If: {
       auto cond = this->eval_expr(node->nd_if_cond);
 
@@ -337,10 +394,13 @@ Obj Evaluator::eval_stmt(Node* node) {
       break;
     }
 
+    //
+    // Return
+    //
     case ND_Return: {
       auto& stack = this->get_current_call_stack();
 
-      stack.is_returned = true;
+      stack.pass = true;
 
       if (node->nd_return_expr)
         stack.result = this->eval_expr(node->nd_return_expr);
@@ -348,6 +408,9 @@ Obj Evaluator::eval_stmt(Node* node) {
       break;
     }
 
+    //
+    // Expression statement
+    //
     default:
       return this->eval_expr(node);
   }
@@ -355,24 +418,30 @@ Obj Evaluator::eval_stmt(Node* node) {
   return nullptr;
 }
 
+// -----------------
+//  Evaluator::eval_block
+// ----------------------------------
 Obj Evaluator::eval_block(Node* node) {
   Obj result = nullptr;
 
   for (auto&& item : node->nd_elements) {
     result = this->eval_stmt(item);
 
-    if (this->get_current_call_stack().is_returned)
+    if (this->get_current_call_stack().pass)
       break;
   }
 
   return result;
 }
 
+// -----------------
+//  Evaluator::eval_let
+// ----------------------------------
 void Evaluator::eval_let(Node* node) {
   Obj val = nullptr;
 
-  if (node->nd_let_init)
-    val = this->eval_expr(node->nd_let_init);
+  if (auto const x = node->nd_let_init)
+    val = this->eval_expr(x);
   else
     val = Object::none;
 

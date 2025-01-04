@@ -54,14 +54,9 @@ bool Node::walk_node(Node* nd, std::function<bool(Node*)> const& func) {
   if (func(nd))
     return true;
 
-  if (walk_node(nd->nd.na, func))
-    return true;
-
-  if (walk_node(nd->nd.nb, func))
-    return true;
-
-  if (walk_node(nd->nd.nc, func))
-    return true;
+  for (auto&& xx : {nd->na, nd->nb, nd->nc, nd->nd, nd->ne, nd->nf})
+    if (xx && walk_node(xx, func))
+      return true;
 
   for (auto& node : nd->list)
     if (walk_node(node, func))
@@ -73,7 +68,7 @@ bool Node::walk_node(Node* nd, std::function<bool(Node*)> const& func) {
 Node::Node(NodeKind kind, Token* tok, Object* obj)
     : kind(kind),
       tok(tok) {
-  this->nd.obj = obj;
+  this->obj = obj;
 }
 
 Node::Node(NodeKind kind, Token* tok, Node* lhs, Node* rhs)
@@ -83,9 +78,4 @@ Node::Node(NodeKind kind, Token* tok, Node* lhs, Node* rhs)
 }
 
 Node::~Node() {
-  switch (this->kind) {
-    case ND_Value:
-      delete this->nd.obj;
-      break;
-  }
 }
