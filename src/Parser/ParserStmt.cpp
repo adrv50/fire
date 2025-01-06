@@ -270,6 +270,8 @@ Node* Parser::p_loop() {
         // return
       }
 
+      node->nd_for_init = first;
+
       this->expect_semi();
     }
   _end_first_parse:;
@@ -280,13 +282,25 @@ Node* Parser::p_loop() {
       if (this->eat(Kwd::In)) {
         // foreach
         todo_impl;
+        // return
       }
+
+      node->nd_for_cond = second;
 
       this->expect_semi();
     }
   _end_second_parse:;
 
-    todo_impl;
+    if (!this->eat_semi()) {
+      try {
+        node->nd_for_step = this->p_expr();
+      }
+      catch (const Error& e) {
+        Error(this->cur, "expected expression").crash();
+      }
+    }
+
+    node->nd_for_body = this->p_block();
 
     return node;
   }

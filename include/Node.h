@@ -178,6 +178,12 @@ enum NodeKind : u16 {
   ND_MemberAccess,
   ND_CallFunc,
 
+  ND_ForwardInclement, // ++a
+  ND_ForwardDecrement, // --a
+
+  ND_BackwardInclement, // a++
+  ND_BackwardDecrement, // a--
+
   ND_ConstructEnumeratorValue,
   ND_ConstructEnumeratorStruct,
 

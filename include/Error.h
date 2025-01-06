@@ -72,10 +72,11 @@ enum class ErrorType {
 };
 
 class Error {
-
+public:
   ErrorKind kind = ErrorKind::None;
   ErrorType type;
 
+private:
   Token* tok;
   Node* node;
 

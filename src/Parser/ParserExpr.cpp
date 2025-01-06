@@ -522,8 +522,12 @@ Node* Parser::p_factor() {
 
     dict->first_tok = tok;
 
-    if (this->eat(Punct::BlockBraceClose))
-      Error(tok, "empty dictionary is not valid").crash();
+    //
+    // don't parse empty dict (may be block of statement)
+    if (this->match(Punct::BlockBraceClose)) {
+      this->cur = tok;
+      goto _pass_dict;
+    }
 
     do {
       // make pair
@@ -542,6 +546,7 @@ Node* Parser::p_factor() {
     dict->last_tok = this->cur->prev;
 
     return dict;
+  _pass_dict:;
   }
 
   Node* nd = nullptr;
