@@ -71,13 +71,16 @@ enum class TokenKwdKind : u16 {
   //
   // Statements.
   //
-  If,    // "if"
-  Else,  // "else"
-  Match, // "match"
-  For,   // "for"
-  Loop,  // "loop"
-  Do,    // "do"
-  While, // "while"
+  If,      // "if"
+  Else,    // "else"
+  Switch,  // "switch"
+  Case,    // "case"
+  Default, // "default"
+  Match,   // "match"
+  For,     // "for"
+  Loop,    // "loop"
+  Do,      // "do"
+  While,   // "while"
 
   //
   // Control-keywords.

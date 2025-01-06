@@ -86,13 +86,53 @@ Node* Parser::p_stmt() {
   }
 
   //
-  //
+  // switch
+  else if (this->eat(Kwd::Switch)) {
+    auto node = Node::new_node(ND_Switch, this->cur);
+
+    node->nd_switch_cond = this->p_expr();
+
+    this->expect_block_open();
+
+    Token* default_tok = nullptr;
+
+    while (!this->match(Punct::BlockBraceClose)) {
+      if (this->eat(Kwd::Default)) {
+        if (default_tok)
+          Error(default_tok, "redefinition of default case").crash();
+
+        default_tok = this->cur;
+
+        node->nd_switch_default_case = this->p_block();
+
+        continue;
+      }
+
+      node->append(this->p_expect_switch_case());
+    }
+
+    this->expect_block_close();
+
+    return node;
+  }
 
   auto expr = this->p_expr();
 
   this->expect_semi();
 
   return expr;
+}
+
+Node* Parser::p_expect_switch_case() {
+  auto node = Node::new_node(ND_SwitchCase, this->cur);
+
+  this->expect(Kwd::Case);
+
+  node->nd_switch_case_cond = this->p_expr();
+
+  node->nd_switch_case_body = this->p_block();
+
+  return node;
 }
 
 //

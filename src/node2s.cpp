@@ -32,6 +32,11 @@ string node2s(Node* node) {
   switch (node->kind) {
 
     case ND_Value:
+      if (node->tok->is(TokenKind::Character))
+        return "'" + node->tok->str + "'";
+      else if (node->tok->is(TokenKind::String))
+        return "\"" + node->tok->str + "\"";
+
       return node->tok->str;
 
     case ND_Identifier:
@@ -124,6 +129,28 @@ string node2s(Node* node) {
       todo_impl;
       break;
 
+    case ND_Switch: {
+      string s = "switch " + node2s(node->nd_switch_cond) + " {\n";
+      _indent++;
+
+      for (auto c : node->nd_switch_cases) {
+        s += indent() + "case " + node2s(c->nd_switch_case_cond) + " " +
+             node2s(c->nd_switch_case_body) + "\n";
+      }
+
+      if (node->nd_switch_default_case) {
+        s += indent() + "default " + node2s(node->nd_switch_default_case) + "\n";
+      }
+
+      _indent--;
+      s += indent() + "}";
+      return s;
+    }
+
+    case ND_SwitchCase:
+      return "case " + node2s(node->nd_switch_case_cond) + " " +
+             node2s(node->nd_switch_case_body);
+
     case ND_Match:
       todo_impl;
       break;
@@ -153,8 +180,9 @@ string node2s(Node* node) {
         return "return";
 
     case ND_Block: {
+      auto ind = indent();
 
-      auto s = "{\n  " + indent();
+      auto s = "{\n  " + ind;
 
       _indent++;
       s += utils::join("\n" + indent(), node->nd_elements,
@@ -166,7 +194,7 @@ string node2s(Node* node) {
 
                          return str;
                        }) +
-           "\n}";
+           "\n" + ind + "}";
 
       _indent--;
 

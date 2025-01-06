@@ -146,4 +146,8 @@ private:
   // expect intializer list
   //  => "{a: 1, b: 2, ...}"
   Node* p_expect_initializer_list();
+
+  //
+  // expect switch case
+  Node* p_expect_switch_case(); // ParserStmt.cpp
 };

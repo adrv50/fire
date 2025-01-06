@@ -132,6 +132,9 @@ static constexpr pair<TKkwd, char const*> tok_keywords[] = {
     // control flow
     {TKkwd::If, "if"},
     {TKkwd::Else, "else"},
+    {TKkwd::Switch, "switch"},
+    {TKkwd::Case, "case"},
+    {TKkwd::Default, "default"},
     {TKkwd::Match, "match"},
     {TKkwd::For, "for"},
     {TKkwd::Loop, "loop"},

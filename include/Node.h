@@ -61,6 +61,9 @@
 // switch
 #define nd_switch_cond na
 #define nd_switch_cases list
+#define nd_switch_default_case nb
+
+// switch-case
 #define nd_switch_case_cond na
 #define nd_switch_case_body nb
 
@@ -181,19 +184,21 @@ enum NodeKind : u16 {
   ND_Assign,
 
   ND_Let,
+
   ND_If,
   ND_IfLet,
+  ND_Switch,
+  ND_SwitchCase,
   ND_Match,
-
-  ND_While,
 
   //
   // for-loop
   ND_For,
   ND_ForRange,
 
-  ND_DoWhile,
   ND_Loop,
+  ND_While,
+  ND_DoWhile,
 
   ND_Break,
   ND_Continue,
