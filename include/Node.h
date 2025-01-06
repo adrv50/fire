@@ -213,10 +213,14 @@ enum NodeKind : u16 {
   ND_BitOr,
   ND_BitXor,
 
+  ND_In,
+
   ND_Or,
   ND_And,
 
   ND_Range,
+
+  ND_ExprIf, // "A if B else c"
 
   ND_Assign,
 
@@ -359,7 +363,7 @@ struct Node {
 
   //
   // stop when func() returns true
-  static bool walk_node(Node* nd, std::function<bool(Node*)> const& func);
+  static bool walk_node(Node* nd, std::function<bool(Node*&)> const& func);
 
   Node(NodeKind kind, Token* tok, Object* obj = nullptr);
   Node(NodeKind kind, Token* tok, Node* lhs, Node* rhs);

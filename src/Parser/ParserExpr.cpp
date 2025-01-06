@@ -23,7 +23,7 @@ Node* Parser::p_expr() {
 Node* Parser::p_assign() {
   auto tok = this->cur;
 
-  auto nd = this->p_range();
+  auto nd = this->p_if_expr();
 
   nd->first_tok = tok;
 
@@ -47,6 +47,30 @@ Node* Parser::p_assign() {
 
   else if (this->eat(Op::ModAssign))
     nd = Parser::new_assign_with_op(ND_Mod, op, nd, this->p_assign());
+
+  nd->last_tok = this->cur->prev;
+
+  return nd;
+}
+
+Node* Parser::p_if_expr() {
+  auto tok = this->cur;
+
+  auto nd = this->p_range();
+
+  nd->first_tok = tok;
+
+  if (auto op = this->cur; this->eat(Kwd::If)) {
+    auto x = Node::new_node(ND_ExprIf, op, nullptr);
+
+    x->nd_if_then = nd;
+    x->nd_if_cond = this->p_expr();
+
+    if (this->eat(Kwd::Else))
+      x->nd_if_else = this->p_range();
+
+    nd = x;
+  }
 
   nd->last_tok = this->cur->prev;
 
@@ -81,7 +105,7 @@ Node* Parser::p_range() {
 Node* Parser::p_logical() {
   auto tok = this->cur;
 
-  auto nd = this->p_bit_calc();
+  auto nd = this->p_in();
 
   nd->first_tok = tok;
 
@@ -89,11 +113,27 @@ Node* Parser::p_logical() {
     auto op = this->cur;
 
     if (this->eat(Kwd::And))
-      nd = Node::new_node(ND_And, op, nd, this->p_bit_calc());
+      nd = Node::new_node(ND_And, op, nd, this->p_in());
     else if (this->eat(Kwd::Or))
-      nd = Node::new_node(ND_Or, op, nd, this->p_bit_calc());
+      nd = Node::new_node(ND_Or, op, nd, this->p_in());
     else
       break;
+  }
+
+  nd->last_tok = this->cur->prev;
+
+  return nd;
+}
+
+Node* Parser::p_in() {
+  auto tok = this->cur;
+
+  auto nd = this->p_bit_calc();
+
+  nd->first_tok = tok;
+
+  if (auto op = this->cur; this->eat(Kwd::In)) {
+    nd = Node::new_node(ND_In, op, nd, this->p_bit_calc());
   }
 
   nd->last_tok = this->cur->prev;
@@ -285,8 +325,9 @@ Node* Parser::p_unary() {
   //
   // forward plus
   //
-  if (this->eat(Op::Add))
-    nd = this->p_subscript();
+  if (this->eat(Op::Add)) {
+    nd = expect_expr(p_subscript);
+  }
 
   //
   // forward minus
@@ -436,8 +477,6 @@ Node* Parser::p_scope_resol() {
   // call constructor with initializer list
   // A{ ... }
   if (auto keep = this->cur; nd->is_id_or_sr() && this->eat(Punct::BlockBraceOpen)) {
-    Token* colontok = nullptr;
-
     try {
       auto callctor = Node::new_node(ND_CallConstructor, this->cur);
 
@@ -454,7 +493,6 @@ Node* Parser::p_scope_resol() {
 
         pair->nd_callctor_init_key = this->expect_ident();
 
-        colontok = this->cur;
         this->expect_colon();
 
         pair->nd_callctor_init_value = this->p_expr();
@@ -467,11 +505,7 @@ Node* Parser::p_scope_resol() {
       nd = callctor;
     }
     catch (Error const& e) {
-      if (e.get_token() == colontok) {
-        this->cur = keep;
-      }
-      else
-        throw e;
+      this->cur = keep;
     }
 
   _end_parse_callctor:;

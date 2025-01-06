@@ -116,9 +116,19 @@ string node2s(Node* node) {
     case ND_BitXor:
     case ND_Or:
     case ND_And:
+    case ND_In:
     case ND_Range:
     case ND_Assign:
       return node2s(node->nd_lhs) + " " + node->tok->str + " " + node2s(node->nd_rhs);
+
+    case ND_ExprIf: {
+      auto s = node2s(node->nd_if_then) + " if " + node2s(node->nd_if_cond);
+
+      if (auto p = node->nd_if_else)
+        s += " else " + node2s(p);
+
+      return s;
+    }
 
     case ND_Compare: {
       auto lhs = node2s(node->nd_lhs);

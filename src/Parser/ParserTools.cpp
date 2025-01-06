@@ -77,29 +77,31 @@ bool Parser::eat(TokenKwdKind k) {
   return false;
 }
 
-#define expect_impl(_fn)                                                                 \
+#define expect_impl_qual(_fn, _qual)                                                     \
   if (!this->eat(k))                                                                     \
     Error(this->cur->is(TokenKind::End) ? this->cur->prev : this->cur,                   \
-          string("expected " + Token::_fn##_to_str(k)) +                                 \
+          string("expected " _qual + Token::_fn##_to_str(k)) + _qual +                   \
               (this->cur->is(TokenKind::End) ? " after " : " before ") + "this token")   \
         .crash();                                                                        \
   else                                                                                   \
     return this->cur->prev;
+
+#define expect_impl(_fn) expect_impl_qual(_fn, "")
 
 Token* Parser::expect(TokenKind k) {
   expect_impl(kind);
 }
 
 Token* Parser::expect(TokenPunctKind k) {
-  expect_impl(punct);
+  expect_impl_qual(punct, "'");
 }
 
 Token* Parser::expect(TokenOperatorKind k) {
-  expect_impl(op);
+  expect_impl_qual(op, "'");
 }
 
 Token* Parser::expect(TokenKwdKind k) {
-  expect_impl(kwd);
+  expect_impl_qual(kwd, "'");
 }
 
 Node* Parser::new_zero() {
@@ -247,4 +249,23 @@ Token* Parser::expect_template_args_close() {
     Error(this->cur, "expected '>' but found '" + this->cur->str + "'").crash();
 
   return this->cur->prev;
+}
+
+Node* Parser::p_getexpr_rm_block() {
+  auto x = this->p_expr();
+
+  if (x->last_tok->is_punct(Punct::BlockBraceClose))
+    Node::walk_node(x, [&](Node*& nd) -> bool {
+      if (nd->last_tok == x->last_tok && nd->is(ND_CallConstructor)) {
+        nd = nd->nd_callctor_ctor_side;
+
+        this->cur = nd->last_tok->next;
+
+        return true;
+      }
+
+      return false;
+    });
+
+  return x;
 }

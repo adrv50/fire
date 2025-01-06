@@ -116,3 +116,29 @@ Node* Parser::p_expect_initializer_list() {
 
   return node;
 }
+
+Node* Parser::eat_expr() {
+  return EAT_EXPR(p_expr);
+}
+
+Node* Parser::eat_expr(std::function<Node*()> fn) {
+  auto _tok = this->cur;
+
+  try {
+    return fn();
+  }
+  catch (Error const&) {
+    this->cur = _tok;
+  }
+
+  return nullptr;
+}
+
+Node* Parser::expect_pr_expr(std::function<Node*()> fn) {
+  auto _tok = this->cur->prev;
+
+  if (auto x = this->eat_expr(fn))
+    return x;
+
+  Error(_tok, "expected primary-expression after this token").crash();
+}

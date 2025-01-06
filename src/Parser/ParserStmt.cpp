@@ -205,6 +205,8 @@ Node* Parser::p_let() {
 // loop-statements
 //
 Node* Parser::p_loop() {
+  auto tok = this->cur;
+
   //
   // loop
   //
@@ -248,12 +250,27 @@ Node* Parser::p_loop() {
 
       auto expr = this->p_getexpr_rm_block();
 
+      //
+      // for a ... b
       if (expr->is(ND_Range)) {
         node->kind = ND_ForRange;
 
         node->nd_forrange_range = expr;
 
         node->nd_forrange_body = this->p_block();
+
+        return node;
+      }
+
+      //
+      // for a in b
+      if (expr->is(ND_In)) {
+        node->kind = ND_ForEach;
+
+        node->nd_foreach_iter = expr->nd_lhs;
+        node->nd_foreach_content = expr->nd_rhs;
+
+        node->nd_foreach_body = this->p_block();
 
         return node;
       }
@@ -278,10 +295,25 @@ Node* Parser::p_loop() {
     {
       Node* second = this->p_expr();
 
-      if (this->eat(Kwd::In)) {
-        // foreach
-        todo_impl;
-        // return
+      //
+      // foreach a; x in y; b; c
+      if (second->is(ND_In)) {
+        auto init = node->nd_for_init;
+
+        node = Node::new_node(ND_ForEach, tok, nullptr);
+
+        node->nd_foreach_init = init;
+
+        node->nd_foreach_iter = second->nd_lhs;
+        node->nd_foreach_content = second->nd_rhs;
+
+        this->expect_semi();
+
+        if (!this->eat_semi())
+          node->nd_foreach_cond = this->p_expr();
+
+        if (!this->eat_semi())
+          node->nd_foreach_step = this->p_getexpr_rm_block();
       }
 
       node->nd_for_cond = second;

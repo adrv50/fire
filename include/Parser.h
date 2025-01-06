@@ -57,9 +57,12 @@ public:
 
   Node* p_assign();
 
+  Node* p_if_expr();
+
   Node* p_range(); // a ... b
 
   Node* p_logical();  // 'and' 'or'
+  Node* p_in();       // 'in'
   Node* p_bit_calc(); // '&' '|' '^'
   Node* p_equality(); // '==' '!='
   Node* p_compare();  // '>=' '<=' '>' '<'
@@ -155,17 +158,20 @@ private:
   //  when want to eat an expr and block,
   //  may be block-stmt eaten by in p_expr() as ND_CallConstructor.
   //  so this func split expr and block, and return only expr.
-  Node* p_getexpr_rm_block() {
-    auto ex = this->p_expr();
+  Node* p_getexpr_rm_block();
 
-    if (ex->is(ND_CallConstructor)) {
-      auto ret = ex->nd_callctor_ctor_side;
+  Node* eat_expr();
+  Node* eat_expr(std::function<Node*()>);
 
-      this->cur = ret->last_tok->next;
+  Node* expect_pr_expr(std::function<Node*()>);
 
-      return ret;
-    }
+#define EAT_EXPR(_mbfn)                                                                  \
+  (this->eat_expr([this]() {                                                             \
+    return this->_mbfn();                                                                \
+  }))
 
-    return ex;
-  }
+#define expect_expr(fn)                                                                  \
+  (this->expect_pr_expr([this]() {                                                       \
+    return this->fn();                                                                   \
+  }))
 };

@@ -47,7 +47,7 @@ Node* Node::new_value(Token* tok, Object* obj) {
   return new Node(ND_Value, tok, obj);
 }
 
-bool Node::walk_node(Node* nd, std::function<bool(Node*)> const& func) {
+bool Node::walk_node(Node* nd, std::function<bool(Node*&)> const& func) {
   if (!nd)
     return false;
 
