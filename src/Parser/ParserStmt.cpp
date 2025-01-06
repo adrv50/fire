@@ -274,6 +274,18 @@ Node* Parser::p_loop() {
     }
   _end_first_parse:;
 
+    {
+      Node* second = this->p_expr();
+
+      if (this->eat(Kwd::In)) {
+        // foreach
+        todo_impl;
+      }
+
+      this->expect_semi();
+    }
+  _end_second_parse:;
+
     todo_impl;
 
     return node;

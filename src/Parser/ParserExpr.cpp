@@ -522,6 +522,9 @@ Node* Parser::p_factor() {
 
     dict->first_tok = tok;
 
+    if (this->eat(Punct::BlockBraceClose))
+      Error(tok, "empty dictionary is not valid").crash();
+
     do {
       // make pair
       auto dict_pair = Node::new_node(ND_DictPair, tok, nullptr);
