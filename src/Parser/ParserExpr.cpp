@@ -410,6 +410,32 @@ Node* Parser::p_scope_resol() {
     nd = sr;
   }
 
+  //
+  // call constructor with initializer list
+  // A{ ... }
+  if (this->eat(Punct::BlockBraceOpen)) {
+    auto callctor = Node::new_node(ND_CallConstructor, this->cur);
+
+    callctor->nd_callctor_ctor_id = nd;
+
+    if (!this->eat(Punct::BlockBraceClose)) {
+      do {
+        auto pair = Node::new_node(ND_CallCtorPair, this->cur);
+
+        pair->nd_callctor_init_key = this->expect_ident();
+
+        this->expect_colon();
+        pair->nd_callctor_init_value = this->p_expr();
+
+        callctor->append(pair);
+      } while (this->eat(Punct::Comma));
+
+      this->expect(Punct::BlockBraceClose);
+    }
+
+    nd = callctor;
+  }
+
   nd->last_tok = this->cur->prev;
 
   return nd;

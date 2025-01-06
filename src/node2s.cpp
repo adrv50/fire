@@ -39,25 +39,41 @@ string node2s(Node* node) {
 
       return node->tok->str;
 
-    case ND_Identifier:
-    case ND_ScopeResol: {
+    case ND_Identifier: {
       auto s = node->tok->str;
 
       if (node->nd_id_template_args.size() >= 1) {
-        s += "<" + utils::join(",", node->nd_id_template_args, node2s) + ">";
+        s += "<" + utils::join(", ", node->nd_id_template_args, node2s) + ">";
       }
 
       return s;
     }
 
+    case ND_ScopeResol: {
+      auto s = node2s(node->nd_scope_resol_first);
+
+      for (auto x : node->nd_scope_resol_idlist)
+        s += "::" + node2s(x);
+
+      return s;
+    }
+
+    case ND_CallConstructor:
+      return node2s(node->nd_callctor_ctor_id) + "{" +
+             utils::join(", ", node->nd_callctor_initializers, node2s) + "}";
+
+    case ND_CallCtorPair:
+      return node->nd_callctor_init_key->str + ": " +
+             node2s(node->nd_callctor_init_value);
+
     case ND_Array:
-      return "[" + utils::join(",", node->nd_array_elements, node2s) + "]";
+      return "[" + utils::join(", ", node->nd_array_elements, node2s) + "]";
 
     case ND_Tuple:
-      return "(" + utils::join(",", node->nd_tuple_elements, node2s) + ")";
+      return "(" + utils::join(", ", node->nd_tuple_elements, node2s) + ")";
 
     case ND_Dict:
-      return "{" + utils::join(",", node->list, node2s) + "}";
+      return "{" + utils::join(", ", node->list, node2s) + "}";
 
     case ND_DictPair:
       return node2s(node->nd_dict_pair_key) + ": " + node2s(node->nd_dict_pair_value);

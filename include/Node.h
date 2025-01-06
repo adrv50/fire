@@ -31,6 +31,12 @@
 #define nd_scope_resol_first na
 #define nd_scope_resol_idlist list
 
+#define nd_callctor_ctor_id na
+#define nd_callctor_initializers list
+
+#define nd_callctor_init_key tok  // member-name
+#define nd_callctor_init_value na // value
+
 //
 // ND_CallFunc
 #define nd_callfunc_callee na
@@ -137,8 +143,11 @@
 
 enum NodeKind : u16 {
   ND_Value,
+
   ND_Identifier,
   ND_ScopeResol,
+  ND_CallConstructor,
+  ND_CallCtorPair,
 
   ND_Array,
   ND_Tuple,
