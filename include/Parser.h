@@ -57,17 +57,12 @@ public:
 
   Node* p_assign();
 
-  // 'and' 'or'
-  Node* p_logical();
+  Node* p_range(); // a ... b
 
-  // '&' '|' '^'
-  Node* p_bit_calc();
-
-  // '==' '!='
-  Node* p_equality();
-
-  // '>=' '<=' '>' '<'
-  Node* p_compare();
+  Node* p_logical();  // 'and' 'or'
+  Node* p_bit_calc(); // '&' '|' '^'
+  Node* p_equality(); // '==' '!='
+  Node* p_compare();  // '>=' '<=' '>' '<'
 
   Node* p_shift();
   Node* p_add();

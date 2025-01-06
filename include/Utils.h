@@ -17,14 +17,13 @@ bool read_text_file(string& out, string const& path);
 
 //
 // find
-template <typename T>
-Vec<T>::const_iterator find(Vec<T> const& v, T const& item) {
+auto find(auto const& v, auto const& item) requires(v.begin() != v.end()) {
   return std::find(v.cbegin(), v.cend(), item);
 }
 
 //
 // join
-string join(string const& str, auto const& v, auto to_str_fn) {
+static string join(string const& str, auto const& v, auto to_str_fn) {
   string s;
 
   for (size_t i = 0; i < v.size(); i++) {

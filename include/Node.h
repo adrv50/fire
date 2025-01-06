@@ -54,6 +54,11 @@
 #define nd_cast_from_expr nb
 
 //
+// ND_Range
+#define nd_range_begin na
+#define nd_range_end nb
+
+//
 // ND_Type
 #define nd_type_is_mut b1
 #define nd_type_is_ref b2
@@ -93,9 +98,8 @@
 #define nd_for_body nd
 
 // for-range
-#define nd_forrange_start na
-#define nd_forrange_end nb
-#define nd_forrange_body nc
+#define nd_forrange_range na
+#define nd_forrange_body nb
 
 // for-each
 #define nd_foreach_init na
@@ -211,6 +215,8 @@ enum NodeKind : u16 {
 
   ND_Or,
   ND_And,
+
+  ND_Range,
 
   ND_Assign,
 

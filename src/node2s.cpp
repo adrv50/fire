@@ -116,10 +116,9 @@ string node2s(Node* node) {
     case ND_BitXor:
     case ND_Or:
     case ND_And:
-      return node2s(node->nd_lhs) + " " + node->tok->str + " " + node2s(node->nd_rhs);
-
+    case ND_Range:
     case ND_Assign:
-      return node2s(node->nd_lhs) + " = " + node2s(node->nd_rhs);
+      return node2s(node->nd_lhs) + " " + node->tok->str + " " + node2s(node->nd_rhs);
 
     case ND_Compare: {
       auto lhs = node2s(node->nd_lhs);
@@ -215,12 +214,12 @@ string node2s(Node* node) {
     }
 
     case ND_ForEach: {
-
       return "foreach";
     }
 
     case ND_ForRange: {
-      return "forrange";
+      return "for " + node2s(node->nd_forrange_range) + " " +
+             node2s(node->nd_forrange_body);
     }
 
     case ND_Loop: {

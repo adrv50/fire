@@ -23,7 +23,7 @@ Node* Parser::p_expr() {
 Node* Parser::p_assign() {
   auto tok = this->cur;
 
-  auto nd = this->p_logical();
+  auto nd = this->p_range();
 
   nd->first_tok = tok;
 
@@ -47,6 +47,27 @@ Node* Parser::p_assign() {
 
   else if (this->eat(Op::ModAssign))
     nd = Parser::new_assign_with_op(ND_Mod, op, nd, this->p_assign());
+
+  nd->last_tok = this->cur->prev;
+
+  return nd;
+}
+
+Node* Parser::p_range() {
+  auto tok = this->cur;
+
+  auto nd = this->p_logical();
+
+  nd->first_tok = tok;
+
+  while (this->check()) {
+    auto op = this->cur;
+
+    if (this->eat(Punct::Ellipsis))
+      nd = Node::new_node(ND_Range, op, nd, this->p_logical());
+    else
+      break;
+  }
 
   nd->last_tok = this->cur->prev;
 

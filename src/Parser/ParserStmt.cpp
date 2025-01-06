@@ -246,19 +246,20 @@ Node* Parser::p_loop() {
         goto _end_first_parse;
       }
 
-      bool ate_ellipsis = false;
-
       auto expr = this->p_getexpr_rm_block();
+
+      if (expr->is(ND_Range)) {
+        node->kind = ND_ForRange;
+
+        node->nd_forrange_range = expr;
+
+        node->nd_forrange_body = this->p_block();
+
+        return node;
+      }
 
       if (this->eat_semi()) {
         goto _end_first_parse;
-      }
-
-      if ((ate_ellipsis = this->eat(Punct::Ellipsis))) {
-        // "for first ... end"
-        alertmsg("for first ... end");
-        todo_impl;
-        // return
       }
 
       if (this->eat(Punct::BlockBraceOpen)) {
