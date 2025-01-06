@@ -116,6 +116,57 @@ Node* Parser::p_stmt() {
     return node;
   }
 
+  //
+  // match
+  //
+  else if (this->eat(Kwd::Match)) {
+    auto node = Node::new_node(ND_Match, this->cur);
+
+    node->nd_match_cond = this->p_expr();
+
+    Token* errtok = nullptr;
+
+    if (node->nd_match_cond->is(ND_CallConstructor)) {
+      auto const& list = node->nd_match_cond->nd_callctor_initializers;
+
+      if (list.empty()) {
+        errtok = node->nd_match_cond->nd_callctor_ctor_id->last_tok->next;
+        goto _empty_match_error;
+      }
+    }
+
+    this->expect_block_open();
+
+    if (errtok = this->cur; this->eat(Punct::BlockBraceClose)) {
+    _empty_match_error:
+      Error(errtok, "empty match statement is not valid").crash();
+    }
+
+    while (!this->match(Punct::BlockBraceClose)) {
+      auto match_case = Node::new_node(ND_MatchCase, this->cur);
+
+      match_case->nd_match_case_cond = this->p_expr();
+
+      this->expect(Punct::CaseMatch);
+
+      match_case->nd_match_case_body = this->p_block();
+
+      node->append(match_case);
+
+      if (this->eat(Punct::Comma))
+        continue;
+
+      if (this->match(Punct::BlockBraceClose))
+        break;
+
+      Error(this->cur, "expected ',' or '}'").crash();
+    }
+
+    this->expect_block_close();
+
+    return node;
+  }
+
   auto expr = this->p_expr();
 
   this->expect_semi();

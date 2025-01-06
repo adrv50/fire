@@ -167,9 +167,22 @@ string node2s(Node* node) {
       return "case " + node2s(node->nd_switch_case_cond) + " " +
              node2s(node->nd_switch_case_body);
 
-    case ND_Match:
-      todo_impl;
-      break;
+    case ND_Match: {
+      auto s = "match " + node2s(node->nd_match_cond) + " {\n";
+
+      auto ind = indent();
+
+      _indent++;
+
+      s += utils::join(",\n" + ind, node->nd_match_cases, node2s) + "\n" + ind + "}";
+
+      _indent--;
+
+      return s;
+    }
+
+    case ND_MatchCase:
+      return node2s(node->nd_match_case_cond) + " => " + node2s(node->nd_match_case_body);
 
     case ND_While:
       return "while " + node2s(node->nd_while_cond) + node2s(node->nd_while_body);

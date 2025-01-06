@@ -91,6 +91,14 @@ public:
       : Error((Token*)nullptr, msg, type) {
   }
 
+  Token* get_token() const {
+    return this->tok;
+  }
+
+  Node* get_node() const {
+    return this->node;
+  }
+
   template <ErrorKind K, typename... Args>
   Error& set_msg(Args&&... args);
 

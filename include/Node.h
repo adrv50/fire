@@ -76,6 +76,8 @@
 // match
 #define nd_match_cond na
 #define nd_match_cases list
+
+// match-case
 #define nd_match_case_cond na
 #define nd_match_case_body nb
 
@@ -198,7 +200,9 @@ enum NodeKind : u16 {
   ND_IfLet,
   ND_Switch,
   ND_SwitchCase,
+
   ND_Match,
+  ND_MatchCase,
 
   //
   // for-loop
