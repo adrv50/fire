@@ -68,6 +68,8 @@ enum class TokenKwdKind : u16 {
   Mut, // "mut"
   Ref, // "ref"
 
+  In, // "in"
+
   //
   // Statements.
   //
@@ -196,6 +198,8 @@ enum class TokenPunctKind : u8 {
 
   AttributeBegin, // [[
   AttributeEnd,   // ]]
+
+  Ellipsis, // ...
 };
 
 ///

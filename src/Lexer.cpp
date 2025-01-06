@@ -21,9 +21,9 @@ static constexpr char const* all_punct_list[] = {
 // string representation for TokenKind
 //
 static char const* s_kind[] = {
-    "(unknown)",  "decimal",   "float",    "hexadecimal", "binary",
-    "string",     "character", "boolean",  "identifier",  "keyword",
-    "punctuator", "\";\"",     "operator", "end",
+    "(unknown)", "decimal",   "float",   "hexadecimal", "binary",
+    "string",    "character", "boolean", "identifier",  "punctuator",
+    "\";\"",     "operator",  "end",
 };
 
 //
@@ -102,6 +102,8 @@ static constexpr pair<TKpunct, char const*> tok_punctuators[] = {
 
     {TKpunct::AttributeBegin, "[["},
     {TKpunct::AttributeEnd, "]]"},
+
+    {TKpunct::Ellipsis, "..."},
 };
 
 //
@@ -128,6 +130,9 @@ static constexpr pair<TKkwd, char const*> tok_keywords[] = {
     // qualifiers for let-stmt
     {TKkwd::Mut, "mut"},
     {TKkwd::Ref, "ref"},
+
+    // in
+    {TKkwd::In, "in"},
 
     // control flow
     {TKkwd::If, "if"},

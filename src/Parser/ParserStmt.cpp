@@ -127,7 +127,7 @@ Node* Parser::p_stmt() {
     this->expect_block_open();
 
     if (this->match(Punct::BlockBraceClose)) {
-      Error(this->cur, "empty match statement is not valid").crash();
+      Error(node->tok->prev, "empty match statement is not valid").crash();
     }
 
     while (!this->match(Punct::BlockBraceClose)) {
@@ -212,6 +212,69 @@ Node* Parser::p_loop() {
     auto node = Node::new_node(ND_Loop, this->cur);
 
     node->nd_loop_body = this->p_block();
+
+    return node;
+  }
+
+  //
+  // while
+  //
+  else if (this->eat(Kwd::While)) {
+    auto node = Node::new_node(ND_While, this->cur);
+
+    node->nd_while_cond = this->p_expr();
+
+    node->nd_while_body = this->p_block();
+
+    return node;
+  }
+
+  //
+  // for
+  //
+  else if (this->eat(Kwd::For)) {
+    auto node = Node::new_node(ND_For, this->cur);
+
+    if (this->eat_semi()) {
+      goto _end_first_parse;
+    }
+
+    // parse first expr
+    {
+      Node* first = nullptr;
+
+      if (this->match(Kwd::Let)) {
+        first = this->p_let();
+        goto _end_first_parse;
+      }
+
+      first = this->p_getexpr_rm_block();
+
+      bool ate_ellipsis = false;
+
+      if (this->eat_semi()) {
+        goto _end_first_parse;
+      }
+
+      if ((ate_ellipsis = this->eat(Punct::Ellipsis))) {
+        // "for first ... end"
+        alertmsg("for first ... end");
+        todo_impl;
+        // return
+      }
+
+      if (this->eat(Punct::BlockBraceOpen)) {
+        // parse as for-range without start value
+        alertmsg("for-range without start value");
+        todo_impl;
+        // return
+      }
+
+      this->expect_semi();
+    }
+  _end_first_parse:;
+
+    todo_impl;
 
     return node;
   }

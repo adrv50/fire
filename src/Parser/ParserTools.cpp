@@ -77,40 +77,29 @@ bool Parser::eat(TokenKwdKind k) {
   return false;
 }
 
-Token* Parser::expect(TokenKind k) {
-  if (!this->eat(k))
-    Error(this->cur,
-          "expected " + Token::kind_to_str(k) + " but found '" + this->cur->str + "'")
-        .crash();
+#define expect_impl(_fn)                                                                 \
+  if (!this->eat(k))                                                                     \
+    Error(this->cur->is(TokenKind::End) ? this->cur->prev : this->cur,                   \
+          string("expected " + Token::_fn##_to_str(k)) +                                 \
+              (this->cur->is(TokenKind::End) ? " after " : " before ") + "this token")   \
+        .crash();                                                                        \
+  else                                                                                   \
+    return this->cur->prev;
 
-  return this->cur->prev;
+Token* Parser::expect(TokenKind k) {
+  expect_impl(kind);
 }
 
 Token* Parser::expect(TokenPunctKind k) {
-  if (!this->eat(k))
-    Error(this->cur,
-          "expected '" + Token::punct_to_str(k) + "' but found '" + this->cur->str + "'")
-        .crash();
-
-  return this->cur->prev;
+  expect_impl(punct);
 }
 
 Token* Parser::expect(TokenOperatorKind k) {
-  if (!this->eat(k))
-    Error(this->cur,
-          "expected '" + Token::op_to_str(k) + "' but found '" + this->cur->str + "'")
-        .crash();
-
-  return this->cur->prev;
+  expect_impl(op);
 }
 
 Token* Parser::expect(TokenKwdKind k) {
-  if (!this->eat(k))
-    Error(this->cur,
-          "expected '" + Token::kwd_to_str(k) + "' but found '" + this->cur->str + "'")
-        .crash();
-
-  return this->cur->prev;
+  expect_impl(kwd);
 }
 
 Node* Parser::new_zero() {

@@ -85,11 +85,25 @@
 #define nd_loop_body na
 
 //
-// for loop members
+// for loop
 //
-#define nd_for_cond na
-#define nd_for_body nb
-#define nd_for_body nb
+#define nd_for_init na
+#define nd_for_cond nb
+#define nd_for_step nc
+#define nd_for_body nd
+
+// for-range
+#define nd_forrange_start na
+#define nd_forrange_end nb
+#define nd_forrange_body nc
+
+// for-each
+#define nd_foreach_init na
+#define nd_foreach_iter nb
+#define nd_foreach_content nc
+#define nd_foreach_cond nd
+#define nd_foreach_step ne
+#define nd_foreach_body nf
 
 // while
 #define nd_while_cond na
@@ -282,6 +296,7 @@ struct Node {
   Node* nc = nullptr;
   Node* nd = nullptr;
   Node* ne = nullptr;
+  Node* nf = nullptr;
 
   Object* obj = nullptr;
   Token* tok2 = nullptr;

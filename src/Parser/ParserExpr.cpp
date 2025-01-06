@@ -421,22 +421,26 @@ Node* Parser::p_scope_resol() {
 
       callctor->nd_callctor_ctor_side = nd;
 
-      if (!this->eat(Punct::BlockBraceClose)) {
-        do {
-          auto pair = Node::new_node(ND_CallCtorPair, this->cur);
-
-          pair->nd_callctor_init_key = this->expect_ident();
-
-          colontok = this->cur;
-          this->expect_colon();
-
-          pair->nd_callctor_init_value = this->p_expr();
-
-          callctor->append(pair);
-        } while (this->eat(Punct::Comma));
-
-        this->expect(Punct::BlockBraceClose);
+      // empty init-list is not valid, but may be block of any statement
+      if (this->match(Punct::BlockBraceClose)) {
+        this->cur = keep;
+        goto _end_parse_callctor;
       }
+
+      do {
+        auto pair = Node::new_node(ND_CallCtorPair, this->cur);
+
+        pair->nd_callctor_init_key = this->expect_ident();
+
+        colontok = this->cur;
+        this->expect_colon();
+
+        pair->nd_callctor_init_value = this->p_expr();
+
+        callctor->append(pair);
+      } while (this->eat(Punct::Comma));
+
+      this->expect(Punct::BlockBraceClose);
 
       nd = callctor;
     }
@@ -447,6 +451,8 @@ Node* Parser::p_scope_resol() {
       else
         throw e;
     }
+
+  _end_parse_callctor:;
   }
 
   nd->last_tok = this->cur->prev;
