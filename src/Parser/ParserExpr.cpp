@@ -29,8 +29,9 @@ Node* Parser::p_assign() {
 
   auto op = this->cur;
 
-  if (this->eat(Op::Assign))
-    nd->nd_rhs = this->p_assign();
+  if (this->eat(Op::Assign)) {
+    nd = Node::new_node(ND_Assign, op, nd, this->p_assign());
+  }
 
   else if (this->eat(Op::AddAssign))
     nd = Parser::new_assign_with_op(ND_Add, op, nd, this->p_assign());
@@ -253,7 +254,7 @@ Node* Parser::p_mul() {
 
 // ------------
 // unary ::=
-//   ("+" | "-" | "not" | "ref") factor
+//   ("++" | "--" | "+" | "-" | "not" | "ref") p_subscript ("++" | "--")?
 //
 Node* Parser::p_unary() {
   auto tok = this->cur;
@@ -318,7 +319,7 @@ Node* Parser::p_unary() {
 
 // ------------
 // subscript ::=
-//   unary ("[" expr "]" | "." unary | "(" expr ("," expr)* ")")*
+//   p_scope_resol ("[" expr "]" | "." unary | "(" expr ("," expr)* ")")*
 //
 Node* Parser::p_subscript() {
   auto tok = this->cur;
@@ -413,7 +414,7 @@ Node* Parser::p_scope_resol() {
   //
   // call constructor with initializer list
   // A{ ... }
-  if (auto keep = this->cur; this->eat(Punct::BlockBraceOpen)) {
+  if (auto keep = this->cur; nd->is_id_or_sr() && this->eat(Punct::BlockBraceOpen)) {
     Token* colontok = nullptr;
 
     try {

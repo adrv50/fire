@@ -66,6 +66,8 @@ void Parser::p_parse_id_qualifier(Node* nd) {
   catch (Error const& e) { // --> compare operator '<'
     this->cur = save1;
     this->ate = save2;
+
+    nd->nd_id_template_args.clear();
   }
 }
 

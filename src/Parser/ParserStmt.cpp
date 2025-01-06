@@ -241,16 +241,14 @@ Node* Parser::p_loop() {
 
     // parse first expr
     {
-      Node* first = nullptr;
-
       if (this->match(Kwd::Let)) {
-        first = this->p_let();
+        node->nd_for_init = this->p_let();
         goto _end_first_parse;
       }
 
-      first = this->p_getexpr_rm_block();
-
       bool ate_ellipsis = false;
+
+      auto expr = this->p_getexpr_rm_block();
 
       if (this->eat_semi()) {
         goto _end_first_parse;
@@ -270,7 +268,7 @@ Node* Parser::p_loop() {
         // return
       }
 
-      node->nd_for_init = first;
+      node->nd_for_init = expr;
 
       this->expect_semi();
     }

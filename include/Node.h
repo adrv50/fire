@@ -227,6 +227,7 @@ enum NodeKind : u16 {
   //
   // for-loop
   ND_For,
+  ND_ForEach,
   ND_ForRange,
 
   ND_Loop,

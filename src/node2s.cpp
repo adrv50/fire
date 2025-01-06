@@ -110,15 +110,27 @@ string node2s(Node* node) {
     case ND_Sub:
     case ND_LShift:
     case ND_RShift:
-    case ND_Compare:
     case ND_Equal:
     case ND_BitAnd:
     case ND_BitOr:
     case ND_BitXor:
     case ND_Or:
     case ND_And:
-    case ND_Assign:
       return node2s(node->nd_lhs) + " " + node->tok->str + " " + node2s(node->nd_rhs);
+
+    case ND_Assign:
+      return node2s(node->nd_lhs) + " = " + node2s(node->nd_rhs);
+
+    case ND_Compare: {
+      auto lhs = node2s(node->nd_lhs);
+      auto rhs = node2s(node->nd_rhs);
+
+      if (node->tok->is_op(TokenOperatorKind::RightBig) ||
+          node->tok->is_op(TokenOperatorKind::RightBigOrEq))
+        std::swap(lhs, rhs);
+
+      return lhs + " " + node->tok->str + " " + rhs;
+    }
 
     case ND_Let: {
       string s = "let " + node->nd_let_name->str;
@@ -190,7 +202,25 @@ string node2s(Node* node) {
     case ND_For: {
       string s = "for ";
 
-      break;
+      for (auto&& xx : {node->nd_for_init, node->nd_for_cond}) {
+        if (xx)
+          s += node2s(xx);
+        s += "; ";
+      }
+
+      if (node->nd_for_step)
+        s += node2s(node->nd_for_step) + " ";
+
+      return s + node2s(node->nd_for_body);
+    }
+
+    case ND_ForEach: {
+
+      return "foreach";
+    }
+
+    case ND_ForRange: {
+      return "forrange";
     }
 
     case ND_Loop: {
