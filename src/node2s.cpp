@@ -59,7 +59,7 @@ string node2s(Node* node) {
     }
 
     case ND_CallConstructor:
-      return node2s(node->nd_callctor_ctor_id) + "{" +
+      return node2s(node->nd_callctor_ctor_side) + "{" +
              utils::join(", ", node->nd_callctor_initializers, node2s) + "}";
 
     case ND_CallCtorPair:

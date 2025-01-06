@@ -2,6 +2,9 @@
 
 #include "fire-fwd.h"
 
+#include "Token.h"
+#include "Node.h"
+
 class Parser {
 
   using Kwd = TokenKwdKind;
@@ -150,4 +153,24 @@ private:
   //
   // expect switch case
   Node* p_expect_switch_case(); // ParserStmt.cpp
+
+  //
+  // p_getexpr_rm_block:
+  //
+  //  when want to eat an expr and block,
+  //  may be block-stmt eaten by in p_expr() as ND_CallConstructor.
+  //  so this func split expr and block, and return only expr.
+  Node* p_getexpr_rm_block() {
+    auto ex = this->p_expr();
+
+    if (ex->is(ND_CallConstructor)) {
+      auto ret = ex->nd_callctor_ctor_side;
+
+      this->cur = ret->last_tok->next;
+
+      return ret;
+    }
+
+    return ex;
+  }
 };

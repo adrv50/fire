@@ -31,7 +31,7 @@
 #define nd_scope_resol_first na
 #define nd_scope_resol_idlist list
 
-#define nd_callctor_ctor_id na
+#define nd_callctor_ctor_side na
 #define nd_callctor_initializers list
 
 #define nd_callctor_init_key tok  // member-name

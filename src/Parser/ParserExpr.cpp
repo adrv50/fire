@@ -419,7 +419,7 @@ Node* Parser::p_scope_resol() {
     try {
       auto callctor = Node::new_node(ND_CallConstructor, this->cur);
 
-      callctor->nd_callctor_ctor_id = nd;
+      callctor->nd_callctor_ctor_side = nd;
 
       if (!this->eat(Punct::BlockBraceClose)) {
         do {
