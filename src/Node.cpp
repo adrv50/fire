@@ -54,7 +54,7 @@ bool Node::walk_node(Node* nd, std::function<bool(Node*)> const& func) {
   if (func(nd))
     return true;
 
-  for (auto&& xx : {nd->na, nd->nb, nd->nc, nd->nd, nd->ne, nd->nf})
+  for (auto&& xx : {nd->na, nd->nb, nd->nc, nd->nd, nd->ne})
     if (xx && walk_node(xx, func))
       return true;
 

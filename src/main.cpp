@@ -12,6 +12,14 @@
 
 #include "Error.h"
 
+#include "Object.h"
+#include "Token.h"
+#include "Node.h"
+
+#include "Utils.h"
+
+#include "node2s.h"
+
 int main(int argc, char** argv) {
   SourceStorage SS{"test.fr"};
 
@@ -31,6 +39,9 @@ int main(int argc, char** argv) {
 
     auto prg = parser.parse();
 
+    std::cout << node2s(prg) << std::endl;
+
+    /*
     Sema sema{prg};
 
     sema.check_full();
@@ -38,6 +49,7 @@ int main(int argc, char** argv) {
     Evaluator ev{prg};
 
     ev.evaluate();
+    */
   }
 
   catch (std::exception const& e) {

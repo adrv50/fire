@@ -3,6 +3,9 @@
 #include <functional>
 #include "Builtins.h"
 
+#define nd_items list
+#define nd_elements list
+
 #define nd_value obj
 
 #define nd_array_elements list
@@ -39,24 +42,47 @@
 #define nd_callfunc_enum_ctor_enum nd
 #define nd_callfunc_enum_ctor_index size
 
+//
+// ND_Cast
+#define nd_cast_to_type na
+#define nd_cast_from_expr nb
+
+//
+// ND_Type
 #define nd_type_is_mut b1
 #define nd_type_is_ref b2
 #define nd_type_template_args list
-
-#define nd_items list
-#define nd_elements list
 
 // if
 #define nd_if_cond na
 #define nd_if_then nb
 #define nd_if_else nc
 
-// while
-#define nd_while_cond na
-#define nd_while_body nb
+// switch
+#define nd_switch_cond na
+#define nd_switch_cases list
+#define nd_switch_case_cond na
+#define nd_switch_case_body nb
+
+// match
+#define nd_match_cond na
+#define nd_match_cases list
+#define nd_match_case_cond na
+#define nd_match_case_body nb
 
 // loop
 #define nd_loop_body na
+
+//
+// for loop members
+//
+#define nd_for_cond na
+#define nd_for_body nb
+#define nd_for_body nb
+
+// while
+#define nd_while_cond na
+#define nd_while_body nb
 
 // let
 #define nd_let_name tok2
@@ -160,7 +186,12 @@ enum NodeKind : u16 {
   ND_Match,
 
   ND_While,
+
+  //
+  // for-loop
   ND_For,
+  ND_ForRange,
+
   ND_DoWhile,
   ND_Loop,
 
@@ -234,7 +265,6 @@ struct Node {
   Node* nc = nullptr;
   Node* nd = nullptr;
   Node* ne = nullptr;
-  Node* nf = nullptr;
 
   Object* obj = nullptr;
   Token* tok2 = nullptr;

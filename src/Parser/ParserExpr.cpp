@@ -285,6 +285,28 @@ Node* Parser::p_unary() {
   else if (this->eat(Kwd::Ref))
     nd = Node::new_node(ND_Ref, tok, this->p_subscript(), nullptr);
 
+  //
+  // cast
+  //
+  else if (this->eat(Kwd::Cast)) {
+    this->expect_template_args_open();
+
+    auto cast_to = this->p_expect_type();
+
+    this->expect_template_args_close();
+
+    this->expect_brace_open();
+
+    auto from = this->p_expr();
+
+    this->expect_brace_close();
+
+    nd = Node::new_node(ND_Cast, tok);
+
+    nd->nd_cast_to_type = cast_to;
+    nd->nd_cast_from_expr = from;
+  }
+
   else
     nd = this->p_subscript();
 
