@@ -133,7 +133,7 @@ string node2s(Node* node) {
     }
 
     case ND_If: {
-      string s = "if " + node2s(node->nd_if_cond) + node2s(node->nd_if_then);
+      string s = "if " + node2s(node->nd_if_cond) + " " + node2s(node->nd_if_then);
 
       if (node->nd_if_else)
         s += " else " + node2s(node->nd_if_else);
@@ -168,13 +168,13 @@ string node2s(Node* node) {
              node2s(node->nd_switch_case_body);
 
     case ND_Match: {
-      auto s = "match " + node2s(node->nd_match_cond) + " {\n";
-
       auto ind = indent();
+
+      auto s = "match " + node2s(node->nd_match_cond) + " {\n  " + ind;
 
       _indent++;
 
-      s += utils::join(",\n" + ind, node->nd_match_cases, node2s) + "\n" + ind + "}";
+      s += utils::join(",\n  " + ind, node->nd_match_cases, node2s) + "\n" + ind + "}";
 
       _indent--;
 
@@ -193,8 +193,9 @@ string node2s(Node* node) {
       break;
     }
 
-    case ND_DoWhile:
-    case ND_Loop:
+    case ND_Loop: {
+      return "loop " + node2s(node->nd_loop_body);
+    }
 
     case ND_Break:
       return "break";

@@ -30,7 +30,7 @@ Node* Parser::p_stmt() {
     return node;
 
   //
-  // loop
+  // loop-statements
   //
   else if ((node = this->p_loop()))
     return node;
@@ -214,16 +214,52 @@ Node* Parser::p_let() {
 }
 
 //
-// loop ::=
-//   loop block
+// loop-statements
 //
 Node* Parser::p_loop() {
+  //
+  // loop
+  //
   if (this->eat(Kwd::Loop)) {
     auto node = Node::new_node(ND_Loop, this->cur);
 
     node->nd_loop_body = this->p_block();
 
     return node;
+  }
+
+  //
+  // do-while
+  //  --> convert to loop-statement
+  //
+  else if (this->eat(Kwd::Do)) {
+    auto dw_body = this->p_block();
+
+    this->expect(Kwd::While);
+
+    auto dw_cond = this->p_expr();
+
+    this->expect_semi();
+
+    // if "not cond" { break; }
+    auto ifstmt = Node::new_node(ND_If, this->cur);
+
+    ifstmt->nd_if_cond = Node::new_node(ND_Not, this->cur, dw_cond);
+
+    (ifstmt->nd_if_then = Node::new_node(ND_Block, this->cur))
+        ->append(Node::new_node(ND_Break, this->cur));
+
+    auto loop_body = Node::new_node(ND_Block, this->cur);
+
+    for (auto&& dw_elem : dw_body->nd_elements)
+      loop_body->append(dw_elem);
+
+    loop_body->append(ifstmt);
+
+    auto loop_node = Node::new_node(ND_Loop, this->cur);
+    loop_node->nd_loop_body = loop_body;
+
+    return loop_node;
   }
 
   return nullptr;

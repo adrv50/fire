@@ -211,7 +211,6 @@ enum NodeKind : u16 {
 
   ND_Loop,
   ND_While,
-  ND_DoWhile,
 
   ND_Break,
   ND_Continue,

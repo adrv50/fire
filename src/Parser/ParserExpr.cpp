@@ -538,10 +538,10 @@ Node* Parser::p_factor() {
   Node* nd = nullptr;
 
   if (this->eat(Kwd::True))
-    nd = Node::new_value(this->cur, ObjBool::make(true));
+    nd = Node::new_value(tok, ObjBool::make(true));
 
   else if (this->eat(Kwd::False))
-    nd = Node::new_value(this->cur, ObjBool::make(false));
+    nd = Node::new_value(tok, ObjBool::make(false));
 
   else if (this->match(TokenKind::Identifier)) {
     nd = this->p_expect_identifier(true);
