@@ -10,6 +10,8 @@
 #include "Sema.h"
 #include "Error.h"
 
+namespace sema {
+
 // ---------------------------------
 //  limit_bf_candidates
 //    limit builtin function candidates.
@@ -383,7 +385,8 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
         }
 
         case NameFindResult::NA_PrimitiveType:
-          return res.primitive;
+        case NameFindResult::NA_TemplateParameter:
+          return res.typeinfo;
 
         default: {
           // no found
@@ -538,7 +541,7 @@ TypeInfo Sema::eval_type_ti(Node* node) {
 //  eval_as_functor
 //    evaluate node as functor.
 // ---------------------------------
-Sema::FunctorEvalResult Sema::eval_as_functor(Node* node) {
+FunctorEvalResult Sema::eval_as_functor(Node* node) {
 
   if (node->is_id_or_sr()) {
     auto res = this->find_name(node, this->get_cur_scope(), false, true);
@@ -561,3 +564,5 @@ Sema::FunctorEvalResult Sema::eval_as_functor(Node* node) {
 
   return FunctorEvalResult(node, nullptr, ti);
 }
+
+} // namespace sema

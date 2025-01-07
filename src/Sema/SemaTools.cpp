@@ -11,12 +11,14 @@
 #include "Sema.h"
 #include "Error.h"
 
+namespace sema {
+
 static bool _is_in_func_keep = false;
 
 // ---------------------------------
 //  enter_func
 // ---------------------------------
-Sema::Scope* Sema::enter_func(Node* func) {
+Scope* Sema::enter_func(Node* func) {
   _is_in_func_keep = this->ctx.is_in_func;
 
   this->ctx.is_in_func = true;
@@ -62,7 +64,7 @@ bool Sema::is_method(Builtins::BuiltinFunc const* bf) {
 // get_cur_scope:
 //   get current scope.
 //
-Sema::Scope*& Sema::get_cur_scope() {
+Scope*& Sema::get_cur_scope() {
   return this->ctx.cur_scope;
 }
 
@@ -70,8 +72,8 @@ Sema::Scope*& Sema::get_cur_scope() {
 // find_scope:
 //   find scope by predicate.
 //
-Sema::Scope* Sema::find_scope_if(std::function<bool(Scope*)> const& pred,
-                                 Scope* from_this, bool from_root, bool reverse) {
+Scope* Sema::find_scope_if(std::function<bool(Scope*)> const& pred, Scope* from_this,
+                           bool from_root, bool reverse) {
 
   Scope* scope = nullptr;
 
@@ -103,7 +105,7 @@ Sema::Scope* Sema::find_scope_if(std::function<bool(Scope*)> const& pred,
 // scope_resolution:
 //   wrapper for scope resolution operator.
 //
-Sema::NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
+NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
   (void)scope;
 
   auto res = this->find_name(sr->nd_scope_resol_first,
@@ -161,8 +163,7 @@ Sema::NameFindResult Sema::scope_resolution(Node* sr, Scope* scope) {
 // find_name:
 //   find name in current scope.
 //
-Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
-                                     bool reverse) {
+NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root, bool reverse) {
   Scope* scope = from_this;
 
   if (!scope)
@@ -217,9 +218,17 @@ Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
     }
 
     result.type = NameFindResult::NA_PrimitiveType;
-    result.primitive = TypeInfo(k, template_args);
+    result.typeinfo = TypeInfo(k, template_args);
 
     return result;
+  }
+
+  for (auto&& tis : this->tm_inst_scope) {
+    if (auto param = tis->find_parameter(name); param && param->is_deducted) {
+      result.type = NameFindResult::NA_TemplateParameter;
+      result.typeinfo = param->type;
+      return result;
+    }
   }
 
   this->find_scope_if(
@@ -278,7 +287,7 @@ Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
   return result;
 }
 
-Sema::NameFindResult Sema::find_name_wrap(Node* name, Scope* scope) {
+NameFindResult Sema::find_name_wrap(Node* name, Scope* scope) {
   return name->is(ND_ScopeResol) ? this->scope_resolution(name, scope)
                                  : this->find_name(name, scope);
 }
@@ -335,19 +344,15 @@ size_t Sema::find_function(Vec<Scope*>& out, Scope* in, string const& name,
 
     auto fn = func->node;
 
-    alert;
     if (func == ignore_func)
       continue;
 
-    alert;
     if (!func->checked || func->get_name() != name)
       continue;
 
-    alert;
     if (ignore_func->node->nd_func_is_variable_args != fn->nd_func_is_variable_args)
       continue;
 
-    alert;
     if (!((TypeInfo*)ignore_func->node->nd_func_result_ti)->equals(func->ti))
       continue;
 
@@ -359,3 +364,5 @@ size_t Sema::find_function(Vec<Scope*>& out, Scope* in, string const& name,
 
   return out.size();
 }
+
+} // namespace sema

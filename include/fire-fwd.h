@@ -33,5 +33,9 @@ struct Node;
 
 class Lexer;
 class Parser;
+
+namespace sema {
 class Sema;
+}
+
 class Evaluator;

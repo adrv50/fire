@@ -11,175 +11,316 @@
 #define fnscope_ret_type ti
 #define fnscope_args variables
 
+namespace sema {
+
+struct VarInfo {
+  string name;
+  TypeInfo ti;
+
+  Node* decl = nullptr;
+
+  size_t index = 0;
+  bool is_type_deducted = false;
+
+  TypeInfo& set_type(TypeInfo const& ti) {
+    this->is_type_deducted = true;
+
+    return this->ti = ti;
+  }
+
+  VarInfo();
+  VarInfo(string const& name, TypeInfo const& ti = TypeKind::None);
+};
+
+struct VarList {
+  Vec<VarInfo> variables;
+
+  auto begin() {
+    return this->variables.begin();
+  }
+
+  auto end() {
+    return this->variables.end();
+  }
+
+  size_t size() const {
+    return this->variables.size();
+  }
+
+  VarInfo& operator[](size_t index);
+
+  VarInfo& append(VarInfo const& var);
+
+  VarInfo* find(string const& name);
+
+  VarList();
+  VarList(Vec<VarInfo> const& variables);
+};
+
+enum ScopeType {
+  SC_Global,
+
+  SC_Enum,
+  SC_Struct,
+  SC_Class,
+
+  SC_Function,
+};
+
+/*
+  function scope
+    - node = ND_Function
+    - variables = arguments
+    - ti = function return type
+    - is_named = true
+
+  block scope
+    - node = ND_Block
+    - variables = local variables
+    - functions = functions defined in this block
+*/
+
+struct Scope {
+
+  ScopeType type;
+  Scope* parent = nullptr;
+  Vec<Scope*> childs;
+
+  Node* node;
+
+  VarList variables;
+  Vec<Scope*> functions;
+
+  VarInfo* letvp = nullptr;
+
+  TypeInfo ti;
+
+  Vec<TypeInfo> arg_types;
+  Vec<Node*> ret_stmt_list;
+
+  Vec<Node*> instantiated;
+
+  bool is_named;
+
+  bool checked = false;
+
+  Scope*& append(Scope* scope) {
+    scope->parent = this;
+
+    return this->childs.emplace_back(scope);
+  }
+
+  Scope*& append_func(Scope* scope) {
+    scope->parent = this;
+
+    return this->functions.emplace_back(scope);
+  }
+
+  Scope* find(Node* node) {
+    for (auto&& child : this->childs)
+      if (child->node == node)
+        return child;
+
+    for (auto&& func : this->functions)
+      if (func->node == node)
+        return func;
+
+    return nullptr;
+  }
+
+  string get_name() const;
+
+  VarInfo* find_var(string const& name);
+
+  size_t find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<TypeInfo>* arg_types,
+                   Vec<Scope*>& out, string const& name);
+
+  Scope* find_if(std::function<bool(Scope*)> const& pred, bool recursive = false);
+
+  static Scope* make_scope(Node* node);
+
+  Scope(ScopeType type, Node* node);
+};
+
+struct EvalContext;
+struct SemaContext {
+  Scope* cur_scope;
+
+  bool is_in_func = false;
+
+  Scope* cur_func = nullptr;
+
+  EvalContext* evalctx = nullptr;
+
+  Scope* enter(Node* node);
+  void leave();
+
+  SemaContext(Scope* scope = nullptr)
+      : cur_scope(scope) {
+  }
+};
+
+struct EvalContext {
+  //
+  // call-func
+  Node* call_func = nullptr;
+  Vec<TypeInfo>* cf_args_list_ptr = nullptr;
+  Vec<Node*>* fn_candidates_out = nullptr;
+  bool limit_cd = false;
+
+  //
+  // method-call
+  Node* method_self = nullptr;
+  TypeInfo* method_self_ti = nullptr;
+
+  //
+  // "of" operator
+  Node* of_expr = nullptr;
+};
+struct NameFindResult {
+  enum NameType {
+    NA_NotFound,
+
+    //
+    // NA_Var:
+    //   .var = VarInfo
+    //   .scope = the scope where the variable is defined in.
+    NA_Var,
+
+    //
+    // NA_Func:
+    //   .func = Node (ND_Function)
+    //   .scope = function scope
+    NA_Func,
+
+    NA_BuiltinFunc,
+
+    NA_Enum,
+    NA_Enumerator,
+
+    NA_Class,
+    NA_Struct,
+
+    NA_Namespace,
+
+    NA_PrimitiveType,
+
+    NA_TemplateParameter,
+  };
+
+  string name;
+  Vec<TypeInfo> template_args;
+
+  Scope* scope;
+  NameType type;
+
+  VarInfo* var = nullptr;
+  Node* func = nullptr;
+  Vec<Scope*> fn_candidates;
+
+  Node* nd_enum = nullptr;       // => TypeKind::Type
+  Node* nd_enumerator = nullptr; // => TypeKind::Enumerator
+
+  size_t enumerator_index = 0;
+
+  Builtins::BuiltinFunc const* bfun = nullptr;
+
+  Node* err_id = nullptr;
+
+  TypeInfo typeinfo;
+
+  NameFindResult(string const& name, Scope* scope = nullptr, NameType type = NA_NotFound)
+      : name(name),
+        scope(scope),
+        type(type) {
+  }
+
+  bool is_found() const {
+    return this->type != NA_NotFound;
+  }
+};
+
+struct FunctorEvalResult {
+  Node* node;
+  Node* function;
+  TypeInfo result;
+
+  FunctorEvalResult(Node* node, Node* function, TypeInfo const& result)
+      : node(node),
+        function(function),
+        result(result) {
+  }
+};
+
+struct TemplateParameterInfo {
+  string name;
+  TypeInfo type;
+
+  bool is_deducted = false;
+
+  TypeInfo* get_type() {
+    return this->is_deducted ? &this->type : nullptr;
+  }
+};
+
+struct TemplateInstantiationScope {
+
+  //
+  // func or class, struct, ...
+  Node* templated_tree = nullptr;
+
+  Vec<TemplateParameterInfo> parameters;
+
+  bool recorded = false;
+
+  TemplateParameterInfo* find_parameter(string const& name) {
+    for (auto&& param : this->parameters) {
+      if (param.name == name)
+        return &param;
+    }
+
+    return nullptr;
+  }
+
+  pair<TemplateParameterInfo*, bool> assign_param_type(string const& name,
+                                                       TypeInfo const& ti) {
+    if (auto pi = this->find_parameter(name)) {
+      if (pi->is_deducted) {
+        if (!pi->type.equals(ti))
+          return {pi, false};
+        else
+          pi->type = ti;
+      }
+
+      return {pi, true};
+    }
+
+    return {nullptr, false};
+  }
+};
+
+struct TemplateInstantiatedRecord {
+  Node* templated_tree = nullptr;
+
+  Vec<pair<string, TypeInfo>> param_types;
+
+  static TemplateInstantiatedRecord create_record(TemplateInstantiationScope& tis) {
+    TemplateInstantiatedRecord rc;
+
+    rc.templated_tree = tis.templated_tree;
+
+    for (auto&& pi : tis.parameters) {
+      rc.param_types.emplace_back(pi.name, pi.type);
+    }
+
+    return rc;
+  }
+};
+
 class Sema {
-
-  struct VarInfo {
-    string name;
-    TypeInfo ti;
-
-    Node* decl = nullptr;
-
-    size_t index = 0;
-    bool is_type_deducted = false;
-
-    TypeInfo& set_type(TypeInfo const& ti) {
-      this->is_type_deducted = true;
-
-      return this->ti = ti;
-    }
-
-    VarInfo();
-    VarInfo(string const& name, TypeInfo const& ti = TypeKind::None);
-  };
-
-  struct VarList {
-    Vec<VarInfo> variables;
-
-    auto begin() {
-      return this->variables.begin();
-    }
-
-    auto end() {
-      return this->variables.end();
-    }
-
-    size_t size() const {
-      return this->variables.size();
-    }
-
-    VarInfo& operator[](size_t index);
-
-    VarInfo& append(VarInfo const& var);
-
-    VarInfo* find(string const& name);
-
-    VarList();
-    VarList(Vec<VarInfo> const& variables);
-  };
-
-  enum ScopeType {
-    SC_Global,
-
-    SC_Enum,
-    SC_Struct,
-    SC_Class,
-
-    SC_Function,
-  };
-
-  /*
-    function scope
-      - node = ND_Function
-      - variables = arguments
-      - ti = function return type
-      - is_named = true
-
-    block scope
-      - node = ND_Block
-      - variables = local variables
-      - functions = functions defined in this block
-  */
 
   friend struct Scope;
   friend struct EvalContext;
-
-  struct Scope {
-
-    ScopeType type;
-    Scope* parent = nullptr;
-    Vec<Scope*> childs;
-
-    Node* node;
-
-    VarList variables;
-    Vec<Scope*> functions;
-
-    VarInfo* letvp = nullptr;
-
-    TypeInfo ti;
-
-    Vec<TypeInfo> arg_types;
-    Vec<Node*> ret_stmt_list;
-
-    Vec<Node*> instantiated;
-
-    bool is_named;
-
-    bool checked = false;
-
-    Scope*& append(Scope* scope) {
-      scope->parent = this;
-
-      return this->childs.emplace_back(scope);
-    }
-
-    Scope*& append_func(Scope* scope) {
-      scope->parent = this;
-
-      return this->functions.emplace_back(scope);
-    }
-
-    Scope* find(Node* node) {
-      for (auto&& child : this->childs)
-        if (child->node == node)
-          return child;
-
-      for (auto&& func : this->functions)
-        if (func->node == node)
-          return func;
-
-      return nullptr;
-    }
-
-    string get_name() const;
-
-    VarInfo* find_var(string const& name);
-
-    size_t find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<TypeInfo>* arg_types,
-                     Vec<Scope*>& out, string const& name);
-
-    Scope* find_if(std::function<bool(Scope*)> const& pred, bool recursive = false);
-
-    static Scope* make_scope(Node* node);
-
-    Scope(ScopeType type, Node* node);
-  };
-
-  struct EvalContext;
-  struct SemaContext {
-    Scope* cur_scope;
-
-    bool is_in_func = false;
-
-    Scope* cur_func = nullptr;
-
-    EvalContext* evalctx = nullptr;
-
-    Scope* enter(Node* node);
-    void leave();
-
-    SemaContext(Scope* scope = nullptr)
-        : cur_scope(scope) {
-    }
-  };
-
-  struct EvalContext {
-    //
-    // call-func
-    Node* call_func = nullptr;
-    Vec<TypeInfo>* cf_args_list_ptr = nullptr;
-    Vec<Node*>* fn_candidates_out = nullptr;
-    bool limit_cd = false;
-
-    //
-    // method-call
-    Node* method_self = nullptr;
-    TypeInfo* method_self_ti = nullptr;
-
-    //
-    // "of" operator
-    Node* of_expr = nullptr;
-  };
 
   Node* root;
 
@@ -221,80 +362,6 @@ public:
   void err_if_unexpected_type(TypeInfo const& expection, Node* to_expect);
 
 private:
-  struct NameFindResult {
-    enum NameType {
-      NA_NotFound,
-
-      //
-      // NA_Var:
-      //   .var = VarInfo
-      //   .scope = the scope where the variable is defined in.
-      NA_Var,
-
-      //
-      // NA_Func:
-      //   .func = Node (ND_Function)
-      //   .scope = function scope
-      NA_Func,
-
-      NA_BuiltinFunc,
-
-      NA_Enum,
-      NA_Enumerator,
-
-      NA_Class,
-      NA_Struct,
-
-      NA_Namespace,
-
-      NA_PrimitiveType,
-    };
-
-    string name;
-    Vec<TypeInfo> template_args;
-
-    Scope* scope;
-    NameType type;
-
-    VarInfo* var = nullptr;
-    Node* func = nullptr;
-    Vec<Scope*> fn_candidates;
-
-    Node* nd_enum = nullptr;       // => TypeKind::Type
-    Node* nd_enumerator = nullptr; // => TypeKind::Enumerator
-
-    size_t enumerator_index = 0;
-
-    Builtins::BuiltinFunc const* bfun = nullptr;
-
-    Node* err_id = nullptr;
-
-    TypeInfo primitive;
-
-    NameFindResult(string const& name, Scope* scope = nullptr,
-                   NameType type = NA_NotFound)
-        : name(name),
-          scope(scope),
-          type(type) {
-    }
-
-    bool is_found() const {
-      return this->type != NA_NotFound;
-    }
-  };
-
-  struct FunctorEvalResult {
-    Node* node;
-    Node* function;
-    TypeInfo result;
-
-    FunctorEvalResult(Node* node, Node* function, TypeInfo const& result)
-        : node(node),
-          function(function),
-          result(result) {
-    }
-  };
-
   FunctorEvalResult eval_as_functor(Node* node);
 
   Scope*& get_cur_scope();
@@ -326,8 +393,6 @@ private:
 
   static string get_full_name(Node* id_or_sr);
 
-  static inline Scope* _cur_func_keep = nullptr;
-
   enum TypeListCompareResult : u8 {
     TLC_None = 0,
     TLC_Matched = BIT(1),
@@ -340,71 +405,6 @@ private:
   };
 
   TypeListCompareResult compare_type_list(Vec<TypeInfo> const& A, Vec<TypeInfo> const& B);
-
-  struct TemplateParameterInfo {
-    string name;
-    TypeInfo type;
-
-    bool is_deducted = false;
-
-    TypeInfo* get_type() {
-      return this->is_deducted ? &this->type : nullptr;
-    }
-  };
-
-  struct TemplateInstantiationScope {
-
-    //
-    // func or class, struct, ...
-    Node* templated_tree = nullptr;
-
-    Vec<TemplateParameterInfo> parameters;
-
-    bool recorded = false;
-
-    TemplateParameterInfo* find_parameter(string const& name) {
-      for (auto&& param : this->parameters) {
-        if (param.name == name)
-          return &param;
-      }
-
-      return nullptr;
-    }
-
-    pair<TemplateParameterInfo*, bool> assign_param_type(string const& name,
-                                                         TypeInfo const& ti) {
-      if (auto pi = this->find_parameter(name)) {
-        if (pi->is_deducted) {
-          if (!pi->type.equals(ti))
-            return {pi, false};
-          else
-            pi->type = ti;
-        }
-
-        return {pi, true};
-      }
-
-      return {nullptr, false};
-    }
-  };
-
-  struct TemplateInstantiatedRecord {
-    Node* templated_tree = nullptr;
-
-    Vec<pair<string, TypeInfo>> param_types;
-
-    static TemplateInstantiatedRecord create_record(TemplateInstantiationScope& tis) {
-      TemplateInstantiatedRecord rc;
-
-      rc.templated_tree = tis.templated_tree;
-
-      for (auto&& pi : tis.parameters) {
-        rc.param_types.emplace_back(pi.name, pi.type);
-      }
-
-      return rc;
-    }
-  };
 
   std::list<TemplateInstantiationScope*> tm_inst_scope;
 
@@ -446,3 +446,5 @@ private:
   void eval_instantiate_of_func(Node* id, Node* func, Vec<TypeInfo> const& params) {
   }
 };
+
+} // namespace sema

@@ -41,9 +41,9 @@ int main(int argc, char** argv) {
 
     std::cout << node2s(prg) << std::endl;
 
-    Sema sema{prg};
+    sema::Sema S{prg};
 
-    sema.check_full();
+    S.check_full();
 
     /*
     Evaluator ev{prg};

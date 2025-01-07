@@ -9,12 +9,15 @@
 #include "Error.h"
 #include "Sema.h"
 
-Sema::VarInfo::VarInfo()
+namespace sema {
+
+VarInfo::VarInfo()
+
     : name(""),
       ti(TypeKind::None) {
 }
 
-Sema::VarInfo::VarInfo(string const& name, TypeInfo const& ti)
+VarInfo::VarInfo(string const& name, TypeInfo const& ti)
     : name(name),
       ti(ti) {
 }
@@ -23,7 +26,7 @@ Sema::VarInfo::VarInfo(string const& name, TypeInfo const& ti)
 // VarList::operator[]:
 //   get variable by index.
 //
-Sema::VarInfo& Sema::VarList::operator[](size_t index) {
+VarInfo& VarList::operator[](size_t index) {
   return this->variables[index];
 }
 
@@ -31,7 +34,7 @@ Sema::VarInfo& Sema::VarList::operator[](size_t index) {
 // VarList::append:
 //   append variable to list.
 //
-Sema::VarInfo& Sema::VarList::append(VarInfo const& var) {
+VarInfo& VarList::append(VarInfo const& var) {
   auto size = this->variables.size();
 
   auto& emplaced = this->variables.emplace_back(var);
@@ -45,7 +48,7 @@ Sema::VarInfo& Sema::VarList::append(VarInfo const& var) {
 // VarList::find:
 //   find variable by name.
 //
-Sema::VarInfo* Sema::VarList::find(string const& name) {
+VarInfo* VarList::find(string const& name) {
   for (auto&& var : this->variables)
     if (var.name == name)
       return &var;
@@ -53,11 +56,11 @@ Sema::VarInfo* Sema::VarList::find(string const& name) {
   return nullptr;
 }
 
-Sema::VarList::VarList()
+VarList::VarList()
     : variables() {
 }
 
-Sema::VarList::VarList(Vec<VarInfo> const& variables)
+VarList::VarList(Vec<VarInfo> const& variables)
     : variables(variables) {
 }
 
@@ -65,7 +68,7 @@ Sema::VarList::VarList(Vec<VarInfo> const& variables)
 // Scope::get_name:
 //   get name of scope.
 //
-string Sema::Scope::get_name() const {
+string Scope::get_name() const {
   switch (this->type) {
     case SC_Function:
       return this->node->nd_func_name->str;
@@ -87,7 +90,7 @@ string Sema::Scope::get_name() const {
 // Scope::find_var:
 //   find variable by name.
 //
-Sema::VarInfo* Sema::Scope::find_var(string const& name) {
+VarInfo* Scope::find_var(string const& name) {
   for (auto& var : this->variables)
     if (var.name == name)
       return &var;
@@ -99,9 +102,8 @@ Sema::VarInfo* Sema::Scope::find_var(string const& name) {
 // Scope::find_func:
 //   find function by name.
 //
-size_t Sema::Scope::find_func(Sema* S, Vec<TypeInfo>* template_args,
-                              Vec<TypeInfo>* arg_types, Vec<Scope*>& out,
-                              string const& name) {
+size_t Scope::find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<TypeInfo>* arg_types,
+                        Vec<Scope*>& out, string const& name) {
   for (auto& func : this->functions) {
     if (func->get_name() == name) {
 
@@ -141,13 +143,11 @@ size_t Sema::Scope::find_func(Sema* S, Vec<TypeInfo>* template_args,
         S->check_func(fn);
         fn->nd_func_is_template = true;
 
-        alertmsg(S->eval_type_ti(fn->nd_func_result_type).to_string());
+        // alertmsg(S->eval_type_ti(fn->nd_func_result_type).to_string());
 
         S->ctx = ctx_keep;
 
         S->leave_template();
-
-        todo_impl;
       }
       else if (template_args->size() >= 1) {
         todo_impl;
@@ -161,8 +161,7 @@ size_t Sema::Scope::find_func(Sema* S, Vec<TypeInfo>* template_args,
   return out.size();
 }
 
-Sema::Scope* Sema::Scope::find_if(std::function<bool(Scope*)> const& pred,
-                                  bool recursive) {
+Scope* Scope::find_if(std::function<bool(Scope*)> const& pred, bool recursive) {
   for (auto& child : this->childs) {
     if (pred(child))
       return child;
@@ -175,7 +174,7 @@ Sema::Scope* Sema::Scope::find_if(std::function<bool(Scope*)> const& pred,
   return nullptr;
 }
 
-Sema::Scope* Sema::Scope::make_scope(Node* node) {
+Scope* Scope::make_scope(Node* node) {
   switch (node->kind) {
     case ND_Program:
       break;
@@ -218,7 +217,9 @@ Sema::Scope* Sema::Scope::make_scope(Node* node) {
   return scope;
 }
 
-Sema::Scope::Scope(ScopeType type, Node* node)
+Scope::Scope(ScopeType type, Node* node)
     : type(type),
       node(node) {
 }
+
+} // namespace sema

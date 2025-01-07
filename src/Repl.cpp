@@ -31,7 +31,7 @@ Node* prg;
 
 unique_ptr<Parser> parser;
 
-unique_ptr<Sema> sema;
+unique_ptr<sema::Sema> sema;
 
 unique_ptr<Evaluator> ev;
 

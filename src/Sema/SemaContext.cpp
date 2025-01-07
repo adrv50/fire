@@ -3,10 +3,14 @@
 #include "Node.h"
 #include "Sema.h"
 
+namespace sema {
+
+static Scope* _cur_func_keep = nullptr;
+
 // ---------------------------------
 //  SemaContext::SemaContext
 // ---------------------------------
-Sema::Scope* Sema::SemaContext::enter(Node* node) {
+Scope* SemaContext::enter(Node* node) {
   this->cur_scope = this->cur_scope->find(node);
 
   assert(this->cur_scope);
@@ -25,10 +29,12 @@ Sema::Scope* Sema::SemaContext::enter(Node* node) {
 // ---------------------------------
 //  SemaContext::leave
 // ---------------------------------
-void Sema::SemaContext::leave() {
+void SemaContext::leave() {
   if (this->cur_scope->node->is(ND_Function)) {
     this->cur_func = _cur_func_keep;
   }
 
   this->cur_scope = this->cur_scope->parent;
 }
+
+} // namespace sema

@@ -6,6 +6,8 @@
 #include "Builtins.h"
 #include "Sema.h"
 
+namespace sema {
+
 // ---------------------------------
 //  ctor for Sema
 // ---------------------------------
@@ -296,3 +298,5 @@ void Sema::check_block(Node* block) {
   for (auto&& stmt : block->nd_items)
     this->check_stmt(stmt);
 }
+
+} // namespace sema

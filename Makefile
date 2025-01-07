@@ -13,7 +13,7 @@ CC			:=	clang
 CXX			:=	clang++
 
 OPTI		?=	-O0 -g -D_FIRE_DEBUG_
-COMMON		:=	$(OPTI) -Wall -Wextra -Wno-switch $(INCLUDES)
+COMMON		:=	$(OPTI) -Wno-switch $(INCLUDES)
 CFLAGS		:=	$(COMMON) -std=c17
 CXXFLAGS	:=	$(COMMON) -std=c++20
 LDFLAGS		:=
