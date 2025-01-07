@@ -83,7 +83,12 @@ Node* Parser::p_concept_def() {
   ccbody->first_tok = ccbody->tok;
 
   while (true) {
-    ccbody->append(this->p_expr());
+    auto& ex = ccbody->append(this->p_expr());
+
+    // expr => T
+    if (auto _op = this->cur; this->eat(Punct::CaseMatch)) {
+      ex = Node::new_node(ND_CCRule_ResultTypeExpection, _op, ex, this->p_expect_type());
+    }
 
     this->expect_semi();
 

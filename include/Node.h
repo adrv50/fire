@@ -294,6 +294,8 @@ enum NodeKind : u16 {
   ND_Concept,
   ND_ConceptBody,
 
+  ND_CCRule_ResultTypeExpection, // "(expr) => T"  # result type
+
   // Concept uses
   ND_ConceptTagsList, // [C1, C2, ...]
   ND_ConceptTag,      // C1(T, U)
