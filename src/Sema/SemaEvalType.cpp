@@ -263,6 +263,8 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
                      ? this->find_name(node, this->get_cur_scope(), false, true)
                      : this->scope_resolution(node);
 
+      TypeInfo result;
+
       switch (res.type) {
 
         //
@@ -278,7 +280,8 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
 
           node->nd_id_target = res.var->decl;
 
-          return res.var->ti;
+          result = res.var->ti;
+          break;
         }
 
         //
@@ -335,9 +338,11 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
 
           node->nd_id_target = fn->node;
 
-          return make_functor_ti(fn->arg_types,
-                                 this->eval_type_ti(fn->node->nd_func_result_type))
-              .set_ftor_node(fn->node);
+          result = make_functor_ti(fn->arg_types,
+                                   this->eval_type_ti(fn->node->nd_func_result_type))
+                       .set_ftor_node(fn->node);
+
+          break;
         }
 
         //
@@ -352,7 +357,8 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
 
           ti.nd_enum = res.nd_enum;
 
-          return ti;
+          result = ti;
+          break;
         }
 
         //
@@ -371,9 +377,13 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
                 .crash();
           }
 
-          return TypeInfo(TypeKind::Enumerator)
-              .set_enum(res.nd_enum, res.enumerator_index);
+          result =
+              TypeInfo(TypeKind::Enumerator).set_enum(res.nd_enum, res.enumerator_index);
+          break;
         }
+
+        case NameFindResult::NA_PrimitiveType:
+          return res.primitive;
 
         default: {
           // no found
@@ -386,8 +396,14 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
 
           size_t const found = Builtins::BuiltinFunc::find(bfs, res.name);
 
-          if (found == 0)
-            break;
+          if (found == 0) {
+            Error(res.err_id, "cannot find name '" + this->get_full_name(node) + "'")
+                .append_msg_if([&](string& msg) {
+                  if (evalctx && evalctx->method_self_ti)
+                    msg += " in type '" + evalctx->method_self_ti->to_string() + "'";
+                })
+                .crash();
+          }
 
           if (found >= 2) {
             if (evalctx && evalctx->call_func) {
@@ -397,17 +413,12 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
               Error(node, "ambiguous builtin-function name '" + res.name + "'").crash();
           }
 
-          return Sema::make_functor_ti(bfs[0]->arg_types, bfs[0]->ret_type)
-              .set_ftor_bfun(bfs[0]);
+          result = Sema::make_functor_ti(bfs[0]->arg_types, bfs[0]->ret_type)
+                       .set_ftor_bfun(bfs[0]);
         }
       }
 
-      Error(res.err_id, "cannot find name '" + this->get_full_name(node) + "'")
-          .append_msg_if([&](string& msg) {
-            if (evalctx && evalctx->method_self_ti)
-              msg += " in type '" + evalctx->method_self_ti->to_string() + "'";
-          })
-          .crash();
+      return result;
     }
 
     case ND_Not:
@@ -504,6 +515,12 @@ TypeInfo Sema::eval_type_ti(Node* node) {
 
   if ((ti.kind = TypeInfo::get_kind_of_name(name)) == TypeKind::Unknown) {
     // todo: find user-defined
+
+    if (auto tpi = this->find_template_param(name)) {
+      assert(tpi->is_deducted);
+
+      return tpi->type;
+    }
 
     Error(node->tok, "unknown type name '" + name + "'").crash();
   }

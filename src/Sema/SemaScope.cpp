@@ -99,10 +99,25 @@ Sema::VarInfo* Sema::Scope::find_var(string const& name) {
 // Scope::find_func:
 //   find function by name.
 //
-size_t Sema::Scope::find_func(Vec<Scope*>& out, string const& name) {
-  for (auto& func : this->functions)
-    if (func->get_name() == name)
+size_t Sema::Scope::find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<Scope*>& out,
+                              string const& name) {
+  for (auto& func : this->functions) {
+    if (func->get_name() == name) {
+
+      auto fn = func->node;
+
+      if (fn->nd_func_is_template) {
+        todo_impl;
+        // instantiate!!!
+      }
+      else if (template_args->size() >= 1) {
+        todo_impl;
+        // func 'name' is not template
+      }
+
       out.push_back(func);
+    }
+  }
 
   return out.size();
 }

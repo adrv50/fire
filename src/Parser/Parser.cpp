@@ -155,8 +155,10 @@ Node* Parser::p_enum() {
 
     node->nd_enum_name = this->expect_ident();
 
-    if (auto p = this->eat_template_parameter_list())
+    if (auto p = this->eat_template_parameter_list()) {
       node->nd_enum_tplist = p;
+      node->nd_enum_is_template = true;
+    }
 
     this->expect(Punct::BlockBraceOpen);
 
@@ -236,8 +238,10 @@ Node* Parser::p_struct() {
 
     node->nd_struct_name = this->expect_ident();
 
-    if (auto p = this->eat_template_parameter_list())
+    if (auto p = this->eat_template_parameter_list()) {
       node->nd_struct_tplist = p;
+      node->nd_struct_is_template = true;
+    }
 
     this->expect_brace_open();
 
@@ -273,8 +277,10 @@ Node* Parser::p_class() {
 
     node->nd_class_name = this->expect_ident();
 
-    if (auto p = this->eat_template_parameter_list())
+    if (auto p = this->eat_template_parameter_list()) {
       node->nd_class_tplist = p;
+      node->nd_class_is_template = true;
+    }
 
     this->expect_brace_open();
 
@@ -321,8 +327,10 @@ Node* Parser::p_func() {
 
     node->nd_func_name = this->expect_ident();
 
-    if (auto tplist = this->eat_template_parameter_list())
+    if (auto tplist = this->eat_template_parameter_list()) {
       node->nd_func_tplist = tplist;
+      node->nd_func_is_template = true;
+    }
 
     this->expect_brace_open();
 

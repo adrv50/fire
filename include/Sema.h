@@ -1,5 +1,6 @@
 #pragma once
 
+#include <list>
 #include <functional>
 #include "fire-fwd.h"
 #include "Builtins.h"
@@ -79,6 +80,9 @@ class Sema {
       - functions = functions defined in this block
   */
 
+  friend struct Scope;
+  friend struct EvalContext;
+
   struct Scope {
 
     ScopeType type;
@@ -96,6 +100,8 @@ class Sema {
 
     Vec<TypeInfo> arg_types;
     Vec<Node*> ret_stmt_list;
+
+    Vec<Node*> instantiated;
 
     bool is_named;
 
@@ -129,7 +135,8 @@ class Sema {
 
     VarInfo* find_var(string const& name);
 
-    size_t find_func(Vec<Scope*>& out, string const& name);
+    size_t find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<Scope*>& out,
+                     string const& name);
 
     Scope* find_if(std::function<bool(Scope*)> const& pred, bool recursive = false);
 
@@ -239,9 +246,12 @@ private:
       NA_Struct,
 
       NA_Namespace,
+
+      NA_PrimitiveType,
     };
 
     string name;
+    Vec<TypeInfo> template_args;
 
     Scope* scope;
     NameType type;
@@ -258,6 +268,8 @@ private:
     Builtins::BuiltinFunc const* bfun = nullptr;
 
     Node* err_id = nullptr;
+
+    TypeInfo primitive;
 
     NameFindResult(string const& name, Scope* scope = nullptr,
                    NameType type = NA_NotFound)
@@ -328,4 +340,109 @@ private:
   };
 
   TypeListCompareResult compare_type_list(Vec<TypeInfo> const& A, Vec<TypeInfo> const& B);
+
+  struct TemplateParameterInfo {
+    string name;
+    TypeInfo type;
+
+    bool is_deducted = false;
+
+    TypeInfo* get_type() {
+      return this->is_deducted ? &this->type : nullptr;
+    }
+  };
+
+  struct TemplateInstantiationScope {
+
+    //
+    // func or class, struct, ...
+    Node* templated_tree = nullptr;
+
+    Vec<TemplateParameterInfo> parameters;
+
+    bool recorded = false;
+
+    TemplateParameterInfo* find_parameter(string const& name) {
+      for (auto&& param : this->parameters) {
+        if (param.name == name)
+          return &param;
+      }
+
+      return nullptr;
+    }
+
+    pair<TemplateParameterInfo*, bool> assign_param_type(string const& name,
+                                                         TypeInfo const& ti) {
+      if (auto pi = this->find_parameter(name)) {
+        if (pi->is_deducted) {
+          if (!pi->type.equals(ti))
+            return {pi, false};
+          else
+            pi->type = ti;
+        }
+
+        return {pi, true};
+      }
+
+      return {nullptr, false};
+    }
+  };
+
+  struct TemplateInstantiatedRecord {
+    Node* templated_tree = nullptr;
+
+    Vec<pair<string, TypeInfo>> param_types;
+
+    static TemplateInstantiatedRecord create_record(TemplateInstantiationScope& tis) {
+      TemplateInstantiatedRecord rc;
+
+      rc.templated_tree = tis.templated_tree;
+
+      for (auto&& pi : tis.parameters) {
+        rc.param_types.emplace_back(pi.name, pi.type);
+      }
+
+      return rc;
+    }
+  };
+
+  std::list<TemplateInstantiationScope*> tm_inst_scope;
+
+  Vec<TemplateInstantiatedRecord*> template_instantiated_records;
+
+  TemplateInstantiatedRecord*
+  is_recorded_template_instantiation_pattern(Node* template_item,
+                                             Vec<TypeInfo> const& template_args) {
+    // when called in identifier ("id<int, float, ...")
+
+    for (auto&& rec : this->template_instantiated_records) {
+    }
+
+    return nullptr;
+  }
+
+  TemplateParameterInfo* find_template_param(string const& name) {
+    for (auto&& ti_scope : this->tm_inst_scope)
+      if (auto pi = ti_scope->find_parameter(name))
+        return pi;
+
+    return nullptr;
+  }
+
+  auto& enter_template(Node* node) {
+    // node is templated func or class or struct or ...
+
+    auto tis = new TemplateInstantiationScope();
+
+    tis->templated_tree = node;
+
+    return this->tm_inst_scope.emplace_front(tis);
+  }
+
+  void leave_template() {
+    this->tm_inst_scope.pop_front();
+  }
+
+  void eval_instantiate_of_func(Node* id, Node* func, Vec<TypeInfo> const& params) {
+  }
 };

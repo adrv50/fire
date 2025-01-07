@@ -141,6 +141,7 @@
 #define nd_enum_name tok2
 #define nd_enum_cclist na
 #define nd_enum_tplist nb
+#define nd_enum_is_template b1
 #define nd_enum_enumerators list
 
 #define nd_enumerator_name tok
@@ -152,12 +153,14 @@
 #define nd_class_name tok2
 #define nd_class_cclist na
 #define nd_class_tplist nb
+#define nd_class_is_template b1
 #define nd_class_fields nc
 #define nd_class_methods nd
 
 #define nd_struct_name tok2
 #define nd_struct_cclist na
 #define nd_struct_tplist nb
+#define nd_struct_is_template b1
 #define nd_struct_members list
 #define nd_struct_member_name tok
 #define nd_struct_member_type nc

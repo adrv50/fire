@@ -168,7 +168,59 @@ Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
   if (!scope)
     scope = from_root ? this->root_scope : this->get_cur_scope();
 
+  auto const& name = id->nd_id_name->str;
+
   NameFindResult result{id->nd_id_name->str};
+
+  for (auto&& targ : id->nd_id_template_args) {
+    result.template_args.emplace_back(this->eval_expr_ti(targ));
+  }
+
+  auto& template_args = result.template_args;
+
+  if (auto k = TypeInfo::get_kind_of_name(name); k != TypeKind::Unknown) {
+    switch (k) {
+      using K = TypeKind;
+
+      case K::Int:
+      case K::Float:
+      case K::Bool:
+      case K::Char:
+      case K::String:
+        if (template_args.size() >= 1)
+          Error(id, "primitive type '" + name + "' is not template").crash();
+        break;
+
+      case K::Vector:
+        if (template_args.size() != 1)
+        _invalid_targ_label:
+          Error(id, "invalid template arguments for built-in type '" + name + "'")
+              .crash();
+        break;
+
+      case K::Tuple:
+      case K::Functor:
+        if (template_args.size() == 0)
+          Error(id, "cannot use '" + name + "' without template arguments").crash();
+        break;
+
+      case K::Dict:
+        if (template_args.size() != 2)
+          goto _invalid_targ_label;
+        break;
+
+      case K::Type:
+        todo_impl;
+
+      default:
+        panic;
+    }
+
+    result.type = NameFindResult::NA_PrimitiveType;
+    result.primitive = TypeInfo(k, template_args);
+
+    return result;
+  }
 
   this->find_scope_if(
       [&](Scope* scope) -> bool {
@@ -180,7 +232,8 @@ Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
         }
 
         // function
-        if (scope->find_func(result.fn_candidates, id->tok->str) >= 1) {
+        if (scope->find_func(this, &template_args, result.fn_candidates, id->tok->str) >=
+            1) {
           result.type = NameFindResult::NA_Func;
           result.scope = scope;
 

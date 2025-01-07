@@ -44,10 +44,6 @@ void Sema::check_full() {
           this->root->nd_program_main = item;
         }
 
-        if (item->nd_func_is_template) {
-          todo_impl;
-        }
-
         this->check_func(item);
         break;
 
@@ -119,6 +115,9 @@ void Sema::check_class(Node* nd_class) {
 //   check function.
 //
 void Sema::check_func(Node* func) {
+  if (func->nd_func_is_template)
+    return;
+
   auto fnscope = this->enter_func(func);
 
   // check function args

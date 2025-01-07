@@ -41,11 +41,11 @@ int main(int argc, char** argv) {
 
     std::cout << node2s(prg) << std::endl;
 
-    /*
     Sema sema{prg};
 
     sema.check_full();
 
+    /*
     Evaluator ev{prg};
 
     ev.evaluate();
