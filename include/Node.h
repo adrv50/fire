@@ -284,10 +284,10 @@ enum NodeKind : u16 {
   ND_TypeName,
 
   ND_TemplateParameterList, // <T, U, ...>
-  ND_TemplateParam,         // T
 
   // Concept definition
   ND_Concept,
+  ND_ConceptBody,
 
   // Concept uses
   ND_ConceptTagsList, // [C1, C2, ...]

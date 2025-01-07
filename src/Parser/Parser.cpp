@@ -56,6 +56,46 @@ Node* Parser::p_root() {
 }
 
 Node* Parser::p_concept_def() {
+  if (!this->eat(Kwd::Concept))
+    return nullptr;
+
+  auto node = Node::new_node(ND_Concept, this->cur->prev, nullptr);
+
+  node->first_tok = node->tok;
+
+  node->nd_concept_name = this->expect_ident();
+
+  this->expect(Punct::AngleBraceOpen);
+
+  do {
+    node->append(this->p_expect_identifier(false));
+  } while (this->eat_comma());
+
+  this->expect(Punct::AngleBraceClose);
+
+  if (this->eat_semi()) {
+    node->last_tok = this->cur->prev;
+    return node;
+  }
+
+  auto ccbody = Node::new_node(ND_ConceptBody, this->expect_block_open(), nullptr);
+
+  ccbody->first_tok = ccbody->tok;
+
+  while (true) {
+    ccbody->append(this->p_expr());
+
+    this->expect_semi();
+
+    if (auto b = this->cur; this->eat(Punct::BlockBraceClose)) {
+      node->last_tok = ccbody->last_tok = b;
+      break;
+    }
+  }
+
+  node->nd_concept_ccbody = ccbody;
+
+  return node;
 }
 
 Node* Parser::p_concept_tagged_definition() {

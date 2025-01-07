@@ -248,6 +248,7 @@ string node2s(Node* node) {
       else
         return "return";
 
+    case ND_ConceptBody:
     case ND_Block: {
       auto ind = indent();
 
@@ -271,8 +272,12 @@ string node2s(Node* node) {
     }
 
     case ND_Function: {
-      auto s = "fn " + node->nd_func_name->str + "(" +
-               utils::join(",", node->nd_func_args, node2s) + ") ";
+      auto s = "fn " + node->nd_func_name->str;
+
+      if (node->nd_func_tplist)
+        s += " " + node2s(node->nd_func_tplist) + " ";
+
+      s += "(" + utils::join(",", node->nd_func_args, node2s) + ") ";
 
       if (auto x = node->nd_func_result_type)
         s += "-> " + node2s(x) + " ";
@@ -319,6 +324,16 @@ string node2s(Node* node) {
     case ND_Namespace:
       break;
 
+    case ND_Concept: {
+      auto s = "concept " + node->nd_concept_name->str + " <" +
+               utils::join(", ", node->nd_concept_parameters, node2s) + ">";
+
+      if (node->nd_concept_ccbody)
+        s += " " + node2s(node->nd_concept_ccbody);
+
+      return s;
+    }
+
     case ND_Program:
       return utils::join("\n\n", node->nd_items, node2s);
 
@@ -342,6 +357,10 @@ string node2s(Node* node) {
 
     case ND_InitializerList:
       return "{" + utils::join(", ", node->list, node2s) + "}";
+
+    case ND_TemplateParameterList: {
+      return "<" + utils::join(", ", node->list, node2s) + ">";
+    }
   }
 
   return "<node>";

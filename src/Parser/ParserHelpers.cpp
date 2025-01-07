@@ -151,6 +151,12 @@ Node* Parser::eat_template_parameter_list() {
 
   auto tplist = Node::new_node(ND_TemplateParameterList, tok, nullptr);
 
+  do {
+    tplist->append(this->p_expect_identifier(false));
+  } while (this->eat_comma());
+
+  this->expect(Punct::AngleBraceClose);
+
   return tplist;
 }
 

@@ -53,6 +53,10 @@ enum class TokenKwdKind : u16 {
   Struct, // "struct"
 
   //
+  // concept define
+  Concept, // "concept"
+
+  //
   // Namespace.
   //
   Namespace, // "namespace"

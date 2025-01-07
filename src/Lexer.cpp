@@ -124,6 +124,9 @@ static constexpr pair<TKkwd, char const*> tok_keywords[] = {
     {TKkwd::Struct, "struct"},
     {TKkwd::Namespace, "namespace"},
 
+    // concept definition
+    {TKkwd::Concept, "concept"},
+
     // let statement (variable declaration)
     {TKkwd::Let, "let"},
 
