@@ -39,17 +39,15 @@ int main(int argc, char** argv) {
 
     auto prg = parser.parse();
 
-    std::cout << node2s(prg) << std::endl;
+    debug(std::cout << node2s(prg) << std::endl;);
 
     sema::Sema S{prg};
 
     S.check_full();
 
-    /*
     Evaluator ev{prg};
 
     ev.evaluate();
-    */
   }
 
   catch (std::exception const& e) {
