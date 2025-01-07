@@ -205,13 +205,13 @@ Node* Parser::expect_concept_tag() {
 
   auto nd = Node::new_node(ND_ConceptTag, this->expect_ident(), nullptr);
 
-  this->expect_brace_open();
+  this->expect_template_args_open();
 
   do {
     nd->append(this->p_expect_identifier(false));
   } while (this->eat_comma());
 
-  this->expect_brace_close();
+  this->expect_template_args_close();
 
   return nd;
 }
