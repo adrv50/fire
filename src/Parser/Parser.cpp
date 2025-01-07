@@ -116,8 +116,12 @@ Node* Parser::p_concept_tagged_definition() {
   else if ((node = this->p_func()))
     node->nd_func_cclist = cclist;
 
+  else if ((node = this->p_enum()))
+    node->nd_enum_cclist = cclist;
+
   else
-    Error(cclist->last_tok, "expected definition of function or class or concept.")
+    Error(cclist->last_tok, "expected definition of function or class, struct, enum, "
+                            "concept after this token.")
         .crash();
 
   return node;
@@ -145,6 +149,9 @@ Node* Parser::p_enum() {
     node->first_tok = this->cur;
 
     node->nd_enum_name = this->expect_ident();
+
+    if (auto p = this->eat_template_parameter_list())
+      node->nd_enum_tplist = p;
 
     this->expect(Punct::BlockBraceOpen);
 
@@ -224,6 +231,9 @@ Node* Parser::p_struct() {
 
     node->nd_struct_name = this->expect_ident();
 
+    if (auto p = this->eat_template_parameter_list())
+      node->nd_struct_tplist = p;
+
     this->expect_brace_open();
 
     do {
@@ -257,6 +267,9 @@ Node* Parser::p_class() {
     auto node = Node::new_node(ND_Class, this->cur);
 
     node->nd_class_name = this->expect_ident();
+
+    if (auto p = this->eat_template_parameter_list())
+      node->nd_class_tplist = p;
 
     this->expect_brace_open();
 
@@ -303,9 +316,8 @@ Node* Parser::p_func() {
 
     node->nd_func_name = this->expect_ident();
 
-    if (auto tplist = this->eat_template_parameter_list()) {
+    if (auto tplist = this->eat_template_parameter_list())
       node->nd_func_tplist = tplist;
-    }
 
     this->expect_brace_open();
 
@@ -317,9 +329,8 @@ Node* Parser::p_func() {
       this->expect_brace_close();
     }
 
-    if (this->eat(Punct::ResultTypeSpecifier)) {
+    if (this->eat(Punct::ResultTypeSpecifier))
       node->nd_func_result_type = this->p_expect_type();
-    }
 
     node->nd_func_body = this->p_block(true);
 

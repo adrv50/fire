@@ -139,6 +139,8 @@
 #define nd_return_expr na
 
 #define nd_enum_name tok2
+#define nd_enum_cclist na
+#define nd_enum_tplist nb
 #define nd_enum_enumerators list
 
 #define nd_enumerator_name tok
@@ -148,14 +150,17 @@
 #define nd_enumerator_struct_members list
 
 #define nd_class_name tok2
-#define nd_class_fields na
-#define nd_class_methods nb
-#define nd_class_cclist nc
+#define nd_class_cclist na
+#define nd_class_tplist nb
+#define nd_class_fields nc
+#define nd_class_methods nd
 
 #define nd_struct_name tok2
+#define nd_struct_cclist na
+#define nd_struct_tplist nb
 #define nd_struct_members list
 #define nd_struct_member_name tok
-#define nd_struct_member_type na
+#define nd_struct_member_type nc
 
 #define nd_program_main na
 #define nd_program_items list

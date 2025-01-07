@@ -198,6 +198,8 @@ Node* Parser::expect_concept_tag() {
       nd->append(expect_concept_tag());
     } while (this->eat(Kwd::Or));
 
+    this->expect_brace_close();
+
     return nd;
   }
 
@@ -208,6 +210,8 @@ Node* Parser::expect_concept_tag() {
   do {
     nd->append(this->p_expect_identifier(false));
   } while (this->eat_comma());
+
+  this->expect_brace_close();
 
   return nd;
 }
