@@ -29,6 +29,12 @@ Node* Parser::p_root() {
   if (auto node = this->p_let(); node)
     return node;
 
+  else if ((node = this->p_concept_def()))
+    return node;
+
+  else if ((node = this->p_concept_tagged_definition()))
+    return node;
+
   else if ((node = this->p_func()))
     return node;
 
@@ -47,6 +53,34 @@ Node* Parser::p_root() {
   Error(this->cur,
         "expected definition of variable or function, enum, class, struct, namespace")
       .crash();
+}
+
+Node* Parser::p_concept_def() {
+}
+
+Node* Parser::p_concept_tagged_definition() {
+  Node* cclist = this->eat_concept_tags_list();
+
+  if (!cclist)
+    return nullptr;
+
+  Node* node = nullptr;
+
+  if ((node = this->p_concept_def())) {
+    node->nd_concept_cclist = cclist;
+  }
+
+  else if ((node = this->p_class()))
+    node->nd_class_cclist = cclist;
+
+  else if ((node = this->p_func()))
+    node->nd_func_cclist = cclist;
+
+  else
+    Error(cclist->last_tok, "expected definition of function or class or concept.")
+        .crash();
+
+  return node;
 }
 
 // -----------------------------------------------
@@ -228,6 +262,10 @@ Node* Parser::p_func() {
     node->first_tok = tok;
 
     node->nd_func_name = this->expect_ident();
+
+    if (auto tplist = this->eat_template_parameter_list()) {
+      node->nd_func_tplist = tplist;
+    }
 
     this->expect_brace_open();
 

@@ -121,6 +121,8 @@
 #define nd_func_name tok2
 #define nd_func_is_method b2
 #define nd_func_is_template b3
+#define nd_func_tplist nc // template parameters list
+#define nd_func_cclist nd // concept tags (if used)
 #define nd_func_args list
 #define nd_func_result_type na
 #define nd_func_is_variable_args b1
@@ -146,8 +148,9 @@
 #define nd_enumerator_struct_members list
 
 #define nd_class_name tok2
-#define nd_class_fields na  // --> ND_Let
-#define nd_class_methods nb // --> ND_Function
+#define nd_class_fields na
+#define nd_class_methods nb
+#define nd_class_cclist nc
 
 #define nd_struct_name tok2
 #define nd_struct_members list
@@ -160,6 +163,17 @@
 
 #define nd_nametype_pair_name tok
 #define nd_nametype_pair_type na
+
+#define nd_concept_tags_list_list list
+
+#define nd_concepttag_name tok
+
+#define nd_concept_cclist na
+#define nd_concept_name tok
+#define nd_concept_parameters list
+#define nd_concept_ccbody nb
+
+#define nd_ccbody_rules list
 
 enum NodeKind : u16 {
   ND_Value,
@@ -260,12 +274,25 @@ enum NodeKind : u16 {
   ND_StructMember,
 
   ND_Class,
+  ND_Class_Fields,
+  ND_Class_Methods,
 
   ND_Namespace,
 
   ND_Program,
 
   ND_TypeName,
+
+  ND_TemplateParameterList, // <T, U, ...>
+  ND_TemplateParam,         // T
+
+  // Concept definition
+  ND_Concept,
+
+  // Concept uses
+  ND_ConceptTagsList, // [C1, C2, ...]
+  ND_ConceptTag,      // C1(T, U)
+  ND_ConceptTagMulti, // (C1(T) or C2(T))
 
   //
   // part of any nodes

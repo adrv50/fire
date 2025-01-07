@@ -34,18 +34,26 @@ public:
 
   Node* p_root();
 
-  Node* p_enum();
-  Node* p_def_enumerator();
+  Node* p_namespace();
+
+  Node* p_concept_def();
+
+  //
+  // p_concept_tagged_definition:
+  //
+  // => the definition of function or class or concept with concept tag list.
+  Node* p_concept_tagged_definition();
 
   Node* p_struct();
   Node* p_struct_member();
 
   Node* p_class();
 
-  Node* p_namespace();
-
   Node* p_func();
   Node* p_func_arg();
+
+  Node* p_enum();
+  Node* p_def_enumerator();
 
   Node* p_stmt();
   Node* p_let();
@@ -174,4 +182,9 @@ private:
   (this->expect_pr_expr([this]() {                                                       \
     return this->fn();                                                                   \
   }))
+
+  Node* eat_template_parameter_list();
+
+  Node* eat_concept_tags_list();
+  Node* expect_concept_tag();
 };

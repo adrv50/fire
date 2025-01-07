@@ -142,3 +142,66 @@ Node* Parser::expect_pr_expr(std::function<Node*()> fn) {
 
   Error(_tok, "expected primary-expression after this token").crash();
 }
+
+Node* Parser::eat_template_parameter_list() {
+  auto tok = this->cur;
+
+  if (!this->eat(Punct::AngleBraceOpen))
+    return nullptr;
+
+  auto tplist = Node::new_node(ND_TemplateParameterList, tok, nullptr);
+
+  return tplist;
+}
+
+//
+// [Concept(T, U), ...]
+//
+Node* Parser::eat_concept_tags_list() {
+  if (!this->eat(Punct::ArrayBraceOpen))
+    return nullptr;
+
+  auto tags = Node::new_node(ND_ConceptTagsList, this->cur->prev, nullptr);
+
+  tags->first_tok = this->cur->prev;
+
+  do {
+    tags->append(this->expect_concept_tag());
+  } while (this->eat_comma());
+
+  tags->last_tok = this->cur;
+  this->expect(Punct::ArrayBraceClose);
+
+  return tags;
+}
+
+//
+// 1. Concept(T)
+// 2. (ConceptA(T) or ConceptB(T))
+//
+Node* Parser::expect_concept_tag() {
+  auto tok = this->cur;
+
+  if (this->eat_brace_open()) {
+    auto nd = Node::new_node(ND_ConceptTagMulti, tok, nullptr);
+
+    nd->append(expect_concept_tag());
+    this->expect(Kwd::Or);
+
+    do {
+      nd->append(expect_concept_tag());
+    } while (this->eat(Kwd::Or));
+
+    return nd;
+  }
+
+  auto nd = Node::new_node(ND_ConceptTag, this->expect_ident(), nullptr);
+
+  this->expect_brace_open();
+
+  do {
+    nd->append(this->p_expect_identifier(false));
+  } while (this->eat_comma());
+
+  return nd;
+}
