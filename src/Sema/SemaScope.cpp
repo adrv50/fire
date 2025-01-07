@@ -102,14 +102,27 @@ VarInfo* Scope::find_var(string const& name) {
 // Scope::find_func:
 //   find function by name.
 //
-size_t Scope::find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<TypeInfo>* arg_types,
-                        Vec<Scope*>& out, string const& name) {
+size_t Scope::find_func(Node* id, Sema* S, Vec<TypeInfo>* template_args,
+                        Vec<TypeInfo>* arg_types, Vec<Scope*>& out, string const& name) {
   for (auto& func : this->functions) {
     if (func->get_name() == name) {
 
       auto fn = func->node;
 
       if (fn->nd_func_is_template) {
+
+        alertmsg(S->ctx.evalctx);
+        alertmsg(template_args->empty());
+
+        for (auto&& ti : *template_args)
+          alertmsg(ti.to_string());
+
+        if ((!S->ctx.evalctx || !S->ctx.evalctx->call_func) && template_args->empty()) {
+          Error(id, "cannot use function name '" + fn->nd_func_name->str +
+                        "' without template arguments")
+              .crash();
+        }
+
         // instantiate!!!
 
         auto record = S->is_recorded_template_instantiation_pattern(fn, *template_args);
@@ -139,11 +152,11 @@ size_t Scope::find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<TypeInfo>* ar
 
         S->ctx.is_in_func = true;
 
-        fn->nd_func_is_template = false;
+        // fn->nd_func_is_template = false;
 
         S->check_func(fn);
 
-        fn->nd_func_is_template = true;
+        // fn->nd_func_is_template = true;
 
         // alertmsg(S->eval_type_ti(fn->nd_func_result_type).to_string());
 

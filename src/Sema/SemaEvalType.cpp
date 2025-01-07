@@ -204,6 +204,24 @@ void Sema::compare_call_arguments(Node* cf, bool is_method, Vec<TypeInfo> const&
 // ---------------------------------
 TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
 
+  struct AAA {
+    EvalContext*& cref;
+    EvalContext* p;
+
+    AAA(EvalContext*& r, EvalContext* p)
+        : cref(r),
+          p(p) {
+    }
+
+    ~AAA() {
+      cref = p;
+    }
+  };
+
+  AAA __{this->ctx.evalctx, this->ctx.evalctx};
+
+  this->ctx.evalctx = evalctx;
+
   switch (node->kind) {
 
     // value

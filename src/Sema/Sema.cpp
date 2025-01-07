@@ -47,7 +47,9 @@ void Sema::check_full() {
           this->root->nd_program_main = item;
         }
 
-        this->check_func(item);
+        if (!item->nd_func_is_template)
+          this->check_func(item);
+
         break;
 
       case ND_Enum:
@@ -118,8 +120,8 @@ void Sema::check_class(Node* nd_class) {
 //   check function.
 //
 void Sema::check_func(Node* func) {
-  if (func->nd_func_is_template)
-    return;
+  // if (func->nd_func_is_template)
+  //   return;
 
   auto fnscope = this->enter_func(func);
 
@@ -136,9 +138,13 @@ void Sema::check_func(Node* func) {
     fr->node = func;
   }
 
-  if (!fnscope->arg_types.empty()) {
+  if (fnscope->arg_types.size() == func->nd_func_args.size()) {
+    alert;
+
     fnscope->arg_types.clear();
-    fnscope->variables.variables.clear();
+
+    for (size_t i = 0; i < func->nd_func_args.size(); i++)
+      fnscope->variables.variables.erase(fnscope->variables.begin());
   }
 
   // check function args
@@ -283,6 +289,8 @@ void Sema::check_stmt(Node* stmt) {
 //   check let statement.
 //
 void Sema::check_let(Node* let) {
+
+  alert;
 
   // todo: check let name duplicate
 

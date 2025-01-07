@@ -12,8 +12,8 @@ SOURCE		:= 	src \
 CC			:=	clang
 CXX			:=	clang++
 
-OPTI		?=	-O0 -g -D_FIRE_DEBUG_
-COMMON		:=	$(OPTI) -Wno-switch $(INCLUDES)
+OPTI		?=	-O0 -g -Wall -Wextra -D_FIRE_DEBUG_
+COMMON		:=	$(OPTI) -Wno-switch -Wno-unused-label -Wno-unused-parameter -Wno-unused-variable $(INCLUDES)
 CFLAGS		:=	$(COMMON) -std=c17
 CXXFLAGS	:=	$(COMMON) -std=c++20
 LDFLAGS		:=
