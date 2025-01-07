@@ -232,8 +232,8 @@ Sema::NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root,
         }
 
         // function
-        if (scope->find_func(this, &template_args, result.fn_candidates, id->tok->str) >=
-            1) {
+        if (scope->find_func(this, &template_args, this->ctx.evalctx->cf_args_list_ptr,
+                             result.fn_candidates, id->tok->str) >= 1) {
           result.type = NameFindResult::NA_Func;
           result.scope = scope;
 

@@ -135,8 +135,8 @@ class Sema {
 
     VarInfo* find_var(string const& name);
 
-    size_t find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<Scope*>& out,
-                     string const& name);
+    size_t find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<TypeInfo>* arg_types,
+                     Vec<Scope*>& out, string const& name);
 
     Scope* find_if(std::function<bool(Scope*)> const& pred, bool recursive = false);
 
@@ -429,7 +429,7 @@ private:
     return nullptr;
   }
 
-  auto& enter_template(Node* node) {
+  TemplateInstantiationScope* enter_template(Node* node) {
     // node is templated func or class or struct or ...
 
     auto tis = new TemplateInstantiationScope();

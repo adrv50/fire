@@ -99,7 +99,8 @@ Sema::VarInfo* Sema::Scope::find_var(string const& name) {
 // Scope::find_func:
 //   find function by name.
 //
-size_t Sema::Scope::find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<Scope*>& out,
+size_t Sema::Scope::find_func(Sema* S, Vec<TypeInfo>* template_args,
+                              Vec<TypeInfo>* arg_types, Vec<Scope*>& out,
                               string const& name) {
   for (auto& func : this->functions) {
     if (func->get_name() == name) {
@@ -107,8 +108,42 @@ size_t Sema::Scope::find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<Scope*>
       auto fn = func->node;
 
       if (fn->nd_func_is_template) {
-        todo_impl;
         // instantiate!!!
+
+        auto record = S->is_recorded_template_instantiation_pattern(fn, *template_args);
+
+        if (record) {
+          todo_impl;
+        }
+
+        auto tis = S->enter_template(fn);
+
+        for (auto&& param_id : fn->nd_func_tplist->list) {
+          tis->parameters.emplace_back(TemplateParameterInfo{.name = param_id->tok->str});
+        }
+
+        for (size_t i = 0; i < template_args->size(); i++) {
+          auto& pi = tis->parameters[i];
+
+          pi.type = template_args->operator[](i);
+          pi.is_deducted = true;
+        }
+
+        auto ctx_keep = S->ctx;
+
+        S->ctx.cur_scope = func;
+        S->ctx.cur_func = func;
+        S->ctx.is_in_func = true;
+
+        S->check_func(fn);
+
+        alertmsg(S->eval_type_ti(fn->nd_func_result_type).to_string());
+
+        S->ctx = ctx_keep;
+
+        S->leave_template();
+
+        todo_impl;
       }
       else if (template_args->size() >= 1) {
         todo_impl;
