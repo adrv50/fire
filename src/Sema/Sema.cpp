@@ -5,6 +5,7 @@
 #include "Error.h"
 #include "Builtins.h"
 #include "Sema.h"
+#include "Object.h"
 
 namespace sema {
 
@@ -122,9 +123,29 @@ void Sema::check_func(Node* func) {
 
   auto fnscope = this->enter_func(func);
 
+  auto& fr = fnscope->fn_eval_record_ptr;
+
+  if (!fr)
+    fr = this->find_func_eval_record(func);
+
+  if (!fr) {
+    alert;
+
+    fr = new SemaFunctionEvaluatedRecord();
+
+    fr->node = func;
+  }
+
+  if (!fnscope->arg_types.empty()) {
+    fnscope->arg_types.clear();
+    fnscope->variables.variables.clear();
+  }
+
   // check function args
   for (auto&& arg : func->nd_func_args) {
     auto argtype = this->eval_type_ti(arg->nd_func_arg_type);
+
+    fr->arg_types.emplace_back(argtype);
 
     auto& argvar =
         fnscope->variables.append(VarInfo(arg->nd_func_arg_name->str, argtype));
@@ -139,9 +160,12 @@ void Sema::check_func(Node* func) {
 
   // check result type
   if (func->nd_func_result_type) {
-    fnscope->ti = this->eval_type_ti(func->nd_func_result_type);
+    fr->result_type = fnscope->ti = this->eval_type_ti(func->nd_func_result_type);
 
     func->nd_func_result_ti = &fnscope->ti;
+  }
+  else {
+    func->nd_func_result_ti = &TypeInfo::static_none_type;
   }
 
   // check duplicate of name

@@ -86,6 +86,7 @@ TypeInfo Sema::check_function_call(Node* call) {
     E.method_self_ti = &self_ti;
   }
 
+  alert;
   auto callee_ti = this->eval_expr_ti(call->nd_callfunc_callee, &E);
 
   this->ctx.evalctx = _keep;
@@ -291,6 +292,8 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
         //   => Create functor
         case NameFindResult::NA_Func: {
 
+          alert;
+
           ///
           /// if in context of call-function
           if (evalctx && evalctx->call_func) {
@@ -340,9 +343,14 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
 
           node->nd_id_target = fn->node;
 
-          result = make_functor_ti(fn->arg_types,
-                                   this->eval_type_ti(fn->node->nd_func_result_type))
+          // result = make_functor_ti(fn->arg_types,
+          //                          this->eval_type_ti(fn->node->nd_func_result_type))
+          //              .set_ftor_node(fn->node);
+
+          result = make_functor_ti(fn->arg_types, fn->fn_eval_record_ptr->result_type)
                        .set_ftor_node(fn->node);
+
+          alertmsg((fn->fn_eval_record_ptr->result_type).to_string());
 
           break;
         }

@@ -29,6 +29,8 @@ static Vec<pair<TypeKind, char const*>> const kind_and_name_table = {
 };
 // clang-format on
 
+TypeInfo TypeInfo::static_none_type{TypeKind::None};
+
 TypeInfo& TypeInfo::append_template_arg(TypeInfo const& ti) {
   return this->template_args.emplace_back(ti);
 }

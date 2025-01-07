@@ -46,6 +46,8 @@ struct TypeInfo {
   Node* ftor_node = nullptr; // when TypeKind::Functor, ptr to user-defined function
   Builtins::BuiltinFunc const* ftor_blt = nullptr; // not uder-def but if builtin
 
+  static TypeInfo static_none_type;
+
   TypeInfo& append_template_arg(TypeInfo const& ti);
 
   bool is(TypeKind k) const;

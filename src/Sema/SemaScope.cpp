@@ -140,7 +140,9 @@ size_t Scope::find_func(Sema* S, Vec<TypeInfo>* template_args, Vec<TypeInfo>* ar
         S->ctx.is_in_func = true;
 
         fn->nd_func_is_template = false;
+
         S->check_func(fn);
+
         fn->nd_func_is_template = true;
 
         // alertmsg(S->eval_type_ti(fn->nd_func_result_type).to_string());

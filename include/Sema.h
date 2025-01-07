@@ -80,6 +80,7 @@ enum ScopeType {
     - functions = functions defined in this block
 */
 
+struct SemaFunctionEvaluatedRecord;
 struct Scope {
 
   ScopeType type;
@@ -98,7 +99,7 @@ struct Scope {
   Vec<TypeInfo> arg_types;
   Vec<Node*> ret_stmt_list;
 
-  Vec<Node*> instantiated;
+  SemaFunctionEvaluatedRecord* fn_eval_record_ptr = nullptr;
 
   bool is_named;
 
@@ -140,6 +141,15 @@ struct Scope {
   static Scope* make_scope(Node* node);
 
   Scope(ScopeType type, Node* node);
+};
+
+struct TemplateInstantiatedRecord;
+struct SemaFunctionEvaluatedRecord {
+  Node* node = nullptr;
+  Vec<TypeInfo> arg_types;
+  TypeInfo result_type;
+
+  Vec<TemplateInstantiatedRecord*> templates;
 };
 
 struct EvalContext;
@@ -362,6 +372,11 @@ public:
   void err_if_unexpected_type(TypeInfo const& expection, Node* to_expect);
 
 private:
+  void check_func_wrap(Scope* fnscope) {
+    if (!fnscope->node->nd_func_is_template) {
+    }
+  }
+
   FunctorEvalResult eval_as_functor(Node* node);
 
   Scope*& get_cur_scope();
@@ -405,6 +420,16 @@ private:
   };
 
   TypeListCompareResult compare_type_list(Vec<TypeInfo> const& A, Vec<TypeInfo> const& B);
+
+  Vec<SemaFunctionEvaluatedRecord*> fn_eval_records;
+
+  SemaFunctionEvaluatedRecord* find_func_eval_record(Node* func) {
+    for (auto&& fr : this->fn_eval_records)
+      if (fr->node == func)
+        return fr;
+
+    return nullptr;
+  }
 
   std::list<TemplateInstantiationScope*> tm_inst_scope;
 
