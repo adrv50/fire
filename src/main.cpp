@@ -7,8 +7,10 @@
 #include "Repl.h"
 #include "Lexer.h"
 #include "Parser.h"
-#include "Sema.h"
+// #include "Sema.h"
 #include "Evaluator.h"
+
+#include "Sema_2.h"
 
 #include "Error.h"
 
@@ -45,9 +47,9 @@ int main(int argc, char** argv) {
 
     S.check_full();
 
-    Evaluator ev{prg};
+    // Evaluator ev{prg};
 
-    ev.evaluate();
+    // ev.evaluate();
 
     return 0;
   }

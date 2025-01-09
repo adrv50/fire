@@ -37,10 +37,12 @@
 #include <sstream>
 
 #define debug(...) __VA_ARGS__;
-#define alert printf("\t%s:%u\talert\n", strrchr(__FILE__, '/') + 1, __LINE__);
+#define alert                                                                            \
+  printf(COL_MAGENTA "\t%s:%u\talert\n" COL_DEFAULT, strrchr(__FILE__, '/') + 1,         \
+         __LINE__);
 
 #define alertfmt(fmt, e...)                                                              \
-  printf("\t%s:%u\talertfmt " COL_BOLD COL_WHITE fmt "\n" COL_DEFAULT,                   \
+  printf(COL_MAGENTA "\t%s:%u\talertfmt " COL_BOLD COL_WHITE fmt "\n" COL_DEFAULT,       \
          strrchr(__FILE__, '/') + 1, __LINE__, e)
 
 #define alertmsg(e...)                                                                   \

@@ -60,6 +60,7 @@
 
 //
 // ND_Type
+#define nd_type_name tok
 #define nd_type_is_mut b1
 #define nd_type_is_ref b2
 #define nd_type_template_args list
@@ -117,6 +118,7 @@
 #define nd_let_name tok2
 #define nd_let_type na
 #define nd_let_init nb
+#define nd_let_offset size
 
 #define nd_func_name tok2
 #define nd_func_is_method b2
@@ -188,6 +190,10 @@ enum NodeKind : u16 {
 
   ND_Identifier,
   ND_ScopeResol,
+
+  ND_Variable,
+  ND_Functor,
+
   ND_CallConstructor,
   ND_CallCtorPair,
 
@@ -311,31 +317,21 @@ enum NodeKind : u16 {
   ND_InitializerList, // "{a: 1, b: 2, ...}"  (repeat ND_PairNameAndType)
 };
 
-// -------------------------------------
-//  NodeIdentifierKind:
-//    The kind of identifier decided in Sema.
-// -------------------------------------
-enum NodeIdentifierKind : u8 { // for id or scope-resol
-  ID_None,
-  ID_Var,
-  ID_Func,
-  ID_Enum,
-  ID_Enumerator,
-  ID_Struct,
-  ID_Class,
-  ID_Namespace,
-};
-
 enum CompareExprKind : u8 {
   CMP_None,
   CMP_Bigger,
   CMP_BiggerOrEqual,
 };
 
+namespace sema {
+
+struct ScopeContext;
+
+}
+
 struct Token;
 struct Node {
   NodeKind kind;
-  NodeIdentifierKind id_kind = ID_None;
   CompareExprKind cmp_kind = CMP_None;
   Token* tok;
   Vec<Node*> list;
@@ -368,7 +364,9 @@ struct Node {
   size_t size = 0;
   size_t size2 = 0;
 
-  Builtins::BuiltinFunc const* bfun;
+  Builtins::BuiltinFunc const* bfun = nullptr;
+
+  sema::ScopeContext* sema_scope = nullptr;
 
   bool is(NodeKind kind) const;
 

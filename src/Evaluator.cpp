@@ -255,43 +255,11 @@ Obj Evaluator::eval_expr(Node* node) {
       return obj;
     }
 
-    case ND_Identifier:
-    case ND_ScopeResol:
-      switch (node->id_kind) {
-        case NodeIdentifierKind::ID_Var:
-          if (node->nd_variable_is_global)
-            return this->global_variables[node->nd_variable_offset];
+    case ND_Variable:
+      if (node->nd_variable_is_global)
+        return this->global_variables[node->nd_variable_offset];
 
-          return this->get_current_call_stack().get(node->nd_variable_offset);
-
-        case NodeIdentifierKind::ID_Func:
-          todo_impl;
-
-        case NodeIdentifierKind::ID_Enum: {
-          return ObjTypeInfo::make(TypeInfo(TypeKind::Type).set_enum(node->nd_id_target));
-        }
-
-        case NodeIdentifierKind::ID_Enumerator: {
-          return ObjEnumerator::make(node->nd_id_target, node->nd_id_enumerator_index);
-        }
-
-        case NodeIdentifierKind::ID_Struct:
-          todo_impl;
-          break;
-
-        case NodeIdentifierKind::ID_Class:
-          todo_impl;
-          break;
-
-        case NodeIdentifierKind::ID_Namespace:
-          todo_impl;
-          break;
-
-        default:
-          todo_impl;
-      }
-
-      break;
+      return this->get_current_call_stack().get(node->nd_variable_offset);
 
     //
     // Call function
