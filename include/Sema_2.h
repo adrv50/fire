@@ -8,6 +8,7 @@
 #include "Node.h"
 #include "TypeInfo.h"
 #include "Object.h"
+#include "Builtins.h"
 
 #include "Utils.h"
 #include "Error.h"
@@ -178,14 +179,21 @@ enum IdentifierKind {
   ID_Unknown,
   ID_Variable,
   ID_Function,
+
   ID_Enum,
-  ID_Class,
+  ID_Enumerator,
   ID_Struct,
+  ID_Class,
   ID_Namespace,
+
+  ID_BuiltinType,
+
+  ID_BuiltinFunc,
 };
 
 struct IdentifierInfo {
   Node* id; // ND_Identifier
+  string name;
 
   IdentifierKind kind;
 
@@ -193,11 +201,28 @@ struct IdentifierInfo {
 
   Vec<IdentifierInfo> template_args;
 
-  VarInfo* pvar = nullptr;
-  Node* func = nullptr;
+  TypeKind typekind = TypeKind::Unknown; // => ID_BuiltinType
 
-  IdentifierInfo(Node* id = nullptr)
+  VarInfo* pvar = nullptr;
+
+  Vec<Node*> func_candidates;
+  Vec<Builtins::BuiltinFunc const*> builtin_func_candidates;
+
+  bool is_type_name() const {
+    switch (this->kind) {
+      case ID_Enum:
+      case ID_Struct:
+      case ID_Class:
+        return true;
+
+      default:
+        return false;
+    }
+  }
+
+  IdentifierInfo(Node* id = nullptr, string const& name = "")
       : id(id),
+        name(name),
         kind(ID_Unknown),
         scope(nullptr),
         template_args() {
@@ -261,9 +286,11 @@ class Sema {
 
   IdentifierInfo get_id_info(Node* id, ScopeContext* find_in = nullptr,
                              bool to_reverse = true) {
+    assert(id->is(ND_Identifier));
+
     string const& name = id->nd_id_name->str;
 
-    IdentifierInfo II{id};
+    IdentifierInfo II{id, name};
 
     if (!find_in)
       find_in = this->CurScope;
@@ -285,8 +312,7 @@ class Sema {
                 if (C->type == SC_Function && C->node->nd_func_name->str == name) {
                   II.kind = ID_Function;
                   II.scope = C;
-                  II.func = C->node;
-                  return true;
+                  II.func_candidates.emplace_back(C->node);
                 }
 
                 return false;
@@ -297,7 +323,29 @@ class Sema {
         },
         find_in, to_reverse);
 
+    if (II.kind == ID_Unknown)
+      this->find_builtin_name(II);
+
+    if (II.kind == ID_Unknown) {
+      II.typekind = TypeInfo::get_kind_of_name(name);
+
+      if (II.typekind != TypeKind::Unknown)
+        II.kind = ID_BuiltinType;
+    }
+
+    for (auto&& t_arg : id->nd_id_template_args) {
+      II.template_args.emplace_back(this->get_id_info(t_arg, find_in, to_reverse));
+    }
+
     return II;
+  }
+
+  void find_builtin_name(IdentifierInfo& II) {
+
+    if (auto count = Builtins::BuiltinFunc::find(II.builtin_func_candidates, II.name);
+        count >= 1) {
+      II.kind = ID_BuiltinFunc;
+    }
   }
 
   FunctionSignature make_func_signature(Node* func) {
@@ -331,11 +379,14 @@ class Sema {
         switch (ii.kind) {
           case ID_Variable:
           case ID_Function:
-            Error(id->first_tok->prev, "invalid use of scope-resolution operator")
+            Error(sub->first_tok->prev, "invalid use of scope-resolution operator")
                 .crash();
 
           case ID_Class: {
             todo_impl;
+          }
+
+          case ID_BuiltinType: {
           }
         }
       }
@@ -347,6 +398,20 @@ class Sema {
           Error(id, "cannot use variable before type deduction").crash();
 
         return ii.pvar->type;
+      }
+
+      case ID_Function: {
+        todo_impl;
+      }
+
+      case ID_BuiltinType: {
+        TypeInfo type =
+      }
+
+      case ID_BuiltinFunc: {
+        alertmsg(ii.builtin_func_candidates.size());
+
+        todo_impl;
       }
     }
 
