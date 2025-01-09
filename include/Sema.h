@@ -327,6 +327,12 @@ struct TemplateInstantiatedRecord {
   }
 };
 
+struct FunctionSignature {
+  Node* func = nullptr;
+  TypeInfo result_type;
+  Vec<TypeInfo> arg_types;
+};
+
 class Sema {
 
   friend struct Scope;

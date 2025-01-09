@@ -102,7 +102,7 @@ TypeInfo Sema::check_function_call(Node* call) {
 
       call->nd_callfunc_callee_userdef = callee_ti.ftor_node;
 
-      return *((TypeInfo*)callee_ti.ftor_node->nd_func_result_ti);
+      return callee_ti.template_args[0];
     }
 
     case TypeKind::Enumerator: {
@@ -310,41 +310,9 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
         //   => Create functor
         case NameFindResult::NA_Func: {
 
+          node->id_kind = NodeIdentifierKind::ID_Func;
+
           alert;
-
-          ///
-          /// if in context of call-function
-          if (evalctx && evalctx->call_func) {
-            ///
-            /// limit candidates (Not erased)
-            auto iter = std::remove_if(
-                res.fn_candidates.begin(), res.fn_candidates.end(),
-                [&](Scope* scope) -> bool {
-                  auto cd = scope->node;
-
-                  auto res = this->compare_type_list(
-                      *((Vec<TypeInfo>*)cd->nd_func_args_ti), *evalctx->cf_args_list_ptr);
-
-                  return (res & TLC_Many) ? !cd->nd_func_is_variable_args
-                                          : (res & TLC_Few) || (res & TLC_Mismatch);
-                });
-
-            ///
-            /// if no candidates:
-            ///  => Error
-            if (iter == res.fn_candidates.begin()) {
-              Error e{node, "mismatched arguments to call function '" +
-                                this->get_full_name(node) + "'"};
-
-              if (res.fn_candidates.size() > 1)
-                for (auto&& cd : res.fn_candidates)
-                  e.add_note(cd->node->tok, "candidate:");
-              else
-                e.add_note(res.fn_candidates[0]->node->tok, "defined here");
-
-              e.crash();
-            }
-          }
 
           if (res.fn_candidates.size() >= 2) {
             Error e{node, "ambiguous function name '" + res.name + "'"};
@@ -365,10 +333,7 @@ TypeInfo Sema::eval_expr_ti(Node* node, EvalContext* evalctx) {
           //                          this->eval_type_ti(fn->node->nd_func_result_type))
           //              .set_ftor_node(fn->node);
 
-          result = make_functor_ti(fn->arg_types, fn->fn_eval_record_ptr->result_type)
-                       .set_ftor_node(fn->node);
-
-          alertmsg((fn->fn_eval_record_ptr->result_type).to_string());
+          result = make_functor_ti(fn->arg_types, fn->ti).set_ftor_node(fn->node);
 
           break;
         }

@@ -48,6 +48,8 @@ int main(int argc, char** argv) {
     Evaluator ev{prg};
 
     ev.evaluate();
+
+    return 0;
   }
 
   catch (std::exception const& e) {
@@ -59,7 +61,5 @@ int main(int argc, char** argv) {
     e.emit();
   }
 
-  catch (...) {
-    return -1;
-  }
+  return 1;
 }

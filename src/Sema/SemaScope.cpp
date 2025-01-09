@@ -109,60 +109,20 @@ size_t Scope::find_func(Node* id, Sema* S, Vec<TypeInfo>* template_args,
 
       auto fn = func->node;
 
+      if (arg_types) {
+        if (fn->nd_func_args.size() < arg_types->size()) {
+          if (!fn->nd_func_is_variable_args)
+            continue;
+        }
+        else if (fn->nd_func_args.size() > arg_types->size()) {
+          continue;
+        }
+      }
+
       if (fn->nd_func_is_template) {
-
-        alertmsg(S->ctx.evalctx);
-        alertmsg(template_args->empty());
-
-        for (auto&& ti : *template_args)
-          alertmsg(ti.to_string());
-
-        if ((!S->ctx.evalctx || !S->ctx.evalctx->call_func) && template_args->empty()) {
-          Error(id, "cannot use function name '" + fn->nd_func_name->str +
-                        "' without template arguments")
-              .crash();
+        if (template_args->empty()) {
+          todo_impl; // err
         }
-
-        // instantiate!!!
-
-        auto record = S->is_recorded_template_instantiation_pattern(fn, *template_args);
-
-        if (record) {
-          todo_impl;
-        }
-
-        auto tis = S->enter_template(fn);
-
-        for (auto&& param_id : fn->nd_func_tplist->list) {
-          tis->parameters.emplace_back(TemplateParameterInfo{.name = param_id->tok->str});
-        }
-
-        for (size_t i = 0; i < template_args->size(); i++) {
-          auto& pi = tis->parameters[i];
-
-          pi.type = template_args->operator[](i);
-          pi.is_deducted = true;
-        }
-
-        auto ctx_keep = S->ctx;
-
-        S->ctx.cur_scope = func->parent;
-
-        S->ctx.cur_func = func;
-
-        S->ctx.is_in_func = true;
-
-        // fn->nd_func_is_template = false;
-
-        S->check_func(fn);
-
-        // fn->nd_func_is_template = true;
-
-        // alertmsg(S->eval_type_ti(fn->nd_func_result_type).to_string());
-
-        S->ctx = ctx_keep;
-
-        S->leave_template();
       }
       else if (template_args->size() >= 1) {
         todo_impl;
