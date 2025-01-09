@@ -54,7 +54,7 @@ void Sema::check_stmt(Node* node) {
       break;
 
     default:
-      this->eval_expr_ti(node);
+      this->eval_expr_ti(node, {});
       break;
   }
 }
@@ -69,16 +69,16 @@ void Sema::check_let(Node* node) {
 
   if (node->nd_let_init) {
     if (auto x = node->nd_let_type;
-        x && !var.type.equals(this->eval_expr_ti(node->nd_let_init))) {
+        x && !var.type.equals(this->eval_expr_ti(node->nd_let_init, {}))) {
       Error(node->nd_let_init, "type mismatch").emit();
     }
 
-    var.type = this->eval_expr_ti(node->nd_let_init);
+    var.type = this->eval_expr_ti(node->nd_let_init, {});
     var.is_type_deducted = true;
   }
 }
 
-TypeInfo Sema::eval_expr_ti(Node* node) {
+TypeInfo Sema::eval_expr_ti(Node* node, ExprEvalContext ctx) {
 
   if (!node)
     return TypeKind::None;
@@ -89,7 +89,7 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
 
     case ND_Identifier:
     case ND_ScopeResol:
-      return this->eval_id(node);
+      return this->eval_id(ctx, node).type;
 
     case ND_CallFunc: {
       todo_impl;
@@ -99,8 +99,8 @@ TypeInfo Sema::eval_expr_ti(Node* node) {
       break;
   }
 
-  auto lhs = this->eval_expr_ti(node->nd_lhs);
-  auto rhs = this->eval_expr_ti(node->nd_rhs);
+  auto lhs = this->eval_expr_ti(node->nd_lhs, ctx);
+  auto rhs = this->eval_expr_ti(node->nd_rhs, ctx);
 
   if (!lhs.equals(rhs))
     Error(node->tok, "only can use expression operator for same type").crash();

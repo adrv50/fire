@@ -22,6 +22,9 @@ struct BuiltinFunc {
   Vec<TypeInfo> arg_types;
   bool is_variable_args = false;
 
+  bool is_template = false;
+  size_t template_args_count = 0;
+
   TypeInfo ret_type;
 
   Impl impl;

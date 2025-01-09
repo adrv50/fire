@@ -229,6 +229,25 @@ struct IdentifierInfo {
   }
 };
 
+struct IDEvalResult {
+  IdentifierInfo info;
+  TypeInfo type;
+
+  IDEvalResult(IdentifierInfo ii, TypeInfo type)
+      : info(std::move(ii)),
+        type(std::move(type)) {
+  }
+};
+
+struct ExprEvalContext {
+  bool in_call_func = false;
+  Node* call_func_expr = nullptr;
+
+  bool as_functor = false;
+
+  bool as_initializer = false;
+};
+
 struct FunctionSignature {
   TypeInfo result_type;
   Vec<TypeInfo> arg_types;
@@ -284,44 +303,82 @@ class Sema {
     });
   }
 
+  static bool get_same_name_in_scope(ScopeContext* scope, string const& name,
+                                     IdentifierInfo& II) {
+    auto pvar = scope->variables.find(name);
+
+    if (pvar) {
+      II.kind = ID_Variable;
+      II.scope = scope;
+      II.pvar = pvar;
+
+      return true;
+    }
+
+    if (scope->find([&](ScopeContext* C) -> bool {
+          if (C->type == SC_Function && C->node->nd_func_name->str == name) {
+            II.kind = ID_Function;
+            II.scope = C;
+            II.func_candidates.emplace_back(C->node);
+          }
+
+          return false;
+        }))
+      return true;
+
+    return false;
+  }
+
+  static void
+  limit_builtin_func_candidates(Vec<Builtins::BuiltinFunc const*>& candidates,
+                                std::function<bool(Builtins::BuiltinFunc const*)> pred) {
+    candidates.erase(std::remove_if(candidates.begin(), candidates.end(), pred),
+                     candidates.end());
+  }
+
   IdentifierInfo get_id_info(Node* id, ScopeContext* find_in = nullptr,
-                             bool to_reverse = true) {
-    assert(id->is(ND_Identifier));
+                             bool to_reverse = true,
+                             TypeKind* find_in_builtin_type = nullptr) {
+
+    Vec<Node*> sr;
+
+    if (id->is(ND_ScopeResol)) {
+      sr = id->nd_scope_resol_idlist;
+      id = id->nd_scope_resol_first;
+    }
 
     string const& name = id->nd_id_name->str;
 
     IdentifierInfo II{id, name};
 
-    if (!find_in)
-      find_in = this->CurScope;
+    if (find_in_builtin_type) {
+      // => find method in type
 
-    ScopeContext* scope = this->search_scope_if(
-        [&](ScopeContext* S) -> bool {
-          auto pvar = S->variables.find(name);
+      auto& tk = *find_in_builtin_type;
 
-          if (pvar) {
-            II.kind = ID_Variable;
-            II.scope = S;
+      if (Builtins::BuiltinFunc::find(II.builtin_func_candidates, name) >= 1) {
+        limit_builtin_func_candidates(II.builtin_func_candidates,
+                                      [&tk](Builtins::BuiltinFunc const* bfunc) -> bool {
+                                        return !bfunc->is_method ||
+                                               (bfunc->self_type.kind != tk);
+                                      });
 
-            II.pvar = pvar;
+        if (II.builtin_func_candidates.size() >= 1)
+          II.kind = ID_BuiltinFunc;
+        else
+          Error(id, "cannot find built-in method '" + name + "' in type '" +
+                        TypeInfo::get_name_of_kind(tk) + "'")
+              .crash();
+      }
+    }
+    else {
+      if (!find_in)
+        find_in = this->CurScope;
 
-            return true;
-          }
-
-          if (S->find([&](ScopeContext* C) -> bool {
-                if (C->type == SC_Function && C->node->nd_func_name->str == name) {
-                  II.kind = ID_Function;
-                  II.scope = C;
-                  II.func_candidates.emplace_back(C->node);
-                }
-
-                return false;
-              }))
-            return true;
-
-          return false;
-        },
-        find_in, to_reverse);
+      this->search_scope_if(std::bind(Sema::get_same_name_in_scope, std::placeholders::_1,
+                                      name, std::reference_wrapper(II)),
+                            find_in, to_reverse);
+    }
 
     if (II.kind == ID_Unknown)
       this->find_builtin_name(II);
@@ -333,8 +390,37 @@ class Sema {
         II.kind = ID_BuiltinType;
     }
 
+    if (II.kind == ID_Unknown)
+      Error(id, "use of undefined name '" + name + "'").crash();
+
     for (auto&& t_arg : id->nd_id_template_args) {
       II.template_args.emplace_back(this->get_id_info(t_arg, find_in, to_reverse));
+    }
+
+    Token* prev = id->first_tok;
+
+    for (auto&& sub : sr) {
+      auto const& name = sub->nd_id_name->str;
+      auto op = sub->first_tok->prev;
+
+      switch (II.kind) {
+        case ID_Variable:
+        case ID_Function:
+        case ID_BuiltinFunc:
+          Error(op, "invalid use of scope resolution operator").crash();
+
+        case ID_BuiltinType: {
+          II = this->get_id_info(sub, nullptr, false, &II.typekind);
+          break;
+        }
+      }
+
+      for (auto&& t_arg : sub->nd_id_template_args) {
+        II.template_args.emplace_back(
+            this->get_id_info(t_arg, find_in, to_reverse, find_in_builtin_type));
+      }
+
+      prev = sub->first_tok;
     }
 
     return II;
@@ -364,32 +450,16 @@ class Sema {
     return node->sema_scope->variables[node->nd_let_offset];
   }
 
-  TypeInfo eval_id(Node* id, ScopeContext* scope = nullptr, bool find_reverse = true) {
+  IDEvalResult eval_id(ExprEvalContext ctx, Node* id, ScopeContext* scope = nullptr,
+                       bool find_reverse = true, bool expected_as_type_name = false,
+                       bool in_call_func_expr = false) {
     if (!scope)
       scope = this->CurScope;
 
-    IdentifierInfo ii;
+    auto ii = this->get_id_info(id, scope);
 
-    if (id->is(ND_Identifier))
-      ii = this->get_id_info(id);
-    else if (id->is(ND_ScopeResol)) {
-      ii = this->get_id_info(id->nd_scope_resol_first);
-
-      for (auto&& sub : id->nd_scope_resol_idlist) {
-        switch (ii.kind) {
-          case ID_Variable:
-          case ID_Function:
-            Error(sub->first_tok->prev, "invalid use of scope-resolution operator")
-                .crash();
-
-          case ID_Class: {
-            todo_impl;
-          }
-
-          case ID_BuiltinType: {
-          }
-        }
-      }
+    if (expected_as_type_name && !ii.is_type_name()) {
+      Error(id, "expected type name").crash();
     }
 
     switch (ii.kind) {
@@ -397,7 +467,7 @@ class Sema {
         if (!ii.pvar->is_type_deducted)
           Error(id, "cannot use variable before type deduction").crash();
 
-        return ii.pvar->type;
+        return {ii, ii.pvar->type};
       }
 
       case ID_Function: {
@@ -405,17 +475,49 @@ class Sema {
       }
 
       case ID_BuiltinType: {
-        TypeInfo type =
+        return {ii, TypeInfo(ii.typekind, {})};
       }
 
       case ID_BuiltinFunc: {
-        alertmsg(ii.builtin_func_candidates.size());
+        auto& candidates = ii.builtin_func_candidates;
 
-        todo_impl;
+        if (candidates.size() >= 2) {
+          if (ctx.in_call_func) {
+            // todo: limit candidates
+            todo_impl;
+          }
+          else {
+            auto e = Error(id, "ambiguous built-in function name '" + ii.name + "'");
+
+            for (auto&& cd : candidates)
+              e.add_note("candidate: " + cd->to_string());
+
+            e.crash();
+          }
+        }
+
+        assert(candidates.size() == 1);
+
+        auto bfun = candidates[0];
+
+        if (!bfun->is_template && ii.template_args.size() >= 1) {
+          Error(id, "builtin function '" + ii.name + "' is not template").crash();
+        }
+
+        return {ii, Sema::make_functor_type(bfun)};
       }
     }
 
-    Error(id, "undefined name").crash();
+    todo_impl;
+  }
+
+  TypeInfo make_functor_type(Builtins::BuiltinFunc const* bfun) {
+    TypeInfo ti = TypeKind::Functor;
+
+    ti.template_args = bfun->arg_types;
+    ti.template_args.insert(ti.template_args.begin(), bfun->ret_type);
+
+    return ti.set_ftor_bfun(bfun);
   }
 
 public:
@@ -431,7 +533,7 @@ public:
 
   void check_let(Node* node);
 
-  TypeInfo eval_expr_ti(Node* node);
+  TypeInfo eval_expr_ti(Node* node, ExprEvalContext ctx);
 
   TypeInfo eval_type_ti(Node* node);
 };
