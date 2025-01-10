@@ -166,12 +166,10 @@ void Sema::check_let(Node* node) {
                         .in_statement = true,
                         .stmt_nd = node};
 
-    auto init_type = this->eval_expr_ti(node->nd_let_init, context);
-
-    if (node->nd_let_type) {
-      if (!var.type.equals(init_type))
-        Error(node->nd_let_init, "type mismatch").emit();
-    }
+    if (node->nd_let_type)
+      this->expect_type(context, node->nd_let_init, var.type);
+    else
+      this->eval_expr_ti(node->nd_let_init, context);
 
     var.is_type_deducted = true;
   }
@@ -209,7 +207,9 @@ TypeInfo Sema::eval_expr_ti(Node* node, ExprEvalContext ctx) {
         }
       }
 
-      Error(node->tok, "'" + ctor_id.info.name + "' is not enumerator or class").crash();
+      Error(node->nd_callctor_ctor_side,
+            "'" + ctor_id.info.name + "' is not enumerator or class")
+          .crash();
     }
 
     case ND_Array: {
@@ -228,6 +228,8 @@ TypeInfo Sema::eval_expr_ti(Node* node, ExprEvalContext ctx) {
               .crash();
         }
 
+        alertmsg(ctx.container_elem_type_p->to_string());
+
         return *ctx.container_elem_type_p;
       }
 
@@ -237,11 +239,84 @@ TypeInfo Sema::eval_expr_ti(Node* node, ExprEvalContext ctx) {
       for (++it; it != node->nd_elements.end(); it++)
         this->expect_type(ctx, *it, type);
 
+      return TypeInfo(TypeKind::Vector, {type});
+    }
+
+    case ND_Tuple: {
+      TypeInfo type = TypeKind::Tuple;
+
+      for (auto&& elem : node->nd_elements)
+        type.append_template_arg(this->eval_expr_ti(elem, ctx));
+
       return type;
     }
 
-    case ND_CallFunc: {
+    case ND_Dict: {
+      auto it = node->nd_dict_pairs.begin();
+
+      auto key = this->eval_expr_ti((*it)->nd_dict_pair_key, ctx);
+      auto val = this->eval_expr_ti((*it)->nd_dict_pair_value, ctx);
+
+      for (++it; it != node->nd_dict_pairs.end(); it++) {
+        this->expect_type(ctx, (*it)->nd_dict_pair_key, key);
+        this->expect_type(ctx, (*it)->nd_dict_pair_value, val);
+      }
+
+      return TypeInfo(TypeKind::Dict, {key, val});
+    }
+
+    case ND_Not:
+      return this->expect_type(ctx, node->nd_lhs, TypeKind::Bool);
+
+    case ND_Ref:
       todo_impl;
+
+    case ND_Cast:
+      todo_impl;
+
+    case ND_Subscript: {
+      auto arr = this->eval_expr_ti(node->nd_lhs, ctx);
+      auto index = this->eval_expr_ti(node->nd_rhs, ctx);
+
+      if (!arr.is(TypeKind::Vector))
+        Error(node->tok, "'" + arr.to_string() + "' type object is not subscriptable")
+            .crash();
+
+      if (!index.is(TypeKind::Int)) {
+        Error(node->nd_rhs, "indexer must be integer.").crash();
+      }
+
+      return arr.template_args[0];
+    }
+
+    case ND_CallFunc: {
+      auto keep = ctx;
+
+      Vec<TypeInfo> arg_types;
+
+      for (auto&& arg : node->nd_callfunc_args)
+        arg_types.emplace_back(this->eval_expr_ti(arg, ctx));
+
+      ctx.in_call_func = true;
+      ctx.call_func_expr = node;
+      ctx.call_args_ptr = &arg_types;
+      ctx.as_functor = true;
+
+      auto functor = this->eval_expr_ti(node->nd_callfunc_callee, ctx);
+
+      if (!functor.is_callable())
+        Error(node->nd_callfunc_callee,
+              "'" + functor.to_string() + "' type object is not callable")
+            .crash();
+
+      if (functor.ftor_node)
+        node->nd_callfunc_callee_userdef = functor.ftor_node;
+      else
+        node->nd_callfunc_callee_builtin = functor.ftor_blt;
+
+      ctx = keep;
+
+      return functor.template_args[0];
     }
 
     default:
@@ -261,7 +336,14 @@ TypeInfo Sema::eval_type_ti(Node* node) {
 
   if (auto k = TypeInfo::get_kind_of_name(node->nd_type_name->str);
       k != TypeKind::Unknown) {
-    return k;
+
+    TypeInfo type = k;
+
+    for (auto&& t_arg : node->nd_type_template_args) {
+      type.template_args.emplace_back(this->eval_type_ti(t_arg));
+    }
+
+    return type;
   }
 
   Error(node, "unknown type name").crash();

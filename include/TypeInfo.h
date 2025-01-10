@@ -57,6 +57,10 @@ struct TypeInfo {
   bool is_subscriptable() const;
   bool is_template() const;
 
+  bool is_callable() const {
+    return this->is(TypeKind::Functor);
+  }
+
   bool equals(TypeInfo const& ti) const;
 
   string to_string() const;

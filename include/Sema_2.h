@@ -272,7 +272,7 @@ struct ExprEvalContext {
   bool as_initializer = false;
 
   //
-  // 空の配列やタプルなどで、型の定義と同じ文脈に
+  // 空の配列を評価する際、同じ文脈に型の定義が
   // ある場合は、評価された型情報へのポインタを指す。
   // ( 例: "let a : vector<int> = [ ];" など )
   TypeInfo* container_elem_type_p = nullptr;
