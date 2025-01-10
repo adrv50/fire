@@ -26,7 +26,32 @@ void Sema::check_full() {
 }
 
 void Sema::check_func(Node* node) {
-  this->enter_scope(node->sema_scope);
+  auto funcScope = node->sema_scope;
+
+  this->enter_scope(funcScope);
+
+  auto func_ctx = funcScope->func_ctx;
+
+  for (size_t i = 0; i < node->nd_func_args.size(); i++) {
+    auto iter = node->nd_func_args.begin() + i;
+    auto& arg_vi = funcScope->variables[i];
+
+    arg_vi.type = this->eval_type_ti((*iter)->nd_func_arg_type);
+
+    if (auto def = std::find_if(node->nd_func_args.begin(), iter,
+                                [&](Node* nd) {
+                                  return nd->nd_func_arg_name->str !=
+                                         (*iter)->nd_func_arg_name->str;
+                                });
+        def != iter) {
+      Error(*iter, "duplicate argument name '" + (*iter)->nd_func_arg_name->str + "'")
+          .add_note(*def, "first defined here")
+          .crash();
+    }
+  }
+
+  if (node->nd_func_result_type)
+    func_ctx->result_type = this->eval_type_ti(node->nd_func_result_type);
 
   this->check_block(node->nd_func_body);
 
@@ -34,6 +59,9 @@ void Sema::check_func(Node* node) {
 }
 
 void Sema::check_block(Node* node) {
+  if (!node)
+    return;
+
   this->enter_scope(node->sema_scope);
 
   for (auto&& item : node->nd_items) {
@@ -52,6 +80,67 @@ void Sema::check_stmt(Node* node) {
     case ND_Let:
       this->check_let(node);
       break;
+
+    case ND_If: {
+      this->expect_type({}, node->nd_if_cond, TypeKind::Bool);
+
+      this->check_block(node->nd_if_then);
+      this->check_block(node->nd_if_else);
+
+      break;
+    }
+
+    case ND_Switch: {
+      todo_impl;
+    }
+
+    case ND_Match: {
+      todo_impl;
+    }
+
+    case ND_Loop:
+      this->check_block(node->nd_loop_body);
+      break;
+
+    case ND_While:
+      this->expect_type({}, node->nd_while_cond, TypeKind::Bool);
+      this->check_block(node->nd_while_body);
+      break;
+
+    case ND_For: {
+      todo_impl;
+    }
+
+    case ND_ForEach: {
+      todo_impl;
+    }
+
+    case ND_ForRange: {
+      todo_impl;
+    }
+
+    case ND_Return: {
+      if (auto x = node->nd_return_expr) {
+        auto type = this->eval_expr_ti(x, {});
+
+        if (auto ctx = this->get_cur_func_scope()->func_ctx;
+            !ctx->result_type.equals(type)) {
+          Error(x, "mismatched function result type")
+              .add_note(ctx->result_type_nd, "defined here")
+              .crash();
+        }
+      }
+
+      break;
+    }
+
+    case ND_Break: {
+      todo_impl;
+    }
+
+    case ND_Continue: {
+      todo_impl;
+    }
 
     default:
       this->eval_expr_ti(node, {});
@@ -75,6 +164,12 @@ void Sema::check_let(Node* node) {
 
     var.type = this->eval_expr_ti(node->nd_let_init, {});
     var.is_type_deducted = true;
+  }
+
+  if (auto cur_func = this->get_cur_func_scope()) {
+    var.offset = cur_func->func_ctx->pvar_list.size();
+
+    cur_func->func_ctx->pvar_list.push_back(&var);
   }
 }
 

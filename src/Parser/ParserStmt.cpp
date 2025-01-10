@@ -76,10 +76,10 @@ Node* Parser::p_stmt() {
 
     node->nd_if_cond = this->p_expr();
 
-    node->nd_if_then = this->p_block();
+    (node->nd_if_then = this->p_block())->nd_block_parent = node;
 
     if (this->eat(Kwd::Else)) {
-      node->nd_if_else = this->p_block();
+      (node->nd_if_else = this->p_block())->nd_block_parent = node;
     }
 
     return node;
@@ -103,7 +103,7 @@ Node* Parser::p_stmt() {
 
         default_tok = this->cur;
 
-        node->nd_switch_default_case = this->p_block();
+        (node->nd_switch_default_case = this->p_block())->nd_block_parent = node;
 
         continue;
       }
@@ -137,7 +137,7 @@ Node* Parser::p_stmt() {
 
       this->expect(Punct::CaseMatch);
 
-      match_case->nd_match_case_body = this->p_block();
+      (match_case->nd_match_case_body = this->p_block())->nd_block_parent = match_case;
 
       node->append(match_case);
 
@@ -167,9 +167,8 @@ Node* Parser::p_expect_switch_case() {
 
   this->expect(Kwd::Case);
 
-  node->nd_switch_case_cond = this->p_expr();
-
-  node->nd_switch_case_body = this->p_block();
+  (node->nd_switch_case_cond = this->p_expr())->nd_block_parent = node;
+  (node->nd_switch_case_body = this->p_block())->nd_block_parent = node;
 
   return node;
 }
@@ -213,7 +212,7 @@ Node* Parser::p_loop() {
   if (this->eat(Kwd::Loop)) {
     auto node = Node::new_node(ND_Loop, this->cur);
 
-    node->nd_loop_body = this->p_block();
+    (node->nd_loop_body = this->p_block())->nd_block_parent = node;
 
     return node;
   }
@@ -226,7 +225,7 @@ Node* Parser::p_loop() {
 
     node->nd_while_cond = this->p_expr();
 
-    node->nd_while_body = this->p_block();
+    (node->nd_while_body = this->p_block())->nd_block_parent = node;
 
     return node;
   }
@@ -257,7 +256,7 @@ Node* Parser::p_loop() {
 
         node->nd_forrange_range = expr;
 
-        node->nd_forrange_body = this->p_block();
+        (node->nd_forrange_body = this->p_block())->nd_block_parent = node;
 
         return node;
       }
@@ -270,7 +269,7 @@ Node* Parser::p_loop() {
         node->nd_foreach_iter = expr->nd_lhs;
         node->nd_foreach_content = expr->nd_rhs;
 
-        node->nd_foreach_body = this->p_block();
+        (node->nd_foreach_body = this->p_block())->nd_block_parent = node;
 
         return node;
       }
@@ -331,7 +330,7 @@ Node* Parser::p_loop() {
       }
     }
 
-    node->nd_for_body = this->p_block();
+    (node->nd_for_body = this->p_block())->nd_block_parent = node;
 
     return node;
   }

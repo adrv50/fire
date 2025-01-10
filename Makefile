@@ -13,7 +13,7 @@ CC			:=	clang
 CXX			:=	clang++
 
 OPTI		?=	-O0 -g -Wall -Wextra -D_FIRE_DEBUG_
-COMMON		:=	$(OPTI) -Wno-switch -Wno-unused-label -Wno-unused-parameter -Wno-unused-variable $(INCLUDES)
+COMMON		:=	$(OPTI) -Wno-switch -Wno-unused-label -Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable $(INCLUDES)
 CFLAGS		:=	$(COMMON) -std=c17
 CXXFLAGS	:=	$(COMMON) -std=c++20
 LDFLAGS		:=

@@ -345,7 +345,7 @@ Node* Parser::p_func() {
     if (this->eat(Punct::ResultTypeSpecifier))
       node->nd_func_result_type = this->p_expect_type();
 
-    node->nd_func_body = this->p_block(true);
+    (node->nd_func_body = this->p_block(true))->nd_block_parent = node;
 
     node->last_tok = this->cur->prev;
 

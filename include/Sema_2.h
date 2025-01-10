@@ -81,6 +81,23 @@ struct VarList {
   }
 };
 
+struct SemaFunctionContext {
+  Node* func;
+
+  Vec<VarInfo*> pvar_list;
+
+  Vec<pair<Node*, TypeInfo>> return_stmt_list;
+
+  Node* result_type_nd = nullptr;
+  TypeInfo result_type;
+
+  SemaFunctionContext(Node* func)
+      : func(func),
+        pvar_list(),
+        return_stmt_list() {
+  }
+};
+
 struct ScopeContext {
 
   Node* node;
@@ -90,6 +107,8 @@ struct ScopeContext {
   Vec<ScopeContext*> childs;
 
   VarList variables;
+
+  SemaFunctionContext* func_ctx = nullptr;
 
   ScopeContext* find(std::function<bool(ScopeContext*)> pred, bool recursive = false) {
     for (auto&& C : this->childs) {
@@ -138,7 +157,8 @@ struct ScopeContext {
         case ND_Let:
           item->sema_scope = scope;
           item->nd_let_offset = scope->variables.size();
-          scope->variables.append(item->nd_let_name->str);
+
+          scope->variables.append(item->nd_let_name->str).decl = item;
           break;
 
         case ND_Block:
@@ -159,10 +179,14 @@ struct ScopeContext {
     auto scope = new ScopeContext(node, SC_Function);
 
     for (auto&& arg : node->nd_func_args) {
-      scope->variables.append(arg->nd_func_arg_name->str);
+      scope->variables.append(arg->nd_func_arg_name->str).is_type_deducted = true;
     }
 
     scope->append(ScopeContext::from_block(node->nd_func_body));
+
+    scope->func_ctx = new SemaFunctionContext(node);
+
+    scope->func_ctx->result_type_nd = node->nd_func_result_type;
 
     return scope;
   }
@@ -242,6 +266,7 @@ struct IDEvalResult {
 struct ExprEvalContext {
   bool in_call_func = false;
   Node* call_func_expr = nullptr;
+  Vec<TypeInfo>* call_args_ptr = nullptr;
 
   bool as_functor = false;
 
@@ -281,6 +306,18 @@ class Sema {
     this->CurScope = this->CurScope->parent;
   }
 
+  ScopeContext* get_cur_func_scope() {
+    return this->search_scope_if([](ScopeContext* S) {
+      return S->type == SC_Function;
+    });
+  }
+
+  ScopeContext* get_cur_loop_scope() {
+    return this->search_scope_if([](ScopeContext* S) {
+      return S->type == SC_Block && S->node->nd_block_parent->is_loop_stmt();
+    });
+  }
+
   //
   // search to reverse (-> parent)
   ScopeContext* search_scope_if(std::function<bool(ScopeContext*)> pred,
@@ -295,12 +332,6 @@ class Sema {
       begin = begin->parent;
 
     return begin;
-  }
-
-  ScopeContext* get_cur_func_scope() {
-    return this->search_scope_if([](ScopeContext* S) {
-      return S->type == SC_Function;
-    });
   }
 
   static bool get_same_name_in_scope(ScopeContext* scope, string const& name,
@@ -407,12 +438,25 @@ class Sema {
         case ID_Variable:
         case ID_Function:
         case ID_BuiltinFunc:
+        case ID_Enumerator:
           Error(op, "invalid use of scope resolution operator").crash();
 
         case ID_BuiltinType: {
           II = this->get_id_info(sub, nullptr, false, &II.typekind);
           break;
         }
+
+        case ID_Enum:
+          todo_impl;
+
+        case ID_Struct:
+          todo_impl;
+
+        case ID_Class:
+          todo_impl;
+
+        case ID_Namespace:
+          todo_impl;
       }
 
       for (auto&& t_arg : sub->nd_id_template_args) {
@@ -518,6 +562,17 @@ class Sema {
     ti.template_args.insert(ti.template_args.begin(), bfun->ret_type);
 
     return ti.set_ftor_bfun(bfun);
+  }
+
+  TypeInfo expect_type(ExprEvalContext ctx, Node* node, TypeInfo const& exp) {
+    auto ti = this->eval_expr_ti(node, ctx);
+
+    if (!ti.equals(exp))
+      Error(node, "expected '" + exp.to_string() + "' type expression, but found '" +
+                      ti.to_string() + "'")
+          .crash();
+
+    return ti;
   }
 
 public:

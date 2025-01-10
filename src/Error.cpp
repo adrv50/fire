@@ -49,26 +49,26 @@ Error const& Error::emit() const {
       break;
   }
 
-  cout << COL_WHITE << this->msg << endl;
+  cout << COL_WHITE << this->msg << endl << COL_DEFAULT;
 
   auto tok = this->tok;
 
-  if (!tok)
-    tok = this->node->first_tok;
+  if (this->tok || this->node) {
+    if (!tok)
+      tok = this->node->first_tok;
 
-  auto& ref = tok->ref;
+    auto& ref = tok->ref;
 
-  if (auto ss = ref->get_ss()) {
-    cout << COL_YELLOW "     ---> " << COL_CYAN << ss->get_path() << ":" << ref->line_num
-         << ":" << ref->pos_in_line << endl
-         << COL_YELLOW << "     |" << endl
-         << utils::format("% 4zu | ", ref->line_num) << COL_WHITE << ref->get_line_view()
-         << COL_YELLOW "     |" << COL_RED << string(ref->pos_in_line, ' ') << "^" << endl
-         << endl
-         << COL_DEFAULT;
-  }
-  else {
-    cout << this->msg << endl;
+    if (auto ss = ref->get_ss()) {
+      cout << COL_YELLOW "     ---> " << COL_CYAN << ss->get_path() << ":"
+           << ref->line_num << ":" << ref->pos_in_line << endl
+           << COL_YELLOW << "     |" << endl
+           << utils::format("% 4zu | ", ref->line_num) << COL_WHITE
+           << ref->get_line_view() << COL_YELLOW "     |" << COL_RED
+           << string(ref->pos_in_line, ' ') << "^" << endl
+           << endl
+           << COL_DEFAULT;
+    }
   }
 
   for (auto&& note : this->notes)

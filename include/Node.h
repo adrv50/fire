@@ -65,6 +65,9 @@
 #define nd_type_is_ref b2
 #define nd_type_template_args list
 
+#define nd_block_parent na
+#define nd_block_items list
+
 // if
 #define nd_if_cond na
 #define nd_if_then nb
@@ -372,6 +375,19 @@ struct Node {
 
   bool is_id_or_sr() const {
     return this->is(ND_Identifier) || this->is(ND_ScopeResol);
+  }
+
+  bool is_loop_stmt() const {
+    switch (this->kind) {
+      case ND_Loop:
+      case ND_While:
+      case ND_For:
+      case ND_ForEach:
+      case ND_ForRange:
+        return true;
+    }
+
+    return false;
   }
 
   string get_name() const;
