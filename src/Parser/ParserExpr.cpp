@@ -530,11 +530,13 @@ Node* Parser::p_factor() {
 
     arr->first_tok = tok;
 
-    do {
-      arr->append(this->p_expr());
-    } while (this->eat(Punct::Comma));
+    if (!this->eat(Punct::ArrayBraceClose)) {
+      do {
+        arr->append(this->p_expr());
+      } while (this->eat(Punct::Comma));
 
-    this->expect(Punct::ArrayBraceClose);
+      this->expect(Punct::ArrayBraceClose);
+    }
 
     arr->last_tok = this->cur->prev;
 

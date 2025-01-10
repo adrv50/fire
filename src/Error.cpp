@@ -65,7 +65,8 @@ Error const& Error::emit() const {
            << COL_YELLOW << "     |" << endl
            << utils::format("% 4zu | ", ref->line_num) << COL_WHITE
            << ref->get_line_view() << COL_YELLOW "     |" << COL_RED
-           << string(ref->pos_in_line, ' ') << "^" << endl
+           << string(ref->pos_in_line, ' ') << "^ " << COL_GREEN << this->cursor_text
+           << endl
            << endl
            << COL_DEFAULT;
     }

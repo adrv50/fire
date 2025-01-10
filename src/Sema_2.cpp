@@ -82,7 +82,8 @@ void Sema::check_stmt(Node* node) {
       break;
 
     case ND_If: {
-      this->expect_type({}, node->nd_if_cond, TypeKind::Bool);
+      this->expect_type({.in_statement = true, .stmt_nd = node}, node->nd_if_cond,
+                        TypeKind::Bool);
 
       this->check_block(node->nd_if_then);
       this->check_block(node->nd_if_else);
@@ -103,7 +104,9 @@ void Sema::check_stmt(Node* node) {
       break;
 
     case ND_While:
-      this->expect_type({}, node->nd_while_cond, TypeKind::Bool);
+      this->expect_type({.in_statement = true, .stmt_nd = node}, node->nd_while_cond,
+                        TypeKind::Bool);
+
       this->check_block(node->nd_while_body);
       break;
 
@@ -121,7 +124,7 @@ void Sema::check_stmt(Node* node) {
 
     case ND_Return: {
       if (auto x = node->nd_return_expr) {
-        auto type = this->eval_expr_ti(x, {});
+        auto type = this->eval_expr_ti(x, {.in_statement = true, .stmt_nd = node});
 
         if (auto ctx = this->get_cur_func_scope()->func_ctx;
             !ctx->result_type.equals(type)) {
@@ -157,12 +160,19 @@ void Sema::check_let(Node* node) {
   }
 
   if (node->nd_let_init) {
-    if (auto x = node->nd_let_type;
-        x && !var.type.equals(this->eval_expr_ti(node->nd_let_init, {}))) {
-      Error(node->nd_let_init, "type mismatch").emit();
+    auto context =
+        ExprEvalContext{.container_elem_type_p = node->nd_let_type ? &var.type : nullptr,
+                        .container_elem_type_def_nd = node->nd_let_type,
+                        .in_statement = true,
+                        .stmt_nd = node};
+
+    auto init_type = this->eval_expr_ti(node->nd_let_init, context);
+
+    if (node->nd_let_type) {
+      if (!var.type.equals(init_type))
+        Error(node->nd_let_init, "type mismatch").emit();
     }
 
-    var.type = this->eval_expr_ti(node->nd_let_init, {});
     var.is_type_deducted = true;
   }
 
@@ -185,6 +195,50 @@ TypeInfo Sema::eval_expr_ti(Node* node, ExprEvalContext ctx) {
     case ND_Identifier:
     case ND_ScopeResol:
       return this->eval_id(ctx, node).type;
+
+    case ND_CallConstructor: {
+      auto ctor_id = this->eval_id(ctx, node->nd_callctor_ctor_side);
+
+      switch (ctor_id.info.kind) {
+        case ID_Enumerator: {
+          todo_impl;
+        }
+
+        case ID_Class: {
+          todo_impl;
+        }
+      }
+
+      Error(node->tok, "'" + ctor_id.info.name + "' is not enumerator or class").crash();
+    }
+
+    case ND_Array: {
+      if (node->nd_elements.empty()) {
+        if (!ctx.container_elem_type_p)
+          Error(node, "cannot deduct type of empty array").crash();
+
+        if (!ctx.container_elem_type_p->is(TypeKind::Vector)) {
+          auto s = ctx.container_elem_type_p->to_string();
+
+          Error(ctx.container_elem_type_def_nd,
+                "expected 'vector<...>' because array expression are used in "
+                "initializer, but found '" +
+                    s + "'")
+              .add_cursor_text("did you mean 'vector<" + s + ">' ?")
+              .crash();
+        }
+
+        return *ctx.container_elem_type_p;
+      }
+
+      auto it = node->nd_elements.begin();
+      auto type = this->eval_expr_ti(*it, ctx);
+
+      for (++it; it != node->nd_elements.end(); it++)
+        this->expect_type(ctx, *it, type);
+
+      return type;
+    }
 
     case ND_CallFunc: {
       todo_impl;

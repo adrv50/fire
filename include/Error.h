@@ -81,6 +81,7 @@ private:
   Node* node;
 
   string msg;
+  string cursor_text;
 
   Vec<Error> notes;
 
@@ -110,6 +111,11 @@ public:
     return *this;
   }
 
+  Error& add_cursor_text(string const& text) {
+    this->cursor_text = text;
+    return *this;
+  }
+
   Error& append_msg(string const& msg) {
     this->msg += msg;
     return *this;
@@ -122,8 +128,7 @@ public:
   }
 
   template <typename... Args>
-  requires std::constructible_from<Error, Args...>
-  Error& add_note(Args&&... args) {
+  requires std::constructible_from<Error, Args...> Error& add_note(Args&&... args) {
     this->notes.emplace_back(std::forward<Args>(args)...).type = ErrorType::Note;
 
     return *this;
@@ -131,14 +136,12 @@ public:
 
   Error const& emit() const;
 
-  [[noreturn]]
-  void stop(int code = 1);
+  [[noreturn]] void stop(int code = 1);
 
   //
   // crash:
   //   emit and exit.
-  [[noreturn]]
-  void crash() {
+  [[noreturn]] void crash() {
     throw *this;
   }
 };

@@ -269,8 +269,23 @@ struct ExprEvalContext {
   Vec<TypeInfo>* call_args_ptr = nullptr;
 
   bool as_functor = false;
-
   bool as_initializer = false;
+
+  //
+  // 空の配列やタプルなどで、型の定義と同じ文脈に
+  // ある場合は、評価された型情報へのポインタを指す。
+  // ( 例: "let a : vector<int> = [ ];" など )
+  TypeInfo* container_elem_type_p = nullptr;
+  Node* container_elem_type_def_nd = nullptr;
+
+  bool in_array = false;
+  bool in_tuple = false;
+
+  //
+  // is directly linked to a statement
+  // (almost condition)
+  bool in_statement = false;
+  Node* stmt_nd = nullptr;
 };
 
 struct FunctionSignature {
@@ -411,6 +426,9 @@ class Sema {
                             find_in, to_reverse);
     }
 
+    if (II.kind == ID_Variable && !II.pvar->is_type_deducted)
+      Error(id, "cannot use variable before type deduction").crash();
+
     if (II.kind == ID_Unknown)
       this->find_builtin_name(II);
 
@@ -423,6 +441,16 @@ class Sema {
 
     if (II.kind == ID_Unknown)
       Error(id, "use of undefined name '" + name + "'").crash();
+
+    if (!id->nd_id_template_args.empty()) {
+      switch (II.kind) {
+        case ID_Variable:
+          Error(id->tok->next, "variable '" + name + "' is not template.").crash();
+
+        case ID_Namespace:
+          Error(id->tok->next, "namespace '" + name + "' is not template.").crash();
+      }
+    }
 
     for (auto&& t_arg : id->nd_id_template_args) {
       II.template_args.emplace_back(this->get_id_info(t_arg, find_in, to_reverse));
@@ -494,44 +522,48 @@ class Sema {
     return node->sema_scope->variables[node->nd_let_offset];
   }
 
-  IDEvalResult eval_id(ExprEvalContext ctx, Node* id, ScopeContext* scope = nullptr,
-                       bool find_reverse = true, bool expected_as_type_name = false,
-                       bool in_call_func_expr = false) {
-    if (!scope)
-      scope = this->CurScope;
-
-    auto ii = this->get_id_info(id, scope);
-
-    if (expected_as_type_name && !ii.is_type_name()) {
-      Error(id, "expected type name").crash();
-    }
-
-    switch (ii.kind) {
-      case ID_Variable: {
-        if (!ii.pvar->is_type_deducted)
-          Error(id, "cannot use variable before type deduction").crash();
-
-        return {ii, ii.pvar->type};
-      }
+  TypeInfo get_type_of_id_info(ExprEvalContext ctx, IdentifierInfo const& II) {
+    switch (II.kind) {
+      case ID_Variable:
+        return II.pvar->type;
 
       case ID_Function: {
-        todo_impl;
-      }
-
-      case ID_BuiltinType: {
-        return {ii, TypeInfo(ii.typekind, {})};
-      }
-
-      case ID_BuiltinFunc: {
-        auto& candidates = ii.builtin_func_candidates;
+        auto candidates = II.func_candidates;
 
         if (candidates.size() >= 2) {
           if (ctx.in_call_func) {
-            // todo: limit candidates
-            todo_impl;
+            todo_impl; // limit candidates
           }
           else {
-            auto e = Error(id, "ambiguous built-in function name '" + ii.name + "'");
+            Error e{II.id, "ambiguous function name '" + II.name + "'"};
+
+            for (auto&& cd : candidates)
+              e.add_note(cd->tok, "candidate:");
+
+            e.crash();
+          }
+        }
+
+        assert(candidates.size() == 1);
+
+        auto func = candidates[0];
+
+        if (func->nd_func_is_template) {
+          todo_impl;
+        }
+
+        return Sema::make_functor_type(func);
+      }
+
+      case ID_BuiltinFunc: {
+        auto candidates = II.builtin_func_candidates;
+
+        if (candidates.size() >= 2) {
+          if (ctx.in_call_func) {
+            todo_impl; // limit candidates
+          }
+          else {
+            Error e{II.id, "ambiguous function name '" + II.name + "'"};
 
             for (auto&& cd : candidates)
               e.add_note("candidate: " + cd->to_string());
@@ -544,15 +576,47 @@ class Sema {
 
         auto bfun = candidates[0];
 
-        if (!bfun->is_template && ii.template_args.size() >= 1) {
-          Error(id, "builtin function '" + ii.name + "' is not template").crash();
+        if (bfun->is_template) {
+          todo_impl;
         }
 
-        return {ii, Sema::make_functor_type(bfun)};
+        return Sema::make_functor_type(bfun);
       }
     }
 
     todo_impl;
+  }
+
+  IDEvalResult eval_id(ExprEvalContext ctx, Node* id, ScopeContext* scope = nullptr,
+                       bool find_reverse = true, bool expected_as_type_name = false,
+                       bool in_call_func_expr = false) {
+    if (!scope)
+      scope = this->CurScope;
+
+    auto ii = this->get_id_info(id, scope);
+
+    if (expected_as_type_name && !ii.is_type_name()) {
+      Error(id, "expected type name").crash();
+    }
+
+    return {ii, this->get_type_of_id_info(ctx, ii)};
+  }
+
+  bool resolv_template_parameter_types() {
+
+    todo_impl;
+  }
+
+  TypeInfo make_functor_type(Node* func) {
+    TypeInfo ti = TypeKind::Functor;
+
+    for (auto&& arg : func->nd_func_args)
+      ti.template_args.emplace_back(this->eval_type_ti(arg->nd_func_arg_type));
+
+    ti.template_args.insert(ti.template_args.begin(),
+                            this->eval_type_ti(func->nd_func_result_type));
+
+    return ti;
   }
 
   TypeInfo make_functor_type(Builtins::BuiltinFunc const* bfun) {
