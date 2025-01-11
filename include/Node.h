@@ -19,7 +19,7 @@
 #define nd_variable_offset size
 
 #define nd_id_name tok
-#define nd_id_template_args list
+#define nd_id_tp_args list
 #define nd_id_target nb
 #define nd_id_enumerator_index size
 
@@ -63,7 +63,7 @@
 #define nd_type_name tok
 #define nd_type_is_mut b1
 #define nd_type_is_ref b2
-#define nd_type_template_args list
+#define nd_type_tp_args list
 
 #define nd_block_parent na
 #define nd_block_items list
@@ -259,6 +259,7 @@ enum NodeKind : u16 {
 
   ND_If,
   ND_IfLet,
+
   ND_Switch,
   ND_SwitchCase,
 

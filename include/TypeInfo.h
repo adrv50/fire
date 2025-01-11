@@ -1,5 +1,6 @@
 #pragma once
 
+#include "alert.h"
 #include "typedef.h"
 
 namespace Builtins {
@@ -35,7 +36,7 @@ enum class TypeKind : u8 {
 struct Node;
 struct TypeInfo {
   TypeKind kind;
-  Vec<TypeInfo> template_args;
+  Vec<TypeInfo> tp_args;
 
   bool is_reference;
   bool is_mutable;
@@ -43,21 +44,35 @@ struct TypeInfo {
   Node* nd_enum = nullptr;
   size_t enumerator_index = 0;
 
-  Node* ftor_node = nullptr; // when TypeKind::Functor, ptr to user-defined function
-  Builtins::BuiltinFunc const* ftor_blt = nullptr; // not uder-def but if builtin
+  union {
+    void* _data[2] = {0};
+
+    struct {
+      Node* ftor_node; // when TypeKind::Functor, ptr to user-defined function
+      Builtins::BuiltinFunc const* ftor_blt; // not uder-def but if builtin
+    };
+
+    Node* instance_type_node; // class or struct
+  };
 
   static TypeInfo static_none_type;
 
   TypeInfo& append_template_arg(TypeInfo const& ti);
 
   bool is(TypeKind k) const;
-  bool is(TypeKind k, bool is_mutable, Vec<TypeInfo> template_args) const;
+  bool is(TypeKind k, bool is_mutable, Vec<TypeInfo> tp_args) const;
 
   bool is_numeric() const;
   bool is_subscriptable() const;
   bool is_template() const;
 
   bool is_callable() const {
+    debug {
+      if (this->is(TypeKind::Functor)) {
+        assert(this->ftor_node || this->ftor_blt);
+      }
+    };
+
     return this->is(TypeKind::Functor);
   }
 
@@ -77,10 +92,10 @@ struct TypeInfo {
   static Vec<pair<TypeKind, char const*>> const get_type_name_map();
 
   TypeInfo& get_elem_type(size_t template_param_index = 0) {
-    return this->template_args[template_param_index];
+    return this->tp_args[template_param_index];
   }
 
   TypeInfo(TypeKind kind = TypeKind::None);
-  TypeInfo(TypeKind kind, Vec<TypeInfo> template_args, bool is_reference = false,
+  TypeInfo(TypeKind kind, Vec<TypeInfo> tp_args, bool is_reference = false,
            bool is_mutable = false);
 };

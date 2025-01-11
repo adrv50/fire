@@ -639,6 +639,83 @@ class Sema {
     return ti;
   }
 
+  enum ArgumentMatchings {
+    AM_None,
+
+    //
+    // ready to call
+    AM_Ok,
+
+    //
+    // tried to call not callable object
+    AM_NotCallable,
+
+    //
+    // too many.
+    AM_TooMany,
+
+    //
+    // too few.
+    AM_TooFew,
+
+    //
+    // type mismatch.
+    AM_TypeMismatch,
+  };
+
+  struct CallFuncExprCheckResult {
+    Node* call;
+
+    ArgumentMatchings arg_match;
+
+    TypeInfo result_type;
+
+    Error* err;
+
+    CallFuncExprCheckResult()
+        : call(nullptr),
+          arg_match(AM_None),
+          result_type(),
+          err(nullptr) {
+    }
+  };
+
+  CallFuncExprCheckResult check_call_func_expr(ExprEvalContext ctx, Node* node) {
+    auto keep = ctx;
+
+    Vec<TypeInfo> arg_types;
+
+    for (auto&& arg : node->nd_callfunc_args)
+      arg_types.emplace_back(this->eval_expr_ti(arg, ctx));
+
+    ctx.in_call_func = true;
+    ctx.call_func_expr = node;
+    ctx.call_args_ptr = &arg_types;
+    ctx.as_functor = true;
+
+    auto functor_ti = this->eval_expr_ti(node->nd_callfunc_callee, ctx);
+
+    if (!functor_ti.is_callable())
+      Error(node->nd_callfunc_callee,
+            "'" + functor_ti.to_string() + "' type object is not callable")
+          .crash();
+
+    if (functor_ti.ftor_node)
+      node->nd_callfunc_callee_userdef = functor_ti.ftor_node;
+    else
+      node->nd_callfunc_callee_builtin = functor_ti.ftor_blt;
+
+    ctx = keep;
+
+    CallFuncExprCheckResult check_result;
+
+    check_result.call = node;
+
+    check_result.result_type = functor_ti.template_args[0];
+
+    return check_result;
+  }
+
 public:
   Sema(Node* program);
 

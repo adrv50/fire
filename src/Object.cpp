@@ -6,8 +6,7 @@
 #include "Node.h"
 
 template <std::derived_from<Object> T, typename... Args>
-requires std::constructible_from<T, Args...>
-ObjPtr<T> make_obj(Args&&... args) {
+requires std::constructible_from<T, Args...> ObjPtr<T> make_obj(Args&&... args) {
   return new T(std::forward<Args>(args)...);
 }
 
@@ -168,8 +167,8 @@ ObjTuple::ObjTuple(TypeInfo const& elem_ti, Vec<Obj> const& val)
 ObjDict::ObjDict(TypeInfo const& key_ti, TypeInfo const& value_ti,
                  Vec<pair<Obj, Obj>> const& val)
     : Object(TypeInfo(TypeKind::Dict, {key_ti, value_ti})),
-      key_ti(this->ti.template_args[0]),
-      value_ti(this->ti.template_args[1]),
+      key_ti(this->ti.tp_args[0]),
+      value_ti(this->ti.tp_args[1]),
       list(val) {
 }
 

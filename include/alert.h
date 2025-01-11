@@ -27,6 +27,8 @@
 #define COL_BK_CYAN "\033[46;5m"
 #define COL_BK_WHITE "\033[47m"
 
+#define debug if (_FIRE_DEBUG_)
+
 #ifdef _FIRE_DEBUG_
 
 #include <cstdio>
@@ -36,7 +38,6 @@
 #include <iostream>
 #include <sstream>
 
-#define debug(...) __VA_ARGS__;
 #define alert                                                                            \
   printf(COL_MAGENTA "\t%s:%u\talert\n" COL_DEFAULT, strrchr(__FILE__, '/') + 1,         \
          __LINE__);
@@ -64,7 +65,6 @@
   })
 
 #else
-#define debug(...) ;
 #define alert (void)0
 #define alertfmt(...) (void)0
 #define alertmsg(...) (void)0

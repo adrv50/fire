@@ -10,8 +10,6 @@ Sema::Sema(Node* program)
 
 void Sema::check_full() {
 
-  alert;
-
   for (auto&& item : this->Program->nd_items) {
     switch (item->kind) {
       case ND_Let:
@@ -286,37 +284,20 @@ TypeInfo Sema::eval_expr_ti(Node* node, ExprEvalContext ctx) {
         Error(node->nd_rhs, "indexer must be integer.").crash();
       }
 
-      return arr.template_args[0];
+      return arr.tp_args[0];
+    }
+
+    case ND_MemberAccess: {
+      auto objtype = this->eval_expr_ti(node->nd_lhs, ctx);
+
+      if (objtype.is(TypeKind::Instance)) {
+      }
     }
 
     case ND_CallFunc: {
-      auto keep = ctx;
+      auto chk_result = this->check_call_func_expr(ctx, node);
 
-      Vec<TypeInfo> arg_types;
-
-      for (auto&& arg : node->nd_callfunc_args)
-        arg_types.emplace_back(this->eval_expr_ti(arg, ctx));
-
-      ctx.in_call_func = true;
-      ctx.call_func_expr = node;
-      ctx.call_args_ptr = &arg_types;
-      ctx.as_functor = true;
-
-      auto functor = this->eval_expr_ti(node->nd_callfunc_callee, ctx);
-
-      if (!functor.is_callable())
-        Error(node->nd_callfunc_callee,
-              "'" + functor.to_string() + "' type object is not callable")
-            .crash();
-
-      if (functor.ftor_node)
-        node->nd_callfunc_callee_userdef = functor.ftor_node;
-      else
-        node->nd_callfunc_callee_builtin = functor.ftor_blt;
-
-      ctx = keep;
-
-      return functor.template_args[0];
+      return chk_result.result_type;
     }
 
     default:
@@ -329,6 +310,8 @@ TypeInfo Sema::eval_expr_ti(Node* node, ExprEvalContext ctx) {
   if (!lhs.equals(rhs))
     Error(node->tok, "only can use expression operator for same type").crash();
 
+  /** Todo!! **/
+
   return lhs;
 }
 
@@ -339,8 +322,8 @@ TypeInfo Sema::eval_type_ti(Node* node) {
 
     TypeInfo type = k;
 
-    for (auto&& t_arg : node->nd_type_template_args) {
-      type.template_args.emplace_back(this->eval_type_ti(t_arg));
+    for (auto&& t_arg : node->nd_type_tp_args) {
+      type.tp_args.emplace_back(this->eval_type_ti(t_arg));
     }
 
     return type;

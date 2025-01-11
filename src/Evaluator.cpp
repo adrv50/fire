@@ -236,7 +236,7 @@ Obj Evaluator::eval_expr(Node* node) {
         obj->list.emplace_back(this->eval_expr(item));
 
       if (!obj->list.empty())
-        obj->ti.template_args[0] = obj->list[0]->ti;
+        obj->ti.tp_args[0] = obj->list[0]->ti;
 
       return obj;
     }

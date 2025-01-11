@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
 
     auto prg = parser.parse();
 
-    debug(std::cout << node2s(prg) << std::endl;);
+    debug std::cout << node2s(prg) << std::endl;
 
     sema::Sema S{prg};
 

@@ -32,16 +32,16 @@ static Vec<pair<TypeKind, char const*>> const kind_and_name_table = {
 TypeInfo TypeInfo::static_none_type{TypeKind::None};
 
 TypeInfo& TypeInfo::append_template_arg(TypeInfo const& ti) {
-  return this->template_args.emplace_back(ti);
+  return this->tp_args.emplace_back(ti);
 }
 
 bool TypeInfo::is(TypeKind k) const {
   return this->kind == k;
 }
 
-bool TypeInfo::is(TypeKind k, bool is_mutable, Vec<TypeInfo> template_args) const {
+bool TypeInfo::is(TypeKind k, bool is_mutable, Vec<TypeInfo> tp_args) const {
   return this->kind == k && this->is_mutable == is_mutable &&
-         utils::compare_vector(this->template_args, template_args,
+         utils::compare_vector(this->tp_args, tp_args,
                                [](TypeInfo const& a, TypeInfo const& b) -> bool {
                                  return a.equals(b);
                                }) == 0;
@@ -56,7 +56,7 @@ bool TypeInfo::is_subscriptable() const {
 }
 
 bool TypeInfo::is_template() const {
-  return !this->template_args.empty();
+  return !this->tp_args.empty();
 }
 
 bool TypeInfo::equals(TypeInfo const& ti) const {
@@ -74,11 +74,11 @@ bool TypeInfo::equals(TypeInfo const& ti) const {
   if (this->is_mutable != ti.is_mutable)
     return false;
 
-  if (this->template_args.size() != ti.template_args.size())
+  if (this->tp_args.size() != ti.tp_args.size())
     return false;
 
-  for (size_t i = 0; i < this->template_args.size(); i++)
-    if (!this->template_args[i].equals(ti.template_args[i]))
+  for (size_t i = 0; i < this->tp_args.size(); i++)
+    if (!this->tp_args[i].equals(ti.tp_args[i]))
       return false;
 
   return true;
@@ -110,20 +110,18 @@ string TypeInfo::to_string() const {
 
   if (this->is(TK::Functor)) {
     str = "functor<(" +
-          utils::join(
-              ", ",
-              std::span(this->template_args).subspan(1, this->template_args.size() - 1),
-              [](TypeInfo const& t) -> string {
-                return t.to_string();
-              }) +
-          ") -> " + this->template_args[0].to_string() + ">";
+          utils::join(", ", std::span(this->tp_args).subspan(1, this->tp_args.size() - 1),
+                      [](TypeInfo const& t) -> string {
+                        return t.to_string();
+                      }) +
+          ") -> " + this->tp_args[0].to_string() + ">";
   }
   else {
     str = get_kind_str_wrap(this);
 
     if (this->is_template()) {
       str += "<" +
-             utils::join(", ", this->template_args,
+             utils::join(", ", this->tp_args,
                          [](TypeInfo const& t) -> string {
                            return t.to_string();
                          }) +
@@ -183,9 +181,9 @@ TypeInfo::TypeInfo(TypeKind kind)
       is_mutable(false) {
 }
 
-TypeInfo::TypeInfo(TypeKind kind, Vec<TypeInfo> template_args, bool is_ref, bool is_mut)
+TypeInfo::TypeInfo(TypeKind kind, Vec<TypeInfo> tp_args, bool is_ref, bool is_mut)
     : kind(kind),
-      template_args(std::move(template_args)),
+      tp_args(std::move(tp_args)),
       is_reference(is_ref),
       is_mutable(is_mut) {
 }
