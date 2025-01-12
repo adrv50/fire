@@ -99,7 +99,16 @@ TypeInfo ExprEval::eval(Node* node) {
         }
 
         case SY_Func: {
-          todo_impl;
+          TypeInfo type{TypeKind::Functor};
+
+          type.ftor_node = sym->decl;
+
+          type.append_template_arg(S.eval_type_ti(sym->decl->nd_func_result_type));
+
+          for (auto&& arg : sym->decl->nd_func_args)
+            type.append_template_arg(S.eval_type_ti(arg->nd_func_arg_type));
+
+          return type;
         }
 
         case SY_Class: {
@@ -126,7 +135,42 @@ TypeInfo ExprEval::eval(Node* node) {
 
       auto nd_class = class_name_ti.nd_class;
 
-      auto member = nd_class->nd_class_fields->list.begin();
+      auto& fields = nd_class->nd_class_fields->list;
+
+      auto mb_end = fields.end();
+      size_t index = 0;
+
+      auto class_name_str = node2s(node->nd_callctor_ctor_side);
+
+      for (auto&& pair : node->nd_callctor_initializers) {
+        auto const& mb_name = pair->nd_callctor_init_key->str;
+        auto mb_init = pair->nd_callctor_init_value;
+
+        auto mb = fields[index];
+
+        if (mb == *mb_end) {
+          Error(node->nd_callctor_ctor_side,
+                "too many initializers to construct instance of '" + class_name_str + "'")
+              .crash();
+        }
+
+        if (mb_name != mb->nd_let_name->str) {
+          Error(pair->tok, "no match member name (index=" + std::to_string(index) + ")")
+              .add_cursor_text(mb->nd_let_name->str)
+              .add_note(mb->nd_let_name, "defined here")
+              .crash();
+        }
+
+        this->expect(mb_init, S.eval_type_ti(mb->nd_let_type));
+
+        index++;
+      }
+
+      if (index < fields.size()) {
+        Error(node->nd_callctor_ctor_side,
+              "too few initializers to construct instance of '" + class_name_str + "'")
+            .crash();
+      }
 
       class_name_ti.kind = TypeKind::Instance;
 

@@ -155,6 +155,8 @@ void Sema::check_stmt(Node* node) {
 }
 
 TypeInfo Sema::eval_type_ti(Node* node) {
+  if (!node)
+    return TypeKind::None;
 
   TypeInfo type;
 
