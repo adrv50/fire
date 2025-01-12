@@ -133,8 +133,8 @@ struct Scope {
 
   VarInfo* find_var(string const& name);
 
-  size_t find_func(Node* id, Sema* S, Vec<TypeInfo>* template_args,
-                   Vec<TypeInfo>* arg_types, Vec<Scope*>& out, string const& name);
+  size_t find_func(Node* id, Sema* S, Vec<TypeInfo>* tp_args, Vec<TypeInfo>* arg_types,
+                   Vec<Scope*>& out, string const& name);
 
   Scope* find_if(std::function<bool(Scope*)> const& pred, bool recursive = false);
 
@@ -219,7 +219,7 @@ struct NameFindResult {
   };
 
   string name;
-  Vec<TypeInfo> template_args;
+  Vec<TypeInfo> tp_args;
 
   Scope* scope;
   NameType type;
@@ -443,7 +443,7 @@ private:
 
   TemplateInstantiatedRecord*
   is_recorded_template_instantiation_pattern(Node* template_item,
-                                             Vec<TypeInfo> const& template_args) {
+                                             Vec<TypeInfo> const& tp_args) {
     // when called in identifier ("id<int, float, ...")
 
     for (auto&& rec : this->template_instantiated_records) {

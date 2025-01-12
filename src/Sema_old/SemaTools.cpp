@@ -173,11 +173,11 @@ NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root, bool 
 
   NameFindResult result{id->nd_id_name->str};
 
-  for (auto&& targ : id->nd_id_template_args) {
-    result.template_args.emplace_back(this->eval_expr_ti(targ));
+  for (auto&& targ : id->nd_id_tp_args) {
+    result.tp_args.emplace_back(this->eval_expr_ti(targ));
   }
 
-  auto& template_args = result.template_args;
+  auto& tp_args = result.tp_args;
 
   if (auto k = TypeInfo::get_kind_of_name(name); k != TypeKind::Unknown) {
     switch (k) {
@@ -188,12 +188,12 @@ NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root, bool 
       case K::Bool:
       case K::Char:
       case K::String:
-        if (template_args.size() >= 1)
+        if (tp_args.size() >= 1)
           Error(id, "primitive type '" + name + "' is not template").crash();
         break;
 
       case K::Vector:
-        if (template_args.size() != 1)
+        if (tp_args.size() != 1)
         _invalid_targ_label:
           Error(id, "invalid template arguments for built-in type '" + name + "'")
               .crash();
@@ -201,12 +201,12 @@ NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root, bool 
 
       case K::Tuple:
       case K::Functor:
-        if (template_args.size() == 0)
+        if (tp_args.size() == 0)
           Error(id, "cannot use '" + name + "' without template arguments").crash();
         break;
 
       case K::Dict:
-        if (template_args.size() != 2)
+        if (tp_args.size() != 2)
           goto _invalid_targ_label;
         break;
 
@@ -218,7 +218,7 @@ NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root, bool 
     }
 
     result.type = NameFindResult::NA_PrimitiveType;
-    result.typeinfo = TypeInfo(k, template_args);
+    result.typeinfo = TypeInfo(k, tp_args);
 
     return result;
   }
@@ -241,7 +241,7 @@ NameFindResult Sema::find_name(Node* id, Scope* from_this, bool from_root, bool 
         }
 
         // function
-        if (scope->find_func(id, this, &template_args,
+        if (scope->find_func(id, this, &tp_args,
                              this->ctx.evalctx ? this->ctx.evalctx->cf_args_list_ptr
                                                : nullptr,
                              result.fn_candidates, id->tok->str) >= 1) {
@@ -298,8 +298,8 @@ TypeInfo Sema::make_functor_ti(Vec<TypeInfo> const& arg_types, TypeInfo const& r
   TypeInfo ti(TypeKind::Functor);
 
   // { ret_type, arg_types... }
-  ti.template_args = arg_types;
-  ti.template_args.insert(ti.template_args.begin(), ret_type);
+  ti.tp_args = arg_types;
+  ti.tp_args.insert(ti.tp_args.begin(), ret_type);
 
   return ti;
 }
@@ -314,8 +314,8 @@ string Sema::get_full_name(Node* id_or_sr) {
 
   auto s = id_or_sr->get_name();
 
-  if (!id_or_sr->nd_id_template_args.empty())
-    s += "<" + utils::join(", ", id_or_sr->nd_id_template_args, get_full_name) + ">";
+  if (!id_or_sr->nd_id_tp_args.empty())
+    s += "<" + utils::join(", ", id_or_sr->nd_id_tp_args, get_full_name) + ">";
 
   return s;
 }

@@ -23,7 +23,7 @@ struct BuiltinFunc {
   bool is_variable_args = false;
 
   bool is_template = false;
-  size_t template_args_count = 0;
+  size_t tp_args_count = 0;
 
   TypeInfo ret_type;
 

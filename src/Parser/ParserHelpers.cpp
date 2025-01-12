@@ -15,12 +15,12 @@ Node* Parser::p_expect_type() {
 
   node->first_tok = tok;
 
-  if (this->eat_template_args_open()) {
+  if (this->eat_tp_args_open()) {
     do {
       node->append(this->p_expect_type());
     } while (this->eat(Punct::Comma));
 
-    this->expect_template_args_close();
+    this->expect_tp_args_close();
   }
 
   node->last_tok = this->cur->prev;
@@ -52,12 +52,12 @@ void Parser::p_parse_id_qualifier(Node* nd) {
   auto save2 = this->ate;
 
   try {
-    if (this->eat_template_args_open()) { // eat '<'
+    if (this->eat_tp_args_open()) { // eat '<'
       do {
         nd->append(this->p_scope_resol());
       } while (this->eat(Punct::Comma));
 
-      this->expect_template_args_close();
+      this->expect_tp_args_close();
 
       nd->last_tok = this->cur->prev;
     }
@@ -67,7 +67,7 @@ void Parser::p_parse_id_qualifier(Node* nd) {
     this->cur = save1;
     this->ate = save2;
 
-    nd->nd_id_template_args.clear();
+    nd->nd_id_tp_args.clear();
   }
 }
 
@@ -205,13 +205,13 @@ Node* Parser::expect_concept_tag() {
 
   auto nd = Node::new_node(ND_ConceptTag, this->expect_ident(), nullptr);
 
-  this->expect_template_args_open();
+  this->expect_tp_args_open();
 
   do {
     nd->append(this->p_expect_identifier(false));
   } while (this->eat_comma());
 
-  this->expect_template_args_close();
+  this->expect_tp_args_close();
 
   return nd;
 }

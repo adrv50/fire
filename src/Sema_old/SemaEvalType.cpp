@@ -95,14 +95,14 @@ TypeInfo Sema::check_function_call(Node* call) {
     case TypeKind::Functor: {
       if (callee_ti.ftor_blt) {
         call->nd_callfunc_callee_builtin = callee_ti.ftor_blt;
-        return callee_ti.template_args[0];
+        return callee_ti.tp_args[0];
       }
 
       assert(callee_ti.ftor_node);
 
       call->nd_callfunc_callee_userdef = callee_ti.ftor_node;
 
-      return callee_ti.template_args[0];
+      return callee_ti.tp_args[0];
     }
 
     case TypeKind::Enumerator: {
@@ -519,8 +519,8 @@ TypeInfo Sema::eval_type_ti(Node* node) {
     Error(node->tok, "unknown type name '" + name + "'").crash();
   }
 
-  for (auto&& arg : node->nd_type_template_args)
-    ti.template_args.push_back(this->eval_type_ti(arg));
+  for (auto&& arg : node->nd_type_tp_args)
+    ti.tp_args.push_back(this->eval_type_ti(arg));
 
   ti.is_mutable = node->nd_type_is_mut;
   ti.is_reference = node->nd_type_is_ref;

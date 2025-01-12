@@ -54,11 +54,16 @@ bool Node::walk_node(Node* nd, std::function<bool(Node*&)> const& func) {
   if (func(nd))
     return true;
 
-  for (auto&& xx : {nd->na, nd->nb, nd->nc, nd->nd, nd->ne})
-    if (xx && walk_node(xx, func))
-      return true;
+  auto tree = nd->list;
 
-  for (auto& node : nd->list)
+  for (auto&& xx : {nd->na, nd->nb, nd->nc, nd->nd, nd->ne, nd->nf})
+    tree.push_back(xx);
+
+  if (nd->is(ND_Block)) {
+    tree.erase(std::find(tree.begin(), tree.end(), nd->nd_block_parent));
+  }
+
+  for (auto& node : tree)
     if (walk_node(node, func))
       return true;
 

@@ -333,6 +333,10 @@ struct ScopeContext;
 
 }
 
+namespace fire::sema {
+struct NodeContext;
+}
+
 struct Token;
 struct Node {
   NodeKind kind;
@@ -371,6 +375,8 @@ struct Node {
   Builtins::BuiltinFunc const* bfun = nullptr;
 
   sema::ScopeContext* sema_scope = nullptr;
+
+  fire::sema::NodeContext* sema_ctx = nullptr;
 
   bool is(NodeKind kind) const;
 

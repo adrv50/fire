@@ -42,8 +42,8 @@ string node2s(Node* node) {
     case ND_Identifier: {
       auto s = node->tok->str;
 
-      if (node->nd_id_template_args.size() >= 1) {
-        s += "<" + utils::join(", ", node->nd_id_template_args, node2s) + ">";
+      if (node->nd_id_tp_args.size() >= 1) {
+        s += "<" + utils::join(", ", node->nd_id_tp_args, node2s) + ">";
       }
 
       return s;
@@ -340,8 +340,8 @@ string node2s(Node* node) {
     case ND_TypeName: {
       auto s = node->tok->str;
 
-      if (node->nd_type_template_args.size() >= 1)
-        s += "<" + utils::join(", ", node->nd_type_template_args, node2s) + ">";
+      if (node->nd_type_tp_args.size() >= 1)
+        s += "<" + utils::join(", ", node->nd_type_tp_args, node2s) + ">";
 
       if (node->nd_type_is_mut)
         s += " mut";

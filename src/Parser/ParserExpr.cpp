@@ -352,11 +352,11 @@ Node* Parser::p_unary() {
   // cast
   //
   else if (this->eat(Kwd::Cast)) {
-    this->expect_template_args_open();
+    this->expect_tp_args_open();
 
     auto cast_to = this->p_expect_type();
 
-    this->expect_template_args_close();
+    this->expect_tp_args_close();
 
     this->expect_brace_open();
 

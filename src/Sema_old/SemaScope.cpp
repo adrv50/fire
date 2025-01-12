@@ -102,7 +102,7 @@ VarInfo* Scope::find_var(string const& name) {
 // Scope::find_func:
 //   find function by name.
 //
-size_t Scope::find_func(Node* id, Sema* S, Vec<TypeInfo>* template_args,
+size_t Scope::find_func(Node* id, Sema* S, Vec<TypeInfo>* tp_args,
                         Vec<TypeInfo>* arg_types, Vec<Scope*>& out, string const& name) {
   for (auto& func : this->functions) {
     if (func->get_name() == name) {
@@ -120,11 +120,11 @@ size_t Scope::find_func(Node* id, Sema* S, Vec<TypeInfo>* template_args,
       }
 
       if (fn->nd_func_is_template) {
-        if (template_args->empty()) {
+        if (tp_args->empty()) {
           todo_impl; // err
         }
       }
-      else if (template_args->size() >= 1) {
+      else if (tp_args->size() >= 1) {
         todo_impl;
         // func 'name' is not template
       }

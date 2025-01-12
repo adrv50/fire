@@ -132,10 +132,10 @@ private:
 
   //
   // template args
-  bool eat_template_args_open();
-  bool eat_template_args_close();
-  Token* expect_template_args_open();
-  Token* expect_template_args_close();
+  bool eat_tp_args_open();
+  bool eat_tp_args_close();
+  Token* expect_tp_args_open();
+  Token* expect_tp_args_close();
 
   //
   // type name

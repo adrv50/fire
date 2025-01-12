@@ -98,6 +98,37 @@ struct SemaFunctionContext {
   }
 };
 
+enum SymbolKind : u8 {
+  SY_Unknown,
+
+  SY_Var,
+  SY_Func,
+
+  SY_Enum,
+  SY_Struct,
+  SY_Class,
+
+  SY_Namespace,
+};
+
+struct Symbol {
+
+  SymbolKind kind = SY_Unknown;
+
+  string name;
+
+  Node* decl = nullptr;
+
+  Symbol() {
+  }
+};
+
+struct ScopeContext;
+struct SymbolTable {
+
+  ScopeContext* parent_scope;
+};
+
 struct ScopeContext {
 
   Node* node;
@@ -223,7 +254,7 @@ struct IdentifierInfo {
 
   ScopeContext* scope; // The ScopeContext contains target
 
-  Vec<IdentifierInfo> template_args;
+  Vec<IdentifierInfo> tp_args;
 
   TypeKind typekind = TypeKind::Unknown; // => ID_BuiltinType
 
@@ -249,7 +280,7 @@ struct IdentifierInfo {
         name(name),
         kind(ID_Unknown),
         scope(nullptr),
-        template_args() {
+        tp_args() {
   }
 };
 
@@ -442,7 +473,7 @@ class Sema {
     if (II.kind == ID_Unknown)
       Error(id, "use of undefined name '" + name + "'").crash();
 
-    if (!id->nd_id_template_args.empty()) {
+    if (!id->nd_id_tp_args.empty()) {
       switch (II.kind) {
         case ID_Variable:
           Error(id->tok->next, "variable '" + name + "' is not template.").crash();
@@ -452,8 +483,8 @@ class Sema {
       }
     }
 
-    for (auto&& t_arg : id->nd_id_template_args) {
-      II.template_args.emplace_back(this->get_id_info(t_arg, find_in, to_reverse));
+    for (auto&& t_arg : id->nd_id_tp_args) {
+      II.tp_args.emplace_back(this->get_id_info(t_arg, find_in, to_reverse));
     }
 
     Token* prev = id->first_tok;
@@ -487,8 +518,8 @@ class Sema {
           todo_impl;
       }
 
-      for (auto&& t_arg : sub->nd_id_template_args) {
-        II.template_args.emplace_back(
+      for (auto&& t_arg : sub->nd_id_tp_args) {
+        II.tp_args.emplace_back(
             this->get_id_info(t_arg, find_in, to_reverse, find_in_builtin_type));
       }
 
@@ -611,10 +642,9 @@ class Sema {
     TypeInfo ti = TypeKind::Functor;
 
     for (auto&& arg : func->nd_func_args)
-      ti.template_args.emplace_back(this->eval_type_ti(arg->nd_func_arg_type));
+      ti.tp_args.emplace_back(this->eval_type_ti(arg->nd_func_arg_type));
 
-    ti.template_args.insert(ti.template_args.begin(),
-                            this->eval_type_ti(func->nd_func_result_type));
+    ti.tp_args.insert(ti.tp_args.begin(), this->eval_type_ti(func->nd_func_result_type));
 
     return ti;
   }
@@ -622,8 +652,8 @@ class Sema {
   TypeInfo make_functor_type(Builtins::BuiltinFunc const* bfun) {
     TypeInfo ti = TypeKind::Functor;
 
-    ti.template_args = bfun->arg_types;
-    ti.template_args.insert(ti.template_args.begin(), bfun->ret_type);
+    ti.tp_args = bfun->arg_types;
+    ti.tp_args.insert(ti.tp_args.begin(), bfun->ret_type);
 
     return ti.set_ftor_bfun(bfun);
   }
@@ -711,7 +741,7 @@ class Sema {
 
     check_result.call = node;
 
-    check_result.result_type = functor_ti.template_args[0];
+    check_result.result_type = functor_ti.tp_args[0];
 
     return check_result;
   }

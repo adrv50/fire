@@ -10,7 +10,7 @@
 // #include "Sema.h"
 #include "Evaluator.h"
 
-#include "Sema_2.h"
+#include "Sema/Sema.h"
 
 #include "Error.h"
 
@@ -43,9 +43,9 @@ int main(int argc, char** argv) {
 
     debug std::cout << node2s(prg) << std::endl;
 
-    sema::Sema S{prg};
+    fire::sema::Sema S{prg};
 
-    S.check_full();
+    S.check_all();
 
     // Evaluator ev{prg};
 

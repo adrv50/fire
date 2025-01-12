@@ -212,16 +212,16 @@ Token* Parser::expect_block_close() {
 }
 
 // -----------------
-//  Parser::eat_template_args_open
+//  Parser::eat_tp_args_open
 // ----------------------------------
-bool Parser::eat_template_args_open() {
+bool Parser::eat_tp_args_open() {
   return this->eat(TokenPunctKind::AngleBraceOpen);
 }
 
 // -----------------
-//  Parser::eat_template_args_close
+//  Parser::eat_tp_args_close
 // ----------------------------------
-bool Parser::eat_template_args_close() {
+bool Parser::eat_tp_args_close() {
   if (this->match(Op::RShift)) {
     this->cur->set_punct(Punct::AngleBraceClose);
 
@@ -232,20 +232,20 @@ bool Parser::eat_template_args_close() {
 }
 
 // -----------------
-//  Parser::expect_template_args_open
+//  Parser::expect_tp_args_open
 // ----------------------------------
-Token* Parser::expect_template_args_open() {
-  if (!this->eat_template_args_open())
+Token* Parser::expect_tp_args_open() {
+  if (!this->eat_tp_args_open())
     Error(this->cur, "expected '<' but found '" + this->cur->str + "'").crash();
 
   return this->cur->prev;
 }
 
 // -----------------
-//  Parser::expect_template_args_close
+//  Parser::expect_tp_args_close
 // ----------------------------------
-Token* Parser::expect_template_args_close() {
-  if (!this->eat_template_args_close())
+Token* Parser::expect_tp_args_close() {
+  if (!this->eat_tp_args_close())
     Error(this->cur, "expected '>' but found '" + this->cur->str + "'").crash();
 
   return this->cur->prev;

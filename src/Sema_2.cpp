@@ -288,10 +288,12 @@ TypeInfo Sema::eval_expr_ti(Node* node, ExprEvalContext ctx) {
     }
 
     case ND_MemberAccess: {
-      auto objtype = this->eval_expr_ti(node->nd_lhs, ctx);
+      auto left = this->eval_expr_ti(node->nd_lhs, ctx);
 
-      if (objtype.is(TypeKind::Instance)) {
+      if (left.is(TypeKind::Instance)) {
       }
+
+      todo_impl;
     }
 
     case ND_CallFunc: {
