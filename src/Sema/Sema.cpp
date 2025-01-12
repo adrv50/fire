@@ -3,60 +3,6 @@
 
 namespace fire::sema {
 
-ExprEval::ExprEval(Sema& S)
-    : S(S) {
-}
-
-void ExprEval::save() {
-  this->_saves.push_back(this->ctx);
-}
-
-void ExprEval::restore() {
-  this->ctx = this->_saves.back();
-  this->_saves.pop_back();
-}
-
-TypeInfo ExprEval::eval(Node* node) {
-  switch (node->kind) {
-    case ND_Value:
-      return node->nd_value->ti;
-
-    case ND_Identifier: {
-
-      todo_impl;
-    }
-  }
-
-  assert(node->kind >= ND_Mul && node->kind <= ND_Assign);
-
-  auto lhs = this->eval(node->nd_lhs);
-  auto rhs = this->eval(node->nd_rhs);
-
-  if (!lhs.equals(rhs)) {
-    Error(node->tok, "cannot use operator for not same type").crash();
-  }
-
-  switch (node->kind) {
-    case ND_Add:
-      break;
-  }
-
-  return lhs;
-}
-
-TypeInfo ExprEval::make_type_from_symbol(Symbol* sym) {
-  switch (sym->kind) {
-    case SY_Var:
-      return sym->var->type;
-
-    case SY_Func: {
-      todo_impl;
-    }
-  }
-
-  todo_impl;
-}
-
 ScopeContext* Sema::enter_scope(ScopeContext* scope) {
   assert(this->cur_scope->contains(scope));
 
@@ -80,14 +26,38 @@ Sema::Sema(Node* program)
 
 void Sema::check_all() {
   for (auto&& nd : this->program->nd_block_items) {
-    if (nd->is(ND_Function))
-      this->check_func(nd);
-    else if (nd->is(ND_Let))
-      this->check_stmt(nd);
+    switch (nd->kind) {
+      case ND_Let:
+        this->check_stmt(nd);
+        break;
+
+      case ND_Function:
+        this->check_func(nd);
+        break;
+
+      case ND_Class:
+        this->check_class(nd);
+        break;
+    }
   }
 }
 
-void Sema::check_func(Node* node) {
+void Sema::check_class(Node* node) {
+
+  this->enter_scope(node->sema_ctx->scope);
+
+  for (auto&& member : node->nd_class_fields->list) {
+    this->check_let(member, node);
+  }
+
+  for (auto&& method : node->nd_class_methods->list) {
+    this->check_func(method, node);
+  }
+
+  this->leave_scope();
+}
+
+void Sema::check_func(Node* node, Node* parent_class) {
 
   auto fn_scope = this->enter_scope(node->sema_ctx->scope);
 
@@ -100,6 +70,28 @@ void Sema::check_func(Node* node) {
   this->check_stmt(node->nd_func_body);
 
   this->leave_scope();
+}
+
+void Sema::check_let(Node* node, Node* parent_class) {
+  auto sym = node->sema_ctx->let_sym_ptr;
+
+  bool type_spec = node->nd_let_type != nullptr;
+
+  auto& type = sym->var->type;
+
+  if (type_spec) {
+    type = this->eval_type_ti(node->nd_let_type);
+    sym->var->is_type_deducted = true;
+  }
+
+  if (node->nd_let_init) {
+    if (!type_spec) {
+      type = this->expr_eval(node->nd_let_init);
+      sym->var->is_type_deducted = true;
+    }
+    else
+      this->expr_eval.expect(node->nd_let_init, type);
+  }
 }
 
 void Sema::check_stmt(Node* node) {
@@ -115,6 +107,35 @@ void Sema::check_stmt(Node* node) {
       break;
     }
 
+    case ND_Let: {
+      this->check_let(node);
+      break;
+    }
+
+    case ND_If: {
+      todo_impl;
+    }
+
+    case ND_Switch: {
+      todo_impl;
+    }
+
+    case ND_Match: {
+      todo_impl;
+    }
+
+    case ND_Return: {
+
+      if (auto x = node->nd_return_expr) {
+      }
+
+      break;
+    }
+
+    case ND_Break:
+    case ND_Continue:
+      todo_impl;
+
     default:
       this->expr_eval(node);
       break;
@@ -123,16 +144,34 @@ void Sema::check_stmt(Node* node) {
 
 TypeInfo Sema::eval_type_ti(Node* node) {
 
-  return {};
+  TypeInfo type;
+
+  if (auto k = TypeInfo::get_kind_of_name(node->nd_type_name->str);
+      k != TypeKind::Unknown) {
+    type = k;
+  }
+  else {
+    todo_impl;
+    // find enum or class or ...
+  }
+
+  for (auto&& tp_arg : node->nd_type_tp_args) {
+    type.append_template_arg(this->eval_type_ti(tp_arg));
+  }
+
+  return type;
 }
 
-size_t Sema::find_name(Vec<Symbol*> out, string const& name, ScopeContext* start) {
+size_t Sema::find_name(Vec<Symbol*>& out, string const& name, ScopeContext* start) {
   size_t result = 0;
+
+  if (!start)
+    start = this->cur_scope;
 
   do {
     result = start->sym_table.find(out, name);
     start = start->parent;
-  } while (result == 0);
+  } while (start && result == 0);
 
   return result;
 }

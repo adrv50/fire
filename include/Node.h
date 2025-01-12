@@ -1,7 +1,9 @@
 #pragma once
 
 #include <functional>
+
 #include "Builtins.h"
+#include "Sema_fwd.h"
 
 #define nd_items list
 #define nd_elements list
@@ -132,6 +134,7 @@
 #define nd_func_result_type na
 #define nd_func_is_variable_args b1
 #define nd_func_body nb
+#define nd_func_lvar_count size
 #define nd_func_args_ti v1   // => Vec<TypeInfo>*
 #define nd_func_result_ti v2 // => TypeInfo*
 

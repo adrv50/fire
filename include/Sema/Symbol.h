@@ -7,17 +7,27 @@ namespace fire::sema {
 struct SymbolTable;
 struct ScopeContext;
 
+struct FunctionContext;
+
 enum SymbolKind {
   SY_Unknown,
 
-  SY_Var,
-  SY_Func,
+  SY_Var,  //
+  SY_Func, // in global or namespace
 
-  SY_Enum,
-  SY_Struct,
-  SY_Class,
+  SY_Enum,       //
+  SY_Enumerator, // enum
 
-  SY_Namespace,
+  SY_Struct,       //
+  SY_StructMember, // struct
+
+  SY_Class,        //
+  SY_Method,       //
+  SY_StaticMethod, //
+  SY_Member,       //
+  SY_StaticMember, // class
+
+  SY_Namespace, // namespace
 };
 
 struct VarInfo;
@@ -28,13 +38,16 @@ struct Symbol {
 
   Node* decl;
 
-  VarInfo* var;
+  union {
+    VarInfo* var;
+    FunctionContext* func;
+  };
 
   SymbolTable* parent_table;
 
   ScopeContext* get_scope() const;
 
-  Symbol(SymbolKind kind, SymbolTable* table);
+  Symbol(SymbolKind kind, SymbolTable* table = nullptr);
 };
 
 } // namespace fire::sema

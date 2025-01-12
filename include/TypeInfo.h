@@ -44,16 +44,11 @@ struct TypeInfo {
   Node* nd_enum = nullptr;
   size_t enumerator_index = 0;
 
-  union {
-    void* _data[2] = {0};
+  Node* nd_class = nullptr;
+  Node* nd_struct = nullptr;
 
-    struct {
-      Node* ftor_node; // when TypeKind::Functor, ptr to user-defined function
-      Builtins::BuiltinFunc const* ftor_blt; // not uder-def but if builtin
-    };
-
-    Node* instance_type_node; // class or struct
-  };
+  Node* ftor_node = nullptr; // when TypeKind::Functor, ptr to user-defined function
+  Builtins::BuiltinFunc const* ftor_blt = nullptr; // not uder-def but if builtin
 
   static TypeInfo static_none_type;
 
@@ -61,6 +56,18 @@ struct TypeInfo {
 
   bool is(TypeKind k) const;
   bool is(TypeKind k, bool is_mutable, Vec<TypeInfo> tp_args) const;
+
+  bool is_enum_type() const {
+    return this->is(TypeKind::Type) && this->nd_enum;
+  }
+
+  bool is_struct_type() const {
+    return this->is(TypeKind::Type) && this->nd_struct;
+  }
+
+  bool is_class_type() const {
+    return this->is(TypeKind::Type) && this->nd_class;
+  }
 
   bool is_numeric() const;
   bool is_subscriptable() const;

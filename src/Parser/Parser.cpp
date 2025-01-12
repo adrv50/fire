@@ -282,20 +282,22 @@ Node* Parser::p_class() {
       node->nd_class_is_template = true;
     }
 
-    this->expect_brace_open();
+    this->expect_block_open();
 
-    while (!this->eat_brace_close()) {
-      if (auto fn = this->p_func()) {
-        node->append(fn);
-        continue;
+    node->nd_class_fields = Node::new_node(ND_Class_Fields, nullptr);
+    node->nd_class_methods = Node::new_node(ND_Class_Methods, nullptr);
+
+    while (!this->eat(Punct::BlockBraceClose)) {
+      if (auto method = this->p_func()) {
+        node->nd_class_methods->append(method);
       }
 
-      if (auto let = this->p_let()) {
-        node->append(let);
-        continue;
+      else if (auto member = this->p_let()) {
+        node->nd_class_fields->append(member);
       }
 
-      Error(this->cur, "expected function or variable declaration").crash();
+      else
+        Error(this->cur, "expected function or variable declaration").crash();
     }
 
     return node;

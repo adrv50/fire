@@ -11,6 +11,7 @@ VarInfo::VarInfo(Symbol* sym)
     : type(),
       sym(sym),
       offset(0),
+      offset_in_stack(0),
       is_type_deducted(false) {
 }
 
@@ -51,8 +52,18 @@ bool ScopeContext::contains(ScopeContext* child) const {
   return std::find(this->childs.begin(), this->childs.end(), child) != this->childs.end();
 }
 
+Symbol*& ScopeContext::add_symbol(Symbol* sym) {
+  sym->parent_table = &this->sym_table;
+
+  return this->sym_table.symbols.emplace_back(sym);
+}
+
 ScopeContext*& ScopeContext::append(ScopeContext* child) {
-  return this->childs.emplace_back(child);
+  auto& c = this->childs.emplace_back(child);
+
+  c->parent = this;
+
+  return c;
 }
 
 size_t ScopeContext::find_scope_if(Vec<ScopeContext*>& out,
@@ -83,10 +94,14 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
   for (auto&& nd : node->nd_block_items) {
     switch (nd->kind) {
       case ND_Let: {
-        auto& sym = scope->sym_table.push(new Symbol(SY_Var, &scope->sym_table));
+        auto& sym = scope->add_symbol(new Symbol(SY_Var, &scope->sym_table));
 
         sym->name = nd->nd_let_name->str;
         sym->decl = nd;
+
+        nd->sema_ctx = new NodeContext();
+        nd->sema_ctx->let_sym_ptr = sym;
+        nd->sema_ctx->let_sym_ptr->var = scope->varlist.append(new VarInfo(sym));
 
         break;
       }
@@ -98,6 +113,12 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
 
       case ND_Function: {
         scope->append(ScopeContext::from_function(S, nd));
+
+        auto sym = scope->sym_table.push(new Symbol(SY_Func, &scope->sym_table));
+
+        sym->decl = nd;
+        sym->name = nd->nd_func_name->str;
+
         break;
       }
 
@@ -110,7 +131,14 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
       }
 
       case ND_Class: {
-        todo_impl;
+        scope->append(ScopeContext::from_class(S, nd));
+
+        auto sym = scope->sym_table.push(new Symbol(SY_Class, &scope->sym_table));
+
+        sym->decl = nd;
+        sym->name = nd->nd_class_name->str;
+
+        break;
       }
     }
   }
@@ -118,36 +146,74 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
   return scope;
 }
 
-ScopeContext* ScopeContext::from_function(Sema& S, Node* node) {
+ScopeContext* ScopeContext::from_function(Sema& S, Node* node,
+                                          ScopeContext* parent_class) {
   auto scope = new ScopeContext(SC_Function, node);
+
+  scope->func_ctx = new FunctionContext();
 
   node->sema_ctx = new NodeContext();
 
   for (auto&& arg : node->nd_func_args) {
-    auto& sym = scope->sym_table.push(new Symbol(SY_Var, &scope->sym_table));
+    auto& sym = scope->add_symbol(new Symbol(SY_Var));
 
     sym->name = arg->nd_func_arg_name->str;
     sym->decl = arg;
 
     sym->var = scope->varlist.append(new VarInfo(sym));
-
-    sym->var->type = S.eval_type_ti(arg->nd_func_arg_type);
-    sym->var->is_type_deducted = true;
   }
+
+  node->nd_func_lvar_count = node->nd_func_args.size();
 
   scope->append(ScopeContext::from_block(S, node->nd_func_body));
 
-  scope->func_ctx = new FunctionContext();
-
   Node::walk_node(node->nd_func_body, [&](Node* nd) -> bool {
-    if (nd->is(ND_Return))
-      scope->func_ctx->return_stmt_list.emplace_back(nd);
+    switch (nd->kind) {
+      case ND_Return:
+        scope->func_ctx->return_stmt_list.emplace_back(nd);
+        break;
+
+      case ND_Let:
+        nd->sema_ctx->let_sym_ptr->var->offset_in_stack = nd->nd_let_offset =
+            node->nd_func_lvar_count++;
+
+        scope->func_ctx->let_stmt_sym_ptr_list.emplace_back(nd->sema_ctx->let_sym_ptr);
+
+        break;
+    }
 
     return false;
   });
 
   node->sema_ctx->func = scope->func_ctx;
   node->sema_ctx->scope = scope;
+
+  return scope;
+}
+
+ScopeContext* ScopeContext::from_class(Sema& S, Node* node) {
+  auto scope = new ScopeContext(SC_Class, node);
+
+  auto ctx = new NodeContext();
+  ctx->scope = scope;
+
+  node->sema_ctx = ctx;
+
+  for (auto&& member : node->nd_class_fields->list) {
+    auto& sym = scope->sym_table.push(new Symbol(SY_Member, &scope->sym_table));
+
+    sym->decl = member;
+    sym->name = member->nd_let_name->str;
+    sym->var = scope->varlist.append(new VarInfo(sym));
+  }
+
+  for (auto&& method : node->nd_class_methods->list) {
+    auto fn = scope->append(ScopeContext::from_function(S, method, scope));
+
+    auto sym = scope->add_symbol(new Symbol(SY_Method));
+    sym->decl = method;
+    sym->name = method->nd_func_name->str;
+  }
 
   return scope;
 }

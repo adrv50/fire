@@ -23,7 +23,11 @@ struct ExprEvalContext {
   Vec<TypeInfo>* callfunc_args_p = nullptr;
 
   bool allowed_empty_array = false;
-  Node* let_stmt = nullptr;
+  Node* array_type_decl = nullptr;
+  TypeInfo* evaluated_array_type = nullptr;
+
+  bool in_scope_resolution = false;
+  ScopeContext* sr_target_scope = nullptr;
 };
 
 class Sema;
@@ -42,15 +46,13 @@ public:
 
   TypeInfo eval(Node* node);
 
+  TypeInfo expect(Node* node, TypeInfo const& type);
+
   TypeInfo make_type_from_symbol(Symbol* sym);
 
   TypeInfo operator()(Node* node) {
     return this->eval(node);
   }
-};
-
-struct FunctionContext {
-  Vec<Node*> return_stmt_list;
 };
 
 class Sema {
@@ -79,7 +81,11 @@ public:
 
   void check_all();
 
-  void check_func(Node* node);
+  void check_class(Node* node);
+
+  void check_func(Node* node, Node* parent_class = nullptr);
+
+  void check_let(Node* node, Node* parent_class = nullptr);
 
   void check_stmt(Node* node);
 
@@ -89,7 +95,7 @@ private:
   //
   // find_name:
   //   find in scope chain (current to root)
-  size_t find_name(Vec<Symbol*> out, string const& name, ScopeContext* start = nullptr);
+  size_t find_name(Vec<Symbol*>& out, string const& name, ScopeContext* start = nullptr);
 };
 
 } // namespace fire::sema

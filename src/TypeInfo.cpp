@@ -93,6 +93,10 @@ static string get_kind_str_wrap(TypeInfo const* t) {
     case TK::Type:
       if (t->nd_enum)
         return t->nd_enum->nd_enum_name->str;
+      if (t->nd_struct)
+        return t->nd_struct->nd_struct_name->str;
+      if (t->nd_class)
+        return t->nd_class->nd_class_name->str;
       else
         todo_impl;
 
@@ -115,19 +119,22 @@ string TypeInfo::to_string() const {
                         return t.to_string();
                       }) +
           ") -> " + this->tp_args[0].to_string() + ">";
+
+    goto _pass_template_args;
   }
   else {
     str = get_kind_str_wrap(this);
-
-    if (this->is_template()) {
-      str += "<" +
-             utils::join(", ", this->tp_args,
-                         [](TypeInfo const& t) -> string {
-                           return t.to_string();
-                         }) +
-             ">";
-    }
   }
+
+  if (this->is_template()) {
+    str += "<" +
+           utils::join(", ", this->tp_args,
+                       [](TypeInfo const& t) -> string {
+                         return t.to_string();
+                       }) +
+           ">";
+  }
+_pass_template_args:;
 
   if (this->is_reference)
     str += " ref";
