@@ -205,6 +205,9 @@ ScopeContext* ScopeContext::from_class(Sema& S, Node* node) {
     sym->decl = member;
     sym->name = member->nd_let_name->str;
     sym->var = scope->varlist.append(new VarInfo(sym));
+
+    member->sema_ctx = new NodeContext();
+    member->sema_ctx->let_sym_ptr = sym;
   }
 
   for (auto&& method : node->nd_class_methods->list) {

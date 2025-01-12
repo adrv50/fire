@@ -273,7 +273,7 @@ Node* Parser::p_struct_member() {
 // ---------------------------------
 Node* Parser::p_class() {
   if (this->eat(Kwd::Class)) {
-    auto node = Node::new_node(ND_Class, this->cur);
+    auto node = Node::new_node(ND_Class, this->cur->prev);
 
     node->nd_class_name = this->expect_ident();
 
@@ -298,6 +298,10 @@ Node* Parser::p_class() {
 
       else
         Error(this->cur, "expected function or variable declaration").crash();
+    }
+
+    if (node->nd_class_fields->list.empty()) {
+      Error(node->tok, "no members in class").crash();
     }
 
     return node;

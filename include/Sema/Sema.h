@@ -1,10 +1,11 @@
 #pragma once
 
+#include <functional>
+
 #include "Node.h"
 #include "Token.h"
 #include "TypeInfo.h"
-
-#include "../Error.h"
+#include "Error.h"
 
 #include "ScopeContext.h"
 #include "NodeContext.h"
@@ -72,6 +73,27 @@ class Sema {
 
   ScopeContext* enter_scope(ScopeContext* scope);
   void leave_scope();
+
+  ScopeContext* find_scope(std::function<bool(ScopeContext*)> pred) {
+    auto s = this->cur_scope;
+
+    while (s && !pred(s))
+      s = s->parent;
+
+    return s;
+  }
+
+  ScopeContext* get_cur_func_scope() {
+    return this->find_scope([](ScopeContext* s) {
+      return s->kind == SC_Function;
+    });
+  }
+
+  ScopeContext* get_cur_class_scope() {
+    return this->find_scope([](ScopeContext* s) {
+      return s->kind == SC_Class;
+    });
+  }
 
 public:
   Sema(Node* program);

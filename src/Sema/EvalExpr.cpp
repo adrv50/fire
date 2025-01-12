@@ -17,6 +17,9 @@ void ExprEval::restore() {
 }
 
 TypeInfo ExprEval::eval(Node* node) {
+  if (!node)
+    return TypeKind::None;
+
   switch (node->kind) {
     case ND_Value:
       return node->nd_value->ti;

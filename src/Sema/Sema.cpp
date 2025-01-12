@@ -126,8 +126,13 @@ void Sema::check_stmt(Node* node) {
 
     case ND_Return: {
 
+      auto fnscope = this->get_cur_func_scope();
+
       if (auto x = node->nd_return_expr) {
+        expr_eval.expect(x, expr_eval(fnscope->node->nd_func_result_type));
       }
+
+      fnscope->func_ctx->return_stmt_list.emplace_back(node);
 
       break;
     }
