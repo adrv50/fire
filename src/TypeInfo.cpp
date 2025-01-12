@@ -90,19 +90,31 @@ static string get_kind_str_wrap(TypeInfo const* t) {
       return t->nd_enum->nd_enum_name->str + "::" +
              t->nd_enum->get_enumerator(t->enumerator_index)->nd_enumerator_name->str;
 
-    case TK::Type:
+    case TK::Type: {
+      string s;
+
       if (t->nd_enum)
-        return t->nd_enum->nd_enum_name->str;
-      if (t->nd_struct)
-        return t->nd_struct->nd_struct_name->str;
-      if (t->nd_class)
-        return t->nd_class->nd_class_name->str;
+        s = t->nd_enum->nd_enum_name->str;
+      else if (t->nd_struct)
+        s = t->nd_struct->nd_struct_name->str;
+      else if (t->nd_class)
+        s = t->nd_class->nd_class_name->str;
       else
         todo_impl;
 
-    default:
-      return TypeInfo::get_name_of_kind(t->kind);
+      return "<type-info>";
+    }
+
+    case TK::Instance:
+      if (t->nd_struct)
+        return t->nd_struct->nd_struct_name->str;
+      else if (t->nd_class)
+        return t->nd_class->nd_class_name->str;
+      else
+        todo_impl;
   }
+
+  return TypeInfo::get_name_of_kind(t->kind);
 }
 
 // -----------------------------------------------

@@ -10,8 +10,6 @@ struct ScopeContext;
 struct FunctionContext;
 
 enum SymbolKind {
-  SY_Unknown,
-
   SY_Var,  //
   SY_Func, // in global or namespace
 
@@ -40,7 +38,8 @@ struct Symbol {
 
   union {
     VarInfo* var;
-    FunctionContext* func;
+    ScopeContext* func_scope;
+    ScopeContext* class_scope;
   };
 
   SymbolTable* parent_table;

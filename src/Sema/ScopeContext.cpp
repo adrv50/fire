@@ -131,12 +131,13 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
       }
 
       case ND_Class: {
-        scope->append(ScopeContext::from_class(S, nd));
+        auto cs = scope->append(ScopeContext::from_class(S, nd));
 
         auto sym = scope->sym_table.push(new Symbol(SY_Class, &scope->sym_table));
 
         sym->decl = nd;
         sym->name = nd->nd_class_name->str;
+        sym->class_scope = cs;
 
         break;
       }

@@ -379,12 +379,14 @@ Node* Parser::p_loop() {
 Node* Parser::p_block(bool expected) {
   if ((expected && this->expect(Punct::BlockBraceOpen)) ||
       this->eat(Punct::BlockBraceOpen)) {
-    auto node = Node::new_node(ND_Block, this->cur);
+    auto node = Node::new_node(ND_Block, this->cur->prev);
+
+    node->first_tok = this->cur->prev;
 
     while (!this->match(Punct::BlockBraceClose))
       node->append(this->p_stmt());
 
-    this->expect(Punct::BlockBraceClose);
+    node->last_tok = this->expect(Punct::BlockBraceClose);
 
     return node;
   }

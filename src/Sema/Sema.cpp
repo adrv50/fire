@@ -129,7 +129,14 @@ void Sema::check_stmt(Node* node) {
       auto fnscope = this->get_cur_func_scope();
 
       if (auto x = node->nd_return_expr) {
-        expr_eval.expect(x, expr_eval(fnscope->node->nd_func_result_type));
+        if (auto y = fnscope->node->nd_func_result_type)
+          expr_eval.expect(x, this->eval_type_ti(fnscope->node->nd_func_result_type));
+        else
+          Error(x, "cannot use return value in this function")
+              .add_note(Error(fnscope->node->nd_func_body->first_tok,
+                              "insert type name before this token", ErrorType::Note)
+                            .add_cursor_text("-> " + expr_eval(x).to_string()))
+              .crash();
       }
 
       fnscope->func_ctx->return_stmt_list.emplace_back(node);
@@ -156,7 +163,34 @@ TypeInfo Sema::eval_type_ti(Node* node) {
     type = k;
   }
   else {
-    todo_impl;
+    Vec<Symbol*> syms;
+
+    this->find_name(syms, node->nd_type_name->str);
+
+    if (syms.empty()) {
+      todo_impl;
+    }
+    else if (syms.size() >= 2) {
+      todo_impl;
+    }
+
+    switch (auto sym = syms[0]; sym->kind) {
+      case SY_Enum: {
+        todo_impl;
+      }
+
+      case SY_Class: {
+        type.kind = TypeKind::Instance;
+        type.nd_class = sym->decl;
+        break;
+      }
+
+      default:
+        todo_impl;
+    }
+
+    return type;
+
     // find enum or class or ...
   }
 

@@ -1,5 +1,7 @@
 #include "Object.h"
 #include "Sema/Sema.h"
+#include "Node.h"
+#include "node2s.h"
 
 namespace fire::sema {
 
@@ -24,24 +26,66 @@ TypeInfo ExprEval::eval(Node* node) {
     case ND_Value:
       return node->nd_value->ti;
 
-    case ND_Identifier: {
+    case ND_Identifier:
+    case ND_ScopeResol: {
       Vec<Symbol*> candidates;
 
-      auto const& name = node->nd_id_name->str;
+      Node* id = node->is(ND_ScopeResol) ? node->nd_scope_resol_first : node;
 
-      auto count = S.find_name(candidates, name);
+      string name = id->nd_id_name->str;
+
+      size_t count = S.find_name(candidates, name);
+
+      if (count == 0) {
+        Error(node, "use of undefined name '" + name + "'").crash();
+      }
 
       if (count >= 2) {
         todo_impl;
       }
 
-      if (count == 0) {
+      if (node->is(ND_ScopeResol)) {
+        auto sr = node->nd_scope_resol_idlist;
 
-        // todo:
-        // find builtin type or func
+        Symbol* sym = nullptr;
 
-        Error(node, "use of undefined name '" + name + "'").crash();
+        for (auto&& sub : sr) {
+          id = sub;
+
+          sym = candidates[0];
+
+          switch (sym->kind) {
+            case SY_Class:
+              candidates.clear();
+              count = sym->class_scope->sym_table.find(candidates, id->nd_id_name->str);
+              break;
+
+            default:
+              Error(sub->first_tok->prev,
+                    "'" + name + "' is not enum or class or namespace")
+                  .crash();
+          }
+
+          name += "::" + id->nd_id_name->str;
+
+          if (candidates.empty()) {
+            todo_impl;
+          }
+          else if (candidates.size() >= 2) {
+            todo_impl;
+          }
+        }
+
+        todo_impl;
       }
+
+      // if (count == 0) {
+
+      //   // todo:
+      //   // find builtin type or func
+
+      //   Error(node, "use of undefined name '" + name + "'").crash();
+      // }
 
       auto sym = candidates[0];
 
@@ -68,11 +112,25 @@ TypeInfo ExprEval::eval(Node* node) {
         }
       }
 
-      todo_impl;
+      Error(id, "'" + name + "' is not variable").crash();
     }
 
     case ND_CallConstructor: {
-      todo_impl;
+      auto class_name_ti = this->eval(node->nd_callctor_ctor_side);
+
+      if (!class_name_ti.is_class_type()) {
+        Error(node->nd_callctor_ctor_side,
+              "'" + node2s(node->nd_callctor_ctor_side) + "' is not name of class")
+            .crash();
+      }
+
+      auto nd_class = class_name_ti.nd_class;
+
+      auto member = nd_class->nd_class_fields->list.begin();
+
+      class_name_ti.kind = TypeKind::Instance;
+
+      return class_name_ti;
     }
 
     case ND_Array: {
