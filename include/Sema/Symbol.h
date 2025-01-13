@@ -36,12 +36,9 @@ struct Symbol {
 
   Node* decl;
 
-  union {
-    VarInfo* var;
-    ScopeContext* func_scope;  //
-    ScopeContext* class_scope; // todo: scope に統一する
-    ScopeContext* scope;
-  };
+  VarInfo* var;
+
+  ScopeContext* scope;
 
   SymbolTable* parent_table;
 

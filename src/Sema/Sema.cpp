@@ -167,45 +167,10 @@ TypeInfo Sema::eval_type_ti(Node* node) {
 
   TypeInfo type;
 
-  if (auto k = TypeInfo::get_kind_of_name(node->nd_type_name->str);
-      k != TypeKind::Unknown) {
-    type = k;
-  }
-  else {
-    Vec<Symbol*> syms;
+  todo_impl;
 
-    this->find_name(syms, node->nd_type_name->str);
-
-    if (syms.empty()) {
-      todo_impl;
-    }
-    else if (syms.size() >= 2) {
-      todo_impl;
-    }
-
-    switch (auto sym = syms[0]; sym->kind) {
-      case SY_Enum: {
-        todo_impl;
-      }
-
-      case SY_Class: {
-        type.kind = TypeKind::Instance;
-        type.nd_class = sym->decl;
-        break;
-      }
-
-      default:
-        todo_impl;
-    }
-
-    return type;
-
-    // find enum or class or ...
-  }
-
-  for (auto&& tp_arg : node->nd_type_tp_args) {
-    type.append_template_arg(this->eval_type_ti(tp_arg));
-  }
+  type.is_mutable = node->nd_type_is_mut;
+  type.is_reference = node->nd_type_is_ref;
 
   return type;
 }

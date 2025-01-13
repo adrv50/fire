@@ -11,9 +11,11 @@
 Node* Parser::p_expect_type() {
   auto tok = this->cur;
 
-  auto node = Node::new_node(ND_TypeName, this->expect_ident());
+  auto node = Node::new_node(ND_TypeName, tok);
 
   node->first_tok = tok;
+
+  node->nd_type_id = this->p_expect_identifier();
 
   if (this->eat_tp_args_open()) {
     do {
@@ -22,6 +24,12 @@ Node* Parser::p_expect_type() {
 
     this->expect_tp_args_close();
   }
+
+  if (this->eat(Punct::ScopeResol))
+    node->nd_type_scope_resol = this->p_expect_type();
+
+  node->nd_type_is_mut = this->eat(Kwd::Mut);
+  node->nd_type_is_ref = this->eat(Kwd::Ref);
 
   node->last_tok = this->cur->prev;
 

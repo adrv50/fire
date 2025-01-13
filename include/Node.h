@@ -62,10 +62,11 @@
 
 //
 // ND_Type
-#define nd_type_name tok
+#define nd_type_id na
+#define nd_type_scope_resol nb
+#define nd_type_tp_args list
 #define nd_type_is_mut b1
 #define nd_type_is_ref b2
-#define nd_type_tp_args list
 
 #define nd_block_parent na
 #define nd_block_items list
@@ -307,8 +308,11 @@ enum NodeKind : u16 {
 
   ND_TypeName,
 
+  //
+  // node->**_tp_list
   ND_TemplateParameterList, // <T, U, ...>
 
+  //
   // Concept definition
   ND_Concept,
   ND_ConceptBody,
@@ -317,14 +321,14 @@ enum NodeKind : u16 {
 
   // Concept uses
   ND_ConceptTagsList, // [C1, C2, ...]
-  ND_ConceptTag,      // C1(T, U)
-  ND_ConceptTagMulti, // (C1(T) or C2(T))
+  ND_ConceptTag,      // C<...>
+  ND_ConceptTagMulti, // (C1<T> or C2<T>)
 
   //
   // part of any nodes
   //
   ND_PairNameAndType, // "a: T"
-  ND_InitializerList, // "{a: 1, b: 2, ...}"  (repeat ND_PairNameAndType)
+  ND_InitializerList, // "{a: 1, b: 2, ...}"  (repeat of ND_PairNameAndType)
 };
 
 enum CompareExprKind : u8 {

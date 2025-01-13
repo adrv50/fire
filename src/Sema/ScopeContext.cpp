@@ -66,6 +66,20 @@ ScopeContext*& ScopeContext::append(ScopeContext* child) {
   return c;
 }
 
+ScopeContext*& ScopeContext::append_as_symboled(ScopeContext* child, SymbolKind kind,
+                                                Node* sym_decl, string const& name) {
+  auto& c = this->childs.emplace_back(child);
+
+  c->parent = this;
+
+  auto sym = this->add_symbol(new Symbol(kind, &this->sym_table));
+  sym->decl = sym_decl;
+  sym->name = name;
+  sym->scope = child;
+
+  return c;
+}
+
 size_t ScopeContext::find_scope_if(Vec<ScopeContext*>& out,
                                    std::function<bool(ScopeContext*)> pred) {
   for (auto&& c : this->childs)
@@ -112,18 +126,17 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
       }
 
       case ND_Function: {
-        scope->append(ScopeContext::from_function(S, nd));
-
-        auto sym = scope->sym_table.push(new Symbol(SY_Func, &scope->sym_table));
-
-        sym->decl = nd;
-        sym->name = nd->nd_func_name->str;
+        scope->append_as_symboled(ScopeContext::from_function(S, nd), SY_Func, nd,
+                                  nd->nd_func_name->str);
 
         break;
       }
 
       case ND_Enum: {
-        todo_impl;
+        scope->append_as_symboled(ScopeContext::from_enum(S, nd), SY_Enum, nd,
+                                  nd->nd_enum_name->str);
+
+        break;
       }
 
       case ND_Struct: {
@@ -131,13 +144,8 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
       }
 
       case ND_Class: {
-        auto cs = scope->append(ScopeContext::from_class(S, nd));
-
-        auto sym = scope->sym_table.push(new Symbol(SY_Class, &scope->sym_table));
-
-        sym->decl = nd;
-        sym->name = nd->nd_class_name->str;
-        sym->class_scope = cs;
+        scope->append_as_symboled(ScopeContext::from_class(S, nd), SY_Class, nd,
+                                  nd->nd_class_name->str);
 
         break;
       }
@@ -148,7 +156,6 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
         ns->kind = SC_Namespace;
 
         auto sym = scope->add_symbol(new Symbol(SY_Namespace));
-
         sym->decl = nd;
         sym->name = nd->nd_namespace_name->str;
         sym->scope = ns;
@@ -202,6 +209,25 @@ ScopeContext* ScopeContext::from_function(Sema& S, Node* node,
 
   node->sema_ctx->func = scope->func_ctx;
   node->sema_ctx->scope = scope;
+
+  return scope;
+}
+
+ScopeContext* ScopeContext::from_enum(Sema& S, Node* node) {
+  auto scope = new ScopeContext(SC_Enum, node);
+
+  auto ctx = new NodeContext();
+  ctx->scope = scope;
+
+  node->sema_ctx = ctx;
+
+  for (auto&& en : node->nd_enum_enumerators) {
+    auto sym = scope->add_symbol(new Symbol(SY_Enumerator, &scope->sym_table));
+
+    sym->decl = en;
+    sym->name = en->nd_enumerator_name->str;
+    sym->scope = scope;
+  }
 
   return scope;
 }

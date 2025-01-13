@@ -82,6 +82,9 @@ struct ScopeContext {
 
   ScopeContext*& append(ScopeContext* child);
 
+  ScopeContext*& append_as_symboled(ScopeContext* child, SymbolKind kind, Node* sym_decl,
+                                    string const& name);
+
   size_t find_scope_if(Vec<ScopeContext*>& out, std::function<bool(ScopeContext*)> pred);
 
   size_t find_symbol_if(Vec<Symbol*>& out, std::function<bool(Symbol*)> pred);
@@ -91,6 +94,7 @@ struct ScopeContext {
   static ScopeContext* from_function(Sema& S, Node* node,
                                      ScopeContext* parent_class = nullptr);
 
+  static ScopeContext* from_enum(Sema& S, Node* node);
   static ScopeContext* from_class(Sema& S, Node* node);
 
   // static ScopeContext* from_namespace(Node* node);

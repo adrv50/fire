@@ -74,6 +74,9 @@ bool TypeInfo::equals(TypeInfo const& ti) const {
   if (this->is_mutable != ti.is_mutable)
     return false;
 
+  if (this->is_reference != ti.is_reference)
+    return false;
+
   if (this->tp_args.size() != ti.tp_args.size())
     return false;
 
