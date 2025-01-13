@@ -2,8 +2,10 @@
 
 #include <functional>
 
-#include "Builtins.h"
 #include "Sema_fwd.h"
+#include "TypeInfo.h"
+#include "Token.h"
+#include "Node.h"
 
 #define nd_items list
 #define nd_elements list
@@ -63,8 +65,8 @@
 //
 // ND_Type
 #define nd_type_id na
-#define nd_type_scope_resol nb
-#define nd_type_tp_args list
+#define nd_type_scope_resol list
+#define nd_type_tp_args nb
 #define nd_type_is_mut b1
 #define nd_type_is_ref b2
 
@@ -195,6 +197,10 @@
 
 #define nd_ccbody_rules list
 
+namespace Builtins {
+struct BuiltinFunc;
+}
+
 enum NodeKind : u16 {
   ND_Value,
 
@@ -309,8 +315,9 @@ enum NodeKind : u16 {
   ND_TypeName,
 
   //
-  // node->**_tp_list
-  ND_TemplateParameterList, // <T, U, ...>
+  //
+  ND_TemplateArguments,
+  ND_TemplateParameterList,
 
   //
   // Concept definition
@@ -336,12 +343,6 @@ enum CompareExprKind : u8 {
   CMP_Bigger,
   CMP_BiggerOrEqual,
 };
-
-namespace sema {
-
-struct ScopeContext;
-
-}
 
 namespace fire::sema {
 struct NodeContext;
@@ -383,8 +384,6 @@ struct Node {
   size_t size2 = 0;
 
   Builtins::BuiltinFunc const* bfun = nullptr;
-
-  sema::ScopeContext* sema_scope = nullptr;
 
   fire::sema::NodeContext* sema_ctx = nullptr;
 

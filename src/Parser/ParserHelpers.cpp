@@ -9,6 +9,20 @@
 //  Parser::p_expect_type
 // ----------------------------------
 Node* Parser::p_expect_type() {
+  auto type = this->p_expect_type_part();
+
+  if (this->match(Punct::ScopeResol)) {
+    while (this->eat(Punct::ScopeResol))
+      type->append(this->p_expect_type_part());
+  }
+
+  type->nd_type_is_mut = this->eat(Kwd::Mut);
+  type->nd_type_is_ref = this->eat(Kwd::Ref);
+
+  return type;
+}
+
+Node* Parser::p_expect_type_part() {
   auto tok = this->cur;
 
   auto node = Node::new_node(ND_TypeName, tok);
@@ -18,18 +32,14 @@ Node* Parser::p_expect_type() {
   node->nd_type_id = this->p_expect_identifier();
 
   if (this->eat_tp_args_open()) {
+    node->nd_type_tp_args = Node::new_node(ND_TemplateParameterList, this->cur->prev);
+
     do {
-      node->append(this->p_expect_type());
+      node->nd_type_tp_args->append(this->p_expect_type());
     } while (this->eat(Punct::Comma));
 
     this->expect_tp_args_close();
   }
-
-  if (this->eat(Punct::ScopeResol))
-    node->nd_type_scope_resol = this->p_expect_type();
-
-  node->nd_type_is_mut = this->eat(Kwd::Mut);
-  node->nd_type_is_ref = this->eat(Kwd::Ref);
 
   node->last_tok = this->cur->prev;
 

@@ -1,4 +1,5 @@
 #include "Token.h"
+#include "Error.h"
 #include "Sema/Sema.h"
 
 namespace fire::sema {

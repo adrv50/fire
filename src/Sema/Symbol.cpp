@@ -3,7 +3,7 @@
 namespace fire::sema {
 
 ScopeContext* Symbol::get_scope() const {
-  return this->parent_table->parent_scope;
+  return this->parent_table ? this->parent_table->parent_scope : nullptr;
 }
 
 Symbol::Symbol(SymbolKind kind, SymbolTable* table)

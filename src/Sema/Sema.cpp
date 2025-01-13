@@ -1,4 +1,6 @@
 #include "Object.h"
+#include "Error.h"
+#include "Builtins.h"
 #include "Sema/Sema.h"
 
 namespace fire::sema {
@@ -26,18 +28,35 @@ Sema::Sema(Node* program)
 
 void Sema::check_all() {
   for (auto&& nd : this->program->nd_block_items) {
-    switch (nd->kind) {
-      case ND_Let:
-        this->check_stmt(nd);
-        break;
+    this->check_top_item(nd);
+  }
+}
 
-      case ND_Function:
-        this->check_func(nd);
-        break;
+void Sema::check_top_item(Node* node) {
 
-      case ND_Class:
-        this->check_class(nd);
-        break;
+  switch (node->kind) {
+    case ND_Let:
+      this->check_stmt(node);
+      break;
+
+    case ND_Function:
+      this->check_func(node);
+      break;
+
+    case ND_Class:
+      this->check_class(node);
+      break;
+
+    case ND_Namespace: {
+      this->enter_scope(node->sema_ctx->scope);
+
+      for (auto&& nd : node->list) {
+        this->check_top_item(nd);
+      }
+
+      this->leave_scope();
+
+      break;
     }
   }
 }
@@ -165,71 +184,74 @@ TypeInfo Sema::eval_type_ti(Node* node) {
   if (!node)
     return TypeKind::None;
 
-  TypeInfo type;
+  Vec<Node*> sr = node->nd_type_scope_resol;
+
+  sr.insert(sr.begin(), node);
 
   Vec<Symbol*> candidates;
 
-  auto count = this->find_name(candidates, node->nd_type_id->nd_id_name->str);
+  ScopeContext* scope = nullptr;
 
   Symbol* sym = nullptr;
+
   string name;
 
-_chk_cd_count:;
-  if (count == 0) {
-    todo_impl;
-  }
-  else if (count >= 2) {
-    todo_impl;
-  }
+  for (auto&& nd : sr) {
+    name += nd->nd_type_id->nd_id_name->str;
 
-  sym = candidates[0];
+    size_t count = this->find_name(candidates, nd->nd_type_id->nd_id_name->str, scope);
 
-  name += sym->name;
-
-  for (auto sr = node->nd_type_scope_resol; sr; sr = sr->nd_type_scope_resol) {
-    sym = candidates[0];
-
-    auto s = sr->nd_type_id->nd_id_name->str;
-
-    switch (sym->kind) {
-      case SY_Class:
-      case SY_Namespace:
-        candidates.clear();
-
-        count = sym->get_scope()->sym_table.find(candidates, s);
-
-        if (count == 0) {
-          Error(sr, "'" + s + "' is not defined in scope of '" + name + "'").crash();
-        }
-        else if (count >= 2) {
-          todo_impl;
-        }
-
-        break;
-
-      default:
-        Error(sr, "uwaaaaa!!!!").crash();
+    if (count == 0) {
+      todo_impl;
+    }
+    else if (count >= 2) {
+      todo_impl;
     }
 
-    name += "::" + sym->name;
+    name += "::";
+    sym = candidates[0];
+    candidates.clear();
+
+    if (nd != sr.back()) {
+      switch (sym->kind) {
+        case SY_Namespace:
+          break;
+
+        default:
+          Error(nd->first_tok->prev,
+                "invalid use of scope-resolution operator in type name")
+              .crash();
+      }
+    }
+
+    scope = sym->scope;
   }
+
+  TypeInfo type;
 
   switch (sym->kind) {
     case SY_Enum:
-      todo_impl;
+      type.kind = TypeKind::Enumerator;
+      type.nd_enum = sym->decl;
+      break;
 
     case SY_Class:
-      todo_impl;
+      type.kind = TypeKind::Instance;
+      type.nd_class = sym->decl;
+      break;
 
-    case SY_Struct:
-      todo_impl;
+    case SY_BuiltinType:
+      type.kind = sym->tk;
+      break;
 
     default:
-      Error(node, "'" + name + "' is not type name").crash();
+      todo_impl;
   }
 
-  alertmsg(sym->name);
-  todo_impl;
+  if (node->nd_type_tp_args) {
+    for (auto&& tp : node->nd_type_tp_args->list)
+      type.append_template_arg(this->eval_type_ti(tp));
+  }
 
   type.is_mutable = node->nd_type_is_mut;
   type.is_reference = node->nd_type_is_ref;
@@ -247,6 +269,10 @@ size_t Sema::find_name(Vec<Symbol*>& out, string const& name, ScopeContext* star
     result = start->sym_table.find(out, name);
     start = start->parent;
   } while (start && result == 0);
+
+  if (result == 0) {
+    result = Builtins::Symbols::find(out, name);
+  }
 
   return result;
 }

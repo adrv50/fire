@@ -1,6 +1,7 @@
 #include "Object.h"
+#include "Error.h"
 #include "Sema/Sema.h"
-#include "Node.h"
+
 #include "node2s.h"
 
 namespace fire::sema {

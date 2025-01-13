@@ -140,6 +140,7 @@ private:
   //
   // type name
   Node* p_expect_type();
+  Node* p_expect_type_part();
 
   //
   // identifier (with qualifier)

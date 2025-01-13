@@ -3,10 +3,6 @@
 #include <functional>
 
 #include "Node.h"
-#include "Token.h"
-#include "TypeInfo.h"
-#include "Error.h"
-
 #include "ScopeContext.h"
 #include "NodeContext.h"
 
@@ -106,6 +102,8 @@ public:
   Sema(Sema const&) = delete;
 
   void check_all();
+
+  void check_top_item(Node* node);
 
   void check_class(Node* node);
 

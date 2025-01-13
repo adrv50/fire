@@ -12,6 +12,8 @@
 #include "Builtins.h"
 #include "Error.h"
 
+#include "Sema/Symbol.h"
+
 #define def_builtin_func(_Name)                                                          \
   static Obj b_##_Name([[maybe_unused]] Evaluator& eval, [[maybe_unused]] Node* node,    \
                        [[maybe_unused]] Vec<Obj> const& args)
@@ -368,6 +370,61 @@ BuiltinFunc::BuiltinFunc(string name, Vec<TypeInfo> arg_types, bool is_variable_
       is_variable_args(is_variable_args),
       ret_type(ret_type),
       impl(impl) {
+}
+
+using namespace fire::sema;
+
+Vec<Symbol*> _func_symbols;
+Vec<Symbol*> _type_symbols;
+
+Vec<Symbol*> const& Symbols::get_func_symbols() {
+  return _func_symbols;
+}
+
+Vec<Symbol*> const& Symbols::get_type_symbols() {
+  return _type_symbols;
+}
+
+size_t Symbols::find(Vec<Symbol*>& out, string const& name) {
+
+  for (auto&& s : _func_symbols) {
+    if (s->name == name)
+      out.push_back(s);
+  }
+
+  for (auto&& s : _type_symbols) {
+    if (s->name == name)
+      out.push_back(s);
+  }
+
+  return out.size();
+}
+
+static Symbol* make_sym_bfun(BuiltinFunc const& bfun) {
+
+  auto sym = new Symbol(SY_BuiltinFunc);
+
+  sym->name = bfun.name;
+  sym->bfun = &bfun;
+
+  return sym;
+}
+
+static Symbol* make_sym_type(TypeKind tk, string const& name) {
+  auto sym = new Symbol(SY_BuiltinType);
+
+  sym->name = name;
+  sym->tk = tk;
+
+  return sym;
+}
+
+void initialize() {
+
+  for (auto&& bf : builtins)
+    _func_symbols.push_back(make_sym_bfun(bf));
+
+  _type_symbols.push_back(make_sym_type(TypeKind::Int, "int"));
 }
 
 } // namespace Builtins

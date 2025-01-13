@@ -6,6 +6,10 @@
 
 class Evaluator;
 
+namespace fire::sema {
+struct Symbol;
+}
+
 namespace Builtins {
 
 // todo:
@@ -46,5 +50,18 @@ struct BuiltinFunc {
   BuiltinFunc(string name, Vec<TypeInfo> arg_types, bool is_variable_args,
               TypeInfo ret_type, Impl impl);
 };
+
+class Symbols {
+public:
+  static Vec<fire::sema::Symbol*> const& get_func_symbols();
+  static Vec<fire::sema::Symbol*> const& get_type_symbols();
+
+  static size_t find(Vec<fire::sema::Symbol*>& out, string const& name);
+
+private:
+  Symbols() = delete;
+};
+
+void initialize();
 
 } // namespace Builtins

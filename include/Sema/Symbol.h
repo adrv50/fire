@@ -26,6 +26,9 @@ enum SymbolKind {
   SY_StaticMember, // class
 
   SY_Namespace, // namespace
+
+  SY_BuiltinType,
+  SY_BuiltinFunc,
 };
 
 struct VarInfo;
@@ -36,9 +39,12 @@ struct Symbol {
 
   Node* decl;
 
-  VarInfo* var;
-
-  ScopeContext* scope;
+  union {
+    VarInfo* var;
+    ScopeContext* scope;
+    TypeKind tk;
+    Builtins::BuiltinFunc const* bfun;
+  };
 
   SymbolTable* parent_table;
 

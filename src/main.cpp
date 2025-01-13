@@ -22,8 +22,12 @@
 
 #include "node2s.h"
 
+#include "Builtins.h"
+
 int main(int argc, char** argv) {
   SourceStorage SS{"test.fr"};
+
+  Builtins::initialize();
 
   try {
     (void)argv;
