@@ -167,6 +167,68 @@ TypeInfo Sema::eval_type_ti(Node* node) {
 
   TypeInfo type;
 
+  Vec<Symbol*> candidates;
+
+  auto count = this->find_name(candidates, node->nd_type_id->nd_id_name->str);
+
+  Symbol* sym = nullptr;
+  string name;
+
+_chk_cd_count:;
+  if (count == 0) {
+    todo_impl;
+  }
+  else if (count >= 2) {
+    todo_impl;
+  }
+
+  sym = candidates[0];
+
+  name += sym->name;
+
+  for (auto sr = node->nd_type_scope_resol; sr; sr = sr->nd_type_scope_resol) {
+    sym = candidates[0];
+
+    auto s = sr->nd_type_id->nd_id_name->str;
+
+    switch (sym->kind) {
+      case SY_Class:
+      case SY_Namespace:
+        candidates.clear();
+
+        count = sym->get_scope()->sym_table.find(candidates, s);
+
+        if (count == 0) {
+          Error(sr, "'" + s + "' is not defined in scope of '" + name + "'").crash();
+        }
+        else if (count >= 2) {
+          todo_impl;
+        }
+
+        break;
+
+      default:
+        Error(sr, "uwaaaaa!!!!").crash();
+    }
+
+    name += "::" + sym->name;
+  }
+
+  switch (sym->kind) {
+    case SY_Enum:
+      todo_impl;
+
+    case SY_Class:
+      todo_impl;
+
+    case SY_Struct:
+      todo_impl;
+
+    default:
+      Error(node, "'" + name + "' is not type name").crash();
+  }
+
+  alertmsg(sym->name);
   todo_impl;
 
   type.is_mutable = node->nd_type_is_mut;
