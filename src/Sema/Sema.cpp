@@ -197,42 +197,60 @@ TypeInfo Sema::eval_type_ti(Node* node) {
   string name;
 
   for (auto&& nd : sr) {
+    node = nd;
     name += nd->nd_type_id->nd_id_name->str;
 
     size_t count = this->find_name(candidates, nd->nd_type_id->nd_id_name->str, scope);
 
     if (count == 0) {
-      todo_impl;
+      Error(node, "cannot find type name '" + name + "'").crash();
     }
     else if (count >= 2) {
       todo_impl;
     }
 
-    name += "::";
     sym = candidates[0];
-    candidates.clear();
 
-    if (nd != sr.back()) {
-      switch (sym->kind) {
-        case SY_Namespace:
-          break;
-
-        default:
-          Error(nd->first_tok->prev,
-                "invalid use of scope-resolution operator in type name")
-              .crash();
+    if (nd->nd_type_tp_args) {
+      for (auto&& tp : nd->nd_type_tp_args->list) {
+        this->eval_type_ti(tp);
       }
     }
 
+    if (nd == sr.back())
+      break;
+
+    switch (sym->kind) {
+      case SY_Namespace:
+        break;
+
+      default:
+        Error(nd->last_tok->next, "'" + name + "' is not a namespace").crash();
+    }
+
+    candidates.clear();
     scope = sym->scope;
+    name += "::";
   }
 
   TypeInfo type;
+
+  size_t tpcount = node->nd_type_tp_args ? node->nd_type_tp_args->list.size() : 0;
 
   switch (sym->kind) {
     case SY_Enum:
       type.kind = TypeKind::Enumerator;
       type.nd_enum = sym->decl;
+
+      if (sym->decl->nd_enum_is_template) {
+        if (tpcount == 0) {
+          Error(node, "cannot use '" + name + "' without template arguments").crash();
+        }
+      }
+      else if (tpcount >= 1) {
+        Error(node->first_tok, "'" + name + "' is not template").crash();
+      }
+
       break;
 
     case SY_Class:
@@ -246,11 +264,6 @@ TypeInfo Sema::eval_type_ti(Node* node) {
 
     default:
       todo_impl;
-  }
-
-  if (node->nd_type_tp_args) {
-    for (auto&& tp : node->nd_type_tp_args->list)
-      type.append_template_arg(this->eval_type_ti(tp));
   }
 
   type.is_mutable = node->nd_type_is_mut;
