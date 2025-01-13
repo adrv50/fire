@@ -92,6 +92,17 @@ struct TypeInfo {
   TypeInfo& set_ftor_bfun(Builtins::BuiltinFunc const* bf);
   TypeInfo& set_ftor_node(Node* node);
 
+  static bool is_template_kind(TypeKind kind) {
+    switch (kind) {
+      case TypeKind::Vector:
+      case TypeKind::Tuple:
+      case TypeKind::Dict:
+        return true;
+    }
+
+    return false;
+  }
+
   static string get_name_of_kind(TypeKind kind);
 
   static TypeKind get_kind_of_name(string const& name);

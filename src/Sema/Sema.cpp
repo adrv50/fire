@@ -184,6 +184,8 @@ TypeInfo Sema::eval_type_ti(Node* node) {
   if (!node)
     return TypeKind::None;
 
+  Node* type_nd = node;
+
   Vec<Node*> sr = node->nd_type_scope_resol;
 
   sr.insert(sr.begin(), node);
@@ -195,6 +197,8 @@ TypeInfo Sema::eval_type_ti(Node* node) {
   Symbol* sym = nullptr;
 
   string name;
+
+  Vec<TypeInfo> tp_args;
 
   for (auto&& nd : sr) {
     node = nd;
@@ -211,31 +215,78 @@ TypeInfo Sema::eval_type_ti(Node* node) {
 
     sym = candidates[0];
 
-    if (nd->nd_type_tp_args) {
-      for (auto&& tp : nd->nd_type_tp_args->list) {
-        this->eval_type_ti(tp);
-      }
-    }
-
-    if (nd == sr.back())
-      break;
+    bool have_tp_args = nd->nd_type_tp_args != nullptr;
 
     switch (sym->kind) {
       case SY_Namespace:
+        if (have_tp_args)
+          Error(nd, "namespace is not template").crash();
+
+        if (nd == sr.back())
+          Error(nd, "cannot use name of namespace as type name").crash();
+
+        break;
+
+      case SY_Enum:
+        if (sym->decl->nd_enum_is_template) {
+          if (!have_tp_args)
+            goto _no_tp_args_err;
+        }
+        else if (have_tp_args)
+          goto _not_template_err;
+
+        break;
+
+      case SY_Class:
+        if (sym->decl->nd_class_is_template) {
+          if (!have_tp_args)
+            goto _no_tp_args_err;
+        }
+        else if (have_tp_args)
+          goto _not_template_err;
+
+        break;
+
+      case SY_BuiltinType:
+        if (TypeInfo::is_template_kind(sym->tk)) {
+          if (!have_tp_args)
+            goto _no_tp_args_err;
+        }
+        else if (have_tp_args)
+          goto _not_template_err;
+
         break;
 
       default:
-        Error(nd->last_tok->next, "'" + name + "' is not a namespace").crash();
+        Error(nd->last_tok->next, "'" + name + "' is not a type name").crash();
+    }
+
+    if (nd->nd_type_tp_args) {
+      tp_args.clear();
+
+      for (auto&& tp : nd->nd_type_tp_args->list) {
+        tp_args.emplace_back(this->eval_type_ti(tp));
+      }
     }
 
     candidates.clear();
     scope = sym->scope;
     name += "::";
+
+    continue;
+
+  _not_template_err:
+    Error(nd, "'" + name + "' is not template").crash();
+
+  _no_tp_args_err:
+    Error(nd, "cannot use '" + name + "' without template arguments").crash();
   }
 
   TypeInfo type;
 
-  size_t tpcount = node->nd_type_tp_args ? node->nd_type_tp_args->list.size() : 0;
+  type.tp_args = tp_args;
+
+  size_t tpcount = tp_args.size();
 
   switch (sym->kind) {
     case SY_Enum:

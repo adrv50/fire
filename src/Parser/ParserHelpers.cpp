@@ -13,10 +13,8 @@ Node* Parser::p_expect_type() {
 
   Node* type = this->p_expect_type_part();
 
-  if (this->match(Punct::ScopeResol)) {
-    while (this->eat(Punct::ScopeResol))
-      type->append(this->p_expect_type_part());
-  }
+  while (this->eat(Punct::ScopeResol))
+    type->append(this->p_expect_type_part());
 
   type->nd_type_is_mut = this->eat(Kwd::Mut);
   type->nd_type_is_ref = this->eat(Kwd::Ref);
