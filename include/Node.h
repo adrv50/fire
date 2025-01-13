@@ -173,6 +173,9 @@
 #define nd_struct_member_name tok
 #define nd_struct_member_type nc
 
+#define nd_namespace_name tok2
+#define nd_namespace_items list
+
 #define nd_program_main na
 #define nd_program_items list
 #define nd_program_global_var_size size
@@ -408,7 +411,7 @@ struct Node {
     return this->nd_enum_enumerators[index];
   }
 
-  static Node* new_node(NodeKind kind, Token* tok);
+  static Node* new_node(NodeKind kind, Token* tok = nullptr);
 
   static Node* new_node(NodeKind kind, Token* tok, Node* lhs, Node* rhs = nullptr);
 

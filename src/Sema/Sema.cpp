@@ -89,8 +89,15 @@ void Sema::check_let(Node* node, Node* parent_class) {
       type = this->expr_eval(node->nd_let_init);
       sym->var->is_type_deducted = true;
     }
-    else
+    else {
+      this->expr_eval.ctx = {.allowed_empty_array = true,
+                             .array_type_decl = node->nd_let_type,
+                             .evaluated_array_type = &type};
+
       this->expr_eval.expect(node->nd_let_init, type);
+
+      this->expr_eval.reset();
+    }
   }
 }
 

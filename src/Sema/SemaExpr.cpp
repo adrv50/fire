@@ -18,6 +18,10 @@ void ExprEval::restore() {
   this->_saves.pop_back();
 }
 
+void ExprEval::reset() {
+  this->ctx = {};
+}
+
 TypeInfo ExprEval::eval(Node* node) {
   if (!node)
     return TypeKind::None;
@@ -56,8 +60,9 @@ TypeInfo ExprEval::eval(Node* node) {
 
           switch (sym->kind) {
             case SY_Class:
+            case SY_Namespace:
               candidates.clear();
-              count = sym->class_scope->sym_table.find(candidates, id->nd_id_name->str);
+              count = sym->scope->sym_table.find(candidates, id->nd_id_name->str);
               break;
 
             default:
@@ -75,8 +80,6 @@ TypeInfo ExprEval::eval(Node* node) {
             todo_impl;
           }
         }
-
-        todo_impl;
       }
 
       // if (count == 0) {
@@ -121,7 +124,7 @@ TypeInfo ExprEval::eval(Node* node) {
         }
       }
 
-      Error(id, "'" + name + "' is not variable").crash();
+      Error(id, "'" + name + "' is not a variable").crash();
     }
 
     case ND_CallConstructor: {
@@ -241,13 +244,16 @@ TypeInfo ExprEval::eval(Node* node) {
       auto arr = this->eval(node->nd_lhs);
       auto index = this->eval(node->nd_rhs);
 
-      if (!arr.is(TypeKind::Vector))
-        Error(node->tok, "'" + arr.to_string() + "' type object is not subscriptable")
-            .crash();
-
       if (!index.is(TypeKind::Int)) {
         Error(node->nd_rhs, "indexer must be integer.").crash();
       }
+
+      if (arr.is(TypeKind::String))
+        return TypeKind::Char;
+
+      if (!arr.is(TypeKind::Vector))
+        Error(node->tok, "'" + arr.to_string() + "' type object is not subscriptable")
+            .crash();
 
       return arr.tp_args[0];
     }
@@ -255,15 +261,34 @@ TypeInfo ExprEval::eval(Node* node) {
     case ND_MemberAccess: {
       auto left = this->eval(node->nd_lhs);
 
-      if (left.is(TypeKind::Instance)) {
+      if (!left.is(TypeKind::Instance)) {
+        // find method of builtin type
+        todo_impl;
       }
 
+      assert(left.nd_class);
+
       todo_impl;
+
+      break;
     }
 
     case ND_CallFunc: {
 
-      todo_impl;
+      Vec<TypeInfo> arg_types;
+
+      for (auto&& arg : node->nd_callfunc_args)
+        arg_types.push_back(this->eval(arg));
+
+      this->ctx.in_call_func = true;
+      this->ctx.callfunc_nd = node;
+      this->ctx.callfunc_args_p = &arg_types;
+
+      TypeInfo functor = this->eval(node->nd_callfunc_callee);
+
+      this->reset();
+
+      return functor.tp_args[0];
     }
   }
 

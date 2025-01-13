@@ -38,8 +38,9 @@ struct Symbol {
 
   union {
     VarInfo* var;
-    ScopeContext* func_scope;
-    ScopeContext* class_scope;
+    ScopeContext* func_scope;  //
+    ScopeContext* class_scope; // todo: scope に統一する
+    ScopeContext* scope;
   };
 
   SymbolTable* parent_table;

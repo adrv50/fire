@@ -13,8 +13,12 @@ Node* Parser::parse() {
 
   node->first_tok = this->cur;
 
-  while (this->check())
-    node->append(this->p_root());
+  while (this->check()) {
+    auto nd = node->append(this->p_root());
+
+    if (nd->is(ND_Function) && nd->nd_func_name->str == "main")
+      node->nd_program_main = nd;
+  }
 
   node->last_tok = this->cur->prev;
 
@@ -45,6 +49,9 @@ Node* Parser::p_root() {
     return node;
 
   else if ((node = this->p_struct()))
+    return node;
+
+  else if ((node = this->p_namespace()))
     return node;
 
   else if (this->in_repl)
@@ -284,8 +291,8 @@ Node* Parser::p_class() {
 
     this->expect_block_open();
 
-    node->nd_class_fields = Node::new_node(ND_Class_Fields, nullptr);
-    node->nd_class_methods = Node::new_node(ND_Class_Methods, nullptr);
+    node->nd_class_fields = Node::new_node(ND_Class_Fields);
+    node->nd_class_methods = Node::new_node(ND_Class_Methods);
 
     while (!this->eat(Punct::BlockBraceClose)) {
       if (auto method = this->p_func()) {
@@ -311,7 +318,30 @@ Node* Parser::p_class() {
 }
 
 Node* Parser::p_namespace() {
-  todo_impl;
+  if (this->eat(Kwd::Namespace)) {
+    Node* node = Node::new_node(ND_Namespace, this->cur->prev);
+
+    Node* ns = node;
+
+    ns->nd_namespace_name = this->expect_ident();
+
+    while (this->eat(Punct::ScopeResol)) {
+      Node* sub = Node::new_node(ND_Namespace, this->cur->prev);
+      sub->nd_namespace_name = this->expect_ident();
+      ns->append(sub);
+      ns = sub;
+    }
+
+    this->expect_block_open();
+
+    do {
+      ns->append(this->p_root());
+    } while (!this->eat(Punct::BlockBraceClose));
+
+    return node;
+  }
+
+  return nullptr;
 }
 
 // ---------------------------------

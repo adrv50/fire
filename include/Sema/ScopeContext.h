@@ -93,6 +93,8 @@ struct ScopeContext {
 
   static ScopeContext* from_class(Sema& S, Node* node);
 
+  // static ScopeContext* from_namespace(Node* node);
+
   ScopeContext(ScopeKind kind, Node* node);
 };
 

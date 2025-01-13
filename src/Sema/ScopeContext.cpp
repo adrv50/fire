@@ -141,6 +141,20 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
 
         break;
       }
+
+      case ND_Namespace: {
+        auto ns = scope->append(ScopeContext::from_block(S, nd));
+
+        ns->kind = SC_Namespace;
+
+        auto sym = scope->add_symbol(new Symbol(SY_Namespace));
+
+        sym->decl = nd;
+        sym->name = nd->nd_namespace_name->str;
+        sym->scope = ns;
+
+        break;
+      }
     }
   }
 

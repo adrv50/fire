@@ -33,6 +33,8 @@ struct ExprEvalContext {
 
 class Sema;
 class ExprEval {
+  friend class Sema;
+
   Sema& S;
 
   ExprEvalContext ctx;
@@ -41,6 +43,8 @@ class ExprEval {
 
   void save();
   void restore();
+
+  void reset();
 
 public:
   ExprEval(Sema& S);
