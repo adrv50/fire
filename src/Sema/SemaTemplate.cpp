@@ -97,7 +97,7 @@ Instantiated* TemplateManager::find_instantiated(Symbol* sym,
                                                  Vec<TypeInfo> const& cf_args) {
   auto ir = this->find_ir_from_sym(sym);
 
-  for (auto&& inst : this->instantiations) {
+  for (auto&& inst : this->instantiated_templates) {
     if (inst->based == ir) {
 
       if (inst->take_args.size() != tp_args.size())
@@ -126,10 +126,12 @@ Instantiated* TemplateManager::find_instantiated(Symbol* sym,
 Instantiated* TemplateManager::instantiate(DefinitionIR* ir, Node* id,
                                            Vec<TypeInfo> const& tp_args,
                                            Vec<TypeInfo> const& cf_args, Node* cf_expr) {
-  if (auto inst = this->find_instantiated(ir->sym, tp_args, cf_args); inst)
+  if (auto inst = this->find_instantiated(ir->sym, tp_args, cf_args); inst) {
+    alert;
     return inst;
+  }
 
-  auto inst = this->instantiations.emplace_back(new Instantiated(ir));
+  auto inst = this->instantiated_templates.emplace_back(new Instantiated(ir));
 
   inst->take_args = tp_args;
   inst->take_cf_args = cf_args;

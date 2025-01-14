@@ -182,11 +182,11 @@ struct Instantiated {
 
 class TemplateManager {
 
-  friend class Sema;
+  friend class ::fire::sema::Sema;
 
   Vec<DefinitionIR*> definitions;
 
-  Vec<Instantiated*> instantiations;
+  Vec<Instantiated*> instantiated_templates;
 
 public:
   TemplateManager();

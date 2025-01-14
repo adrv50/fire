@@ -30,6 +30,14 @@ void Sema::check_all() {
   for (auto&& nd : this->program->nd_block_items) {
     this->check_top_item(nd);
   }
+
+  for (auto&& inst : this->tp_manager.instantiated_templates) {
+    this->cur_scope = inst->sym->scope->parent;
+
+    inst->sym->scope->node = inst->node;
+
+    this->check_top_item(inst->node);
+  }
 }
 
 void Sema::check_top_item(Node* node) {
@@ -254,6 +262,7 @@ TypeInfo Sema::eval_type_ti(Node* node) {
         break;
 
       case SY_BuiltinType:
+        // if vector or tuple or ...
         if (TypeInfo::is_template_kind(sym->tk)) {
           if (!have_tp_args)
             goto _no_tp_args_err;

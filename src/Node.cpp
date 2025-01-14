@@ -47,6 +47,18 @@ Node* Node::clone() {
   cloned->b3 = this->b3;
   cloned->b4 = this->b4;
 
+  cloned->v1 = this->v1;
+  cloned->v2 = this->v2;
+  cloned->v3 = this->v3;
+  cloned->v4 = this->v4;
+
+  cloned->size = this->size;
+  cloned->size2 = this->size2;
+
+  cloned->bfun = this->bfun;
+  cloned->sema_ctx = this->sema_ctx;
+  cloned->sym = this->sym;
+
   Node* bases[] = {this->na, this->nb, this->nc, this->nd, this->ne, this->nf};
 
   if (this->kind == ND_Block)

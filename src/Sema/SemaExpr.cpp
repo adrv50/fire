@@ -135,7 +135,7 @@ TypeInfo ExprEval::eval(Node* node) {
             func_nd->nd_func_is_template = false;
             func_nd->nd_func_tplist = nullptr;
 
-            alertmsg("\n" << node2s(instantiated->node));
+            alertmsg("\n" << node2s(func_nd));
           }
 
           type.ftor_node = func_nd;

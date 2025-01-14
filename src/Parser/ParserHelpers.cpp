@@ -34,6 +34,9 @@ Node* Parser::p_expect_type_part() {
 
   node->nd_type_id = this->p_expect_identifier();
 
+  if (!node->nd_type_id->is_id_or_sr())
+    Error(tok, "expected identifier").crash();
+
   if (this->eat_tp_args_open()) {
     node->nd_type_tp_args = Node::new_node(ND_TemplateArguments, this->cur->prev);
 
