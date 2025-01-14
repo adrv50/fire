@@ -130,7 +130,12 @@ TypeInfo ExprEval::eval(Node* node) {
                 this->ctx.callfunc_args_p ? *this->ctx.callfunc_args_p : Vec<TypeInfo>(),
                 this->ctx.callfunc_nd);
 
-            todo_impl;
+            func_nd = instantiated->node;
+
+            func_nd->nd_func_is_template = false;
+            func_nd->nd_func_tplist = nullptr;
+
+            alertmsg("\n" << node2s(instantiated->node));
           }
 
           type.ftor_node = func_nd;

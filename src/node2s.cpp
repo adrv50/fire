@@ -338,7 +338,7 @@ string node2s(Node* node) {
       return utils::join("\n\n", node->nd_items, node2s);
 
     case ND_TypeName: {
-      auto s = node->tok->str;
+      auto s = node2s(node->nd_type_id);
 
       for (auto&& sr : node->nd_type_scope_resol)
         s += "::" + node2s(sr);

@@ -32,7 +32,10 @@ void ParamList::subtitute(Node* id, Vec<TypeInfo> const& args,
 
       if (param->is_deducted) {
         if (!param->type.equals(arg))
-          Error(cf_expr->nd_callfunc_args[i], "type mismatch").crash();
+          Error(cf_expr->nd_callfunc_args[i], "expected '" + param->type.to_string() +
+                                                  "' type expression, but found '" +
+                                                  arg.to_string() + "'")
+              .crash();
       }
       else {
         param->type = arg;
@@ -128,9 +131,12 @@ Instantiated* TemplateManager::instantiate(DefinitionIR* ir, Node* id,
 
   auto inst = this->instantiations.emplace_back(new Instantiated(ir));
 
+  inst->take_args = tp_args;
+  inst->take_cf_args = cf_args;
+
   inst->params.subtitute(id, tp_args, &cf_args, cf_expr);
 
-  inst->node = this->replace_all_params(ir, ir->node);
+  inst->node = this->replace_all_params(inst, ir->node);
 
   ir->instantiated_list.emplace_back(inst);
 
@@ -165,14 +171,36 @@ DefinitionIR* TemplateManager::add_define(Symbol* sym) {
   return ir;
 }
 
-Node* TemplateManager::replace_all_params(DefinitionIR* ir, Node* _node) {
+Node* TemplateManager::replace_all_params(Instantiated* inst, Node* _node) {
   Node* cloned = _node->clone();
 
   Node::walk_node(cloned, [&](Node* nd) -> bool {
     switch (nd->kind) {
-      case ND_Identifier:
-      case ND_ScopeResol: {
-        if (auto param = ir->find_param(nd->nd_id_name->str); param) {
+      case ND_Identifier: {
+        for (auto&& tp : nd->nd_id_tp_args) {
+          if (tp->is(ND_Identifier)) {
+            if (auto p = inst->params.find(tp->nd_id_name->str)) {
+              tp->nd_id_name->str = p->name;
+            }
+          }
+        }
+
+        break;
+      }
+
+      case ND_TypeName:
+        if (auto p = inst->params.find(nd->nd_type_id->nd_id_name->str); p) {
+          alert;
+          nd->nd_type_id->nd_id_name->str = p->type.to_string();
+        }
+
+        break;
+
+      case ND_TemplateParameterList: {
+        for (auto&& id : nd->list) {
+          if (auto p = inst->params.find(id->nd_id_name->str)) {
+            id->nd_id_name->str = p->name;
+          }
         }
 
         break;

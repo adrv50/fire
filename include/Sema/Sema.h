@@ -201,7 +201,7 @@ public:
 
   DefinitionIR* add_define(Symbol* sym);
 
-  Node* replace_all_params(DefinitionIR* ir, Node* _node);
+  Node* replace_all_params(Instantiated* inst, Node* _node);
 
 private:
 };

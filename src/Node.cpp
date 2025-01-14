@@ -37,7 +37,7 @@ Node*& Node::append(Node* node) {
 
 Node* Node::clone() {
 
-  auto cloned = new Node(this->kind, this->tok, this->obj);
+  auto cloned = new Node(this->kind, this->tok->clone(), this->obj);
 
   cloned->tok2 = this->tok2;
   cloned->tok3 = this->tok3;

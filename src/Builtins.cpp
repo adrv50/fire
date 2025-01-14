@@ -425,6 +425,10 @@ void initialize() {
     _func_symbols.push_back(make_sym_bfun(bf));
 
   _type_symbols.push_back(make_sym_type(TypeKind::Int, "int"));
+  _type_symbols.push_back(make_sym_type(TypeKind::Float, "float"));
+  _type_symbols.push_back(make_sym_type(TypeKind::Bool, "bool"));
+  _type_symbols.push_back(make_sym_type(TypeKind::Char, "char"));
+  _type_symbols.push_back(make_sym_type(TypeKind::String, "string"));
 }
 
 } // namespace Builtins
