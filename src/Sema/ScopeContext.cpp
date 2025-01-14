@@ -78,6 +78,8 @@ ScopeContext*& ScopeContext::append_as_symboled(ScopeContext* child, SymbolKind 
   sym->name = name;
   sym->scope = child;
 
+  sym_decl->sym = sym;
+
   return c;
 }
 
@@ -118,6 +120,8 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
         nd->sema_ctx->let_sym_ptr = sym;
         nd->sema_ctx->let_sym_ptr->var = scope->varlist.append(new VarInfo(sym));
 
+        nd->sym = sym;
+
         break;
       }
 
@@ -127,8 +131,14 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
       }
 
       case ND_Function: {
-        scope->append_as_symboled(ScopeContext::from_function(S, nd), SY_Func, nd,
-                                  nd->nd_func_name->str);
+        auto func = scope->append_as_symboled(ScopeContext::from_function(S, nd), SY_Func,
+                                              nd, nd->nd_func_name->str);
+
+        if (nd->nd_func_is_template) {
+          func->add_template_params(nd->nd_func_tplist);
+
+          S.tp_manager.add_define(nd->sym);
+        }
 
         break;
       }
@@ -261,6 +271,16 @@ ScopeContext* ScopeContext::from_class(Sema& S, Node* node) {
   }
 
   return scope;
+}
+
+void ScopeContext::add_template_params(Node* tplist) {
+
+  for (auto&& param : tplist->list) {
+    auto sym = this->add_symbol(new Symbol(SY_TemplateParam));
+
+    sym->decl = param;
+    sym->name = param->nd_id_name->str;
+  }
 }
 
 ScopeContext::ScopeContext(ScopeKind kind, Node* node)

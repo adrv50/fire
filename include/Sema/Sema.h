@@ -3,6 +3,8 @@
 #include <functional>
 
 #include "Node.h"
+#include "Token.h"
+
 #include "ScopeContext.h"
 #include "NodeContext.h"
 
@@ -56,6 +58,151 @@ public:
   }
 };
 
+namespace templates {
+
+struct Parameter;
+struct Instantiated;
+struct DefinitionIR;
+struct Instantiated;
+class TemplateManager;
+
+//
+// テンプレートパラメータ
+// <T, U, ...>
+struct Parameter {
+  string name;
+  Node* decl; // => ND_Identifier (in tplist)
+  Symbol* sym;
+  TypeInfo type;
+  bool is_deducted = false;
+
+  Parameter(Node* decl)
+      : name(decl->nd_id_name->str),
+        decl(decl),
+        sym(decl->sym),
+        type(),
+        is_deducted(false) {
+  }
+};
+
+struct ParamList {
+  DefinitionIR* parent;
+  Vec<Parameter> params;
+
+  size_t size() const {
+    return this->params.size();
+  }
+
+  Parameter& operator[](size_t i) {
+    return this->params[i];
+  }
+
+  Parameter const& operator[](size_t i) const {
+    return this->params[i];
+  }
+
+  Parameter& push(Parameter p) {
+    return this->params.emplace_back(std::move(p));
+  }
+
+  //
+  // テンプレート引数から型を取得する
+  // 関数呼び出しの場合はその引数も見る
+  void subtitute(Node* id, Vec<TypeInfo> const& args,
+                 Vec<TypeInfo>* callfunc_args = nullptr, Node* cf_expr = nullptr);
+
+  Parameter* find(string const& name);
+
+  //
+  // if function
+  Parameter* get_param_of_arg(size_t index);
+
+  ParamList(DefinitionIR* parent);
+};
+
+//
+// テンプレート関数・クラスの定義（中間表現）
+struct DefinitionIR {
+  Symbol* sym; // => symbol of definition
+  Node* node;
+  ParamList param_list;
+  Vec<Instantiated*> instantiated_list;
+
+  Parameter* find_param(string const& name) {
+    for (auto&& p : this->param_list.params)
+      if (p.name == name)
+        return &p;
+
+    return nullptr;
+  }
+
+  bool compare_param_types(ParamList const& params) {
+    if (this->param_list.size() != params.size())
+      return false;
+
+    for (size_t i = 0; i < this->param_list.size(); i++) {
+      auto& self = this->param_list[i];
+      auto& p = params[i];
+
+      if (!self.is_deducted || self.name != p.name)
+        return false;
+
+      if (!self.type.equals(p.type))
+        return false;
+    }
+
+    return true;
+  }
+
+  DefinitionIR(Symbol* definition)
+      : sym(definition),
+        node(definition->decl),
+        param_list(this) {
+  }
+};
+
+//
+// 実体
+struct Instantiated {
+  Symbol* sym;
+  Node* node; // <= Replaced all parameter names
+  DefinitionIR* based;
+  Vec<Parameter> params;
+
+  Instantiated(DefinitionIR* based)
+      : sym(based->sym),
+        node(based->node),
+        based(based),
+        params() {
+  }
+};
+
+class TemplateManager {
+
+  friend class Sema;
+
+  Vec<DefinitionIR*> definitions;
+
+  Vec<Instantiated*> instantiations;
+
+public:
+  TemplateManager();
+
+  DefinitionIR* find_ir_from_sym(Symbol* sym);
+
+  Instantiated* find_instantiated(Symbol* sym, Vec<TypeInfo> const& tp_args);
+
+  Instantiated* instantiate(DefinitionIR* ir, Vec<TypeInfo> const& tp_args);
+
+  DefinitionIR* add_define(Symbol* sym);
+
+  Node* replace_all_params(DefinitionIR* ir, Node* _node);
+
+private:
+};
+
+} // namespace templates
+
 class Sema {
   friend struct Symbol;
   friend struct SymbolTable;
@@ -70,6 +217,8 @@ class Sema {
   ScopeContext* cur_scope;
 
   ExprEval expr_eval;
+
+  templates::TemplateManager tp_manager;
 
   ScopeContext* enter_scope(ScopeContext* scope);
   void leave_scope();

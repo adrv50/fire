@@ -4,6 +4,10 @@
 
 namespace fire::sema {
 
+namespace templates {
+struct Parameter;
+}
+
 struct SymbolTable;
 struct ScopeContext;
 
@@ -25,6 +29,8 @@ enum SymbolKind {
   SY_Member,       //
   SY_StaticMember, // class
 
+  SY_TemplateParam,
+
   SY_Namespace, // namespace
 
   SY_BuiltinType,
@@ -41,6 +47,7 @@ struct Symbol {
 
   union {
     VarInfo* var;
+    templates::Parameter* tp_param;
     ScopeContext* scope;
     TypeKind tk;
     Builtins::BuiltinFunc const* bfun;

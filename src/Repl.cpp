@@ -9,7 +9,7 @@
 
 #include "Lexer.h"
 #include "Parser.h"
-#include "Sema.h"
+#include "Sema/Sema.h"
 #include "Evaluator.h"
 #include "Repl.h"
 
@@ -31,7 +31,7 @@ Node* prg;
 
 unique_ptr<Parser> parser;
 
-unique_ptr<sema::Sema> sema;
+unique_ptr<fire::sema::Sema> sema;
 
 unique_ptr<Evaluator> ev;
 

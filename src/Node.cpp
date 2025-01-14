@@ -35,6 +35,25 @@ Node*& Node::append(Node* node) {
   return this->list.emplace_back(node);
 }
 
+Node* Node::clone() {
+
+  auto cloned = new Node(*this);
+
+  Node** bases[] = {&nd->na, &nd->nb, &nd->nc, &nd->nd, &nd->ne, &nd->nf};
+
+  for (Node*** b = bases;
+       Node * *c : {&cloned->nd->na, &cloned->nd->nb, &cloned->nd->nc, &cloned->nd->nd,
+                    &cloned->nd->ne, &cloned->nd->nf}) {
+    if (**b)
+      *c = ((**b)++)->clone();
+  }
+
+  for (auto& x : this->list)
+    cloned->append(x->clone());
+
+  return cloned;
+}
+
 Node* Node::new_node(NodeKind kind, Token* tok) {
   return new Node(kind, tok);
 }

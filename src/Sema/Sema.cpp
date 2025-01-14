@@ -40,7 +40,9 @@ void Sema::check_top_item(Node* node) {
       break;
 
     case ND_Function:
-      this->check_func(node);
+      if (!node->nd_func_is_template)
+        this->check_func(node);
+
       break;
 
     case ND_Class:
@@ -77,6 +79,10 @@ void Sema::check_class(Node* node) {
 }
 
 void Sema::check_func(Node* node, Node* parent_class) {
+
+  if (node->nd_func_is_template) {
+    return;
+  }
 
   auto fn_scope = this->enter_scope(node->sema_ctx->scope);
 

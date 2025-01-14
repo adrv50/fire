@@ -22,6 +22,8 @@ enum ScopeKind {
   SC_Class,
   SC_Struct,
 
+  SC_Template, // => for symbols of template parameters. (and wrap template node)
+
   SC_Namespace,
 };
 
@@ -88,6 +90,8 @@ struct ScopeContext {
   size_t find_scope_if(Vec<ScopeContext*>& out, std::function<bool(ScopeContext*)> pred);
 
   size_t find_symbol_if(Vec<Symbol*>& out, std::function<bool(Symbol*)> pred);
+
+  void add_template_params(Node* tplist);
 
   static ScopeContext* from_block(Sema& S, Node* node);
 

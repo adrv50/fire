@@ -317,7 +317,7 @@ enum NodeKind : u16 {
   //
   //
   ND_TemplateArguments,
-  ND_TemplateParameterList,
+  ND_TemplateParameterList, // => { ND_Identifier* }
 
   //
   // Concept definition
@@ -343,10 +343,6 @@ enum CompareExprKind : u8 {
   CMP_Bigger,
   CMP_BiggerOrEqual,
 };
-
-namespace fire::sema {
-struct NodeContext;
-}
 
 struct Token;
 struct Node {
@@ -386,6 +382,7 @@ struct Node {
   Builtins::BuiltinFunc const* bfun = nullptr;
 
   fire::sema::NodeContext* sema_ctx = nullptr;
+  fire::sema::Symbol* sym = nullptr;
 
   bool is(NodeKind kind) const;
 
@@ -413,6 +410,8 @@ struct Node {
   Node* get_enumerator(size_t index) const {
     return this->nd_enum_enumerators[index];
   }
+
+  Node* clone();
 
   static Node* new_node(NodeKind kind, Token* tok = nullptr);
 

@@ -61,6 +61,10 @@ TypeInfo ExprEval::eval(Node* node) {
 
           switch (sym->kind) {
             case SY_Class:
+              if (sym->decl->nd_class_is_template) {
+                todo_impl; // instantiate class template
+              }
+
             case SY_Namespace:
               candidates.clear();
               count = sym->scope->sym_table.find(candidates, id->nd_id_name->str);
@@ -93,10 +97,16 @@ TypeInfo ExprEval::eval(Node* node) {
 
       auto sym = candidates[0];
 
+      node->sym = sym;
+
       switch (sym->kind) {
         case SY_Var: {
           if (!sym->var->is_type_deducted) {
             Error(node, "cannot use variable before type deduction").crash();
+          }
+
+          if (id->nd_id_tp_args.size() >= 1) {
+            Error(node, "variable '" + name + "' is not template").crash();
           }
 
           return sym->var->type;
@@ -106,6 +116,9 @@ TypeInfo ExprEval::eval(Node* node) {
           TypeInfo type{TypeKind::Functor};
 
           type.ftor_node = sym->decl;
+
+          if (sym->decl->nd_func_is_template) {
+          }
 
           type.append_template_arg(S.eval_type_ti(sym->decl->nd_func_result_type));
 
