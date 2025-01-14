@@ -115,14 +115,29 @@ TypeInfo ExprEval::eval(Node* node) {
         case SY_Func: {
           TypeInfo type{TypeKind::Functor};
 
-          type.ftor_node = sym->decl;
+          auto func_nd = sym->decl;
 
-          if (sym->decl->nd_func_is_template) {
+          if (func_nd->nd_func_is_template) {
+            Vec<TypeInfo> tp_args;
+
+            for (auto&& arg : id->nd_id_tp_args)
+              tp_args.emplace_back(this->eval(arg));
+
+            auto ir = func_nd->sema_ctx->func->template_ir;
+
+            auto instantiated = S.tp_manager.instantiate(
+                ir, id, tp_args,
+                this->ctx.callfunc_args_p ? *this->ctx.callfunc_args_p : Vec<TypeInfo>(),
+                this->ctx.callfunc_nd);
+
+            todo_impl;
           }
 
-          type.append_template_arg(S.eval_type_ti(sym->decl->nd_func_result_type));
+          type.ftor_node = func_nd;
 
-          for (auto&& arg : sym->decl->nd_func_args)
+          type.append_template_arg(S.eval_type_ti(type.ftor_node->nd_func_result_type));
+
+          for (auto&& arg : type.ftor_node->nd_func_args)
             type.append_template_arg(S.eval_type_ti(arg->nd_func_arg_type));
 
           return type;
@@ -133,6 +148,14 @@ TypeInfo ExprEval::eval(Node* node) {
           TypeInfo type{TypeKind::Type};
 
           type.nd_class = sym->decl;
+
+          return type;
+        }
+
+        case SY_BuiltinType: {
+          TypeInfo type{sym->tk};
+
+          // todo: add template args
 
           return type;
         }

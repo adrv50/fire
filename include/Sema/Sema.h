@@ -109,7 +109,7 @@ struct ParamList {
   // テンプレート引数から型を取得する
   // 関数呼び出しの場合はその引数も見る
   void subtitute(Node* id, Vec<TypeInfo> const& args,
-                 Vec<TypeInfo>* callfunc_args = nullptr, Node* cf_expr = nullptr);
+                 Vec<TypeInfo> const* callfunc_args = nullptr, Node* cf_expr = nullptr);
 
   Parameter* find(string const& name);
 
@@ -167,13 +167,16 @@ struct Instantiated {
   Symbol* sym;
   Node* node; // <= Replaced all parameter names
   DefinitionIR* based;
-  Vec<Parameter> params;
+  ParamList params;
+
+  Vec<TypeInfo> take_args;    //
+  Vec<TypeInfo> take_cf_args; //
 
   Instantiated(DefinitionIR* based)
       : sym(based->sym),
         node(based->node),
         based(based),
-        params() {
+        params(based->param_list /* copy */) {
   }
 };
 
@@ -190,9 +193,11 @@ public:
 
   DefinitionIR* find_ir_from_sym(Symbol* sym);
 
-  Instantiated* find_instantiated(Symbol* sym, Vec<TypeInfo> const& tp_args);
+  Instantiated* find_instantiated(Symbol* sym, Vec<TypeInfo> const& tp_args,
+                                  Vec<TypeInfo> const& cf_args = {});
 
-  Instantiated* instantiate(DefinitionIR* ir, Vec<TypeInfo> const& tp_args);
+  Instantiated* instantiate(DefinitionIR* ir, Node* id, Vec<TypeInfo> const& tp_args,
+                            Vec<TypeInfo> const& cf_args = {}, Node* cf_expr = nullptr);
 
   DefinitionIR* add_define(Symbol* sym);
 

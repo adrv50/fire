@@ -7,6 +7,10 @@
 
 namespace fire::sema {
 
+namespace templates {
+struct DefinitionIR;
+}
+
 struct SymbolInfo;
 struct SymbolTable;
 struct FunctionContext;

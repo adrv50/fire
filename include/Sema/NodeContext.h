@@ -5,6 +5,8 @@
 namespace fire::sema {
 
 struct FunctionContext {
+  templates::DefinitionIR* template_ir = nullptr;
+
   Vec<Node*> return_stmt_list;
 
   Vec<Symbol*> let_stmt_sym_ptr_list; // => for count of all local variables

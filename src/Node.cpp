@@ -37,15 +37,27 @@ Node*& Node::append(Node* node) {
 
 Node* Node::clone() {
 
-  auto cloned = new Node(*this);
+  auto cloned = new Node(this->kind, this->tok, this->obj);
 
-  Node** bases[] = {&nd->na, &nd->nb, &nd->nc, &nd->nd, &nd->ne, &nd->nf};
+  cloned->tok2 = this->tok2;
+  cloned->tok3 = this->tok3;
 
-  for (Node*** b = bases;
-       Node * *c : {&cloned->nd->na, &cloned->nd->nb, &cloned->nd->nc, &cloned->nd->nd,
-                    &cloned->nd->ne, &cloned->nd->nf}) {
-    if (**b)
-      *c = ((**b)++)->clone();
+  cloned->b1 = this->b1;
+  cloned->b2 = this->b2;
+  cloned->b3 = this->b3;
+  cloned->b4 = this->b4;
+
+  Node* bases[] = {this->na, this->nb, this->nc, this->nd, this->ne, this->nf};
+
+  if (this->kind == ND_Block)
+    bases[0] = nullptr;
+
+  for (size_t i = 0; auto& c : {&cloned->na, &cloned->nb, &cloned->nc, &cloned->nd,
+                                &cloned->ne, &cloned->nf}) {
+    if (bases[i])
+      *c = (bases[i])->clone();
+
+    i++;
   }
 
   for (auto& x : this->list)

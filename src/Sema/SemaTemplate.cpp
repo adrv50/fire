@@ -5,7 +5,7 @@
 namespace fire::sema::templates {
 
 void ParamList::subtitute(Node* id, Vec<TypeInfo> const& args,
-                          Vec<TypeInfo>* callfunc_args, Node* cf_expr) {
+                          Vec<TypeInfo> const* callfunc_args, Node* cf_expr) {
 
   for (size_t i = 0; i < args.size(); i++) {
     TypeInfo const& given_arg = args[i];
@@ -90,25 +90,45 @@ DefinitionIR* TemplateManager::find_ir_from_sym(Symbol* sym) {
 }
 
 Instantiated* TemplateManager::find_instantiated(Symbol* sym,
-                                                 Vec<TypeInfo> const& tp_args) {
+                                                 Vec<TypeInfo> const& tp_args,
+                                                 Vec<TypeInfo> const& cf_args) {
   auto ir = this->find_ir_from_sym(sym);
 
   for (auto&& inst : this->instantiations) {
     if (inst->based == ir) {
 
+      if (inst->take_args.size() != tp_args.size())
+        continue;
+
+      if (inst->take_cf_args.size() != cf_args.size())
+        continue;
+
+      for (size_t i = 0; i < tp_args.size(); i++)
+        if (!inst->take_args[i].equals(tp_args[i]))
+          goto __pass;
+
+      for (size_t i = 0; i < cf_args.size(); i++)
+        if (!inst->take_cf_args[i].equals(cf_args[i]))
+          goto __pass;
+
       return inst;
     }
+
+  __pass:;
   }
 
   return nullptr;
 }
 
-Instantiated* TemplateManager::instantiate(DefinitionIR* ir,
-                                           Vec<TypeInfo> const& tp_args) {
-  if (auto inst = this->find_instantiated(ir->sym, tp_args); inst)
+Instantiated* TemplateManager::instantiate(DefinitionIR* ir, Node* id,
+                                           Vec<TypeInfo> const& tp_args,
+                                           Vec<TypeInfo> const& cf_args, Node* cf_expr) {
+  if (auto inst = this->find_instantiated(ir->sym, tp_args, cf_args); inst)
     return inst;
 
   auto inst = this->instantiations.emplace_back(new Instantiated(ir));
+
+  inst->params.subtitute(id, tp_args, &cf_args, cf_expr);
 
   inst->node = this->replace_all_params(ir, ir->node);
 

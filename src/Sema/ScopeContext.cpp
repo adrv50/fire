@@ -137,7 +137,7 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
         if (nd->nd_func_is_template) {
           func->add_template_params(nd->nd_func_tplist);
 
-          S.tp_manager.add_define(nd->sym);
+          func->func_ctx->template_ir = S.tp_manager.add_define(nd->sym);
         }
 
         break;
