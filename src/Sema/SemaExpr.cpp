@@ -332,6 +332,12 @@ TypeInfo ExprEval::eval(Node* node) {
 
       return functor.tp_args[0];
     }
+
+    case ND_Range:
+      todo_impl;
+
+    case ND_ExprIf:
+      todo_impl;
   }
 
   assert(node->kind >= ND_Mul && node->kind <= ND_Assign);
@@ -340,11 +346,54 @@ TypeInfo ExprEval::eval(Node* node) {
   auto rhs = this->eval(node->nd_rhs);
 
   if (!lhs.equals(rhs)) {
-    Error(node->tok, "cannot use operator for not same type").crash();
+    Error(node->tok, "cannot use operator for not same type ('" + lhs.to_string() +
+                         "' and '" + rhs.to_string() + "')")
+        .crash();
   }
 
   switch (node->kind) {
     case ND_Add:
+      if (lhs.is_str())
+        break;
+
+    case ND_Sub:
+    case ND_Mul:
+    case ND_Div:
+      if (!lhs.is_numeric())
+        Error(node->tok, "cannot use arithmetic operator for not numeric type").crash();
+      break;
+
+    case ND_LShift:
+    case ND_RShift:
+    case ND_Mod:
+    case ND_BitAnd:
+    case ND_BitOr:
+    case ND_BitXor:
+      if (!lhs.is(TypeKind::Int))
+        Error(node->tok,
+              "only can use operator '" + node->tok->str + "' for integer type")
+            .crash();
+      break;
+
+    case ND_Compare:
+      if (!lhs.is_numeric())
+        Error(node->tok, "'" + lhs.to_string() + "' type object is not comparable")
+            .crash();
+      return TypeKind::Bool;
+
+    case ND_Equal:
+      return TypeKind::Bool;
+
+    case ND_In:
+      todo_impl;
+
+    case ND_Or:
+    case ND_And:
+      if (!lhs.is(TypeKind::Bool))
+        Error(node->tok, "only can use operator 'or', 'and' for boolean type").crash();
+      return TypeKind::Bool;
+
+    case ND_Assign:
       break;
   }
 
@@ -353,8 +402,8 @@ TypeInfo ExprEval::eval(Node* node) {
 
 TypeInfo ExprEval::expect(Node* node, TypeInfo const& type) {
   if (auto ti = this->eval(node); !ti.equals(type)) {
-    Error(node, "expected '" + type.to_string() + "' type expression but found '" +
-                    ti.to_string() + "'")
+    Error(node->tok, "expected '" + type.to_string() + "' type expression but found '" +
+                         ti.to_string() + "'")
         .crash();
   }
   else

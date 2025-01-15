@@ -173,6 +173,14 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
 
         break;
       }
+
+      case ND_If:
+        scope->append(ScopeContext::from_block(S, nd->nd_if_then));
+
+        if (nd->nd_if_else)
+          scope->append(ScopeContext::from_block(S, nd->nd_if_else));
+
+        break;
     }
   }
 

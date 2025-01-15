@@ -57,6 +57,10 @@ struct TypeInfo {
   bool is(TypeKind k) const;
   bool is(TypeKind k, bool is_mutable, Vec<TypeInfo> tp_args) const;
 
+  bool is_str() const {
+    return this->is(TypeKind::String);
+  }
+
   bool is_enum_type() const {
     return this->is(TypeKind::Type) && this->nd_enum;
   }

@@ -135,6 +135,9 @@ void Sema::check_let(Node* node, Node* parent_class) {
 }
 
 void Sema::check_stmt(Node* node) {
+  if (!node)
+    return;
+
   switch (node->kind) {
     case ND_Block: {
       this->enter_scope(node->sema_ctx->scope);
@@ -153,7 +156,10 @@ void Sema::check_stmt(Node* node) {
     }
 
     case ND_If: {
-      todo_impl;
+      this->expr_eval.expect(node->nd_if_cond, TypeKind::Bool);
+      this->check_stmt(node->nd_if_then);
+      this->check_stmt(node->nd_if_else);
+      break;
     }
 
     case ND_Switch: {
