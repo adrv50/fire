@@ -295,6 +295,26 @@ Token* Lexer::lex() {
     size_t _pos = this->pos;
 
     //
+    // pass comment line
+    if (this->eat("//")) {
+      while (this->check() && this->peek() != '\n')
+        this->pos++;
+
+      this->pass_space();
+      continue;
+    }
+
+    //
+    // pass comment block
+    if (this->eat("/*")) {
+      while (this->check() && !this->eat("*/"))
+        this->pos++;
+
+      this->pass_space();
+      continue;
+    }
+
+    //
     // hexadecimal
     if (this->eat("0x") || this->eat("0X")) {
       cur = Token::make(TokenKind::Hexadecimal, &this->SS, cur, this->trim_hexadecimal(),

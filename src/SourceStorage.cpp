@@ -77,6 +77,8 @@ bool SourceStorage::open(string const& path) {
   if (this->is_open())
     return false; // not closed or duplicate use of instance
 
+  this->path = path;
+
   this->ifs.reset();
   this->ifs = std::make_unique<std::ifstream>(path);
 
