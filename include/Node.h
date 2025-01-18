@@ -66,9 +66,10 @@
 // ND_Type
 #define nd_type_id na
 #define nd_type_scope_resol list
-#define nd_type_tp_args nb
+#define nd_type_tp_args_ptr nb
 #define nd_type_is_mut b1
 #define nd_type_is_ref b2
+#define nd_type_tp_args nb->list
 
 #define nd_block_parent na
 #define nd_block_items list

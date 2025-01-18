@@ -374,8 +374,8 @@ BuiltinFunc::BuiltinFunc(string name, Vec<TypeInfo> arg_types, bool is_variable_
 
 using namespace fire::sema;
 
-Vec<Symbol*> _func_symbols;
-Vec<Symbol*> _type_symbols;
+static Vec<Symbol*> _func_symbols;
+static Vec<Symbol*> _type_symbols;
 
 Vec<Symbol*> const& Symbols::get_func_symbols() {
   return _func_symbols;
@@ -400,8 +400,11 @@ size_t Symbols::find(Vec<Symbol*>& out, string const& name) {
   return out.size();
 }
 
+//
+// make_sym_bfun:
+//   Create a symbol for built-in function name.
+//
 static Symbol* make_sym_bfun(BuiltinFunc const& bfun) {
-
   auto sym = new Symbol(SY_BuiltinFunc);
 
   sym->name = bfun.name;
@@ -410,6 +413,10 @@ static Symbol* make_sym_bfun(BuiltinFunc const& bfun) {
   return sym;
 }
 
+//
+// make_sym_type:
+//  Create a symbol for built-in type name.
+//
 static Symbol* make_sym_type(TypeKind tk, string const& name) {
   auto sym = new Symbol(SY_BuiltinType);
 
@@ -424,11 +431,17 @@ void initialize() {
   for (auto&& bf : builtins)
     _func_symbols.push_back(make_sym_bfun(bf));
 
+  _type_symbols.push_back(make_sym_type(TypeKind::None, "none"));
+
   _type_symbols.push_back(make_sym_type(TypeKind::Int, "int"));
   _type_symbols.push_back(make_sym_type(TypeKind::Float, "float"));
   _type_symbols.push_back(make_sym_type(TypeKind::Bool, "bool"));
   _type_symbols.push_back(make_sym_type(TypeKind::Char, "char"));
   _type_symbols.push_back(make_sym_type(TypeKind::String, "string"));
+
+  _type_symbols.push_back(make_sym_type(TypeKind::Vector, "vector"));
+  _type_symbols.push_back(make_sym_type(TypeKind::Tuple, "tuple"));
+  _type_symbols.push_back(make_sym_type(TypeKind::Dict, "dict"));
 }
 
 } // namespace fire::Builtins

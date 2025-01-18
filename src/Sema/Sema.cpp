@@ -235,7 +235,15 @@ TypeInfo Sema::eval_type_ti(Node* node) {
 
     sym = candidates[0];
 
-    bool have_tp_args = nd->nd_type_tp_args != nullptr;
+    bool have_tp_args = nd->nd_type_tp_args_ptr != nullptr;
+
+    if (have_tp_args) {
+      tp_args.clear();
+
+      for (auto&& type : nd->nd_type_tp_args) {
+        tp_args.emplace_back(this->eval_type_ti(type));
+      }
+    }
 
     switch (sym->kind) {
       case SY_Namespace:
@@ -272,6 +280,11 @@ TypeInfo Sema::eval_type_ti(Node* node) {
         if (TypeInfo::is_template_kind(sym->tk)) {
           if (!have_tp_args)
             goto _no_tp_args_err;
+
+          if (auto least = TypeInfo::get_least_template_args_count_of(sym->tk);
+              tp_args.size() < least) {
+            Error(nd, "too few template arguments").crash();
+          }
         }
         else if (have_tp_args)
           goto _not_template_err;
@@ -280,14 +293,6 @@ TypeInfo Sema::eval_type_ti(Node* node) {
 
       default:
         Error(nd->last_tok->next, "'" + name + "' is not a type name").crash();
-    }
-
-    if (nd->nd_type_tp_args) {
-      tp_args.clear();
-
-      for (auto&& tp : nd->nd_type_tp_args->list) {
-        tp_args.emplace_back(this->eval_type_ti(tp));
-      }
     }
 
     candidates.clear();
@@ -345,21 +350,19 @@ TypeInfo Sema::eval_type_ti(Node* node) {
 }
 
 size_t Sema::find_name(Vec<Symbol*>& out, string const& name, ScopeContext* start) {
-  size_t result = 0;
-
   if (!start)
     start = this->cur_scope;
 
   do {
-    result = start->sym_table.find(out, name);
+    start->sym_table.find(out, name);
     start = start->parent;
-  } while (start && result == 0);
+  } while (start && out.empty());
 
-  if (result == 0) {
-    result = Builtins::Symbols::find(out, name);
+  if (out.empty()) {
+    Builtins::Symbols::find(out, name);
   }
 
-  return result;
+  return out.size();
 }
 
 } // namespace fire::sema

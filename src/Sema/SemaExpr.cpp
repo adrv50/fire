@@ -1,5 +1,6 @@
 #include "Object.h"
 #include "Error.h"
+#include "Builtins.h"
 #include "Sema/Sema.h"
 
 #include "node2s.h"
@@ -161,6 +162,17 @@ TypeInfo ExprEval::eval(Node* node) {
           TypeInfo type{sym->tk};
 
           // todo: add template args
+
+          return type;
+        }
+
+        case SY_BuiltinFunc: {
+          TypeInfo type = TypeKind::Functor;
+
+          type.ftor_blt = sym->bfun;
+
+          type.tp_args = sym->bfun->arg_types;
+          type.tp_args.insert(type.tp_args.begin(), sym->bfun->ret_type);
 
           return type;
         }

@@ -40,10 +40,10 @@ Node* Parser::p_expect_type_part() {
     Error(tok, "expected identifier").crash();
 
   if (this->eat_tp_args_open()) {
-    node->nd_type_tp_args = Node::new_node(ND_TemplateArguments, this->cur->prev);
+    node->nd_type_tp_args_ptr = Node::new_node(ND_TemplateArguments, this->cur->prev);
 
     do {
-      node->nd_type_tp_args->append(this->p_expect_type());
+      node->nd_type_tp_args_ptr->append(this->p_expect_type());
     } while (this->eat(Punct::Comma));
 
     this->expect_tp_args_close();

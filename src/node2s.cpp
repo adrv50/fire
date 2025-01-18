@@ -345,8 +345,8 @@ string node2s(Node* node) {
       for (auto&& sr : node->nd_type_scope_resol)
         s += "::" + node2s(sr);
 
-      if (node->nd_type_tp_args)
-        s += "<" + utils::join(", ", node->nd_type_tp_args->list, node2s) + ">";
+      if (node->nd_type_tp_args_ptr)
+        s += "<" + utils::join(", ", node->nd_type_tp_args, node2s) + ">";
 
       if (node->nd_type_is_mut)
         s += " mut";

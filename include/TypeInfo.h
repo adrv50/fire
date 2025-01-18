@@ -98,6 +98,21 @@ struct TypeInfo {
   TypeInfo& set_ftor_bfun(Builtins::BuiltinFunc const* bf);
   TypeInfo& set_ftor_node(Node* node);
 
+  static size_t get_least_template_args_count_of(TypeKind kind) {
+    switch (kind) {
+      case TypeKind::Vector:
+        return 1;
+
+      case TypeKind::Tuple:
+        return 1;
+
+      case TypeKind::Dict:
+        return 2;
+    }
+
+    return 0;
+  }
+
   static bool is_template_kind(TypeKind kind) {
     switch (kind) {
       case TypeKind::Vector:
