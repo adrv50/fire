@@ -4,6 +4,8 @@
 
 #include "typedef.h"
 
+namespace fire {
+
 struct Node;
 
 class Evaluator {
@@ -58,3 +60,5 @@ public:
 
   void eval_let(Node* node);
 };
+
+} // namespace fire

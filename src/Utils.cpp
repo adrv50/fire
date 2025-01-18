@@ -1,7 +1,7 @@
 #include <fstream>
 #include "Utils.h"
 
-namespace utils {
+namespace fire::utils {
 
 //
 // read_text_file:
@@ -21,4 +21,4 @@ bool read_text_file(string& out, string const& path) {
   return true;
 }
 
-} // namespace utils
+} // namespace fire::utils

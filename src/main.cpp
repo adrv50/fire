@@ -24,10 +24,14 @@
 
 #include "Builtins.h"
 
-int main(int argc, char** argv) {
-  SourceStorage SS{"test.fr"};
+using namespace fire;
 
+int main(int argc, char** argv) {
   Builtins::initialize();
+
+  Vec<SourceStorage> sources;
+
+  SourceStorage SS;
 
   try {
     (void)argv;
@@ -37,9 +41,15 @@ int main(int argc, char** argv) {
       return 0;
     }
 
+    SS.open("test.fr");
+    SS.read();
+
     Lexer lexer{SS};
 
     auto tok = lexer.lex();
+
+    if (tok->is(TokenKind::End)) // empty source file
+      return 0;
 
     Parser parser{tok};
 

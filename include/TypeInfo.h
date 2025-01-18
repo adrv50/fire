@@ -3,6 +3,8 @@
 #include "alert.h"
 #include "typedef.h"
 
+namespace fire {
+
 namespace Builtins {
 struct BuiltinFunc;
 }
@@ -121,3 +123,5 @@ struct TypeInfo {
   TypeInfo(TypeKind kind, Vec<TypeInfo> tp_args, bool is_reference = false,
            bool is_mutable = false);
 };
+
+} // namespace fire

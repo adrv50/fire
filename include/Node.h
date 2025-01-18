@@ -197,6 +197,8 @@
 
 #define nd_ccbody_rules list
 
+namespace fire {
+
 namespace Builtins {
 struct BuiltinFunc;
 }
@@ -442,3 +444,5 @@ struct Node {
     return this->nd_scope_resol_idlist.back();
   }
 };
+
+} // namespace fire

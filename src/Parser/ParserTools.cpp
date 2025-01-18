@@ -5,6 +5,8 @@
 #include "Error.h"
 #include "Parser.h"
 
+namespace fire {
+
 bool Parser::check() {
   return !this->cur->is(TokenKind::End);
 }
@@ -269,3 +271,5 @@ Node* Parser::p_getexpr_rm_block() {
 
   return x;
 }
+
+} // namespace fire

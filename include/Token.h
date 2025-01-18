@@ -3,6 +3,8 @@
 #include "typedef.h"
 #include "SourceStorage.h"
 
+namespace fire {
+
 //
 // TokenKind: kinds of token
 //
@@ -276,3 +278,5 @@ struct Token {
 
   Token(TokenKind kind = TokenKind::Unknown);
 };
+
+} // namespace fire

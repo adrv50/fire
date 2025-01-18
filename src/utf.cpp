@@ -3,7 +3,7 @@
 
 #include "utf.h"
 
-namespace utf {
+namespace fire::utf {
 
 static std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> conv;
 
@@ -15,4 +15,4 @@ std::u16string to_utf16(string const& str) {
   return conv.from_bytes(str);
 }
 
-} // namespace utf
+} // namespace fire::utf

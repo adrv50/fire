@@ -15,6 +15,8 @@
 
 #include "Error.h"
 
+namespace fire::Repl {
+
 using std::cin;
 using std::cout;
 using std::endl;
@@ -24,8 +26,6 @@ using std::getline;
 using Kwd = TokenKwdKind;
 using Op = TokenOperatorKind;
 using Punct = TokenPunctKind;
-
-namespace Repl {
 
 Node* prg;
 
@@ -96,4 +96,4 @@ void run() {
   }
 }
 
-} // namespace Repl
+} // namespace fire::Repl

@@ -2,6 +2,8 @@
 
 #include "typedef.h"
 
+namespace fire {
+
 class SourceStorage;
 struct Token;
 
@@ -36,3 +38,5 @@ public:
   //
   Token* lex();
 };
+
+} // namespace fire

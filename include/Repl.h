@@ -1,7 +1,7 @@
 #pragma once
 
-namespace Repl {
+namespace fire::Repl {
 
 void run();
 
-} // namespace Repl
+} // namespace fire::Repl

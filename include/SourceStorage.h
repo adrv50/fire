@@ -1,6 +1,9 @@
 #pragma once
 
+#include <iosfwd>
 #include "typedef.h"
+
+namespace fire {
 
 struct Token;
 class SourceStorage;
@@ -45,6 +48,8 @@ class SourceStorage {
 
   mutable Vec<shared_ptr<SourceLoc>> _loc_list;
 
+  unique_ptr<std::ifstream> ifs;
+
   Vec<pair<size_t, size_t /* (pos, len) */>> _line_list;
 
   pair<size_t, size_t>& append_line(size_t pos, size_t len);
@@ -67,6 +72,19 @@ public:
 
   string get_path() const;
 
+  bool open(string const& path);
+
+  // void close();
+
+  bool read();
+
+  bool is_open();
+
+  SourceStorage();
+
   SourceStorage(string const& path);
+
   ~SourceStorage();
 };
+
+} // namespace fire

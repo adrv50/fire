@@ -3,6 +3,8 @@
 #include "Node.h"
 #include "Object.h"
 
+namespace fire {
+
 bool Node::is(NodeKind kind) const {
   return this->kind == kind;
 }
@@ -127,3 +129,5 @@ Node::Node(NodeKind kind, Token* tok, Node* lhs, Node* rhs)
 
 Node::~Node() {
 }
+
+} // namespace fire

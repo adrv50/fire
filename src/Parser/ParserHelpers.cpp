@@ -5,6 +5,8 @@
 #include "Error.h"
 #include "Parser.h"
 
+namespace fire {
+
 // -----------------
 //  Parser::p_expect_type
 // ----------------------------------
@@ -239,3 +241,5 @@ Node* Parser::expect_concept_tag() {
 
   return nd;
 }
+
+} // namespace fire

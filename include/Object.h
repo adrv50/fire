@@ -6,6 +6,8 @@
 
 #include "TypeInfo.h"
 
+namespace fire {
+
 using Obj = Object*;
 
 template <typename T>
@@ -224,3 +226,5 @@ struct ObjTypeInfo : Object {
 
   static ObjTypeInfo* make(TypeInfo const& ti);
 };
+
+} // namespace fire

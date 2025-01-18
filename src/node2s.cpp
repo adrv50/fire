@@ -5,6 +5,8 @@
 #include "node2s.h"
 #include "alert.h"
 
+namespace fire {
+
 //
 // get_last_ch
 //
@@ -368,3 +370,5 @@ string node2s(Node* node) {
 
   return "<node>";
 }
+
+} // namespace fire

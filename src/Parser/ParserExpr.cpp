@@ -8,6 +8,8 @@
 #include "Parser.h"
 #include "Error.h"
 
+namespace fire {
+
 // ------------
 // expr ::=
 //   assign
@@ -660,3 +662,5 @@ Node* Parser::p_literal() {
 
   return nullptr;
 }
+
+} // namespace fire

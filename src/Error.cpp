@@ -8,6 +8,8 @@
 
 #include "Error.h"
 
+namespace fire {
+
 Error::Error(Token* tok, string const& msg, ErrorType type)
     : type(type),
       tok(tok),
@@ -54,8 +56,14 @@ Error const& Error::emit() const {
   auto tok = this->tok;
 
   if (this->tok || this->node) {
-    if (!tok)
-      tok = this->node->first_tok;
+    if (!tok) {
+      if (this->node->first_tok)
+        tok = this->node->first_tok;
+      else
+        tok = this->node->tok;
+    }
+
+    assert(tok != nullptr);
 
     auto& ref = tok->ref;
 
@@ -176,6 +184,7 @@ INST(Ek::NotAllowedInThisContext, string const& keyword) {
   return *this;
 }
 
-#undef INST
 // ========================================
 //
+
+} // namespace fire

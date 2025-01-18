@@ -5,6 +5,7 @@ TOPDIR		?= 	$(CURDIR)
 BUILD		:= 	build
 INCLUDE		:= 	include
 SOURCE		:= 	src \
+				src/Driver \
 				src/Parser \
 				src/Sema \
 				src/Evaluator
@@ -13,7 +14,15 @@ CC			:=	clang
 CXX			:=	clang++
 
 OPTI		?=	-O0 -g -Wall -Wextra -D_FIRE_DEBUG_
-COMMON		:=	$(OPTI) -Wno-switch -Wno-unused-label -Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable $(INCLUDES)
+
+COMMON		:=	$(OPTI) \
+				$(INCLUDES) \
+				-Wno-switch \
+				-Wno-unused-label \
+				-Wno-unused-parameter \
+				-Wno-unused-variable \
+				-Wno-unused-but-set-variable
+
 CFLAGS		:=	$(COMMON) -std=c17
 CXXFLAGS	:=	$(COMMON) -std=c++20
 LDFLAGS		:=

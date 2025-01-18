@@ -5,6 +5,8 @@
 
 #include "typedef.h"
 
+namespace fire {
+
 struct Token;
 struct Node;
 
@@ -128,7 +130,8 @@ public:
   }
 
   template <typename... Args>
-  requires std::constructible_from<Error, Args...> Error& add_note(Args&&... args) {
+  requires std::constructible_from<Error, Args...>
+  Error& add_note(Args&&... args) {
     this->notes.emplace_back(std::forward<Args>(args)...).type = ErrorType::Note;
 
     return *this;
@@ -145,3 +148,5 @@ public:
     throw *this;
   }
 };
+
+} // namespace fire

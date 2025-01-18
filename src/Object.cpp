@@ -5,8 +5,11 @@
 #include "Token.h"
 #include "Node.h"
 
+namespace fire {
+
 template <std::derived_from<Object> T, typename... Args>
-requires std::constructible_from<T, Args...> ObjPtr<T> make_obj(Args&&... args) {
+requires std::constructible_from<T, Args...>
+ObjPtr<T> make_obj(Args&&... args) {
   return new T(std::forward<Args>(args)...);
 }
 
@@ -520,3 +523,5 @@ bool ObjTypeInfo::equals(Obj obj) const {
 size_t ObjStr::length() const {
   return this->val.size();
 }
+
+} // namespace fire

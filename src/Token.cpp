@@ -1,5 +1,7 @@
 #include "Token.h"
 
+namespace fire {
+
 bool Token::is(TokenKind k) const {
   return this->kind == k;
 }
@@ -78,3 +80,5 @@ Token::Token(TokenKind kind)
     : Token(kind, nullptr, nullptr, "", 0, TokenKwdKind::None, TokenOperatorKind::None,
             TokenPunctKind::None) {
 }
+
+} // namespace fire

@@ -8,6 +8,8 @@
 #include "Token.h"
 #include "Node.h"
 
+namespace fire {
+
 using TK = TypeKind;
 
 // clang-format off
@@ -178,7 +180,7 @@ TypeInfo& TypeInfo::set_ftor_node(Node* node) {
 }
 
 string TypeInfo::get_name_of_kind(TypeKind kind) {
-  for (auto&& [k, s] : ::kind_and_name_table)
+  for (auto&& [k, s] : kind_and_name_table)
     if (k == kind)
       return s;
 
@@ -186,7 +188,7 @@ string TypeInfo::get_name_of_kind(TypeKind kind) {
 }
 
 TypeKind TypeInfo::get_kind_of_name(string const& name) {
-  for (auto&& [k, s] : ::kind_and_name_table)
+  for (auto&& [k, s] : kind_and_name_table)
     if (s == name)
       return k;
 
@@ -209,3 +211,5 @@ TypeInfo::TypeInfo(TypeKind kind, Vec<TypeInfo> tp_args, bool is_ref, bool is_mu
       is_reference(is_ref),
       is_mutable(is_mut) {
 }
+
+} // namespace fire

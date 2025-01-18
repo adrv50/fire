@@ -5,6 +5,8 @@
 
 #include "SourceStorage.h"
 
+namespace fire {
+
 string_view SourceLoc::get_view() const {
   return {this->SS->data.data() + this->pos, this->length};
 }
@@ -71,32 +73,46 @@ string SourceStorage::get_path() const {
   return this->path;
 }
 
-SourceStorage::SourceStorage(string const& path)
-    : _loc_list(),
-      _line_list(),
-      path(path),
-      data() {
-  if (path.empty()) {
-    this->is_in_repl = true;
-    return;
-  }
+bool SourceStorage::open(string const& path) {
+  if (this->is_open())
+    return false; // not closed or duplicate use of instance
 
-  std::ifstream ifs{path};
+  this->ifs.reset();
+  this->ifs = std::make_unique<std::ifstream>(path);
 
-  if (ifs.fail()) {
-    throw std::invalid_argument("cannot open path");
-  }
+  return true;
+}
 
-  this->data = "";
+bool SourceStorage::read() {
+  if (!this->is_open())
+    return false;
 
-  for (string line; std::getline(ifs, line);) {
+  string line;
+
+  while (std::getline(*this->ifs, line)) {
     line.push_back('\n');
-
     this->append_line(this->data.size(), line.length());
-
     this->data.append(line);
   }
+
+  return true;
+}
+
+bool SourceStorage::is_open() {
+  return (bool)this->ifs && this->ifs->is_open();
+}
+
+SourceStorage::SourceStorage() {
+  this->append_line(0, 0);
+}
+
+SourceStorage::SourceStorage(string const& path)
+    : SourceStorage() {
+  this->open(path);
+  this->read();
 }
 
 SourceStorage::~SourceStorage() {
 }
+
+} // namespace fire

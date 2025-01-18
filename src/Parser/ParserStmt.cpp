@@ -4,6 +4,8 @@
 #include "Error.h"
 #include "Parser.h"
 
+namespace fire {
+
 //
 // stmt ::=
 //   block | let | func |
@@ -393,3 +395,5 @@ Node* Parser::p_block(bool expected) {
 
   return nullptr;
 }
+
+} // namespace fire

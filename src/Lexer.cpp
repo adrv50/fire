@@ -3,6 +3,8 @@
 #include "Lexer.h"
 #include "Error.h"
 
+namespace fire {
+
 using TKop = TokenOperatorKind;
 using TKpunct = TokenPunctKind;
 using TKkwd = TokenKwdKind;
@@ -370,7 +372,7 @@ Token* Lexer::lex() {
       cur = Token::make(TokenKind::Identifier, &this->SS, cur, this->trim_identifier(),
                         _pos);
 
-      for (auto&& [k, s] : ::tok_keywords)
+      for (auto&& [k, s] : tok_keywords)
         if (cur->str == s) {
           cur->set_kwd(k);
           break;
@@ -380,7 +382,7 @@ Token* Lexer::lex() {
     //
     // find punctuator
     else {
-      for (auto s : ::all_punct_list)
+      for (auto s : all_punct_list)
         if (this->eat(s)) {
           cur = Token::make(TokenKind::Punctuator, &this->SS, cur, s, _pos);
           goto _found;
@@ -401,7 +403,7 @@ Token* Lexer::lex() {
 
       //
       // check operators
-      for (auto&& [k, s] : ::tok_operators)
+      for (auto&& [k, s] : tok_operators)
         if (cur->str == s) {
           cur->set_op(k);
           break;
@@ -409,7 +411,7 @@ Token* Lexer::lex() {
 
       //
       // check punctuators
-      for (auto&& [k, s] : ::tok_punctuators)
+      for (auto&& [k, s] : tok_punctuators)
         if (cur->str == s) {
           if (k == TokenPunctKind::Semi)
             cur->kind = TokenKind::Semi;
@@ -430,3 +432,5 @@ Token* Lexer::lex() {
 
   return ret;
 }
+
+} // namespace fire

@@ -4,6 +4,8 @@
 #include "Node.h"
 #include "Parser.h"
 
+namespace fire {
+
 //
 // program ::=
 //   root*
@@ -406,3 +408,5 @@ Node* Parser::p_func_arg() {
 
   return node;
 }
+
+} // namespace fire

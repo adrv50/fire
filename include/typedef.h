@@ -10,6 +10,8 @@
 
 #define BIT(N) (1 << (N))
 
+namespace fire {
+
 typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
@@ -57,3 +59,5 @@ template <typename T>
 using Vec = std::vector<T>;
 
 using StringVector = Vec<string>;
+
+} // namespace fire

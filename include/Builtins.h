@@ -4,9 +4,11 @@
 #include "typedef.h"
 #include "TypeInfo.h"
 
+namespace fire {
+
 class Evaluator;
 
-namespace fire::sema {
+namespace sema {
 struct Symbol;
 }
 
@@ -65,3 +67,5 @@ private:
 void initialize();
 
 } // namespace Builtins
+
+} // namespace fire

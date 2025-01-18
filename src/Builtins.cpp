@@ -21,7 +21,7 @@
 #define ArgError(_arg_index, _msg)                                                       \
   Error(node->nd_callfunc_args[_arg_index], _msg, ErrorType::RunTime).crash()
 
-namespace Builtins {
+namespace fire::Builtins {
 
 using std::cout;
 using std::endl;
@@ -431,4 +431,4 @@ void initialize() {
   _type_symbols.push_back(make_sym_type(TypeKind::String, "string"));
 }
 
-} // namespace Builtins
+} // namespace fire::Builtins

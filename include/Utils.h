@@ -8,7 +8,7 @@
 //
 // utils: utility functions or classes, and tools.
 //
-namespace utils {
+namespace fire::utils {
 
 //
 // read_text_file:
@@ -17,7 +17,9 @@ bool read_text_file(string& out, string const& path);
 
 //
 // find
-auto find(auto const& v, auto const& item) requires(v.begin() != v.end()) {
+auto find(auto const& v, auto const& item)
+requires(v.begin() != v.end())
+{
   return std::find(v.cbegin(), v.cend(), item);
 }
 
@@ -66,4 +68,4 @@ string format(string const& fmt, Args&&... args) {
   return buf;
 }
 
-} // namespace utils
+} // namespace fire::utils

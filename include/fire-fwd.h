@@ -2,6 +2,8 @@
 
 #include "typedef.h"
 
+namespace fire {
+
 enum class TypeKind : u8;
 struct TypeInfo;
 
@@ -39,3 +41,5 @@ class Sema;
 }
 
 class Evaluator;
+
+} // namespace fire

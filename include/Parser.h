@@ -5,6 +5,8 @@
 #include "Token.h"
 #include "Node.h"
 
+namespace fire {
+
 class Parser {
 
   using Kwd = TokenKwdKind;
@@ -189,3 +191,5 @@ private:
   Node* eat_concept_tags_list();
   Node* expect_concept_tag();
 };
+
+} // namespace fire

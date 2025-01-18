@@ -8,6 +8,8 @@
 #include "Builtins.h"
 #include "Evaluator.h"
 
+namespace fire {
+
 Obj obj_add(Obj lhs, Obj rhs) {
   if (lhs->ti.is(TypeKind::Int))
     return ObjInt::make(lhs->as_int()->val + rhs->as_int()->val);
@@ -416,3 +418,5 @@ void Evaluator::eval_let(Node* node) {
 
   this->get_current_call_stack().append(val);
 }
+
+} // namespace fire
