@@ -23,6 +23,7 @@ Node* Parser::parse() {
 
   while (this->check()) {
     if (this->eat(Kwd::Import)) {
+      todo_impl;
     }
   }
 

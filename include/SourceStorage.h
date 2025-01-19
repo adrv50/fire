@@ -6,7 +6,13 @@
 namespace fire {
 
 struct Token;
+struct Node;
 class SourceStorage;
+
+class Lexer;
+class Parser;
+class Sema;
+class Driver;
 
 //
 // SourceLoc: struct for reference of SourceStorage.
@@ -46,18 +52,32 @@ class SourceStorage {
   friend struct SourceLoc;
   friend struct Token;
 
+  friend class Parser;
+  friend class Sema;
+  friend class Driver;
+
   mutable Vec<shared_ptr<SourceLoc>> _loc_list;
 
   unique_ptr<std::ifstream> ifs;
 
   Vec<pair<size_t, size_t /* (pos, len) */>> _line_list;
 
-  pair<size_t, size_t>& append_line(size_t pos, size_t len);
-
   string path;
   string data;
 
+  Vec<shared_ptr<SourceStorage>> imported;
+
   bool is_in_repl = false;
+
+  mutable Token* lexed = nullptr;
+  mutable Node* parsed = nullptr;
+
+  mutable unique_ptr<Lexer> _lexer;
+  mutable unique_ptr<Parser> _parser;
+
+  pair<size_t, size_t>& append_line(size_t pos, size_t len);
+
+  shared_ptr<SourceStorage> import_source(string const& path);
 
 public:
   shared_ptr<SourceLoc> make_ref(Token* tok, size_t pos, size_t len) const;
@@ -78,7 +98,11 @@ public:
 
   bool read();
 
-  bool is_open();
+  bool is_open() const;
+
+  Token* get_lexed() const;
+
+  Node* get_parsed() const;
 
   SourceStorage();
 

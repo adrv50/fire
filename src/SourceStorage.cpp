@@ -3,6 +3,9 @@
 #include "alert.h"
 #include "Utils.h"
 
+#include "Lexer.h"
+#include "Parser.h"
+
 #include "SourceStorage.h"
 
 namespace fire {
@@ -53,6 +56,15 @@ pair<size_t, size_t>& SourceStorage::append_line(size_t pos, size_t len) {
   return this->_line_list.emplace_back(pos, len);
 }
 
+shared_ptr<SourceStorage> SourceStorage::import_source(string const& path) {
+
+  auto src = make_shared<SourceStorage>(path);
+
+  this->imported.emplace_back(src);
+
+  return src;
+}
+
 shared_ptr<SourceLoc> SourceStorage::make_ref(Token* tok, size_t pos, size_t len) const {
   return this->_loc_list.emplace_back(make_shared<SourceLoc>(this, tok, pos, len));
 }
@@ -100,8 +112,26 @@ bool SourceStorage::read() {
   return true;
 }
 
-bool SourceStorage::is_open() {
+bool SourceStorage::is_open() const{
   return (bool)this->ifs && this->ifs->is_open();
+}
+
+Token* SourceStorage::get_lexed() const{
+  if (!this->lexed) {
+    this->_lexer = make_unique<Lexer>(*this);
+    this->lexed = this->_lexer->lex();
+  }
+
+  return this->lexed;
+}
+
+Node* SourceStorage::get_parsed() const{
+  if (!this->parsed) {
+    this->_parser = make_unique<Parser>(*this, this->get_lexed());
+    this->parsed=this->_parser->parse();
+  }
+
+  return this->parsed;
 }
 
 SourceStorage::SourceStorage() {

@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
     if (tok->is(TokenKind::End)) // empty source file
       return 0;
 
-    Parser parser{tok};
+    Parser parser{SS,tok};
 
     auto prg = parser.parse();
 
