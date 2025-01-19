@@ -2,222 +2,189 @@
 
 #include "alert.h"
 #include "Utils.h"
-#include "Color.h"
 
-#include "Error.h"
+#include "Token/Token.h"
+#include "Node/Node.h"
 
-#define COL_WARNING COL_MAGENTA
-#define COL_ERROR COL_RED
-#define COL_NOTE COL_YELLOW
-
-#define COL_MESSAGE COL_BOLD COL_WHITE
-
-#define COL_LINENUM COL_BOLD COL_WHITE
-#define LINENUM_WIDTH 5
-
-#define COL_BORDER_LINE COL_CYAN
+#include "Driver/Error.h"
 
 namespace fire {
 
-struct line_data_wrapper_t {
-  SourceStorage const* src;
+Error::Error(Token* tok, string const& msg, ErrorType type)
+    : type(type),
+      tok(tok),
+      node(nullptr),
+      msg(msg) {
+}
 
-  int index;
-  int pos; // pos on line
+Error::Error(Node* node, string const& msg, ErrorType type)
+    : type(type),
+      tok(nullptr),
+      node(node),
+      msg(msg) {
+}
 
-  std::string_view view;
-  int linenum;
-
-  line_data_wrapper_t(Token const& tok)
-      : src(tok.sourceloc.ref) {
-    this->index = tok.sourceloc.line.index;
-    this->pos = tok.sourceloc.pos_in_line;
-
-    this->view = tok.sourceloc.GetLine();
-    this->linenum = this->index + 1;
-  }
-
-  line_data_wrapper_t()
-      : src(nullptr),
-        index(0),
-        pos(0),
-        linenum(0) {
-  }
-
-  bool get_other_line(line_data_wrapper_t& out, int index_diff) const {
-
-    int _index = this->index + index_diff;
-
-    if (_index < 0 || _index >= this->src->Count())
-      return false;
-
-    out.src = this->src;
-    out.index = _index;
-    out.pos = 0;
-
-    out.view = this->src->GetLineView(_index);
-    out.linenum = out.index + 1;
-
-    return true;
-  }
-
-  std::string to_print_str(bool is_main) const {
-    alertexpr(src);
-    alertexpr(index);
-    alertexpr(pos);
-    alertexpr(linenum);
-
-    if (this->src) {
-      std::stringstream ss;
-
-      ss << utils::Format(utils::Format("%s%% %dd", is_main ? COL_LINENUM : COL_GRAY,
-                                        LINENUM_WIDTH),
-                          this->linenum)
-         << COL_BORDER_LINE << " | "
-         << (is_main ? COL_BOLD COL_WHITE : COL_UNBOLD COL_GRAY) << this->view;
-
-      return ss.str();
-    }
-
-    return std::string(LINENUM_WIDTH, ' ') + COL_BORDER_LINE + " |";
-  }
-};
-
-static int _err_emitted_count = 0;
-
-static char const* get_err_level_str(Error::ErrorKind k) {
-  switch (k) {
-  case Error::ER_Error:
-    return COL_ERROR "error: ";
-
-  case Error::ER_Warning:
-    return COL_WARNING "warning: ";
-
-  case Error::ER_Note:
-    return COL_NOTE "note: ";
-  }
-
-  return nullptr;
+Error& Error::set_message(string const& msg) {
+  this->msg = msg;
+  return *this;
 }
 
 Error const& Error::emit() const {
-
   using std::cout;
   using std::endl;
 
-  Token const& err_token = this->loc_ast ? this->loc_ast->token : this->loc_token;
+  switch (this->type) {
+    case ErrorType::Err:
+      cout << COL_BOLD COL_RED << "error: ";
+      break;
 
-  line_data_wrapper_t line_top, line_bottom, line_err = line_data_wrapper_t(err_token);
+    case ErrorType::Warn:
+      cout << COL_BOLD COL_MAGENTA << "warning: ";
+      break;
 
-  line_err.get_other_line(line_top, -1);
-  line_err.get_other_line(line_bottom, 1);
+    case ErrorType::Note:
+      cout << COL_BOLD COL_GREEN << "note: ";
+      break;
 
-  SourceLocation const& loc = err_token.sourceloc;
-
-  std::stringstream ss;
-
-  // location
-  for (auto&& _loc : this->location) {
-    cout << COL_BOLD << loc.ref->path << ": " << _loc << ":" << endl;
+    case ErrorType::RunTime:
+      cout << COL_BOLD COL_RED << "runtime error: ";
+      break;
   }
 
-  int cursorpos = line_err.pos;
-  string cursor_space;
+  cout << COL_WHITE << this->msg << endl << COL_DEFAULT;
 
-  for (int i = 0; i < line_err.pos;) {
-    u8 c = line_err.view[i];
+  auto tok = this->tok;
 
-    if (c <= 0x80) {
-      cursor_space += ' ';
-      i += 1;
+  if (this->tok || this->node) {
+    if (!tok) {
+      if (this->node->first_tok)
+        tok = this->node->first_tok;
+      else
+        tok = this->node->tok;
     }
-    else if (0xC2 <= c && c < 0xE0) {
-      cursor_space.append("\xe3\x80\x80");
-      cursorpos -= 1;
-      i += 2;
-    }
-    else if (0xE0 <= c && c < 0xF0) {
-      cursor_space.append("\xe3\x80\x80");
-      cursorpos -= 2;
-      i += 3;
-    }
-    else if (0xF0 <= c && c < 0xF5) {
-      cursor_space.append("\xe3\x80\x80");
-      cursorpos -= 3;
-      i += 4;
+
+    assert(tok != nullptr);
+
+    auto& ref = tok->ref;
+
+    if (auto ss = ref->get_ss()) {
+      cout << COL_YELLOW "     ---> " << COL_CYAN << ss->get_path() << ":"
+           << ref->line_num << ":" << ref->pos_in_line << endl
+           << COL_YELLOW << "     |" << endl
+           << utils::format("% 4zu | ", ref->line_num) << COL_WHITE
+           << ref->get_line_view() << COL_YELLOW "     |" << COL_RED
+           << string(ref->pos_in_line, ' ') << "^ " << COL_GREEN << this->cursor_text
+           << endl
+           << endl
+           << COL_DEFAULT;
     }
   }
 
-  // message
-  cout << COL_BOLD << get_err_level_str(this->kind) << COL_WHITE << this->msg << endl;
+  for (auto&& note : this->notes)
+    note.emit();
 
-  // path and location
-  cout << "     " << COL_BOLD COL_UNDERLINE COL_BORDER_LINE << "--> " << loc.ref->path
-       << ":" << line_err.linenum << ":" << (cursorpos + 1) << COL_DEFAULT << endl;
-
-  cout << COL_DEFAULT << COL_BOLD << "     " COL_BORDER_LINE " |" << endl;
-
-  cout << COL_DEFAULT << COL_BOLD << utils::Format("%5d", line_err.linenum)
-       << COL_BORDER_LINE " | " << COL_WHITE << line_err.view << endl;
-
-  cout << COL_DEFAULT << COL_BOLD << "     " COL_BORDER_LINE " | ";
-
-  cout << cursor_space << COL_WHITE COL_BOLD "^" << COL_DEFAULT << endl;
-
-  _err_emitted_count++;
-
-  for (auto&& e : this->chained) {
+  if (this->type != ErrorType::Note)
     cout << endl;
-    e.emit();
-  }
-
-  for (auto&& note : this->notes) {
-    cout << "     " << COL_DEFAULT COL_BOLD COL_NOTE << "note: " << COL_WHITE << note
-         << COL_DEFAULT << endl;
-  }
 
   return *this;
 }
 
-// Error& Error::emit_as_hint() {
-// }
-
-int Error::GetEmittedCount() {
-  return _err_emitted_count;
+void Error::stop(int code) {
+  std::exit(code);
 }
 
-void Error::operator()() {
-  this->stop();
+// --------------------------------------------
+//  Instantiations of set_msg()
+
+#define INST(_K, _Args...)                                                               \
+  template <>                                                                            \
+  Error& Error::set_msg<_K>(_Args)
+
+using Ek = ErrorKind;
+
+//
+// TypeMismatch
+
+INST(Ek::TypeMismatch) {
+  this->set_message("type mismatch");
+  return *this;
 }
 
-void Error::stop() {
-  std::exit(1);
+//
+// UnexpectedType
+//
+INST(Ek::UnexpectedType, string const& expected, string const& found) {
+  this->set_message("expected type '" + expected + "', but found '" + found + "'");
+  return *this;
 }
 
-void Error::fatal_error(std::string const& msg) {
-  std::cout << COL_BOLD COL_RED << "fatal error: " << COL_DEFAULT << msg << std::endl;
-
-  std::exit(2);
+//
+// UnexpectedToken
+//
+INST(Ek::UnexpectedToken, string const& token) {
+  this->set_message("unexpected token '" + token + "'");
+  return *this;
 }
 
-Error::Error(ErrorKind k, Token tok, std::string msg)
-    : kind(k),
-      loc_token(tok),
-      msg(std::move(msg)) {
+//
+// InvalidToken
+
+INST(Ek::InvalidToken, string const& token) {
+  this->set_message("invalid token '" + token + "'");
+  return *this;
 }
 
-Error::Error(ErrorKind k, ASTPointer ast, std::string msg)
-    : kind(k),
-      loc_ast(ast),
-      msg(std::move(msg)) {
+//
+// InvalidSyntax
+//
+INST(Ek::InvalidSyntax) {
+  this->set_message("invalid syntax");
+  return *this;
 }
 
-Error::Error(Token tok, std::string msg)
-    : Error(ER_Error, tok, std::move(msg)) {
+//
+// UndefinedName
+//
+INST(Ek::UndefinedName, string const& name) {
+  this->set_message("the name '" + name + "' is not defined");
+  return *this;
 }
 
-Error::Error(ASTPointer ast, std::string msg)
-    : Error(ER_Error, ast, std::move(msg)) {
+//
+// NotSubscriptable
+//
+INST(Ek::NotSubscriptable, string const& type) {
+  this->set_message("'" + type + "' type is not subscriptable");
+  return *this;
 }
+
+//
+// NotIterable
+//
+INST(Ek::NotIterable, string const& type) {
+  this->set_message("'" + type + "' type is not iterable");
+  return *this;
+}
+
+//
+// InvalidOperatorForType
+//
+INST(Ek::InvalidOperatorForType, TypeInfo const& type, string const& op) {
+  this->set_message("'" + type.to_string() + "' type does not support operator '" + op +
+                    "'");
+  return *this;
+}
+
+//
+// NotAllowedInThisContext
+//
+INST(Ek::NotAllowedInThisContext, string const& keyword) {
+  this->set_message("cannot use '" + keyword + "' in this context");
+
+  return *this;
+}
+
+// ========================================
+//
 
 } // namespace fire

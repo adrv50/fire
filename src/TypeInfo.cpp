@@ -1,301 +1,215 @@
-#include <map>
-#include <cassert>
+#include <functional>
+#include <span>
 
 #include "alert.h"
 #include "Utils.h"
 #include "TypeInfo.h"
-#include "AST.h"
+
+#include "Token/Token.h"
+#include "Node/Node.h"
 
 namespace fire {
 
+using TK = TypeKind;
+
 // clang-format off
-static char const* g_names[] = {
-  "none",
-
-  "int",
-  "float",
-  "bool",
-  
-  "char",
-  "string",
-  
-  "vector",
-  "tuple",
-  "dict",
-
-  "", // Enumerator
-  "", // Instance
-
-  "function", // Function
-  "", // Module
-
-  "", // TypeName
-  "", // Unknown
+static Vec<pair<TypeKind, char const*>> const kind_and_name_table = {
+  { TK::None,       "none" },
+  { TK::Int,        "int" },
+  { TK::Float,      "float" },
+  { TK::Bool,       "bool" },
+  { TK::Char,       "char" },
+  { TK::String,     "string" },
+  { TK::Vector,     "vector" },
+  { TK::Tuple,      "tuple" },
+  { TK::Dict,       "dict" },
+  { TK::Functor,    "functor" },
+  { TK::Enumerator, "enumerator" },
+  { TK::Type,       "type" },
+  { TK::Instance,   "instance" },
+  { TK::Any,        "any" },
 };
-
-
-debug(
-static std::map<TypeKind, char const*> kind_name_map {
-  { TypeKind::None,       "none" },
-  { TypeKind::Int,        "int" },
-  { TypeKind::Float,      "float" },
-  { TypeKind::Bool,       "bool" },
-  { TypeKind::Char,       "char" },
-  { TypeKind::String,     "string" },
-  { TypeKind::Vector,     "vector" },
-  { TypeKind::Tuple,      "tuple" },
-  { TypeKind::Dict,       "dict" },
-  { TypeKind::Instance,   "instance" },
-  { TypeKind::Module,     "module" },
-  { TypeKind::Function,   "function" },
-  { TypeKind::Module,     "module" },
-  { TypeKind::TypeName,   "type" },
-}
-);
 // clang-format on
 
-string_view TypeInfo::GetSV() const {
-  assert(this->IsPrimitiveType());
+TypeInfo TypeInfo::static_none_type{TypeKind::None};
 
-  return g_names[static_cast<u8>(this->kind)];
+TypeInfo& TypeInfo::append_template_arg(TypeInfo const& ti) {
+  return this->tp_args.emplace_back(ti);
 }
 
-string TypeInfo::GetName() const {
-  if (this->IsPrimitiveType())
-    return string(this->GetSV());
+bool TypeInfo::is(TypeKind k) const {
+  return this->kind == k;
+}
 
-  return this->name;
+bool TypeInfo::is(TypeKind k, bool is_mutable, Vec<TypeInfo> tp_args) const {
+  return this->kind == k && this->is_mutable == is_mutable &&
+         utils::compare_vector(this->tp_args, tp_args,
+                               [](TypeInfo const& a, TypeInfo const& b) -> bool {
+                                 return a.equals(b);
+                               }) == 0;
 }
 
 bool TypeInfo::is_numeric() const {
-  switch (this->kind) {
-  case TypeKind::Int:
-  case TypeKind::Float:
-    return true;
-  }
-
-  return false;
+  return this->is(TK::Int) || this->is(TK::Float);
 }
 
-bool TypeInfo::is_numeric_or_char() const {
-  return this->is_numeric() || this->kind == TypeKind::Char;
+bool TypeInfo::is_subscriptable() const {
+  return this->is(TK::String) || this->is(TK::Vector);
 }
 
-bool TypeInfo::is_char_or_str() const {
-  return this->kind == TypeKind::Char || this->kind == TypeKind::String;
+bool TypeInfo::is_template() const {
+  return !this->tp_args.empty();
 }
 
-bool TypeInfo::is_hit(std::vector<TypeInfo> types) const {
-  for (TypeInfo const& t : types)
-    if (this->equals(t))
-      return true;
-
-  return false;
-}
-
-bool TypeInfo::is_hit_kind(std::vector<TypeKind> kinds) const {
-  for (TypeKind k : kinds)
-    if (this->kind == k)
-      return true;
-
-  return false;
-}
-
-bool TypeInfo::is_primitive_name(std::string_view name) {
-  for (auto&& s : g_names)
-    if (s == name)
-      return true;
-
-  return false;
-}
-
-bool TypeInfo::equals(TypeInfo const& type) const {
-  using Ty = TypeKind;
-
-  if (this->kind == Ty::Unknown || type.kind == Ty::Unknown)
-    return true;
-
-  if (this->kind != type.kind)
+bool TypeInfo::equals(TypeInfo const& ti) const {
+  if (this->kind != ti.kind)
     return false;
 
-  if (this->is_const != type.is_const)
+  if (this->nd_enum != ti.nd_enum)
     return false;
 
-  if (this->params.size() != type.params.size())
+  // if (this->is(TypeKind::Enumerator)) {
+  //   if (this->enumerator_index != ti.enumerator_index)
+  //     return false;
+  // }
+
+  if (this->is_mutable != ti.is_mutable)
     return false;
 
-  switch (this->kind) {
-  case Ty::TypeName:
-  case Ty::Instance:
-    if (this->type_ast != type.type_ast)
-      return false;
-    break;
+  if (this->is_reference != ti.is_reference)
+    return false;
 
-  case Ty::Function:
-    if (this->is_free_args != type.is_free_args)
-      return false;
-    break;
-  }
+  if (this->tp_args.size() != ti.tp_args.size())
+    return false;
 
-  for (auto it = this->params.begin(); auto&& t : type.params)
-    if (!it->equals(t))
+  for (size_t i = 0; i < this->tp_args.size(); i++)
+    if (!this->tp_args[i].equals(ti.tp_args[i]))
       return false;
 
   return true;
 }
 
+static string get_kind_str_wrap(TypeInfo const* t) {
+  switch (t->kind) {
+    case TK::Enumerator:
+      return t->nd_enum->nd_enum_name->str + "::" +
+             t->nd_enum->get_enumerator(t->enumerator_index)->nd_enumerator_name->str;
+
+    case TK::Type: {
+      string s;
+
+      if (t->nd_enum)
+        s = t->nd_enum->nd_enum_name->str;
+      else if (t->nd_struct)
+        s = t->nd_struct->nd_struct_name->str;
+      else if (t->nd_class)
+        s = t->nd_class->nd_class_name->str;
+      else
+        todo_impl;
+
+      return "<type-info>";
+    }
+
+    case TK::Instance:
+      if (t->nd_struct)
+        return t->nd_struct->nd_struct_name->str;
+      else if (t->nd_class)
+        return t->nd_class->nd_class_name->str;
+      else
+        todo_impl;
+  }
+
+  return TypeInfo::get_name_of_kind(t->kind);
+}
+
+// -----------------------------------------------
+//  to_string
+// -----------------------------------------------
 string TypeInfo::to_string() const {
-  string ret;
 
-  switch (this->kind) {
-  case TypeKind::TypeName: {
+  string str;
 
-    if (this->params.size() == 1) {
-      alert;
-      ret = this->params[0].to_string();
-      break;
-    }
+  if (this->is(TK::Functor)) {
+    str = "functor<(" +
+          utils::join(", ", std::span(this->tp_args).subspan(1, this->tp_args.size() - 1),
+                      [](TypeInfo const& t) -> string {
+                        return t.to_string();
+                      }) +
+          ") -> " + this->tp_args[0].to_string() + ">";
 
-    assert(this->type_ast);
-
-    ret = this->type_ast->As<AST::Named>()->GetName();
-
-    break;
+    goto _pass_template_args;
+  }
+  else {
+    str = get_kind_str_wrap(this);
   }
 
-  case TypeKind::Enumerator:
-    return this->type_ast->As<AST::Enum>()->GetName() +
-           "::" + this->type_ast->As<AST::Enum>()->enumerators[this->enum_index].name.str;
-
-  case TypeKind::Instance:
-  case TypeKind::Unknown:
-    ret = this->name;
-    break;
-
-  default:
-    debug(assert(kind_name_map.contains(this->kind)));
-    ret = g_names[static_cast<u8>(this->kind)];
-    break;
-  }
-
-  if (this->kind == TypeKind::Function) {
-    ret += "<(";
-
-    for (auto it = this->params.begin() + 1; it < this->params.end(); it++) {
-      ret += it->to_string();
-      if (it + 1 != this->params.end())
-        ret += ", ";
-    }
-
-    if (this->is_free_args)
-      ret += "...";
-
-    ret += ") -> " + this->params[0].to_string() + ">";
-  }
-  else if (!this->params.empty()) {
-    ret += "<" +
-           utils::join<TypeInfo>(", ", this->params,
-                                 [](TypeInfo t) -> string {
-                                   return t.to_string();
-                                 }) +
+  if (this->is_template()) {
+    str += "<" +
+           utils::join(", ", this->tp_args,
+                       [](TypeInfo const& t) -> string {
+                         return t.to_string();
+                       }) +
            ">";
   }
+_pass_template_args:;
 
-  if (this->kind == TypeKind::TypeName)
-    ret = "<typeinfo of " + ret + ">";
+  if (this->is_reference)
+    str += " ref";
 
-  if (this->is_const)
-    ret += " const";
+  if (this->is_mutable)
+    str += " mut";
 
-  return ret;
+  return str;
 }
 
-TypeInfo TypeInfo::without_params() const {
-  auto copy = *this;
+TypeInfo& TypeInfo::set_enum(Node* nd_enum, size_t index) {
+  this->nd_enum = nd_enum;
+  this->enumerator_index = index;
 
-  copy.params.clear();
-
-  return copy;
+  return *this;
 }
 
-int TypeInfo::needed_param_count() const {
-  switch (this->kind) {
-  case TypeKind::Vector:
-    return 1;
-
-  case TypeKind::Function:
-  case TypeKind::Tuple:
-    return -1;
-
-  case TypeKind::Dict:
-    return 2; // key, value
-
-  case TypeKind::TypeName: {
-    if (auto x = ASTCast<AST::Templatable>(this->type_ast);
-        this->type_ast->IsTemplateAST() && x->IsTemplated) {
-      return x->ParameterCount();
-    }
-
-    break;
-  }
-  }
-
-  return 0;
+TypeInfo& TypeInfo::set_ftor_bfun(Builtins::BuiltinFunc const* bf) {
+  this->ftor_blt = bf;
+  return *this;
 }
 
-bool TypeInfo::is_iterable() const {
-  switch (this->kind) {
-  case TypeKind::Vector:
-    return true;
-  }
-
-  return false;
+TypeInfo& TypeInfo::set_ftor_node(Node* node) {
+  this->ftor_node = node;
+  return *this;
 }
 
-TypeInfo TypeInfo::from_enum(ASTPtr<AST::Enum> ast) {
-  TypeInfo t = TypeKind::TypeName;
+string TypeInfo::get_name_of_kind(TypeKind kind) {
+  for (auto&& [k, s] : kind_and_name_table)
+    if (k == kind)
+      return s;
 
-  t.type_ast = ast;
-  t.name = ast->GetName();
-
-  return t;
+  return "<unknown type>";
 }
 
-TypeInfo TypeInfo::from_class(ASTPtr<AST::Class> ast) {
-  TypeInfo t = TypeKind::TypeName;
-
-  t.type_ast = ast;
-  t.name = ast->GetName();
-
-  return t;
-}
-
-TypeInfo TypeInfo::make_instance_type(ASTPtr<AST::Class> ast) {
-  auto ret = from_class(ast);
-
-  ret.kind = TypeKind::Instance;
-
-  return ret;
-}
-
-TypeKind TypeInfo::from_name(string const& name) {
-  for (int i = 0; auto& s : g_names) {
+TypeKind TypeInfo::get_kind_of_name(string const& name) {
+  for (auto&& [k, s] : kind_and_name_table)
     if (s == name)
-      return static_cast<TypeKind>(i);
-
-    i++;
-  }
+      return k;
 
   return TypeKind::Unknown;
 }
 
-TypeInfo::TypeInfo(TypeKind kind)
-    : TypeInfo(kind, {}) {
+Vec<pair<TypeKind, char const*>> const TypeInfo::get_type_name_map() {
+  return kind_and_name_table;
 }
 
-TypeInfo::TypeInfo(TypeKind kind, std::vector<TypeInfo> params)
+TypeInfo::TypeInfo(TypeKind kind)
     : kind(kind),
-      params(std::move(params)) {
+      is_reference(false),
+      is_mutable(false) {
+}
+
+TypeInfo::TypeInfo(TypeKind kind, Vec<TypeInfo> tp_args, bool is_ref, bool is_mut)
+    : kind(kind),
+      tp_args(std::move(tp_args)),
+      is_reference(is_ref),
+      is_mutable(is_mut) {
 }
 
 } // namespace fire

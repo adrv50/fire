@@ -1,6 +1,6 @@
 # Fire: Interpreter Programming Language
 
-Rust の簡易版みたいなものに、C++ みたいな機能を混ぜたもの。
+Rust の簡易版みたいなものに、C# と C++ の機能を混ぜて、インタプリタにしたような言語。
 
 ## Build and Hello World:
 Create source file as `a.flame`
@@ -22,5 +22,4 @@ $ ./build.sh -Jd
 - [Zenn](https://zenn.dev/famfencha/books/618e500cbd81f3).
 
 ## Links:
-- [Discord](https://discord.gg/vmzgADwJbp)
-- [Twitter](https://x.com/metrojitinterp)
+- [Discord](https://discord.gg/uHycbdVpQp)

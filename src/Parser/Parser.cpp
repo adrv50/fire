@@ -1,509 +1,426 @@
-#include <iostream>
-
 #include "alert.h"
-#include "Lexer.h"
+#include "Driver/Error.h"
+#include "Token/Token.h"
+#include "Node/Node.h"
 #include "Parser.h"
-#include "Error.h"
-#include "Utils.h"
 
-namespace fire::parser {
+namespace fire {
 
-ASTPointer Parser::Stmt() {
-
-  auto& tok = *this->cur;
-
-  if (this->eat("{")) {
-    auto ast = AST::Block::New(tok);
-
-    ast->token = tok;
-
-    if (this->eat("}")) {
-      ast->endtok = *this->ate;
-      return ast;
-    }
-
-    while (this->check()) {
-      ast->list.emplace_back(this->Stmt());
-
-      if (this->eat("}")) {
-        ast->endtok = *this->ate;
-        return ast;
-      }
-    }
-
-    throw Error(tok, "not terminated block");
-  }
-
-  if (this->eat("match")) {
-    auto ast = AST::Match::New(tok, this->Expr(), {});
-
-    this->expect("{");
-
-    do {
-      auto e = this->Expr();
-
-      this->expect("=>");
-
-      this->expect("{", true);
-
-      auto& p = ast->patterns.emplace_back(AST::Match::Pattern::Type::Unknown, e,
-                                           ASTCast<AST::Block>(this->Stmt()));
-
-      if (e->IsUnqualifiedIdentifier() && e->token.str == "_") {
-        p.everything = true;
-      }
-
-    } while (this->eat(","));
-
-    this->expect("}");
-
-    return ast;
-  }
-
-  if (this->eat("if")) {
-    auto cond = this->Expr();
-
-    this->expect("{", true);
-    auto if_true = this->Stmt();
-
-    ASTPointer if_false = nullptr;
-
-    if (this->eat("else")) {
-      if (!this->eat("if"))
-        this->expect("{", true);
-
-      if_false = this->Stmt();
-    }
-
-    return AST::Statement::NewIf(tok, cond, if_true, if_false);
-  }
-
-  if (this->eat("while")) {
-    auto cond = this->Expr();
-
-    this->expect("{", true);
-    auto block = ASTCast<AST::Block>(this->Stmt());
-
-    return AST::Statement::NewWhile(tok, cond, block);
-  }
-
-  if (this->eat("for")) {
-    ASTPointer init = nullptr, cond = nullptr, step = nullptr;
-
-    if (this->match("let")) {
-      init = this->Stmt();
-    }
-    else if (!this->eat(";")) {
-      init = this->Expr();
-      this->expect(";");
-    }
-
-    if (!this->eat(";")) {
-      cond = this->Expr();
-      this->expect(";");
-    }
-    else {
-      cond = AST::Value::New(*this->ate, ObjNew<ObjPrimitive>(true));
-    }
-
-    if (!this->match("{")) {
-      step = this->Expr();
-    }
-
-    this->expect("{", true);
-    auto block = ASTCast<AST::Block>(this->Stmt());
-
-    return AST::Block::New(tok,
-                           {init, AST::Statement::NewWhile(tok, cond,
-                                                           AST::Block::New(tok, {
-                                                                                    block,
-                                                                                    step,
-
-                                                                                }))});
-  }
-
-  if (this->eat("return")) {
-    if (this->eat(";")) {
-      return AST::Statement::New(ASTKind::Return, tok);
-    }
-
-    auto ast = AST::Statement::NewExpr(ASTKind::Return, tok, this->Expr());
-    this->expect(";");
-
-    return ast;
-  }
-
-  if (this->eat("break")) {
-    if (!this->_in_loop)
-      throw Error(tok, "cannot use 'break' out of loop statement");
-
-    auto ast = AST::Statement::New(ASTKind::Break, tok);
-
-    this->expect(";");
-    return ast;
-  }
-
-  if (this->eat("continue")) {
-    if (!this->_in_loop)
-      throw Error(tok, "cannot use 'continue' out of loop statement");
-
-    auto ast = AST::Statement::New(ASTKind::Continue, tok);
-
-    this->expect(";");
-    return ast;
-  }
-
-  if (this->eat("throw")) {
-    auto ast = AST::Statement::NewExpr(ASTKind::Throw, tok, this->Expr());
-
-    this->expect(";");
-    return ast;
-  }
-
-  if (this->eat("let")) {
-    auto ast = AST::VarDef::New(tok, *this->expectIdentifier());
-
-    if (this->eat(":"))
-      ast->type = this->expectTypeName();
-
-    if (this->eat("="))
-      ast->init = this->Expr();
-
-    this->expect(";");
-    return ast;
-  }
-
-  if (this->eat("try")) {
-    this->expect("{", true);
-    auto block = ASTCast<AST::Block>(this->Stmt());
-
-    vector<AST::Statement::TryCatch::Catcher> catchers;
-
-    while (this->eat("catch")) {
-      auto name = *this->expectIdentifier();
-
-      this->expect(":");
-      auto type = this->expectTypeName();
-
-      this->expect("{", true);
-      auto block = ASTCast<AST::Block>(this->Stmt());
-
-      catchers.push_back({name, type, block, {}});
-    }
-
-    return AST::Statement::NewTryCatch(tok, block, std::move(catchers));
-  }
-
-  auto ast = this->Expr();
-
-  this->expect(";");
-
-  return ast;
+Parser::Parser(SourceStorage const& source, Token* tok)
+    : cur(tok),
+      ate(nullptr),
+      source(source) {
 }
 
-ASTPointer Parser::Top() {
+//
+// program ::=
+//   root*
+//
+Node* Parser::parse() {
+  auto node = Node::new_node(ND_Program, this->cur);
 
-  auto& tok = *this->cur;
-  auto iter = this->cur;
+  node->first_tok = this->cur;
 
-  //
-  // Enum
-  //
-  if (this->eat("enum")) {
-    auto ast = AST::Enum::New(tok, *this->expectIdentifier());
-
-    this->expect("{");
-
-    if (this->eat("}")) {
-      Error(*this->ate, "empty enum is not valid").emit();
-
-      return ast;
+  while (this->check()) {
+    if (this->eat(Kwd::Import)) {
+      todo_impl;
     }
-
-    do {
-      auto& e = ast->append(*this->expectIdentifier());
-
-      if (this->eat("(")) {
-        if (this->match(TokenKind::Identifier, ":")) {
-          e.data_type = AST::Enum::Enumerator::DataType::Structure;
-
-          do {
-            auto& name = *this->expectIdentifier();
-
-            this->cur++; // ":"
-            auto type = this->expectTypeName();
-
-            e.types.emplace_back(AST::Argument::New(name, type));
-          } while (this->eat(","));
-        }
-        else {
-          e.data_type = AST::Enum::Enumerator::DataType::Value;
-          e.types.emplace_back(this->expectTypeName());
-        }
-
-        this->expect(")");
-      }
-    } while (this->eat(","));
-
-    this->expect("}");
-
-    return ast;
-  }
-
-  //
-  // final class
-  //
-  else if (this->eat("final")) {
-    this->expect("class", true);
-
-    auto x = ASTCast<AST::Class>(this->Top());
-
-    x->IsFinal = true;
-    x->FianlSpecifyToken = tok;
-
-    return x;
-  }
-
-  //
-  // Class
-  //
-  else if (this->eat("class")) {
-    auto ast = AST::Class::New(tok, *this->expectIdentifier());
-
-    if (this->eat("extends")) {
-      ast->InheritBaseClassName = this->ScopeResol();
-    }
-
-    //
-    // todo: inherit interfaces
-    //
-
-    auto s1 = this->_in_class;
-    auto s2 = this->_classptr;
-
-    this->_in_class = true;
-    this->_classptr = ast;
-
-    this->expect("{");
-
-    if (this->eat("}")) {
-      throw Error(*this->ate, "empty class is not valid");
-    }
-
-    do {
-      auto _tok = this->cur;
-      auto stmt = this->Top();
-
-      switch (stmt->kind) {
-      case ASTKind::Vardef: {
-        auto& vdef = ast->append_var(ASTCast<AST::VarDef>(stmt));
-
-        if (!vdef->type)
-          throw Error(*_tok,
-                      "cannot omit type specification of let-statement in class scope");
-
-        break;
-      }
-
-      case ASTKind::Function:
-        ast->append_func(ASTCast<AST::Function>(stmt));
-        break;
-
-      case ASTKind::Class: {
-        auto nestedClass = ASTCast<AST::Class>(stmt);
-
-        //
-        // feature.
-        //
-
-        throw Error(stmt->token, "nested class is not supported yet.");
-
-        break;
-      }
-
-      default:
-        throw Error(stmt->token, "expected declaration of member variable or function, "
-                                 "constructor, destructor.");
-      }
-    } while (!this->eat("}"));
-
-    this->_in_class = s1;
-    this->_classptr = s2;
-
-    return ast;
-  }
-
-  //
-  // Virtual function
-  //
-  else if (this->eat("virtual")) {
-    if (!this->_in_class) {
-      throw Error(*this->ate, "cannot define virtualized function out of class");
-    }
-
-    this->expect("fn", true);
-
-    auto x = ASTCast<AST::Function>(this->Top());
-
-    x->is_virtualized = true;
-    x->virtualize_specify_tok = tok;
-
-    return x;
-  }
-
-  else if (this->eat("fn")) {
-
-    if (this->eat_typeparam_bracket_open()) { // error!
-
-      throw Error(*this->ate, "expected identifier")
-
-          // but suggest hint <3
-          .AddNote("template parameter must write after function name; like \"fn func "
-                   "<T> (...\"");
-    }
-
-    auto func_name_token = *this->expectIdentifier();
-
-    auto func = AST::Function::New(tok, func_name_token);
-
-    if (this->eat_typeparam_bracket_open()) {
-      func->IsTemplated = true;
-      func->TemplateTok = *this->cur;
-
-      do {
-        func->ParameterList.emplace_back(this->parse_template_param_decl());
-      } while (this->eat(","));
-
-      this->expect_typeparam_bracket_close();
-    }
-
-    this->expect("(");
-
-    if (auto SelfArgToken = *this->cur; this->_in_class && this->eat("self")) {
-      func->member_of = this->_classptr;
-
-      if (!this->eat(","))
-        this->expect(")", true);
-
-      func->add_arg(SelfArgToken, AST::TypeName::New(this->_classptr->name));
-    }
-    else if (func->is_virtualized) {
-      throw Error(func->virtualize_specify_tok,
-                  "static member function cannot be virtualized");
-    }
-
-    if (!this->eat(")")) {
-      do {
-        auto& arg = func->add_arg(*this->expectIdentifier());
-
-        this->expect(":");
-        arg->type = this->expectTypeName();
-      } while (this->eat(","));
-
-      this->expect(")");
-    }
-
-    if (this->eat("->")) {
-      func->return_type = this->expectTypeName();
-    }
-
-    if (this->eat("override")) {
-      if (!this->_in_class) {
-        throw Error(*this->ate, "cannot define overrided function at out of scope");
-      }
-
-      if (!func->member_of) {
-        throw Error(*this->ate, "cannot use 'override' for static member function");
-      }
-
-      func->is_override = true;
-      func->override_specify_tok = *this->ate;
-    }
-
-    this->expect("{", true);
-    func->block = ASTCast<AST::Block>(this->Stmt());
-
-    return func;
-  }
-
-  if (this->eat("namespace")) {
-    auto ast = AST::Block::New(*this->expectIdentifier());
-
-    ast->kind = ASTKind::Namespace;
-
-    iter = this->cur;
-    this->expect("{");
-
-    if (this->eat("}"))
-      return ast;
-
-    bool closed = false;
-
-    do {
-      ast->list.emplace_back(this->Top());
-    } while (this->check() && !(closed = this->eat("}")));
-
-    if (!closed)
-      throw Error(*iter, "unterminated namespace block");
-
-    return ast;
-  }
-
-  return this->Stmt();
-}
-
-ASTPtr<AST::Block> Parser::Parse() {
-  auto ret = AST::Block::New(*this->cur);
-
-  while (this->eat("include")) {
-    auto tok = this->ate;
-
-    if (!this->check() || this->cur->kind != TokenKind::String) {
-      throw Error(*tok, "expected string literal after this token");
-    }
-
-    auto path = string(this->cur->str);
-
-    this->cur++;
-
-    path.erase(path.begin());
-    path.pop_back();
-
-    auto& src = tok->sourceloc.ref->AddIncluded(path);
-
-    if (!src.Open()) {
-      throw Error(*tok, "cannot open file '" + src.path + "'");
-    }
-
-    Lexer lexer{src};
-
-    lexer.Lex(src.token_list);
-
-    Parser parser{src.token_list};
-
-    auto parsed = parser.Parse();
-
-    for (auto&& e : parsed->list)
-      ret->list.emplace_back(e);
-
-    this->expect(";");
+    else
+      break;
   }
 
   while (this->check()) {
-    ret->list.emplace_back(this->Top());
+    auto nd = node->append(this->p_root());
+
+    if (nd->is(ND_Function) && nd->nd_func_name->str == "main")
+      node->nd_program_main = nd;
   }
 
-  for (size_t i = 0; i < this->tokens.size(); i++) {
-    this->tokens[i]._index = (i64)i;
+  node->last_tok = this->cur->prev;
+
+  return node;
+}
+
+//
+// root ::=
+//   let | func
+//
+Node* Parser::p_root() {
+  if (auto node = this->p_let(); node)
+    return node;
+
+  else if ((node = this->p_concept_def()))
+    return node;
+
+  else if ((node = this->p_concept_tagged_definition()))
+    return node;
+
+  else if ((node = this->p_func()))
+    return node;
+
+  else if ((node = this->p_enum()))
+    return node;
+
+  else if ((node = this->p_class()))
+    return node;
+
+  else if ((node = this->p_struct()))
+    return node;
+
+  else if ((node = this->p_namespace()))
+    return node;
+
+  else if (this->in_repl)
+    return this->p_stmt();
+
+  Error(this->cur,
+        "expected definition of variable or function, enum, class, struct, namespace")
+      .crash();
+}
+
+Node* Parser::p_concept_def() {
+  if (!this->eat(Kwd::Concept))
+    return nullptr;
+
+  auto node = Node::new_node(ND_Concept, this->cur->prev, nullptr);
+
+  node->first_tok = node->tok;
+
+  node->nd_concept_name = this->expect_ident();
+
+  this->expect(Punct::AngleBraceOpen);
+
+  do {
+    node->append(this->p_expect_identifier(false));
+  } while (this->eat_comma());
+
+  this->expect(Punct::AngleBraceClose);
+
+  if (this->eat_semi()) {
+    node->last_tok = this->cur->prev;
+    return node;
   }
 
-  return ret;
+  auto ccbody = Node::new_node(ND_ConceptBody, this->expect_block_open(), nullptr);
+
+  ccbody->first_tok = ccbody->tok;
+
+  while (true) {
+    auto& ex = ccbody->append(this->p_expr());
+
+    // expr => T
+    if (auto _op = this->cur; this->eat(Punct::CaseMatch)) {
+      ex = Node::new_node(ND_CCRule_ResultTypeExpection, _op, ex, this->p_expect_type());
+    }
+
+    this->expect_semi();
+
+    if (auto b = this->cur; this->eat(Punct::BlockBraceClose)) {
+      node->last_tok = ccbody->last_tok = b;
+      break;
+    }
+  }
+
+  node->nd_concept_ccbody = ccbody;
+
+  return node;
 }
 
-Parser::Parser(TokenVector& tokens)
-    : tokens(tokens),
-      cur(this->tokens.begin()),
-      end(this->tokens.end()) {
+Node* Parser::p_concept_tagged_definition() {
+  Node* cclist = this->eat_concept_tags_list();
+
+  if (!cclist)
+    return nullptr;
+
+  Node* node = nullptr;
+
+  if ((node = this->p_concept_def())) {
+    node->nd_concept_cclist = cclist;
+  }
+
+  else if ((node = this->p_class()))
+    node->nd_class_cclist = cclist;
+
+  else if ((node = this->p_func()))
+    node->nd_func_cclist = cclist;
+
+  else if ((node = this->p_enum()))
+    node->nd_enum_cclist = cclist;
+
+  else
+    Error(cclist->last_tok, "expected definition of function or class, struct, enum, "
+                            "concept after this token.")
+        .crash();
+
+  return node;
 }
 
-} // namespace fire::parser
+// -----------------------------------------------
+// p_enum:
+//  Parse enum definition.
+//
+// *---
+// BNF
+//   enum ::=
+//     "enum" ident "{" def_enumerator ("," def_enumerator)* "}"
+//
+// *---
+// structure map
+//   def_enumerator   --> nd_enum_enumerators[N]
+//   en_val           --> nd_enum_enumerators[N].nd_enumerator_is_value
+//   en_struct        --> nd_enum_enumerators[N].nd_enumerator_struct_members[N]
+// -----------------------------------------------
+Node* Parser::p_enum() {
+  if (this->eat(Kwd::Enum)) {
+    auto node = Node::new_node(ND_Enum, this->cur);
+
+    node->first_tok = this->cur;
+
+    node->nd_enum_name = this->expect_ident();
+
+    if (auto p = this->eat_template_parameter_list()) {
+      node->nd_enum_tplist = p;
+      node->nd_enum_is_template = true;
+    }
+
+    this->expect(Punct::BlockBraceOpen);
+
+    do {
+      node->append(this->p_def_enumerator());
+    } while (this->eat(Punct::Comma));
+
+    node->last_tok = this->cur;
+
+    this->expect(Punct::BlockBraceClose);
+
+    return node;
+  }
+
+  return nullptr;
+}
+
+// -----------------------------------------------
+// p_def_enumerator:
+//   Parse enumerator definition.
+//
+// *---
+// BNF
+//   def_enumerator ::=
+//     ident ("(" en_val | en_struct ")")?
+//
+//   en_val ::=
+//     type
+//
+//   en_struct ::=
+//     "{" struct_member ("," struct_member)* "}"
+//
+//   struct_member ::=
+//     ident ":" type
+// -----------------------------------------------
+Node* Parser::p_def_enumerator() {
+  auto tok = this->cur;
+
+  auto node = Node::new_node(ND_DefEnumerator, this->cur);
+
+  node->first_tok = tok;
+
+  node->nd_enumerator_name = this->expect_ident();
+
+  // have a data
+  if (this->eat_brace_open()) {
+
+    // struct members
+    if (this->cur->next->is_punct(Punct::Colon)) {
+      node->nd_enumerator_is_struct = true;
+
+      do {
+        node->append(this->p_struct_member());
+      } while (this->eat_comma());
+    }
+    else {
+      // only type
+      node->nd_enumerator_is_value = true;
+      node->nd_enumerator_val_type = this->p_expect_type();
+    }
+
+    this->expect_brace_close();
+  }
+
+  node->last_tok = this->cur->prev;
+
+  return node;
+}
+
+// ---------------------------------
+// p_struct:
+//   Parse struct definition.
+// ---------------------------------
+Node* Parser::p_struct() {
+  if (this->eat(Kwd::Struct)) {
+    auto node = Node::new_node(ND_Struct, this->cur);
+
+    node->nd_struct_name = this->expect_ident();
+
+    if (auto p = this->eat_template_parameter_list()) {
+      node->nd_struct_tplist = p;
+      node->nd_struct_is_template = true;
+    }
+
+    this->expect_brace_open();
+
+    do {
+      node->append(this->p_struct_member());
+    } while (this->eat_comma());
+
+    this->expect_brace_close();
+  }
+
+  return nullptr;
+}
+
+Node* Parser::p_struct_member() {
+  auto member = Node::new_node(ND_StructMember, this->cur);
+
+  member->nd_struct_member_name = this->expect_ident();
+
+  this->expect_colon();
+
+  member->nd_struct_member_type = this->p_expect_type();
+
+  return member;
+}
+
+// ---------------------------------
+//  p_class:
+//    Parse class definition.
+// ---------------------------------
+Node* Parser::p_class() {
+  if (this->eat(Kwd::Class)) {
+    auto node = Node::new_node(ND_Class, this->cur->prev);
+
+    node->nd_class_name = this->expect_ident();
+
+    if (auto p = this->eat_template_parameter_list()) {
+      node->nd_class_tplist = p;
+      node->nd_class_is_template = true;
+    }
+
+    this->expect_block_open();
+
+    node->nd_class_fields = Node::new_node(ND_Class_Fields);
+    node->nd_class_methods = Node::new_node(ND_Class_Methods);
+
+    while (!this->eat(Punct::BlockBraceClose)) {
+      if (auto method = this->p_func()) {
+        node->nd_class_methods->append(method);
+      }
+
+      else if (auto member = this->p_let()) {
+        node->nd_class_fields->append(member);
+      }
+
+      else
+        Error(this->cur, "expected function or variable declaration").crash();
+    }
+
+    if (node->nd_class_fields->list.empty()) {
+      Error(node->tok, "no members in class").crash();
+    }
+
+    return node;
+  }
+
+  return nullptr;
+}
+
+Node* Parser::p_namespace() {
+  if (this->eat(Kwd::Namespace)) {
+    Node* node = Node::new_node(ND_Namespace, this->cur->prev);
+
+    Node* ns = node;
+
+    ns->nd_namespace_name = this->expect_ident();
+
+    while (this->eat(Punct::ScopeResol)) {
+      Node* sub = Node::new_node(ND_Namespace, this->cur->prev);
+      sub->nd_namespace_name = this->expect_ident();
+      ns->append(sub);
+      ns = sub;
+    }
+
+    this->expect_block_open();
+
+    do {
+      ns->append(this->p_root());
+    } while (!this->eat(Punct::BlockBraceClose));
+
+    return node;
+  }
+
+  return nullptr;
+}
+
+// ---------------------------------
+// p_func:
+//   Parse function definition.
+//
+// *---
+// BNF
+//   func ::=
+//     func ident "(" func_args ("," func_args)* ")" ("->" type)? block
+// ---------------------------------
+Node* Parser::p_func() {
+  if (this->eat(Kwd::Func)) {
+    auto tok = this->cur;
+
+    auto node = Node::new_node(ND_Function, this->cur);
+
+    node->first_tok = tok;
+
+    node->nd_func_name = this->expect_ident();
+
+    if (auto tplist = this->eat_template_parameter_list()) {
+      node->nd_func_tplist = tplist;
+      node->nd_func_is_template = true;
+    }
+
+    this->expect_brace_open();
+
+    if (!this->eat_brace_close()) {
+      do {
+        node->append(this->p_func_arg());
+      } while (this->eat_comma());
+
+      this->expect_brace_close();
+    }
+
+    if (this->eat(Punct::ResultTypeSpecifier))
+      node->nd_func_result_type = this->p_expect_type();
+
+    (node->nd_func_body = this->p_block(true))->nd_block_parent = node;
+
+    node->last_tok = this->cur->prev;
+
+    return node;
+  }
+
+  return nullptr;
+}
+
+//
+// func_arg ::=
+//   ident ":" type
+//
+Node* Parser::p_func_arg() {
+  auto node = Node::new_node(ND_FunctionArg, this->cur);
+
+  node->nd_func_arg_name = this->expect_ident();
+
+  this->expect_colon();
+
+  node->nd_func_arg_type = this->p_expect_type();
+
+  return node;
+}
+
+} // namespace fire

@@ -1,143 +1,196 @@
 #pragma once
 
-#include "AST.h"
+#include "fire-fwd.h"
 
-namespace fire::parser {
+#include "Token/Token.h"
+#include "Node/Node.h"
+
+namespace fire {
+
+class SourceStorage;
 
 class Parser {
 
+  using Kwd = TokenKwdKind;
+  using Punct = TokenPunctKind;
+  using Op = TokenOperatorKind;
+
+  Token* cur;
+  Token* ate;
+
+  SourceStorage const& source;
+
+  Token* save() {
+    return this->ate = this->cur;
+  }
+
+  bool in_repl = false;
+
 public:
-  Parser(TokenVector& tokens);
+  Parser(SourceStorage const& source, Token* tok);
 
-  // ASTPointer Ident();
+  void set_in_repl() {
+    this->in_repl = true;
+  }
 
-  ASTPointer Factor();
-  ASTPointer ScopeResol();
+  Node* parse();
 
-  ASTPointer Lambda();
+  Node* p_root();
 
-  ASTPointer IndexRef();
-  ASTPointer Unary();
+  Node* p_namespace();
 
-  ASTPointer Mul();
-  ASTPointer Add();
-  ASTPointer Shift();
-  ASTPointer Compare();
-  ASTPointer BitCalc();
-  ASTPointer LogAndOr();
-  ASTPointer Assign();
+  Node* p_concept_def();
 
-  ASTPointer Expr();
-  ASTPointer Stmt();
+  //
+  // p_concept_tagged_definition:
+  //
+  // => the definition of function or class or concept with concept tag list.
+  Node* p_concept_tagged_definition();
 
-  ASTPointer Top();
+  Node* p_struct();
+  Node* p_struct_member();
 
-  ASTPtr<AST::Block> Parse();
+  Node* p_class();
+
+  Node* p_func();
+  Node* p_func_arg();
+
+  Node* p_enum();
+  Node* p_def_enumerator();
+
+  Node* p_stmt();
+  Node* p_let();
+  Node* p_loop();
+
+  Node* p_block(bool expected = false);
+
+  Node* p_expr();
+
+  Node* p_assign();
+
+  Node* p_if_expr();
+
+  Node* p_range(); // a ... b
+
+  Node* p_logical();  // 'and' 'or'
+  Node* p_in();       // 'in'
+  Node* p_bit_calc(); // '&' '|' '^'
+  Node* p_equality(); // '==' '!='
+  Node* p_compare();  // '>=' '<=' '>' '<'
+
+  Node* p_shift();
+  Node* p_add();
+  Node* p_mul();
+  Node* p_unary();
+  Node* p_subscript();
+
+  Node* p_scope_resol();
+  Node* p_factor();
+
+  Node* p_literal();
 
 private:
-  bool check() const;
+  bool check();
+  Token* next();
 
-  bool eat(std::string_view str);
-  void expect(std::string_view str, bool keep_token = false);
+  Token* insert(Token* tok);
 
-  // ----
-  // for brackets of template parameter "<" ">"
-  //
-  // 閉じ括弧で右シフト演算子がある場合，自動的に分割します．
-  // フラグの都合のため eat(), expect() ではなく以下の関数群を使うこと
-  //
-  bool eat_typeparam_bracket_open();     //  eat "<"
-  bool eat_typeparam_bracket_close();    //  eat ">"
-  void expect_typeparam_bracket_open();  // expect "<"
-  void expect_typeparam_bracket_close(); // expect ">"
-  // -----
+  bool match(TokenKind k);
+  bool match(TokenPunctKind k);
+  bool match(TokenOperatorKind k);
+  bool match(TokenKwdKind k);
 
-  bool match(std::string_view s) {
-    return this->cur->str == s;
-  }
+  bool eat(TokenKind k);
+  bool eat(TokenPunctKind k);
+  bool eat(TokenOperatorKind k);
+  bool eat(TokenKwdKind k);
 
-  bool match(TokenKind kind) {
-    return this->cur->kind == kind;
-  }
-
-  bool match(std::pair<TokenKind, std::string_view> pair) {
-    return this->match(pair.first) && this->match(pair.second);
-  }
-
-  template <class T, class U, class... Args>
-  bool match(T&& t, U&& u, Args&&... args) {
-    if (!this->check() || !this->match(std::forward<T>(t))) {
-      return false;
-    }
-
-    auto save = this->cur;
-    this->cur++;
-
-    auto ret = this->match(std::forward<U>(u), std::forward<Args>(args)...);
-
-    this->cur = save;
-    return ret;
-  }
-
-  TokenIterator insert_token(Token tok) {
-    tok.sourceloc = this->cur->sourceloc;
-
-    this->cur = this->tokens.insert(this->cur, tok);
-    this->end = this->tokens.end();
-
-    return this->cur;
-  }
-
-  TokenIterator expectIdentifier();
-
-  ASTPtr<AST::TypeName> expectTypeName();
-
-  ASTPtr<AST::Signature> expect_signature();
-
-  static ASTPtr<AST::Expr> new_expr(ASTKind k, Token& op, ASTPointer lhs,
-                                    ASTPointer rhs) {
-    return AST::Expr::New(k, op, lhs, rhs);
-  }
-
-  static ASTPtr<AST::Expr> new_assign(ASTKind kind, Token& op, ASTPointer lhs,
-                                      ASTPointer rhs) {
-    return new_expr(ASTKind::Assign, op, lhs, new_expr(kind, op, lhs, rhs));
-  }
-
-  TokenVector& tokens;
-  TokenIterator cur, end, ate;
-
-  bool _in_class = false;
-  ASTPtr<AST::Class> _classptr = nullptr;
-
-  bool _in_loop = false;
-
-  int _typeparam_bracket_depth = 0;
+  Token* expect(TokenKind k);
+  Token* expect(TokenPunctKind k);
+  Token* expect(TokenOperatorKind k);
+  Token* expect(TokenKwdKind k);
 
   //
-  // fn func <...>
-  // class C <...>
-  AST::Templatable::ParameterName parse_template_param_decl() {
-    AST::Templatable::ParameterName pn = {.token = *this->expectIdentifier(),
-                                          .params = {}};
+  // node create wrapper
+  static Node* new_zero();
+  static Node* new_assign_with_op(NodeKind kind, Token* tok, Node* lhs, Node* rhs);
 
-    if (this->eat_typeparam_bracket_open()) {
-      do {
-        pn.params.emplace_back(parse_template_param_decl());
-      } while (this->eat(","));
+  //
+  // token eat/expect wrapper
+  bool eat_ident();
+  bool eat_semi();
+  bool eat_colon();
+  bool eat_comma();
+  bool eat_brace_open();
+  bool eat_brace_close();
+  Token* expect_ident();
+  Token* expect_semi();
+  Token* expect_colon();
+  Token* expect_comma();
+  Token* expect_brace_open();
+  Token* expect_brace_close();
 
-      this->expect_typeparam_bracket_close();
-    }
+  Token* expect_block_open();
+  Token* expect_block_close();
 
-    return pn;
-  }
+  //
+  // template args
+  bool eat_tp_args_open();
+  bool eat_tp_args_close();
+  Token* expect_tp_args_open();
+  Token* expect_tp_args_close();
 
-  void check_match_of_template_arg_type(AST::Templatable::ParameterName const& P,
-                                        ASTPtr<AST::TypeName> T) {
+  //
+  // type name
+  Node* p_expect_type();
+  Node* p_expect_type_part();
 
-    if (P.token.str != T->GetName())
-      return;
-  }
+  //
+  // identifier (with qualifier)
+  Node* p_expect_identifier(bool allow_qualifier = false);
+  void p_parse_id_qualifier(Node* nd);
+
+  //
+  // expect pair of name and type
+  //  => "a: T"
+  Node* p_expect_pair_name_and_type();
+
+  //
+  // expect intializer list
+  //  => "{a: 1, b: 2, ...}"
+  Node* p_expect_initializer_list();
+
+  //
+  // expect switch case
+  Node* p_expect_switch_case(); // ParserStmt.cpp
+
+  //
+  // p_getexpr_rm_block:
+  //
+  //  when want to eat an expr and block,
+  //  may be block-stmt eaten by in p_expr() as ND_CallConstructor.
+  //  so this func split expr and block, and return only expr.
+  Node* p_getexpr_rm_block();
+
+  Node* eat_expr();
+  Node* eat_expr(std::function<Node*()>);
+
+  Node* expect_pr_expr(std::function<Node*()>);
+
+#define EAT_EXPR(_mbfn)                                                                  \
+  (this->eat_expr([this]() {                                                             \
+    return this->_mbfn();                                                                \
+  }))
+
+#define expect_expr(fn)                                                                  \
+  (this->expect_pr_expr([this]() {                                                       \
+    return this->fn();                                                                   \
+  }))
+
+  Node* eat_template_parameter_list();
+
+  Node* eat_concept_tags_list();
+  Node* expect_concept_tag();
 };
 
-} // namespace fire::parser
+} // namespace fire

@@ -1,21 +1,31 @@
 TARGET		?= 	fire
 DBGPREFIX	?=	d
 
+BUILD			:= 	build
+BUILD_RELEASE	:=	build_release
+
 TOPDIR		?= 	$(CURDIR)
-BUILD		:= 	build
+
 INCLUDE		:= 	include
-SOURCE		:= 	src	\
-				src/AST \
-				src/Evaluator \
+SOURCE		:= 	src \
+				src/Driver \
 				src/Parser \
 				src/Sema \
-				src/VM
+				src/Evaluator
 
-CC			:=	gcc
-CXX			:=	g++
+CC			:=	clang
+CXX			:=	clang++
 
-OPTI		?=	-O0 -g -D_METRO_DEBUG_
-COMMON		:=	$(OPTI) -Wall -Wextra -Wno-switch $(INCLUDES)
+OPTI		?=	-O0 -g -Wall -Wextra -D_FIRE_DEBUG_
+
+COMMON		:=	$(OPTI) \
+				$(INCLUDES) \
+				-Wno-switch \
+				-Wno-unused-label \
+				-Wno-unused-parameter \
+				-Wno-unused-variable \
+				-Wno-unused-but-set-variable
+
 CFLAGS		:=	$(COMMON) -std=c17
 CXXFLAGS	:=	$(COMMON) -std=c++20
 LDFLAGS		:=
@@ -38,25 +48,29 @@ export VPATH		= $(foreach dir,$(SOURCE),$(TOPDIR)/$(dir))
 export INCLUDES		= $(foreach dir,$(INCLUDE),-I$(TOPDIR)/$(dir))
 export OFILES		= $(CFILES:.c=.o) $(CXXFILES:.cpp=.o)
 
-.PHONY: $(BUILD) all re clean run
+.PHONY: $(BUILD) $(BUILD_RELEASE) all re clean run
 
-all: debug
+all: debug release
 
 debug: $(BUILD)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(TOPDIR)/Makefile
 
-release: $(BUILD)
+release: $(BUILD_RELEASE)
 	@$(MAKE) --no-print-directory \
+		BUILD=$(BUILD_RELEASE) \
 		OUTPUT="$(TOPDIR)/$(TARGET)" \
 		OPTI="-O3" \
 		LDFLAGS="-Wl,--gc-sections,-s" \
-		-C $(BUILD) -f $(TOPDIR)/Makefile
+		-C $(BUILD_RELEASE) -f $(TOPDIR)/Makefile
 
 run: all
 	@echo -------------------------------------
 	@./fired test.fr
 
 $(BUILD):
+	@[ -d $@ ] || mkdir -p $@
+
+$(BUILD_RELEASE):
 	@[ -d $@ ] || mkdir -p $@
 
 clean:

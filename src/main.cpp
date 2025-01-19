@@ -1,5 +1,5 @@
-#include "Driver.h"
+#include "Driver/Driver.h"
 
 int main(int argc, char** argv) {
-  fire::FireDriver().fire_main(argc, argv);
+  return fire::Driver::get_instance()->main(argc, argv);
 }

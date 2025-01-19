@@ -6,7 +6,7 @@
                 "${workspaceFolder}/**"
             ],
             "defines": [
-                "_METRO_DEBUG_"
+                "_FIRE_DEBUG_"
             ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",

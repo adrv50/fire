@@ -1,17 +1,22 @@
 #pragma once
 
-#include <vector>
-#include "types.h"
+#include "alert.h"
+#include "typedef.h"
 
 namespace fire {
 
+namespace Builtins {
+struct BuiltinFunc;
+}
+
 enum class TypeKind : u8 {
+  Unknown,
+
   None,
 
   Int,
   Float,
   Bool,
-
   Char,
   String,
 
@@ -19,98 +24,119 @@ enum class TypeKind : u8 {
   Tuple,
   Dict,
 
+  Functor,
+
   Enumerator,
-  Instance, // instance of class
 
-  //
-  // Function:
-  //   params[  0]  = result
-  //   params[>=1]  = args
-  Function,
+  Type, // => the type of a type. (class, struct, enum, etc...)
 
-  Module,
+  Instance,
 
-  TypeName, // class or enum or etc...
-
-  Unknown, // or template param
+  Any,
 };
 
+struct Node;
 struct TypeInfo {
   TypeKind kind;
+  Vec<TypeInfo> tp_args;
 
-  Vec<TypeInfo> params;
+  bool is_reference;
+  bool is_mutable;
 
-  string name; // <-- todo: remove this, and use GetName()
+  Node* nd_enum = nullptr;
+  size_t enumerator_index = 0;
 
-  bool is_const = false;
+  Node* nd_class = nullptr;
+  Node* nd_struct = nullptr;
 
-  // TypeKind::TypeName
-  //
-  // AST::Enum
-  // AST::Class
-  ASTPointer type_ast = nullptr;
+  Node* ftor_node = nullptr; // when TypeKind::Functor, ptr to user-defined function
+  Builtins::BuiltinFunc const* ftor_blt = nullptr; // not uder-def but if builtin
 
-  // when enumerator
-  size_t enum_index = 0;
+  static TypeInfo static_none_type;
 
-  //
-  // TypeKind::Function
-  bool is_free_args = false;
-  bool is_member_func = false;
+  TypeInfo& append_template_arg(TypeInfo const& ti);
 
-  //
-  //   0  = no need
-  //  -1  = infinity
-  // >=1  =
-  int needed_param_count() const;
+  bool is(TypeKind k) const;
+  bool is(TypeKind k, bool is_mutable, Vec<TypeInfo> tp_args) const;
 
-  bool IsPrimitiveType() const {
-    switch (this->kind) {
-    case TypeKind::None:
-    case TypeKind::Int:
-    case TypeKind::Float:
-    case TypeKind::Bool:
-    case TypeKind::Char:
-    case TypeKind::String:
-    case TypeKind::Vector:
-    case TypeKind::Tuple:
-    case TypeKind::Dict:
-      return true;
+  bool is_str() const {
+    return this->is(TypeKind::String);
+  }
+
+  bool is_enum_type() const {
+    return this->is(TypeKind::Type) && this->nd_enum;
+  }
+
+  bool is_struct_type() const {
+    return this->is(TypeKind::Type) && this->nd_struct;
+  }
+
+  bool is_class_type() const {
+    return this->is(TypeKind::Type) && this->nd_class;
+  }
+
+  bool is_numeric() const;
+  bool is_subscriptable() const;
+  bool is_template() const;
+
+  bool is_callable() const {
+    debug {
+      if (this->is(TypeKind::Functor)) {
+        assert(this->ftor_node || this->ftor_blt);
+      }
+    };
+
+    return this->is(TypeKind::Functor);
+  }
+
+  bool equals(TypeInfo const& ti) const;
+
+  string to_string() const;
+
+  TypeInfo& set_enum(Node* nd_enum, size_t index = 0);
+
+  TypeInfo& set_ftor_bfun(Builtins::BuiltinFunc const* bf);
+  TypeInfo& set_ftor_node(Node* node);
+
+  static size_t get_least_template_args_count_of(TypeKind kind) {
+    switch (kind) {
+      case TypeKind::Vector:
+        return 1;
+
+      case TypeKind::Tuple:
+        return 1;
+
+      case TypeKind::Dict:
+        return 2;
+    }
+
+    return 0;
+  }
+
+  static bool is_template_kind(TypeKind kind) {
+    switch (kind) {
+      case TypeKind::Vector:
+      case TypeKind::Tuple:
+      case TypeKind::Dict:
+        return true;
     }
 
     return false;
   }
 
-  bool is_iterable() const;
+  static string get_name_of_kind(TypeKind kind);
 
-  bool is_numeric() const;
-  bool is_numeric_or_char() const;
+  static TypeKind get_kind_of_name(string const& name);
 
-  bool is_char_or_str() const;
+  static Vec<pair<TypeKind, char const*>> const get_type_name_map();
 
-  bool is_hit(std::vector<TypeInfo> types) const;
-  bool is_hit_kind(std::vector<TypeKind> kinds) const;
-
-  string_view GetSV() const;
-
-  string GetName() const;
-
-  static TypeInfo from_enum(ASTPtr<AST::Enum> ast);
-  static TypeInfo from_class(ASTPtr<AST::Class> ast);
-
-  static TypeInfo make_instance_type(ASTPtr<AST::Class> ast);
-
-  static TypeKind from_name(string const& name);
-
-  static bool is_primitive_name(std::string_view);
-
-  bool equals(TypeInfo const& type) const;
-  std::string to_string() const;
-
-  TypeInfo without_params() const;
+  TypeInfo& get_elem_type(size_t template_param_index = 0) {
+    return this->tp_args[template_param_index];
+  }
 
   TypeInfo(TypeKind kind = TypeKind::None);
-  TypeInfo(TypeKind kind, std::vector<TypeInfo> params);
+  TypeInfo(TypeKind kind, Vec<TypeInfo> tp_args, bool is_reference = false,
+           bool is_mutable = false);
 };
 
 } // namespace fire

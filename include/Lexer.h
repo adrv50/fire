@@ -1,49 +1,42 @@
 #pragma once
 
-#include "Token.h"
+#include "typedef.h"
 
 namespace fire {
 
+class SourceStorage;
+struct Token;
+
 class Lexer {
 
-public:
-  Lexer(SourceStorage& source);
+  SourceStorage const& SS;
 
-  bool Lex(Vec<Token>& out);
+  size_t pos;
+  size_t const len;
 
-private:
-  bool check() const;
-  char peek();
+  bool check(int add = 1) const;
+
+  char peek(int offset = 0) const;
+
+  string_view get(int len) const;
+
+  bool eat(string_view s, bool keep_pos = false);
+  bool match(string_view s);
+
+  string trim_hexadecimal();
+  string trim_binary();
+  string trim_decimal();
+  string trim_identifier();
+
   void pass_space();
-  bool match(std::string_view);
 
-  bool eat(char c) {
-    if (this->peek() == c) {
-      this->position++;
-      return true;
-    }
+public:
+  Lexer(SourceStorage const& SS);
 
-    return false;
-  }
-
-  bool eat(std::string_view s) {
-    if (this->match(s)) {
-      this->position += s.length();
-      return true;
-    }
-
-    return false;
-  }
-
-  std::string_view trim(i64 len) {
-    return std::string_view(this->source.data.data() + this->position, len);
-  }
-
-  SourceStorage& source;
-  i64 position;
-  i64 length;
-
-  std::string_view src_view;
+  //
+  // do lex
+  //
+  Token* lex();
 };
 
 } // namespace fire

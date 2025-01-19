@@ -2,65 +2,63 @@
 
 #include <list>
 
-#include "AST.h"
-#include "Object.h"
+#include "typedef.h"
 
-namespace fire::eval {
+namespace fire {
 
-struct VarStack {
-  vector<ObjPointer> var_list;
-
-  bool returned = false;
-  ObjPointer func_result = nullptr;
-
-  bool breaked = false;
-  bool continued = false;
-
-  VarStack(size_t vcount) {
-    this->var_list.resize(vcount);
-  }
-};
+struct Node;
 
 class Evaluator {
 
-  semantics_checker::Sema& S;
+  struct CallStack {
+    Vec<Obj> objects; // => local variables
 
-public:
-  Evaluator(semantics_checker::Sema& S);
-  ~Evaluator();
+    Obj result = nullptr;
 
-  ObjPointer evaluate(ASTPointer ast);
+    bool pass = false; // pass to end of function body.
 
-  ObjPointer eval_expr(ASTPtr<AST::Expr> ast);
-  void eval_stmt(ASTPointer ast);
+    Obj& get(size_t index);
 
-  ObjPointer& eval_as_left(ASTPointer ast);
+    Obj& append(Obj obj);
 
-  ObjPointer& eval_index_ref(ASTPtr<AST::Expr> ast, ObjPointer array, ObjPointer index);
+    CallStack();
+    ~CallStack();
+  };
 
-  //
-  ObjPointer& eval_member_ref(ObjPtr<ObjInstance> inst, ASTPtr<AST::Class> expected_class,
-                              int index);
+  Vec<Obj> global_variables;
 
-private:
-  using VarStackPtr = std::shared_ptr<VarStack>;
+  Vec<CallStack> call_stack;
 
-  ObjPtr<ObjInstance> CreateClassInstance(ASTPtr<AST::Class> ast);
+  Node* program;
 
-  ObjPointer MakeDefaultValueOfType(TypeInfo const& type);
+  CallStack& get_current_call_stack();
 
-  VarStackPtr push_stack(size_t var_count);
+  Obj& push(Obj obj);
+  Obj pop();
+
+  CallStack& push_stack();
+
   void pop_stack();
 
-  VarStack& get_cur_stack();
-  VarStack& get_stack(int distance);
+public:
+  Evaluator(Node* program);
 
-  std::list<VarStackPtr> var_stack;
+  Evaluator(Evaluator&&) = delete;
+  Evaluator(Evaluator const&) = delete;
 
-  std::list<VarStackPtr> call_stack;
-  std::list<VarStackPtr> loops;
+  Obj& append_global_var(Obj obj);
 
-  static ObjPtr<ObjNone> _None;
+  Obj evaluate();
+
+  Obj eval_expr(Node* node);
+
+  Obj eval_call_func(Node* node, Vec<Obj>& args);
+
+  Obj eval_stmt(Node* node);
+
+  Obj eval_block(Node* node);
+
+  void eval_let(Node* node);
 };
 
-} // namespace fire::eval
+} // namespace fire

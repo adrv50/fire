@@ -1,197 +1,117 @@
 #pragma once
 
-#include <cassert>
-#include <optional>
-#include <tuple>
+#include <functional>
 
-#include "AST.h"
+#include "Node/Node.h"
+#include "SymbolTable.h"
 
-namespace fire::semantics_checker {
+namespace fire::sema {
 
-using namespace AST;
+namespace templates {
+struct DefinitionIR;
+}
 
-using TypeVec = vector<TypeInfo>;
+struct SymbolInfo;
+struct SymbolTable;
+struct FunctionContext;
 
 class Sema;
 
-struct LocalVar {
-  string name;
+enum ScopeKind {
+  SC_Block,
 
-  TypeInfo deducted_type;
-  bool is_type_deducted = false;
+  SC_Function,
 
-  bool is_argument = false;
-  ASTPtr<AST::VarDef> decl = nullptr;
-  ASTPtr<AST::Argument> arg = nullptr;
+  SC_Enum,
+  SC_Class,
+  SC_Struct,
 
-  int depth = 0;
-  int index = 0;
+  // SC_Template, // => for symbols of template parameters. (and wrap template node)
 
-  int index_add = 0;
-
-  LocalVar(string const& name = "")
-      : name(name) {
-  }
-
-  LocalVar(ASTPtr<AST::VarDef> vardef);
-  LocalVar(ASTPtr<AST::Argument> arg);
+  SC_Namespace,
 };
 
-// ------------------------------------
-//  ScopeContext ( base-struct )
+struct VarInfo {
+  TypeInfo type;
+  Symbol* sym;
+
+  size_t offset;          // => index for ScopeContext::varlist
+  size_t offset_in_stack; // => index for FunctionContext::let_stmt_sym_ptr_list
+
+  bool is_type_deducted;
+
+  bool is_member = false;
+  bool is_static_member = false;
+
+  string const& get_name();
+
+  VarInfo(Symbol* sym);
+};
+
+struct VarList {
+  Vec<VarInfo*> list;
+  ScopeContext* parent_scope;
+
+  typename Vec<VarInfo*>::iterator begin();
+  typename Vec<VarInfo*>::iterator end();
+
+  VarInfo*& operator[](size_t index);
+
+  VarInfo*& append(VarInfo* var);
+
+  size_t size() const;
+
+  VarInfo* find(string const& name);
+
+  VarList(ScopeContext* parent_scope);
+};
 
 struct ScopeContext {
 
-  enum Types {
-    SC_Block,
-    SC_Func,
-    SC_Enum,
-    SC_Class,
-    SC_Namespace,
-  };
+  ScopeKind kind;
 
-  Types type;
+  Node* node;
 
-  int depth = 0;
+  SymbolTable sym_table;
 
-  bool is_block;
+  ScopeContext* parent;
 
-  ScopeContext* _owner = nullptr;
+  Vec<ScopeContext*> childs;
 
-  bool Contains(ScopeContext* scope, bool recursive = false) const;
+  VarList varlist;
 
-  virtual bool IsNamedAs(string const&) const {
-    return false;
-  }
+  FunctionContext* func_ctx;
 
-  virtual ASTPointer GetAST() const;
+  bool is_named() const;
 
-  virtual LocalVar* find_var(string_view const& name);
+  bool get_name(string& out) const;
 
-  virtual ScopeContext* find_child_scope(ASTPointer ast);
-  virtual ScopeContext* find_child_scope(ScopeContext* ctx);
+  bool contains(ScopeContext* child) const;
 
-  virtual bool contains(ScopeContext*) {
-    return false;
-  }
+  Symbol*& add_symbol(Symbol* sym);
 
-  // find a named scope
-  virtual vector<ScopeContext*> find_name(string const& name);
+  ScopeContext*& append(ScopeContext* child);
 
-  virtual ~ScopeContext() = default;
+  ScopeContext*& append_as_symboled_scope(ScopeContext* child, SymbolKind kind,
+                                          Node* sym_decl, string const& name);
 
-  virtual std::string to_string() const = 0;
+  size_t find_scope_if(Vec<ScopeContext*>& out, std::function<bool(ScopeContext*)> pred);
 
-protected:
-  ScopeContext(Types type)
-      : type(type),
-        is_block(type == SC_Block) {
-  }
+  size_t find_symbol_if(Vec<Symbol*>& out, std::function<bool(Symbol*)> pred);
+
+  void add_template_params(Node* tplist);
+
+  static ScopeContext* from_block(Sema& S, Node* node);
+
+  static ScopeContext* from_function(Sema& S, Node* node,
+                                     ScopeContext* parent_class = nullptr);
+
+  static ScopeContext* from_enum(Sema& S, Node* node);
+  static ScopeContext* from_class(Sema& S, Node* node);
+
+  // static ScopeContext* from_namespace(Node* node);
+
+  ScopeContext(ScopeKind kind, Node* node);
 };
 
-// ------------------------------------
-//  BlockScope
-
-struct BlockScope : ScopeContext {
-  ASTPtr<AST::Block> ast;
-
-  vector<LocalVar> variables;
-
-  size_t child_var_count = 0;
-
-  vector<ScopeContext*> child_scopes;
-
-  ScopeContext*& AddScope(ScopeContext* s);
-
-  LocalVar& add_var(ASTPtr<AST::VarDef> def);
-
-  ASTPointer GetAST() const override;
-
-  LocalVar* find_var(string_view const& name) override;
-
-  ScopeContext* find_child_scope(ASTPointer ast) override;
-  ScopeContext* find_child_scope(ScopeContext* ctx) override;
-
-  bool contains(ScopeContext* ctx) override {
-    for (auto&& c : this->child_scopes)
-      if (c == ctx)
-        return true;
-
-    return false;
-  }
-
-  vector<ScopeContext*> find_name(string const& name) override;
-
-  std::string to_string() const override;
-
-  BlockScope(int depth, ASTPtr<AST::Block> ast, int index_add = 0);
-  ~BlockScope();
-};
-
-// ------------------------------------
-//  FunctionScope
-
-struct FunctionScope : ScopeContext {
-  ASTPtr<AST::Function> ast = nullptr;
-
-  vector<LocalVar> arguments;
-
-  BlockScope* block = nullptr;
-
-  TypeInfo result_type;
-
-  ASTVec<AST::Statement> return_stmt_list;
-
-  Vec<FunctionScope*> InstantiatedTemplateFunctions;
-
-  bool IsTemplatedFunc() const {
-    return ast->IsTemplated;
-  }
-
-  LocalVar& add_arg(ASTPtr<AST::Argument> def);
-
-  bool IsNamedAs(string const& name) const override {
-    return this->ast->GetName() == name;
-  }
-
-  ASTPointer GetAST() const override;
-
-  LocalVar* find_var(string_view const& name) override;
-
-  ScopeContext* find_child_scope(ScopeContext* ctx) override;
-  ScopeContext* find_child_scope(ASTPointer ast) override;
-
-  bool contains(ScopeContext* ctx) override {
-    return this->block == ctx;
-  }
-
-  vector<ScopeContext*> find_name(string const& name) override;
-
-  std::string to_string() const override;
-
-  FunctionScope(int depth, ASTPtr<AST::Function> ast);
-  ~FunctionScope();
-};
-
-// ------------------------------------
-//  NamespaceScope
-
-struct NamespaceScope : BlockScope {
-  string name;
-
-  ASTVec<AST::Block> _ast;
-
-  ScopeContext* find_child_scope(ASTPointer ast) override {
-    for (auto&& x : this->_ast) {
-      if (x == ast)
-        return this;
-    }
-
-    return BlockScope::find_child_scope(ast);
-  }
-
-  NamespaceScope(int depth, ASTPtr<AST::Block> ast, int index_add);
-  ~NamespaceScope();
-};
-
-} // namespace fire::semantics_checker
+} // namespace fire::sema

@@ -1,4 +1,4 @@
-/build
+/build*
 /__pycache__
 /memo
 
@@ -24,3 +24,5 @@ a.*
 a*.*
 
 _memo.*
+
+/_old
