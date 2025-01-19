@@ -135,6 +135,7 @@
 #define nd_func_name tok2
 #define nd_func_is_method b2
 #define nd_func_is_template b3
+#define nd_func_is_one_line b4
 #define nd_func_tplist nc // template parameters list
 #define nd_func_cclist nd // concept tags (if used)
 #define nd_func_args list

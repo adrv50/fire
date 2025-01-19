@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 
 #include "alert.h"
 #include "Utils.h"
@@ -11,6 +12,8 @@
 #include "SourceStorage.h"
 
 namespace fire {
+
+static std::unordered_map<string, SourceStorage*> _opened_sources;
 
 string_view SourceLoc::get_view() const {
   return {this->SS->data.data() + this->pos, this->length};
@@ -58,11 +61,12 @@ pair<size_t, size_t>& SourceStorage::append_line(size_t pos, size_t len) {
   return this->_line_list.emplace_back(pos, len);
 }
 
-shared_ptr<SourceStorage> SourceStorage::import_source(string const& path) {
+SourceStorage* SourceStorage::import_source(string const& path) const {
 
-  auto src = make_shared<SourceStorage>(path);
+  auto src = get_opened_instance(path);
 
-  this->imported.emplace_back(src);
+  if (!src)
+    src = this->imported.emplace_back(new SourceStorage(path));
 
   return src;
 }
@@ -91,7 +95,10 @@ bool SourceStorage::open(string const& path) {
   if (this->is_open())
     return false; // not closed or duplicate use of instance
 
-  this->path = path;
+  this->fs_path = std::filesystem::absolute(path);
+  this->path = this->fs_path.string();
+
+  _opened_sources[this->path] = this;
 
   this->ifs.reset();
   this->ifs = std::make_unique<std::ifstream>(path);
@@ -154,6 +161,10 @@ Node* SourceStorage::get_analyzed() const {
   }
 
   return node;
+}
+
+SourceStorage* SourceStorage::get_opened_instance(string const& path) {
+  return _opened_sources[std::filesystem::absolute(path).string()];
 }
 
 SourceStorage::SourceStorage() {

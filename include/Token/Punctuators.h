@@ -36,7 +36,10 @@ enum class TokenPunctKind : u8 {
   AttributeBegin, // [[
   AttributeEnd,   // ]]
 
+  Slash,            // /   #
+  PathParentFolder, // ..  # for "import" statement
+
   Ellipsis, // ...
 };
 
-}
+} // namespace fire

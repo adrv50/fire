@@ -3,6 +3,7 @@
 #include "Token/Token.h"
 #include "Node/Node.h"
 #include "Parser.h"
+#include "Driver/Driver.h"
 
 namespace fire {
 
@@ -23,7 +24,47 @@ Node* Parser::parse() {
 
   while (this->check()) {
     if (this->eat(Kwd::Import)) {
-      todo_impl;
+      Token* import_tok = this->cur->prev;
+
+      string pathstr;
+
+      if (this->eat(Punct::Dot))
+        this->expect(Punct::Slash);
+
+      while (this->check()) {
+        Token* tok = this->cur;
+
+        if (this->eat(Punct::PathParentFolder)) {
+          pathstr += "../";
+
+          if (!this->eat(Punct::Slash))
+            Error(tok, "expected '/' after this token").crash();
+        }
+        else if (this->eat(TokenKind::Identifier)) {
+          if (this->eat(Punct::Slash)) {
+            pathstr += tok->str + "/";
+            continue;
+          }
+
+          pathstr += tok->str + ".fr";
+
+          this->expect_semi();
+          break;
+        }
+        else
+          Error(this->cur, "invalid syntax").crash();
+      }
+
+      pathstr = std::filesystem::absolute(pathstr).string();
+
+      if (!std::filesystem::exists(pathstr))
+        Error(import_tok, "source file '" + pathstr + "' doesn't exists.").crash();
+
+      auto imported = this->source.import_source(pathstr);
+
+      for (auto&& item : imported->get_parsed()->list) {
+        node->append(item);
+      }
     }
     else
       break;
@@ -32,8 +73,11 @@ Node* Parser::parse() {
   while (this->check()) {
     auto nd = node->append(this->p_root());
 
-    if (nd->is(ND_Function) && nd->nd_func_name->str == "main")
+    if (nd->is(ND_Function) && nd->nd_func_name->str == "main") {
       node->nd_program_main = nd;
+
+      Driver::get_instance()->register_main(nd);
+    }
   }
 
   node->last_tok = this->cur->prev;
@@ -397,7 +441,22 @@ Node* Parser::p_func() {
     if (this->eat(Punct::ResultTypeSpecifier))
       node->nd_func_result_type = this->p_expect_type();
 
-    (node->nd_func_body = this->p_block(true))->nd_block_parent = node;
+    if (this->eat(Punct::CaseMatch)) {
+      tok = this->cur->prev;
+
+      auto expr = this->p_expr();
+      this->expect_semi();
+
+      node->nd_func_body = Node::new_node(ND_Block, tok);
+      node->nd_func_body->first_tok = tok;
+      node->nd_func_body->append(Node::new_node(ND_Return, tok->next))->nd_return_expr =
+          expr;
+
+      node->nd_func_is_one_line = true;
+    }
+    else {
+      (node->nd_func_body = this->p_block(true))->nd_block_parent = node;
+    }
 
     node->last_tok = this->cur->prev;
 

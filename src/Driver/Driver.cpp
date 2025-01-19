@@ -2,10 +2,11 @@
 #include <iostream>
 
 #include "alert.h"
+#include "Builtins.h"
+#include "Node/Node.h"
 #include "SourceStorage.h"
 #include "Evaluator.h"
 #include "Repl.h"
-#include "Builtins.h"
 #include "Driver/Driver.h"
 
 static constexpr auto help_string = R"(
@@ -60,6 +61,16 @@ Obj Driver::execute(SourceStorage const& source) {
 
 SourceStorage& Driver::add_source(string const& path) {
   return *this->sources.emplace_back(make_shared<SourceStorage>(path));
+}
+
+void Driver::register_main(Node* nd) {
+  if (this->entry_point) {
+    Error(nd->tok, "duplicate definition of entry point 'main'")
+        .add_note(this->entry_point->tok, "already defined here")
+        .crash();
+  }
+
+  this->entry_point = nd;
 }
 
 void Driver::add_error(Error&& e) {

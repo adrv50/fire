@@ -105,6 +105,9 @@ static constexpr pair<TKpunct, char const*> tok_punctuators[] = {
     {TKpunct::AttributeBegin, "[["},
     {TKpunct::AttributeEnd, "]]"},
 
+    {TKpunct::Slash, "/"},
+    {TKpunct::PathParentFolder, ".."},
+
     {TKpunct::Ellipsis, "..."},
 };
 
@@ -114,6 +117,8 @@ static constexpr pair<TKpunct, char const*> tok_punctuators[] = {
 //
 static constexpr pair<TKkwd, char const*> tok_keywords[] = {
     {TKkwd::None, ""},
+
+    {TKkwd::Import, "import"},
 
     {TKkwd::Namespace, "namespace"},
 

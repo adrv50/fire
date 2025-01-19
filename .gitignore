@@ -18,7 +18,7 @@ tester
 
 test.flame
 test.fire
-test.*
+test*.*
 
 a.*
 a*.*

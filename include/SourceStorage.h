@@ -1,6 +1,8 @@
 #pragma once
 
 #include <iosfwd>
+#include <filesystem>
+
 #include "typedef.h"
 
 namespace fire {
@@ -61,6 +63,8 @@ class SourceStorage {
 
   mutable Vec<shared_ptr<SourceLoc>> _loc_list;
 
+  std::filesystem::path fs_path;
+
   unique_ptr<std::ifstream> ifs;
 
   Vec<pair<size_t, size_t /* (pos, len) */>> _line_list;
@@ -68,7 +72,7 @@ class SourceStorage {
   string path;
   string data;
 
-  Vec<shared_ptr<SourceStorage>> imported;
+  mutable Vec<SourceStorage*> imported;
 
   bool is_in_repl = false;
 
@@ -81,7 +85,7 @@ class SourceStorage {
 
   pair<size_t, size_t>& append_line(size_t pos, size_t len);
 
-  shared_ptr<SourceStorage> import_source(string const& path);
+  SourceStorage* import_source(string const& path) const;
 
 public:
   shared_ptr<SourceLoc> make_ref(Token* tok, size_t pos, size_t len) const;
@@ -110,7 +114,11 @@ public:
 
   Node* get_analyzed() const;
 
+  static SourceStorage* get_opened_instance(string const& path);
+
   SourceStorage();
+  SourceStorage(SourceStorage&&) = delete;
+  SourceStorage(SourceStorage const&) = delete;
 
   SourceStorage(string const& path);
 
