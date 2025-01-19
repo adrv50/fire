@@ -68,8 +68,8 @@ Node* Parser::p_if_expr() {
     x->nd_if_then = nd;
     x->nd_if_cond = this->p_expr();
 
-    if (this->eat(Kwd::Else))
-      x->nd_if_else = this->p_range();
+    this->expect(Kwd::Else);
+    x->nd_if_else = this->p_range();
 
     nd = x;
   }

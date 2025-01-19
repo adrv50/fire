@@ -7,20 +7,30 @@
 #include "Token.h"
 #include "Node.h"
 
+// general
 #define nd_items list
 #define nd_elements list
 
+//
+// ND_Value
 #define nd_value obj
 
+// ND_Variable
+#define nd_variable_is_global b1
+#define nd_variable_offset size
+
+// ND_Functor
+
+// ND_Array
 #define nd_array_elements list
+
+// ND_Tuple
 #define nd_tuple_elements list
 
+// ND_Dict
 #define nd_dict_pairs list
 #define nd_dict_pair_key na
 #define nd_dict_pair_value nb
-
-#define nd_variable_is_global b1
-#define nd_variable_offset size
 
 #define nd_id_name tok
 #define nd_id_tp_args list

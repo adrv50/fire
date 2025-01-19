@@ -48,14 +48,17 @@ struct Symbol {
   union {
     VarInfo* var;
     templates::Parameter* tp_param;
-    ScopeContext* scope;
     TypeKind tk;
     Builtins::BuiltinFunc const* bfun;
   };
 
   SymbolTable* parent_table;
 
-  ScopeContext* get_scope() const;
+  ScopeContext* scope; // => namespace, enum, struct, class, func
+
+  ScopeContext* get_parent_scope() const;
+
+  string get_full_scoped_name() const;
 
   Symbol(SymbolKind kind, SymbolTable* table = nullptr);
 };

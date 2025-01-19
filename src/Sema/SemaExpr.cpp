@@ -69,6 +69,7 @@ TypeInfo ExprEval::eval(Node* node) {
             case SY_Namespace:
               candidates.clear();
               count = sym->scope->sym_table.find(candidates, id->nd_id_name->str);
+
               break;
 
             default:
@@ -112,7 +113,7 @@ TypeInfo ExprEval::eval(Node* node) {
 
           node->kind = ND_Variable;
           node->nd_variable_offset = sym->var->offset_in_stack;
-          node->nd_variable_is_global = (sym->scope == this->S.root_scope);
+          node->nd_variable_is_global = (sym->get_parent_scope() == this->S.root_scope);
 
           return sym->var->type;
         }
@@ -139,8 +140,6 @@ TypeInfo ExprEval::eval(Node* node) {
 
             func_nd->nd_func_is_template = false;
             func_nd->nd_func_tplist = nullptr;
-
-            alertmsg("\n" << node2s(func_nd));
           }
 
           type.ftor_node = func_nd;
@@ -149,6 +148,8 @@ TypeInfo ExprEval::eval(Node* node) {
 
           for (auto&& arg : type.ftor_node->nd_func_args)
             type.append_template_arg(S.eval_type_ti(arg->nd_func_arg_type));
+
+          node->kind = ND_Functor;
 
           return type;
         }
@@ -360,8 +361,14 @@ TypeInfo ExprEval::eval(Node* node) {
     case ND_Range:
       todo_impl;
 
-    case ND_ExprIf:
-      todo_impl;
+    case ND_ExprIf: {
+      auto type = this->eval(node->nd_if_then);
+
+      this->expect(node->nd_if_cond, TypeKind::Bool);
+      this->expect(node->nd_if_else, type);
+
+      return type;
+    }
   }
 
   assert(node->kind >= ND_Mul && node->kind <= ND_Assign);

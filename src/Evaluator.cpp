@@ -267,11 +267,17 @@ Obj Evaluator::eval_expr(Node* node) {
       return obj;
     }
 
-    case ND_Variable:
+    case ND_Variable: {
       if (node->nd_variable_is_global)
         return this->global_variables[node->nd_variable_offset];
 
       return this->get_current_call_stack().get(node->nd_variable_offset);
+    }
+
+    case ND_Functor: {
+
+      todo_impl;
+    }
 
     //
     // Call function
@@ -298,6 +304,16 @@ Obj Evaluator::eval_expr(Node* node) {
       return obj;
     }
 
+    case ND_CallConstructor: {
+      todo_impl;
+    }
+
+    case ND_ExprIf:
+      if (this->eval_expr(node->nd_if_cond)->as_bool()->val)
+        return this->eval_expr(node->nd_if_then);
+
+      return this->eval_expr(node->nd_if_else);
+
     default:
       break;
   }
@@ -315,12 +331,10 @@ Obj Evaluator::eval_expr(Node* node) {
 //  Evaluator::eval_call_func
 // ----------------------------------
 Obj Evaluator::eval_call_func(Node* node, Vec<Obj>& args) {
-  auto callee = node->nd_callfunc_callee_userdef;
+  auto func = node->nd_callfunc_callee_userdef;
 
-  if (!callee) {
+  if (!func) {
     // => no pointer to user-defined function, call builtin
-
-    assert(node->nd_callfunc_callee_builtin);
 
     return node->nd_callfunc_callee_builtin->call(*this, node, args);
   }
@@ -328,7 +342,7 @@ Obj Evaluator::eval_call_func(Node* node, Vec<Obj>& args) {
   // if got pointer, call user-defined function
   auto& stack = this->push_stack();
 
-  stack.objects.resize(node->nd_func_lvar_count);
+  stack.objects.resize(func->nd_func_lvar_count);
 
   // for (auto&& arg : args)
   //   this->push(arg);
@@ -336,7 +350,7 @@ Obj Evaluator::eval_call_func(Node* node, Vec<Obj>& args) {
   for (size_t i = 0; i < args.size(); i++)
     stack.objects[i] = args[i];
 
-  this->eval_block(callee->nd_func_body);
+  this->eval_block(func->nd_func_body);
 
   auto result = stack.result;
 
@@ -423,8 +437,11 @@ Obj Evaluator::eval_block(Node* node) {
 //  Evaluator::eval_let
 // ----------------------------------
 void Evaluator::eval_let(Node* node) {
-  if (auto const x = node->nd_let_init)
+  if (auto const x = node->nd_let_init) {
+    alertmsg(node->nd_let_offset);
+
     this->get_current_call_stack().objects[node->nd_let_offset] = this->eval_expr(x);
+  }
 }
 
 } // namespace fire

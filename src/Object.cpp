@@ -177,7 +177,14 @@ ObjDict::ObjDict(TypeInfo const& key_ti, TypeInfo const& value_ti,
 
 ObjFunctor::ObjFunctor(Node* func)
     : Object(TypeInfo(TypeKind::Functor)),
-      func(func) {
+      func(func),
+      bfun(nullptr) {
+}
+
+ObjFunctor::ObjFunctor(Builtins::BuiltinFunc const* bfun)
+    : Object(TypeKind::Functor),
+      func(nullptr),
+      bfun(bfun) {
 }
 
 ObjEnumerator::ObjEnumerator(Node* nd_enum, size_t index)
@@ -258,7 +265,15 @@ string ObjDict::to_string() const {
 }
 
 string ObjFunctor::to_string() const {
-  return "functor";
+  if (this->bfun) {
+  }
+
+  if (this->func->nd_func_is_template) {
+  }
+
+  string s = "{functor: }";
+
+  return s;
 }
 
 string ObjEnumerator::to_string() const {

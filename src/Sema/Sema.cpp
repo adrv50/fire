@@ -5,16 +5,6 @@
 
 namespace fire::sema {
 
-ScopeContext* Sema::enter_scope(ScopeContext* scope) {
-  assert(this->cur_scope->contains(scope));
-
-  return this->cur_scope = scope;
-}
-
-void Sema::leave_scope() {
-  this->cur_scope = this->cur_scope->parent;
-}
-
 Sema::Sema(Node* program)
     : program(program),
       root_scope(nullptr),
@@ -26,15 +16,28 @@ Sema::Sema(Node* program)
   this->cur_scope = this->root_scope;
 }
 
+ScopeContext* Sema::enter_scope(ScopeContext* scope) {
+  assert(this->cur_scope->contains(scope));
+
+  return this->cur_scope = scope;
+}
+
+void Sema::leave_scope() {
+  this->cur_scope = this->cur_scope->parent;
+}
+
 void Sema::check_all() {
   for (auto&& nd : this->program->nd_block_items) {
     this->check_top_item(nd);
   }
 
   for (auto&& inst : this->tp_manager.instantiated_templates) {
-    this->cur_scope = inst->sym->scope->parent;
 
-    inst->sym->scope->node = inst->node;
+    auto func_scope = inst->sym->scope;
+
+    func_scope->node = inst->node;
+
+    this->cur_scope = func_scope->parent;
 
     this->check_top_item(inst->node);
   }
@@ -296,7 +299,7 @@ TypeInfo Sema::eval_type_ti(Node* node) {
     }
 
     candidates.clear();
-    scope = sym->scope;
+    scope = sym->get_parent_scope();
     name += "::";
 
     continue;

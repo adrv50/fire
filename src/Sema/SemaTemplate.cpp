@@ -192,7 +192,6 @@ Node* TemplateManager::replace_all_params(Instantiated* inst, Node* _node) {
 
       case ND_TypeName:
         if (auto p = inst->params.find(nd->nd_type_id->nd_id_name->str); p) {
-          alert;
           nd->nd_type_id->nd_id_name->str = p->type.to_string();
         }
 

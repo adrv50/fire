@@ -8,6 +8,10 @@
 
 namespace fire {
 
+namespace Builtins {
+struct BuiltinFunc;
+}
+
 using Obj = Object*;
 
 template <typename T>
@@ -190,8 +194,10 @@ struct ObjDict : Object {
 
 struct ObjFunctor : Object {
   Node* func;
+  Builtins::BuiltinFunc const* bfun;
 
   ObjFunctor(Node* func);
+  ObjFunctor(Builtins::BuiltinFunc const* bfun);
 
   string to_string() const override;
   ObjFunctor* clone() const override;

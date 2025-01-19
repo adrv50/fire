@@ -26,7 +26,7 @@ enum ScopeKind {
   SC_Class,
   SC_Struct,
 
-  SC_Template, // => for symbols of template parameters. (and wrap template node)
+  // SC_Template, // => for symbols of template parameters. (and wrap template node)
 
   SC_Namespace,
 };
@@ -82,14 +82,18 @@ struct ScopeContext {
 
   FunctionContext* func_ctx;
 
+  bool is_named() const;
+
+  bool get_name(string& out) const;
+
   bool contains(ScopeContext* child) const;
 
   Symbol*& add_symbol(Symbol* sym);
 
   ScopeContext*& append(ScopeContext* child);
 
-  ScopeContext*& append_as_symboled(ScopeContext* child, SymbolKind kind, Node* sym_decl,
-                                    string const& name);
+  ScopeContext*& append_as_symboled_scope(ScopeContext* child, SymbolKind kind,
+                                          Node* sym_decl, string const& name);
 
   size_t find_scope_if(Vec<ScopeContext*>& out, std::function<bool(ScopeContext*)> pred);
 
