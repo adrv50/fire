@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Node.h"
+#include "Node/Node.h"
 
 namespace fire::sema {
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "typedef.h"
-#include "Node.h"
+#include "Node/Node.h"
 
 namespace fire {
 

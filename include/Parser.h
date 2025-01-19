@@ -2,10 +2,12 @@
 
 #include "fire-fwd.h"
 
-#include "Token.h"
-#include "Node.h"
+#include "Token/Token.h"
+#include "Node/Node.h"
 
 namespace fire {
+
+class SourceStorage;
 
 class Parser {
 
@@ -16,6 +18,8 @@ class Parser {
   Token* cur;
   Token* ate;
 
+  SourceStorage& source;
+
   Token* save() {
     return this->ate = this->cur;
   }
@@ -23,10 +27,7 @@ class Parser {
   bool in_repl = false;
 
 public:
-  Parser(Token* tok)
-      : cur(tok),
-        ate(nullptr) {
-  }
+  Parser(SourceStorage& source, Token* tok);
 
   void set_in_repl() {
     this->in_repl = true;

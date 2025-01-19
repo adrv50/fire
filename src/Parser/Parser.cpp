@@ -1,10 +1,16 @@
 #include "alert.h"
 #include "Error.h"
-#include "Token.h"
-#include "Node.h"
+#include "Token/Token.h"
+#include "Node/Node.h"
 #include "Parser.h"
 
 namespace fire {
+
+Parser::Parser(SourceStorage& source, Token* tok)
+    : cur(tok),
+      ate(nullptr),
+      source(source) {
+}
 
 //
 // program ::=
@@ -14,6 +20,11 @@ Node* Parser::parse() {
   auto node = Node::new_node(ND_Program, this->cur);
 
   node->first_tok = this->cur;
+
+  while (this->check()) {
+    if (this->eat(Kwd::Import)) {
+    }
+  }
 
   while (this->check()) {
     auto nd = node->append(this->p_root());

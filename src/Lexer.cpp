@@ -1,5 +1,5 @@
 #include "utf.h"
-#include "Token.h"
+#include "Token/Token.h"
 #include "Lexer.h"
 #include "Error.h"
 

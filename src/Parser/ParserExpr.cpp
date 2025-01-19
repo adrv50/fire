@@ -2,8 +2,8 @@
 
 #include "TypeInfo.h"
 #include "Object.h"
-#include "Token.h"
-#include "Node.h"
+#include "Token/Token.h"
+#include "Node/Node.h"
 
 #include "Parser.h"
 #include "Error.h"

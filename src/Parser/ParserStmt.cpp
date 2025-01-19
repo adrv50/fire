@@ -1,6 +1,6 @@
 #include "alert.h"
-#include "Token.h"
-#include "Node.h"
+#include "Token/Token.h"
+#include "Node/Node.h"
 #include "Error.h"
 #include "Parser.h"
 

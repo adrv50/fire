@@ -2,8 +2,8 @@
 
 #include <functional>
 
-#include "Node.h"
-#include "Token.h"
+#include "Node/Node.h"
+#include "Token/Token.h"
 
 #include "ScopeContext.h"
 #include "NodeContext.h"

@@ -6,8 +6,8 @@
 #include "Utils.h"
 
 #include "Object.h"
-#include "Token.h"
-#include "Node.h"
+#include "Token/Token.h"
+#include "Node/Node.h"
 
 #include "Builtins.h"
 #include "Error.h"

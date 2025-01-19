@@ -1,8 +1,8 @@
 #include "Object.h"
-#include "Token.h"
-#include "Node.h"
+#include "Token/Token.h"
+#include "Node/Node.h"
 #include "Utils.h"
-#include "node2s.h"
+#include "Node/node2s.h"
 #include "alert.h"
 
 namespace fire {

@@ -3,7 +3,7 @@
 #include "Builtins.h"
 #include "Sema/Sema.h"
 
-#include "node2s.h"
+#include "Node/node2s.h"
 
 namespace fire::sema {
 
@@ -211,13 +211,13 @@ TypeInfo ExprEval::eval(Node* node) {
         auto const& mb_name = pair->nd_callctor_init_key->str;
         auto mb_init = pair->nd_callctor_init_value;
 
-        auto mb = fields[index];
-
-        if (mb == *mb_end) {
+        if (index >= fields.size()) {
           Error(node->nd_callctor_ctor_side,
                 "too many initializers to construct instance of '" + class_name_str + "'")
               .crash();
         }
+
+        auto& mb = fields[index];
 
         if (mb_name != mb->nd_let_name->str) {
           Error(pair->tok, "no match member name (index=" + std::to_string(index) + ")")

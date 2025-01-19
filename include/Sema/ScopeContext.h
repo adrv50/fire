@@ -2,7 +2,7 @@
 
 #include <functional>
 
-#include "../Node.h"
+#include "Node/Node.h"
 #include "SymbolTable.h"
 
 namespace fire::sema {
