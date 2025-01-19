@@ -60,11 +60,17 @@ Node* Parser::parse() {
       if (!std::filesystem::exists(pathstr))
         Error(import_tok, "source file '" + pathstr + "' doesn't exists.").crash();
 
-      auto imported = this->source.import_source(pathstr);
+      alert;
 
-      for (auto&& item : imported->get_parsed()->list) {
-        node->append(item);
+      if (auto imported = this->source.import_source(pathstr)) {
+        for (auto&& item : imported->get_parsed()->list) {
+          node->append(item);
+        }
       }
+      else
+        Error(import_tok, "'" + pathstr + "' is already opened, ignored this import",
+              ErrorType::Warn)
+            .emit();
     }
     else
       break;

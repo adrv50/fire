@@ -62,13 +62,10 @@ pair<size_t, size_t>& SourceStorage::append_line(size_t pos, size_t len) {
 }
 
 SourceStorage* SourceStorage::import_source(string const& path) const {
-
-  auto src = get_opened_instance(path);
-
-  if (!src)
-    src = this->imported.emplace_back(new SourceStorage(path));
-
-  return src;
+  if (!get_opened_instance(path))
+    return this->imported.emplace_back(new SourceStorage(path));
+  else
+    return nullptr;
 }
 
 shared_ptr<SourceLoc> SourceStorage::make_ref(Token* tok, size_t pos, size_t len) const {

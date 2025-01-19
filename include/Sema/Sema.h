@@ -269,6 +269,9 @@ public:
 
   TypeInfo eval_type_ti(Node* node);
 
+  void handle_type_kind_error(Symbol* sym, Node* nd, const Vec<TypeInfo>& tp_args,
+                              const string& name);
+
 private:
   //
   // find_name:

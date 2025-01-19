@@ -207,130 +207,69 @@ TypeInfo Sema::eval_type_ti(Node* node) {
   if (!node)
     return TypeKind::None;
 
-  Node* type_nd = node;
-
-  Vec<Node*> sr = node->nd_type_scope_resol;
-
-  sr.insert(sr.begin(), node);
+  // 初期化
+  Vec<Node*> sr{node}; // スコープ解決リストを最初からnodeで初期化
+  sr.insert(sr.end(), node->nd_type_scope_resol.begin(),
+            node->nd_type_scope_resol.end()); // スコープ解決リストを追加
 
   Vec<Symbol*> candidates;
-
   ScopeContext* scope = nullptr;
-
   Symbol* sym = nullptr;
-
   string name;
 
-  Vec<TypeInfo> tp_args;
+  Vec<TypeInfo> tp_args; // テンプレート引数のリスト
 
+  // 名前解決処理
   for (auto&& nd : sr) {
     node = nd;
     name += nd->nd_type_id->nd_id_name->str;
 
     size_t count = this->find_name(candidates, nd->nd_type_id->nd_id_name->str, scope);
 
+    // 名前が見つからない、または候補が複数ある場合のエラーチェック
     if (count == 0) {
       Error(node, "cannot find type name '" + name + "'").crash();
     }
-    else if (count >= 2) {
-      todo_impl;
+    if (count >= 2) {
+      todo_impl; // 複数候補が見つかった場合の処理
     }
 
-    sym = candidates[0];
+    sym = candidates[0]; // 最初の候補を採用
 
-    bool have_tp_args = nd->nd_type_tp_args_ptr != nullptr;
-
-    if (have_tp_args) {
+    // テンプレート引数の処理
+    if (nd->nd_type_tp_args_ptr != nullptr) {
       tp_args.clear();
-
       for (auto&& type : nd->nd_type_tp_args) {
         tp_args.emplace_back(this->eval_type_ti(type));
       }
     }
 
-    switch (sym->kind) {
-      case SY_Namespace:
-        if (have_tp_args)
-          Error(nd, "namespace is not template").crash();
+    // 名前空間、列挙型、クラス型、ビルトイン型のチェック
+    this->handle_type_kind_error(sym, nd, tp_args, name);
 
-        if (nd == sr.back())
-          Error(nd, "cannot use name of namespace as type name").crash();
-
-        break;
-
-      case SY_Enum:
-        if (sym->decl->nd_enum_is_template) {
-          if (!have_tp_args)
-            goto _no_tp_args_err;
-        }
-        else if (have_tp_args)
-          goto _not_template_err;
-
-        break;
-
-      case SY_Class:
-        if (sym->decl->nd_class_is_template) {
-          if (!have_tp_args)
-            goto _no_tp_args_err;
-        }
-        else if (have_tp_args)
-          goto _not_template_err;
-
-        break;
-
-      case SY_BuiltinType:
-        // if vector or tuple or ...
-        if (TypeInfo::is_template_kind(sym->tk)) {
-          if (!have_tp_args)
-            goto _no_tp_args_err;
-
-          if (auto least = TypeInfo::get_least_template_args_count_of(sym->tk);
-              tp_args.size() < least) {
-            Error(nd, "too few template arguments").crash();
-          }
-        }
-        else if (have_tp_args)
-          goto _not_template_err;
-
-        break;
-
-      default:
-        Error(nd->last_tok->next, "'" + name + "' is not a type name").crash();
-    }
-
-    candidates.clear();
+    candidates.resize(0);
     scope = sym->get_parent_scope();
-    name += "::";
-
-    continue;
-
-  _not_template_err:
-    Error(nd, "'" + name + "' is not template").crash();
-
-  _no_tp_args_err:
-    Error(nd, "cannot use '" + name + "' without template arguments").crash();
+    name += "::"; // 名前の後ろに'::'を追加
   }
 
+  // TypeInfoの設定
   TypeInfo type;
-
-  type.tp_args = tp_args;
-
+  type.tp_args = tp_args; // テンプレート引数を設定
   size_t tpcount = tp_args.size();
 
+  // 型ごとの処理
   switch (sym->kind) {
     case SY_Enum:
       type.kind = TypeKind::Enumerator;
       type.nd_enum = sym->decl;
 
-      if (sym->decl->nd_enum_is_template) {
-        if (tpcount == 0) {
-          Error(node, "cannot use '" + name + "' without template arguments").crash();
-        }
+      // 列挙型がテンプレートの場合
+      if (sym->decl->nd_enum_is_template && tpcount == 0) {
+        Error(node, "cannot use '" + name + "' without template arguments").crash();
       }
-      else if (tpcount >= 1) {
+      else if (!sym->decl->nd_enum_is_template && tpcount >= 1) {
         Error(node->first_tok, "'" + name + "' is not template").crash();
       }
-
       break;
 
     case SY_Class:
@@ -352,6 +291,57 @@ TypeInfo Sema::eval_type_ti(Node* node) {
   return type;
 }
 
+void Sema::handle_type_kind_error(Symbol* sym, Node* nd, const Vec<TypeInfo>& tp_args,
+                                  const string& name) {
+  bool have_tp_args = !tp_args.empty();
+
+  switch (sym->kind) {
+    case SY_Namespace:
+      if (have_tp_args) {
+        Error(nd, "namespace is not template").crash();
+      }
+      if (nd == nd->nd_type_scope_resol.back()) {
+        Error(nd, "cannot use name of namespace as type name").crash();
+      }
+      break;
+
+    case SY_Enum:
+      if (sym->decl->nd_enum_is_template && !have_tp_args) {
+        Error(nd, "cannot use '" + name + "' without template arguments").crash();
+      }
+      else if (!sym->decl->nd_enum_is_template && have_tp_args) {
+        Error(nd, "'" + name + "' is not template").crash();
+      }
+      break;
+
+    case SY_Class:
+      if (sym->decl->nd_class_is_template && !have_tp_args) {
+        Error(nd, "cannot use '" + name + "' without template arguments").crash();
+      }
+      else if (!sym->decl->nd_class_is_template && have_tp_args) {
+        Error(nd, "'" + name + "' is not template").crash();
+      }
+      break;
+
+    case SY_BuiltinType:
+      if (TypeInfo::is_template_kind(sym->tk)) {
+        if (!have_tp_args) {
+          Error(nd, "cannot use '" + name + "' without template arguments").crash();
+        }
+        size_t least = TypeInfo::get_least_template_args_count_of(sym->tk);
+        if (tp_args.size() < least) {
+          Error(nd, "too few template arguments").crash();
+        }
+      }
+      else if (have_tp_args) {
+        Error(nd, "'" + name + "' is not template").crash();
+      }
+      break;
+
+    default:
+      Error(nd->last_tok->next, "'" + name + "' is not a type name").crash();
+  }
+}
 size_t Sema::find_name(Vec<Symbol*>& out, string const& name, ScopeContext* start) {
   if (!start)
     start = this->cur_scope;
