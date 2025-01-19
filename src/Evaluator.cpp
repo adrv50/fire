@@ -8,14 +8,19 @@
 #include "Builtins.h"
 #include "Evaluator.h"
 
+#define Li lhs->as_int()->val
+#define Ri rhs->as_int()->val
+#define Lf lhs->as_float()->val
+#define Rf rhs->as_float()->val
+
 namespace fire {
 
 Obj obj_add(Obj lhs, Obj rhs) {
   if (lhs->ti.is(TypeKind::Int))
-    return ObjInt::make(lhs->as_int()->val + rhs->as_int()->val);
+    return ObjInt::make(Li + Ri);
 
   if (lhs->ti.is(TypeKind::Float))
-    return ObjFloat::make(lhs->as_float()->val + rhs->as_float()->val);
+    return ObjFloat::make(Lf + Rf);
 
   if (lhs->ti.is(TypeKind::String))
     return ObjStr::make(lhs->as_str()->val + rhs->as_str()->val);
@@ -25,30 +30,30 @@ Obj obj_add(Obj lhs, Obj rhs) {
 
 Obj obj_sub(Obj lhs, Obj rhs) {
   if (lhs->ti.is(TypeKind::Int))
-    return ObjInt::make(lhs->as_int()->val - rhs->as_int()->val);
+    return ObjInt::make(Li - Ri);
 
   if (lhs->ti.is(TypeKind::Float))
-    return ObjFloat::make(lhs->as_float()->val - rhs->as_float()->val);
+    return ObjFloat::make(Lf - Rf);
 
   todo_impl;
 }
 
 Obj obj_mul(Obj lhs, Obj rhs) {
   if (lhs->ti.is(TypeKind::Int))
-    return ObjInt::make(lhs->as_int()->val * rhs->as_int()->val);
+    return ObjInt::make(Li * Ri);
 
   if (lhs->ti.is(TypeKind::Float))
-    return ObjFloat::make(lhs->as_float()->val * rhs->as_float()->val);
+    return ObjFloat::make(Lf * Rf);
 
   todo_impl;
 }
 
 Obj obj_div(Obj lhs, Obj rhs) {
   if (lhs->ti.is(TypeKind::Int))
-    return ObjInt::make(lhs->as_int()->val / rhs->as_int()->val);
+    return ObjInt::make(Li / Ri);
 
   if (lhs->ti.is(TypeKind::Float))
-    return ObjFloat::make(lhs->as_float()->val / rhs->as_float()->val);
+    return ObjFloat::make(Lf / Rf);
 
   todo_impl;
 }
@@ -56,24 +61,30 @@ Obj obj_div(Obj lhs, Obj rhs) {
 Obj obj_mod(Obj lhs, Obj rhs) {
   debug(assert(lhs->ti.is(TypeKind::Int)));
 
-  return ObjInt::make(lhs->as_int()->val % rhs->as_int()->val);
+  return ObjInt::make(Li % Ri);
 }
 
 Obj obj_lshift(Obj lhs, Obj rhs) {
-  return ObjInt::make(lhs->as_int()->val << rhs->as_int()->val);
+  return ObjInt::make(Li << Ri);
 }
 
 Obj obj_rshift(Obj lhs, Obj rhs) {
-  return ObjInt::make(lhs->as_int()->val >> rhs->as_int()->val);
+  return ObjInt::make(Li >> Ri);
 }
 
 Obj obj_compare(CompareExprKind kind, Obj lhs, Obj rhs) {
   switch (kind) {
     case CompareExprKind::CMP_Bigger:
-      return ObjBool::make(lhs->as_int()->val > rhs->as_int()->val);
+      if (lhs->as_int())
+        return ObjBool::make(Li > Ri);
+      else
+        return ObjBool::make(Lf > Rf);
 
     case CompareExprKind::CMP_BiggerOrEqual:
-      return ObjBool::make(lhs->as_int()->val >= rhs->as_int()->val);
+      if (lhs->as_int())
+        return ObjBool::make(Li >= Ri);
+      else
+        return ObjBool::make(Lf >= Rf);
   }
 
   return nullptr;
@@ -84,15 +95,15 @@ Obj obj_equal(Obj lhs, Obj rhs) {
 }
 
 Obj obj_bitand(Obj lhs, Obj rhs) {
-  return ObjInt::make(lhs->as_int()->val & rhs->as_int()->val);
+  return ObjInt::make(Li & Ri);
 }
 
 Obj obj_bitor(Obj lhs, Obj rhs) {
-  return ObjInt::make(lhs->as_int()->val | rhs->as_int()->val);
+  return ObjInt::make(Li | Ri);
 }
 
 Obj obj_bitxor(Obj lhs, Obj rhs) {
-  return ObjInt::make(lhs->as_int()->val ^ rhs->as_int()->val);
+  return ObjInt::make(Li ^ Ri);
 }
 
 Obj obj_or(Obj lhs, Obj rhs) {
