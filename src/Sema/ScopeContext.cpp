@@ -55,6 +55,7 @@ bool ScopeContext::contains(ScopeContext* child) const {
 
 Symbol*& ScopeContext::add_symbol(Symbol* sym) {
   sym->parent_table = &this->sym_table;
+  sym->scope = this;
 
   return this->sym_table.symbols.emplace_back(sym);
 }
@@ -111,7 +112,7 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
   for (auto&& nd : node->nd_block_items) {
     switch (nd->kind) {
       case ND_Let: {
-        auto& sym = scope->add_symbol(new Symbol(SY_Var, &scope->sym_table));
+        auto& sym = scope->add_symbol(new Symbol(SY_Var));
 
         sym->name = nd->nd_let_name->str;
         sym->decl = nd;

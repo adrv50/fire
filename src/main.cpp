@@ -61,9 +61,9 @@ int main(int argc, char** argv) {
 
     S.check_all();
 
-    // Evaluator ev{prg};
+    Evaluator ev{prg};
 
-    // ev.evaluate();
+    ev.evaluate();
 
     return 0;
   }

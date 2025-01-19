@@ -110,6 +110,10 @@ TypeInfo ExprEval::eval(Node* node) {
             Error(node, "variable '" + name + "' is not template").crash();
           }
 
+          node->kind = ND_Variable;
+          node->nd_variable_offset = sym->var->offset_in_stack;
+          node->nd_variable_is_global = (sym->scope == this->S.root_scope);
+
           return sym->var->type;
         }
 
@@ -162,6 +166,9 @@ TypeInfo ExprEval::eval(Node* node) {
           TypeInfo type{sym->tk};
 
           // todo: add template args
+
+          todo_impl;
+          // というか型名がこの文脈に来るのはおかしいのでは？
 
           return type;
         }
@@ -339,6 +346,11 @@ TypeInfo ExprEval::eval(Node* node) {
       this->ctx.callfunc_args_p = &arg_types;
 
       TypeInfo functor = this->eval(node->nd_callfunc_callee);
+
+      if (functor.ftor_node)
+        node->nd_callfunc_callee_userdef = functor.ftor_node;
+      else
+        node->nd_callfunc_callee_builtin = functor.ftor_blt;
 
       this->reset();
 

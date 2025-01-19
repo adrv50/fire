@@ -11,7 +11,7 @@ struct Node;
 class Evaluator {
 
   struct CallStack {
-    Vec<Obj> objects;
+    Vec<Obj> objects; // => local variables
 
     Obj result = nullptr;
 

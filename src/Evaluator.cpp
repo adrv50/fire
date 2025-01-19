@@ -208,12 +208,16 @@ Obj& Evaluator::append_global_var(Obj obj) {
 Obj Evaluator::evaluate() {
   auto& main_stack = this->push_stack();
 
+  auto nd_main_func = this->program->nd_program_main;
+
   (void)main_stack;
   // todo append [argc, argv] to main_stack
 
+  main_stack.objects.resize(nd_main_func->nd_func_lvar_count);
+
   Obj result = nullptr;
 
-  for (auto&& item : this->program->nd_program_main->nd_func_body->nd_elements) {
+  for (auto&& item : nd_main_func->nd_func_body->nd_elements) {
     result = this->eval_stmt(item);
   }
 
@@ -228,6 +232,11 @@ Obj Evaluator::evaluate() {
 Obj Evaluator::eval_expr(Node* node) {
 
   switch (node->kind) {
+
+    case ND_Identifier:
+    case ND_ScopeResol:
+      alertmsg("converting is not implemented in Sema!");
+      panic;
 
     case ND_Value:
       return node->nd_value;
@@ -319,8 +328,13 @@ Obj Evaluator::eval_call_func(Node* node, Vec<Obj>& args) {
   // if got pointer, call user-defined function
   auto& stack = this->push_stack();
 
-  for (auto&& arg : args)
-    this->push(arg);
+  stack.objects.resize(node->nd_func_lvar_count);
+
+  // for (auto&& arg : args)
+  //   this->push(arg);
+
+  for (size_t i = 0; i < args.size(); i++)
+    stack.objects[i] = args[i];
 
   this->eval_block(callee->nd_func_body);
 
@@ -409,14 +423,8 @@ Obj Evaluator::eval_block(Node* node) {
 //  Evaluator::eval_let
 // ----------------------------------
 void Evaluator::eval_let(Node* node) {
-  Obj val = nullptr;
-
   if (auto const x = node->nd_let_init)
-    val = this->eval_expr(x);
-  else
-    val = Object::none;
-
-  this->get_current_call_stack().append(val);
+    this->get_current_call_stack().objects[node->nd_let_offset] = this->eval_expr(x);
 }
 
 } // namespace fire
