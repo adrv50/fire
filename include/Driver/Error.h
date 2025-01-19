@@ -83,7 +83,10 @@ private:
   Node* node;
 
   string msg;
+
   string cursor_text;
+  string errpos_insert_text;
+  int insert_dist = 0;
 
   Vec<Error> notes;
 
@@ -115,6 +118,12 @@ public:
 
   Error& add_cursor_text(string const& text) {
     this->cursor_text = text;
+    return *this;
+  }
+
+  Error& add_errpos_insert_text(string const& text, int dist = 0) {
+    this->errpos_insert_text = text;
+    this->insert_dist = dist;
     return *this;
   }
 

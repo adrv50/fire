@@ -182,9 +182,9 @@ void Sema::check_stmt(Node* node) {
           expr_eval.expect(x, this->eval_type_ti(fnscope->node->nd_func_result_type));
         else
           Error(x, "cannot use return value in this function")
-              .add_note(Error(fnscope->node->nd_func_body->first_tok,
-                              "insert type name before this token", ErrorType::Note)
-                            .add_cursor_text("-> " + expr_eval(x).to_string()))
+              .add_note(Error(fnscope->node->nd_func_body->first_tok->prev,
+                              "insert type name after this token", ErrorType::Note)
+                            .add_errpos_insert_text(" -> " + expr_eval(x).to_string(), 1))
               .crash();
       }
 

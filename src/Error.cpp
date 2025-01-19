@@ -68,13 +68,18 @@ Error const& Error::emit() const {
     auto& ref = tok->ref;
 
     if (auto ss = ref->get_ss()) {
+      string lineview = string(ref->get_line_view());
+
+      if (!this->errpos_insert_text.empty())
+        lineview.insert((size_t)((i64)(ref->pos_in_line - 1) + (i64)(this->insert_dist)),
+                        COL_GREEN + this->errpos_insert_text + COL_WHITE);
+
       cout << COL_YELLOW "     ---> " << COL_CYAN << ss->get_path() << ":"
            << ref->line_num << ":" << ref->pos_in_line << endl
            << COL_YELLOW << "     |" << endl
-           << utils::format("% 4zu | ", ref->line_num) << COL_WHITE
-           << ref->get_line_view() << COL_YELLOW "     |" << COL_RED
-           << string(ref->pos_in_line, ' ') << "^ " << COL_GREEN << this->cursor_text
-           << endl
+           << utils::format("% 4zu | ", ref->line_num) << COL_WHITE << lineview
+           << COL_YELLOW "     |" << COL_RED << string(ref->pos_in_line, ' ') << "^ "
+           << COL_GREEN << this->cursor_text << endl
            << endl
            << COL_DEFAULT;
     }
