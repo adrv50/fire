@@ -13,7 +13,7 @@
 #include "Evaluator.h"
 #include "Repl.h"
 
-#include "Error.h"
+#include "Driver/Error.h"
 
 namespace fire::Repl {
 
@@ -94,6 +94,8 @@ void run() {
     if (auto result = execute_line(line))
       cout << result->to_string() << endl;
   }
+
+  std::exit(0);
 }
 
 } // namespace fire::Repl

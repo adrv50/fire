@@ -18,7 +18,7 @@ class Parser {
   Token* cur;
   Token* ate;
 
-  SourceStorage& source;
+  SourceStorage const& source;
 
   Token* save() {
     return this->ate = this->cur;
@@ -27,7 +27,7 @@ class Parser {
   bool in_repl = false;
 
 public:
-  Parser(SourceStorage& source, Token* tok);
+  Parser(SourceStorage const& source, Token* tok);
 
   void set_in_repl() {
     this->in_repl = true;

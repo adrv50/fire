@@ -6,7 +6,7 @@
 #include "Token/Token.h"
 #include "Node/Node.h"
 
-#include "Error.h"
+#include "Driver/Error.h"
 
 namespace fire {
 

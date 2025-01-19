@@ -1,7 +1,12 @@
+
+#include <iostream>
+
+#include "alert.h"
 #include "SourceStorage.h"
 #include "Evaluator.h"
+#include "Repl.h"
+#include "Builtins.h"
 #include "Driver/Driver.h"
-#include "alert.h"
 
 static constexpr auto help_string = R"(
 usage: fire [options...] ...
@@ -18,21 +23,55 @@ Copyright (C) 2024 Aoki.
 
 namespace fire {
 
+using std::cout;
+using std::endl;
+
+static Driver* g_instance;
+
 Driver::Driver() {
+  Builtins::initialize();
 }
 
 Driver::~Driver() {
 }
 
 int Driver::main(int argc, char** argv) {
+  this->opt = parse_arguments(argc, argv);
+
+  if (this->opt.run_repl) {
+    Repl::run();
+  }
+
+  for (auto&& path : opt.run_files) {
+    try {
+      this->execute(this->add_source(path));
+    }
+    catch (Error const& e) {
+      e.emit();
+    }
+  }
+
+  return 0;
 }
 
 Obj Driver::execute(SourceStorage const& source) {
-  return Evaluator(source.get_parsed()).evaluate();
+  return Evaluator(source.get_analyzed()).evaluate();
+}
+
+SourceStorage& Driver::add_source(string const& path) {
+  return *this->sources.emplace_back(make_shared<SourceStorage>(path));
 }
 
 void Driver::add_error(Error&& e) {
   Driver::get_instance()->errors.emplace_back(std::move(e));
+}
+
+Driver* Driver::get_instance() {
+  if (!g_instance) {
+    g_instance = new Driver();
+  }
+
+  return g_instance;
 }
 
 CmdOptions Driver::parse_arguments(int argc, char** argv) {
@@ -40,16 +79,27 @@ CmdOptions Driver::parse_arguments(int argc, char** argv) {
 
   CmdOptions opt;
 
-  while (argc--)
-    args.emplace_back(*argv++);
+  while (--argc)
+    args.emplace_back(*++argv);
 
   for (auto it = args.begin(); it != args.end();) {
     if (*it == "-h" || *it == "--help") {
+      cout << help_string << endl;
+      std::exit(0);
+    }
+
+    else if (*it == "--version") {
+      cout << version_string << endl;
+      std::exit(0);
     }
 
     else {
       opt.run_files.emplace_back(*it++);
     }
+  }
+
+  if (opt.run_files.empty()) {
+    opt.run_repl = true;
   }
 
   return opt;

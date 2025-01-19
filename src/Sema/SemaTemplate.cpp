@@ -1,5 +1,5 @@
 
-#include "Error.h"
+#include "Driver/Error.h"
 #include "Sema/Sema.h"
 
 namespace fire::sema::templates {

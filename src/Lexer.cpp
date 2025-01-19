@@ -1,7 +1,7 @@
 #include "utf.h"
 #include "Token/Token.h"
 #include "Lexer.h"
-#include "Error.h"
+#include "Driver/Error.h"
 
 namespace fire {
 
@@ -272,7 +272,7 @@ void Lexer::pass_space() {
 //
 // ctor
 //
-Lexer::Lexer(SourceStorage& SS)
+Lexer::Lexer(SourceStorage const& SS)
     : SS(SS),
       pos(0),
       len(SS.get_length()) {

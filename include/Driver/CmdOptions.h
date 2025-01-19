@@ -4,11 +4,11 @@
 
 namespace fire {
 
-struct CmdOptions{
+struct CmdOptions {
 
-Vec<string> run_files;
+  bool run_repl = false;
 
+  Vec<string> run_files;
 };
 
-
-}
+} // namespace fire

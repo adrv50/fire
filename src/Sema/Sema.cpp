@@ -1,5 +1,5 @@
 #include "Object.h"
-#include "Error.h"
+#include "Driver/Error.h"
 #include "Builtins.h"
 #include "Sema/Sema.h"
 

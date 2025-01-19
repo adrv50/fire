@@ -1,7 +1,7 @@
 #pragma once
 
 #include "typedef.h"
-#include "Error.h"
+#include "Driver/Error.h"
 
 #include "CmdOptions.h"
 
@@ -11,10 +11,14 @@ class SourceStorage;
 
 class Driver {
 
+  CmdOptions opt;
+
 public:
   int main(int argc, char** argv);
 
   Obj execute(SourceStorage const& source);
+
+  SourceStorage& add_source(string const& path);
 
   static void add_error(Error&& e);
 
@@ -26,7 +30,7 @@ private:
 
   static CmdOptions parse_arguments(int argc, char** argv);
 
-  Vec<SourceStorage> sources;
+  Vec<shared_ptr<SourceStorage>> sources;
 
   Vec<Error> errors;
 };

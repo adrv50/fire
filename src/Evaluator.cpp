@@ -448,11 +448,8 @@ Obj Evaluator::eval_block(Node* node) {
 //  Evaluator::eval_let
 // ----------------------------------
 void Evaluator::eval_let(Node* node) {
-  if (auto const x = node->nd_let_init) {
-    alertmsg(node->nd_let_offset);
-
+  if (auto const x = node->nd_let_init)
     this->get_current_call_stack().objects[node->nd_let_offset] = this->eval_expr(x);
-  }
 }
 
 } // namespace fire

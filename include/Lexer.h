@@ -9,7 +9,7 @@ struct Token;
 
 class Lexer {
 
-  SourceStorage& SS;
+  SourceStorage const& SS;
 
   size_t pos;
   size_t const len;
@@ -31,7 +31,7 @@ class Lexer {
   void pass_space();
 
 public:
-  Lexer(SourceStorage& SS);
+  Lexer(SourceStorage const& SS);
 
   //
   // do lex

@@ -1,10 +1,12 @@
 #include <fstream>
+#include <iostream>
 
 #include "alert.h"
 #include "Utils.h"
 
 #include "Lexer.h"
 #include "Parser.h"
+#include "Sema/Sema.h"
 
 #include "SourceStorage.h"
 
@@ -94,6 +96,13 @@ bool SourceStorage::open(string const& path) {
   this->ifs.reset();
   this->ifs = std::make_unique<std::ifstream>(path);
 
+  if (this->ifs->fail()) {
+    std::cout << COL_RED << "fatal error: " << COL_WHITE << "cannot open file '" << path
+              << "'" << COL_DEFAULT << std::endl;
+
+    std::exit(1);
+  }
+
   return true;
 }
 
@@ -112,11 +121,11 @@ bool SourceStorage::read() {
   return true;
 }
 
-bool SourceStorage::is_open() const{
+bool SourceStorage::is_open() const {
   return (bool)this->ifs && this->ifs->is_open();
 }
 
-Token* SourceStorage::get_lexed() const{
+Token* SourceStorage::get_lexed() const {
   if (!this->lexed) {
     this->_lexer = make_unique<Lexer>(*this);
     this->lexed = this->_lexer->lex();
@@ -125,13 +134,26 @@ Token* SourceStorage::get_lexed() const{
   return this->lexed;
 }
 
-Node* SourceStorage::get_parsed() const{
+Node* SourceStorage::get_parsed() const {
   if (!this->parsed) {
     this->_parser = make_unique<Parser>(*this, this->get_lexed());
-    this->parsed=this->_parser->parse();
+    this->parsed = this->_parser->parse();
   }
 
   return this->parsed;
+}
+
+Node* SourceStorage::get_analyzed() const {
+  auto node = this->get_parsed();
+
+  if (!this->_sema) {
+
+    this->_sema = make_unique<sema::Sema>(node);
+
+    this->_sema->check_all();
+  }
+
+  return node;
 }
 
 SourceStorage::SourceStorage() {

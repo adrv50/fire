@@ -6,7 +6,7 @@
 #include "Node/Node.h"
 
 #include "Parser.h"
-#include "Error.h"
+#include "Driver/Error.h"
 
 namespace fire {
 

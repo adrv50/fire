@@ -1,12 +1,12 @@
 #include "alert.h"
-#include "Error.h"
+#include "Driver/Error.h"
 #include "Token/Token.h"
 #include "Node/Node.h"
 #include "Parser.h"
 
 namespace fire {
 
-Parser::Parser(SourceStorage& source, Token* tok)
+Parser::Parser(SourceStorage const& source, Token* tok)
     : cur(tok),
       ate(nullptr),
       source(source) {
@@ -25,6 +25,8 @@ Node* Parser::parse() {
     if (this->eat(Kwd::Import)) {
       todo_impl;
     }
+    else
+      break;
   }
 
   while (this->check()) {

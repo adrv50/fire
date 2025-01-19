@@ -10,7 +10,7 @@
 #include "Node/Node.h"
 
 #include "Builtins.h"
-#include "Error.h"
+#include "Driver/Error.h"
 
 #include "Sema/Symbol.h"
 

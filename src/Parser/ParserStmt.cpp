@@ -1,7 +1,7 @@
 #include "alert.h"
 #include "Token/Token.h"
 #include "Node/Node.h"
-#include "Error.h"
+#include "Driver/Error.h"
 #include "Parser.h"
 
 namespace fire {

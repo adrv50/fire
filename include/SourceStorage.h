@@ -11,8 +11,11 @@ class SourceStorage;
 
 class Lexer;
 class Parser;
-class Sema;
 class Driver;
+
+namespace sema {
+class Sema;
+}
 
 //
 // SourceLoc: struct for reference of SourceStorage.
@@ -74,6 +77,7 @@ class SourceStorage {
 
   mutable unique_ptr<Lexer> _lexer;
   mutable unique_ptr<Parser> _parser;
+  mutable unique_ptr<sema::Sema> _sema;
 
   pair<size_t, size_t>& append_line(size_t pos, size_t len);
 
@@ -103,6 +107,8 @@ public:
   Token* get_lexed() const;
 
   Node* get_parsed() const;
+
+  Node* get_analyzed() const;
 
   SourceStorage();
 
