@@ -39,6 +39,7 @@
 #define nd_scope_resol_idlist list
 
 #define nd_callctor_ctor_side na
+#define nd_callctor_referenced_def nb // => ND_Struct or ND_Class
 #define nd_callctor_initializers list
 
 #define nd_callctor_init_key tok  // member-name

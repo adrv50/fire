@@ -39,6 +39,21 @@ static string join(string const& str, auto const& v, auto to_str_fn) {
 }
 
 //
+// join_enumerate
+static string join_enumerate(string const& str, auto const& v, auto to_str_fn) {
+  string s;
+
+  for (size_t i = 0; i < v.size(); i++) {
+    s += to_str_fn(i,v[i]);
+
+    if (i + 1 < v.size())
+      s += str;
+  }
+
+  return s;
+}
+
+//
 // compare_vector:
 //   compare elements and count between two vector.
 //

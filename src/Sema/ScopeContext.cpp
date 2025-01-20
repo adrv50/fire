@@ -191,7 +191,10 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
       }
 
       case ND_Struct: {
-        todo_impl;
+        scope->append_as_symboled_scope(ScopeContext::from_struct(S, nd), SY_Struct, nd,
+                                        nd->nd_struct_name->str);
+
+        break;
       }
 
       case ND_Class: {
@@ -286,6 +289,25 @@ ScopeContext* ScopeContext::from_enum(Sema& S, Node* node) {
 
     sym->decl = en;
     sym->name = en->nd_enumerator_name->str;
+    sym->scope = scope;
+  }
+
+  return scope;
+}
+
+ScopeContext* ScopeContext::from_struct(Sema& S, Node* node) {
+  auto scope = new ScopeContext(SC_Struct, node);
+
+  auto ctx = new NodeContext();
+  ctx->scope = scope;
+
+  node->sema_ctx = ctx;
+
+  for (auto&& en : node->nd_struct_members) {
+    auto sym = scope->add_symbol(new Symbol(SY_StructMember));
+
+    sym->decl = en;
+    sym->name = en->nd_struct_member_name->str;
     sym->scope = scope;
   }
 

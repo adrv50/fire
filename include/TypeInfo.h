@@ -75,6 +75,14 @@ struct TypeInfo {
     return this->is(TypeKind::Type) && this->nd_class;
   }
 
+  bool is_class_or_struct_type() const {
+    return this->is(TypeKind::Type) && (this->nd_struct || this->nd_class);
+  }
+
+  bool is_class_or_struct_instance() const {
+    return this->is(TypeKind::Instance) && (this->nd_struct || this->nd_class);
+  }
+
   bool is_numeric() const;
   bool is_subscriptable() const;
   bool is_template() const;

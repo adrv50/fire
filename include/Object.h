@@ -222,6 +222,20 @@ struct ObjEnumerator : Object {
   static ObjEnumerator* make(Node* nd_enum, size_t index);
 };
 
+struct ObjInstance : Object {
+  Node* def;
+  Vec<Obj> members;
+
+  ObjInstance(Node* def, Vec<Obj> const& members);
+
+  string to_string() const override;
+  ObjInstance* clone() const override;
+
+  bool equals(Obj obj) const override;
+
+  static ObjInstance* make(Node* def, Vec<Obj> const& members = {});
+};
+
 struct ObjTypeInfo : Object {
   ObjTypeInfo(TypeInfo const& ti);
 

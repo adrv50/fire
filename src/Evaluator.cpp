@@ -316,7 +316,20 @@ Obj Evaluator::eval_expr(Node* node) {
     }
 
     case ND_CallConstructor: {
-      todo_impl;
+
+      auto obj = ObjInstance::make(node->nd_callctor_referenced_def, {});
+
+      obj->ti = TypeKind::Instance;
+
+      if (auto& ti = node->nd_callctor_ctor_side->evaluated_type; ti.is_class_type())
+        obj->ti.nd_class = ti.nd_class;
+      else
+        obj->ti.nd_struct = ti.nd_struct;
+
+      for (auto&& val : node->nd_callctor_initializers)
+        obj->members.emplace_back(this->eval_expr(val->nd_callctor_init_value));
+
+      return obj;
     }
 
     case ND_ExprIf:

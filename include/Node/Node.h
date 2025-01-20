@@ -198,6 +198,9 @@ struct Node {
   fire::sema::NodeContext* sema_ctx = nullptr;
   fire::sema::Symbol* sym = nullptr;
 
+  bool _is_type_evaluated = false;
+  TypeInfo evaluated_type;
+
   bool is(NodeKind kind) const;
 
   bool is_id_or_sr() const {

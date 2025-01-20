@@ -28,9 +28,15 @@ TypeInfo ExprEval::eval(Node* node) {
   if (!node)
     return TypeKind::None;
 
+  if (node->_is_type_evaluated)
+    return node->evaluated_type;
+
+  TypeInfo& result = node->evaluated_type;
+
   switch (node->kind) {
     case ND_Value:
-      return node->nd_value->ti;
+      result = node->nd_value->ti;
+      break;
 
     case ND_Identifier:
     case ND_ScopeResol: {
@@ -115,7 +121,8 @@ TypeInfo ExprEval::eval(Node* node) {
           node->nd_variable_offset = sym->var->offset_in_stack;
           node->nd_variable_is_global = (sym->get_parent_scope() == this->S.root_scope);
 
-          return sym->var->type;
+          result = sym->var->type;
+          break;
         }
 
         case SY_Func: {
@@ -151,7 +158,18 @@ TypeInfo ExprEval::eval(Node* node) {
 
           node->kind = ND_Functor;
 
-          return type;
+          result = type;
+          break;
+        }
+
+        case SY_Struct: {
+
+          TypeInfo type{TypeKind::Type};
+
+          type.nd_struct = sym->decl;
+
+          result = type;
+          break;
         }
 
         case SY_Class: {
@@ -160,18 +178,8 @@ TypeInfo ExprEval::eval(Node* node) {
 
           type.nd_class = sym->decl;
 
-          return type;
-        }
-
-        case SY_BuiltinType: {
-          TypeInfo type{sym->tk};
-
-          // todo: add template args
-
-          todo_impl;
-          // というか型名がこの文脈に来るのはおかしいのでは？
-
-          return type;
+          result = type;
+          break;
         }
 
         case SY_BuiltinFunc: {
@@ -182,25 +190,33 @@ TypeInfo ExprEval::eval(Node* node) {
           type.tp_args = sym->bfun->arg_types;
           type.tp_args.insert(type.tp_args.begin(), sym->bfun->ret_type);
 
-          return type;
+          result = type;
+          break;
         }
+
+        default:
+          Error(id, "'" + name + "' is not a variable").crash();
       }
 
-      Error(id, "'" + name + "' is not a variable").crash();
+      break;
     }
 
     case ND_CallConstructor: {
       auto class_name_ti = this->eval(node->nd_callctor_ctor_side);
 
-      if (!class_name_ti.is_class_type()) {
-        Error(node->nd_callctor_ctor_side,
-              "'" + node2s(node->nd_callctor_ctor_side) + "' is not name of class")
+      bool is_struct = class_name_ti.is_struct_type();
+
+      if (!class_name_ti.is_class_or_struct_type())
+        Error(node->nd_callctor_ctor_side->first_tok, "expected name of class or struct")
             .crash();
-      }
 
-      auto nd_class = class_name_ti.nd_class;
+      node->nd_callctor_referenced_def =
+          is_struct ? class_name_ti.nd_struct : class_name_ti.nd_class;
 
-      auto& fields = nd_class->nd_class_fields->list;
+      Node* cl_or_st = is_struct ? class_name_ti.nd_struct : class_name_ti.nd_class;
+
+      Vec<Node*>& fields =
+          is_struct ? cl_or_st->nd_struct_members : cl_or_st->nd_class_fields->list;
 
       auto mb_end = fields.end();
       size_t index = 0;
@@ -219,14 +235,18 @@ TypeInfo ExprEval::eval(Node* node) {
 
         auto& mb = fields[index];
 
-        if (mb_name != mb->nd_let_name->str) {
+        Token* name_tok = is_struct ? mb->nd_struct_member_name : mb->nd_let_name;
+        Node* mb_type = is_struct ? mb->nd_struct_member_type : mb->nd_let_type;
+        string const& name = name_tok->str;
+
+        if (mb_name != name) {
           Error(pair->tok, "no match member name (index=" + std::to_string(index) + ")")
-              .add_cursor_text(mb->nd_let_name->str)
-              .add_note(mb->nd_let_name, "defined here")
+              .add_cursor_text(name)
+              .add_note(name_tok, "defined here")
               .crash();
         }
 
-        this->expect(mb_init, S.eval_type_ti(mb->nd_let_type));
+        this->expect(mb_init, S.eval_type_ti(mb_type));
 
         index++;
       }
@@ -239,7 +259,8 @@ TypeInfo ExprEval::eval(Node* node) {
 
       class_name_ti.kind = TypeKind::Instance;
 
-      return class_name_ti;
+      result = class_name_ti;
+      break;
     }
 
     case ND_Array: {
@@ -258,7 +279,8 @@ TypeInfo ExprEval::eval(Node* node) {
               .crash();
         }
 
-        return *ctx.evaluated_array_type;
+        result = *ctx.evaluated_array_type;
+        break;
       }
 
       auto it = node->nd_elements.begin();
@@ -267,7 +289,8 @@ TypeInfo ExprEval::eval(Node* node) {
       for (++it; it != node->nd_elements.end(); it++)
         this->expect(*it, type);
 
-      return TypeInfo(TypeKind::Vector, {type});
+      result = TypeInfo(TypeKind::Vector, {type});
+      break;
     }
 
     case ND_Tuple: {
@@ -276,7 +299,8 @@ TypeInfo ExprEval::eval(Node* node) {
       for (auto&& elem : node->nd_elements)
         type.append_template_arg(this->eval(elem));
 
-      return type;
+      result = type;
+      break;
     }
 
     case ND_Dict: {
@@ -290,11 +314,13 @@ TypeInfo ExprEval::eval(Node* node) {
         this->expect((*it)->nd_dict_pair_value, val);
       }
 
-      return TypeInfo(TypeKind::Dict, {key, val});
+      result = TypeInfo(TypeKind::Dict, {key, val});
+      break;
     }
 
     case ND_Not:
-      return this->expect(node->nd_lhs, TypeKind::Bool);
+      result = this->expect(node->nd_lhs, TypeKind::Bool);
+      break;
 
     case ND_Ref:
       todo_impl;
@@ -306,18 +332,18 @@ TypeInfo ExprEval::eval(Node* node) {
       auto arr = this->eval(node->nd_lhs);
       auto index = this->eval(node->nd_rhs);
 
-      if (!index.is(TypeKind::Int)) {
+      if (!index.is(TypeKind::Int))
         Error(node->nd_rhs, "indexer must be integer.").crash();
-      }
 
       if (arr.is(TypeKind::String))
-        return TypeKind::Char;
-
-      if (!arr.is(TypeKind::Vector))
+        result = TypeKind::Char;
+      else if (arr.is(TypeKind::Vector))
+        result = arr.tp_args[0];
+      else
         Error(node->tok, "'" + arr.to_string() + "' type object is not subscriptable")
             .crash();
 
-      return arr.tp_args[0];
+      break;
     }
 
     case ND_MemberAccess: {
@@ -355,7 +381,8 @@ TypeInfo ExprEval::eval(Node* node) {
 
       this->reset();
 
-      return functor.tp_args[0];
+      result = functor.tp_args[0];
+      break;
     }
 
     case ND_Range:
@@ -367,68 +394,82 @@ TypeInfo ExprEval::eval(Node* node) {
       this->expect(node->nd_if_cond, TypeKind::Bool);
       this->expect(node->nd_if_else, type);
 
-      return type;
+      result = type;
+      break;
+    }
+
+    default: {
+
+      assert(node->kind >= ND_Mul && node->kind <= ND_Assign);
+
+      auto lhs = result = this->eval(node->nd_lhs);
+      auto rhs = this->eval(node->nd_rhs);
+
+      if (!lhs.equals(rhs)) {
+        Error(node->tok, "cannot use operator for not same type ('" + lhs.to_string() +
+                             "' and '" + rhs.to_string() + "')")
+            .crash();
+      }
+
+      switch (node->kind) {
+        case ND_Add:
+          if (lhs.is_str())
+            break;
+
+        case ND_Sub:
+        case ND_Mul:
+        case ND_Div:
+          if (!lhs.is_numeric())
+            Error(node->tok, "cannot use arithmetic operator for not numeric type")
+                .crash();
+          break;
+
+        case ND_LShift:
+        case ND_RShift:
+        case ND_Mod:
+        case ND_BitAnd:
+        case ND_BitOr:
+        case ND_BitXor:
+          if (!lhs.is(TypeKind::Int))
+            Error(node->tok,
+                  "only can use operator '" + node->tok->str + "' for integer type")
+                .crash();
+          break;
+
+        case ND_Compare:
+          if (!lhs.is_numeric())
+            Error(node->tok, "'" + lhs.to_string() + "' type object is not comparable")
+                .crash();
+          result = TypeKind::Bool;
+          break;
+
+        case ND_Equal:
+          result = TypeKind::Bool;
+          break;
+
+        case ND_In:
+          todo_impl;
+
+        case ND_Or:
+        case ND_And:
+          if (!lhs.is(TypeKind::Bool))
+            Error(node->tok, "only can use operator 'or', 'and' for boolean type")
+                .crash();
+
+          result = TypeKind::Bool;
+          break;
+
+        case ND_Assign:
+          break;
+      }
+
+      break;
     }
   }
 
-  assert(node->kind >= ND_Mul && node->kind <= ND_Assign);
+  node->_is_type_evaluated = true;
 
-  auto lhs = this->eval(node->nd_lhs);
-  auto rhs = this->eval(node->nd_rhs);
-
-  if (!lhs.equals(rhs)) {
-    Error(node->tok, "cannot use operator for not same type ('" + lhs.to_string() +
-                         "' and '" + rhs.to_string() + "')")
-        .crash();
-  }
-
-  switch (node->kind) {
-    case ND_Add:
-      if (lhs.is_str())
-        break;
-
-    case ND_Sub:
-    case ND_Mul:
-    case ND_Div:
-      if (!lhs.is_numeric())
-        Error(node->tok, "cannot use arithmetic operator for not numeric type").crash();
-      break;
-
-    case ND_LShift:
-    case ND_RShift:
-    case ND_Mod:
-    case ND_BitAnd:
-    case ND_BitOr:
-    case ND_BitXor:
-      if (!lhs.is(TypeKind::Int))
-        Error(node->tok,
-              "only can use operator '" + node->tok->str + "' for integer type")
-            .crash();
-      break;
-
-    case ND_Compare:
-      if (!lhs.is_numeric())
-        Error(node->tok, "'" + lhs.to_string() + "' type object is not comparable")
-            .crash();
-      return TypeKind::Bool;
-
-    case ND_Equal:
-      return TypeKind::Bool;
-
-    case ND_In:
-      todo_impl;
-
-    case ND_Or:
-    case ND_And:
-      if (!lhs.is(TypeKind::Bool))
-        Error(node->tok, "only can use operator 'or', 'and' for boolean type").crash();
-      return TypeKind::Bool;
-
-    case ND_Assign:
-      break;
-  }
-
-  return lhs;
+  return result;
 }
 
 TypeInfo ExprEval::expect(Node* node, TypeInfo const& type) {

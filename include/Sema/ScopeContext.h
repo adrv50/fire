@@ -107,6 +107,7 @@ struct ScopeContext {
                                      ScopeContext* parent_class = nullptr);
 
   static ScopeContext* from_enum(Sema& S, Node* node);
+  static ScopeContext* from_struct(Sema& S, Node* node);
   static ScopeContext* from_class(Sema& S, Node* node);
 
   // static ScopeContext* from_namespace(Node* node);

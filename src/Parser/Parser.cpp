@@ -60,8 +60,6 @@ Node* Parser::parse() {
       if (!std::filesystem::exists(pathstr))
         Error(import_tok, "source file '" + pathstr + "' doesn't exists.").crash();
 
-      alert;
-
       if (auto imported = this->source.import_source(pathstr)) {
         for (auto&& item : imported->get_parsed()->list) {
           node->append(item);
@@ -316,13 +314,15 @@ Node* Parser::p_struct() {
       node->nd_struct_is_template = true;
     }
 
-    this->expect_brace_open();
+    this->expect_block_open();
 
     do {
       node->append(this->p_struct_member());
     } while (this->eat_comma());
 
-    this->expect_brace_close();
+    this->expect_block_close();
+
+    return node;
   }
 
   return nullptr;

@@ -69,6 +69,10 @@ ObjEnumerator* Object::as_enumerator() {
                                            : nullptr;
 }
 
+ObjInstance* Object::as_instance() {
+  return this->ti.is(TypeKind::Instance) ? reinterpret_cast<ObjInstance*>(this) : nullptr;
+}
+
 ObjTypeInfo* Object::as_typeinfo() {
   return this->ti.is(TypeKind::Type) ? reinterpret_cast<ObjTypeInfo*>(this) : nullptr;
 }
@@ -118,6 +122,11 @@ ObjFunctor const* Object::as_functor() const {
 ObjEnumerator const* Object::as_enumerator() const {
   return this->ti.is(TypeKind::Enumerator) ? reinterpret_cast<ObjEnumerator const*>(this)
                                            : nullptr;
+}
+
+ObjInstance const* Object::as_instance() const {
+  return this->ti.is(TypeKind::Instance) ? reinterpret_cast<ObjInstance const*>(this)
+                                         : nullptr;
 }
 
 ObjTypeInfo const* Object::as_typeinfo() const {
@@ -191,6 +200,12 @@ ObjEnumerator::ObjEnumerator(Node* nd_enum, size_t index)
     : Object(TypeInfo(TypeKind::Enumerator).set_enum(nd_enum, index)),
       nd_enum(nd_enum),
       index(index) {
+}
+
+ObjInstance::ObjInstance(Node* def, Vec<Obj> const& members)
+    : Object(TypeInfo(TypeKind::Instance)),
+      def(def),
+      members(members) {
 }
 
 ObjTypeInfo::ObjTypeInfo(TypeInfo const& ti)
@@ -293,6 +308,20 @@ string ObjEnumerator::to_string() const {
   return s;
 }
 
+string ObjInstance::to_string() const {
+  return this->ti.to_string() + '{' +
+         utils::join_enumerate(
+             ", ", this->members,
+             [this](size_t index, Obj obj) -> string {
+               return (this->def->is(ND_Struct)
+                           ? this->def->nd_struct_members[index]
+                                 ->nd_struct_member_name->str
+                           : this->def->nd_class_fields->list[index]->nd_let_name->str) +
+                      ": " + obj->to_string();
+             }) +
+         '}';
+}
+
 string ObjTypeInfo::to_string() const {
   return "<typeinfo of " + this->ti.to_string() + ">";
 }
@@ -359,6 +388,15 @@ ObjEnumerator* ObjEnumerator::clone() const {
   return make_obj<ObjEnumerator>(this->nd_enum, this->index);
 }
 
+ObjInstance* ObjInstance::clone() const {
+  Vec<Obj> mb;
+
+  for (auto&& obj : this->members)
+    mb.emplace_back(obj->clone());
+
+  return ObjInstance::make(this->def, mb);
+}
+
 ObjTypeInfo* ObjTypeInfo::clone() const {
   return make_obj<ObjTypeInfo>(this->ti);
 }
@@ -413,6 +451,10 @@ ObjFunctor* ObjFunctor::make(Node* func) {
 
 ObjEnumerator* ObjEnumerator::make(Node* nd_enum, size_t index) {
   return make_obj<ObjEnumerator>(nd_enum, index);
+}
+
+ObjInstance* ObjInstance::make(Node* def, Vec<Obj> const& members) {
+  return make_obj<ObjInstance>(def, members);
 }
 
 ObjTypeInfo* ObjTypeInfo::make(TypeInfo const& ti) {
@@ -521,6 +563,21 @@ bool ObjFunctor::equals(Obj obj) const {
 bool ObjEnumerator::equals(Obj obj) const {
   if (auto p = obj->as_enumerator())
     return this->nd_enum == p->nd_enum && this->index == p->index;
+
+  return false;
+}
+
+bool ObjInstance::equals(Obj obj) const {
+  if (auto p = obj->as_instance()) {
+    if (this->def != p->def)
+      return false;
+
+    for (size_t i = 0; i < this->members.size(); i++)
+      if (!this->members[i]->equals(p->members[i]))
+        return false;
+
+    return true;
+  }
 
   return false;
 }
