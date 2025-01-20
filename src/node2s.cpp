@@ -302,18 +302,14 @@ string node2s(Node* node) {
       return s;
     }
 
-    case ND_DefEnumerator: {
-      auto s = node->nd_enumerator_name->str;
+    case ND_DefEnumerator:
+      return node->nd_enumerator_name->str;
 
-      if (node->nd_enumerator_is_value)
-        s += "(" + node2s(node->nd_enumerator_val_type) + ")";
-      else if (node->nd_enumerator_is_struct)
-        s += "(" + utils::join(", ", node->nd_enumerator_struct_members, node2s) + ")";
+    case ND_DefEnumeratorWithValue:
+      return node->nd_enumerator_name->str + "(" + node2s(node->nd_enumerator_val_type) +
+             ")";
 
-      return s;
-    }
-
-    case ND_DefEnumeratorStructFields:
+    case ND_DefEnumeratorWithStructFields:
       return utils::join(", ", node->list, node2s);
 
     case ND_Struct:

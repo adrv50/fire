@@ -48,6 +48,10 @@ void Sema::check_top_item(Node* node) {
   switch (node->kind) {
     case ND_Let:
       this->check_stmt(node);
+
+      node->sema_ctx->let_sym_ptr->var->offset_in_stack =
+          this->global_or_namespace_var_offset++;
+
       break;
 
     case ND_Function:

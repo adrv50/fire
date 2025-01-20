@@ -35,8 +35,10 @@ struct VarInfo {
   TypeInfo type;
   Symbol* sym;
 
-  size_t offset;          // => index for ScopeContext::varlist
+  size_t offset; // => index for ScopeContext::varlist
+
   size_t offset_in_stack; // => index for FunctionContext::let_stmt_sym_ptr_list
+                          // (or global and namespace)
 
   bool is_type_deducted;
 

@@ -290,6 +290,13 @@ Obj Evaluator::eval_expr(Node* node) {
       todo_impl;
     }
 
+    case ND_EnumeratorName: {
+      auto obj =
+          ObjEnumerator::make(node->nd_enumerator_enum_node, node->nd_enumerator_index);
+
+      return obj;
+    }
+
     //
     // Call function
     //

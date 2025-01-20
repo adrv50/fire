@@ -18,6 +18,7 @@ enum ExprEvalStatus {
 
 struct ExprEvalContext {
   bool in_call_func = false;
+  bool as_functor = false;
   Node* callfunc_nd = nullptr;
   Vec<TypeInfo>* callfunc_args_p = nullptr;
 
@@ -48,6 +49,12 @@ class ExprEval {
   void restore();
 
   void reset();
+
+  TypeInfo handle_call_constructor(Node* node);
+
+  TypeInfo handle_construct_enumerator(Node* node);
+  TypeInfo handle_construct_class(Node* node);
+  TypeInfo handle_construct_struct(Node* node);
 
 public:
   ExprEval(Sema& S);
@@ -283,6 +290,8 @@ private:
   //   find in scope chain (current to root)
   size_t find_name(Vec<Symbol*>& out, string const& name, ScopeContext* start = nullptr,
                    bool once = false);
+
+  size_t global_or_namespace_var_offset = 0;
 };
 
 } // namespace fire::sema

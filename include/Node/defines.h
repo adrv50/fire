@@ -12,6 +12,11 @@
 #define nd_variable_is_global b1
 #define nd_variable_offset size
 
+// ND_EnumeratorName
+#define nd_enumerator_name_tok tok
+#define nd_enumerator_enum_node na
+#define nd_enumerator_index size
+
 // ND_Functor
 
 // ND_Array

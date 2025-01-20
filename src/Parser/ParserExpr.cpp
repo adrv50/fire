@@ -476,7 +476,7 @@ Node* Parser::p_scope_resol() {
   }
 
   //
-  // call constructor with initializer list
+  // call constructor of class or struct or enum with initializer list
   // A{ ... }
   if (auto keep = this->cur; nd->is_id_or_sr() && this->eat(Punct::BlockBraceOpen)) {
     try {

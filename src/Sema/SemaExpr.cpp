@@ -88,13 +88,14 @@ TypeInfo ExprEval::eval(Node* node) {
           switch (sym->kind) {
             case SY_Class:
               if (sym->decl->nd_class_is_template) {
+                alertmsg("not implemented: instantiate class template");
                 todo_impl; // instantiate class template
               }
 
+            case SY_Enum:
             case SY_Namespace:
               candidates.clear();
               count = sym->scope->sym_table.find(candidates, id->nd_id_name->str);
-
               break;
 
             default:
@@ -232,8 +233,30 @@ TypeInfo ExprEval::eval(Node* node) {
           break;
         }
 
+        case SY_Enumerator: {
+          result = TypeInfo(TypeKind::Enumerator)
+                       .set_enum(sym->get_parent_scope()->node, sym->index_in_table);
+
+          assert(sym->get_parent_scope()->node->is(ND_Enum));
+
+          node->kind = ND_EnumeratorName;
+          node->nd_enumerator_name_tok = id->tok;
+          node->nd_enumerator_enum_node = sym->get_parent_scope()->node;
+          node->nd_enumerator_index = sym->index_in_table;
+
+          if (sym->decl->nd_enumerator_is_value) {
+            if (!this->ctx.as_functor) {
+              Error(node->first_tok, "cannot use '" + name + "' without initializer")
+                  .add_note(sym->decl->tok, "declared here")
+                  .crash();
+            }
+          }
+
+          break;
+        }
+
         default:
-          Error(id, "'" + name + "' is not a variable").crash();
+          Error(node->first_tok, "'" + name + "' is not a variable").crash();
       }
 
       result.sym = sym;
@@ -418,6 +441,7 @@ TypeInfo ExprEval::eval(Node* node) {
 
       this->save();
       this->ctx.in_call_func = true;
+      this->ctx.as_functor = true;
       this->ctx.callfunc_nd = node;
       this->ctx.callfunc_args_p = &arg_types;
 

@@ -23,6 +23,7 @@ enum NodeKind : u16 {
 
   ND_Variable,
   ND_Functor,
+  ND_EnumeratorName,
 
   ND_CallConstructor,
   ND_CallCtorPair,
@@ -112,8 +113,9 @@ enum NodeKind : u16 {
   ND_FunctionArg,
 
   ND_Enum,
-  ND_DefEnumerator,
-  ND_DefEnumeratorStructFields,
+  ND_DefEnumerator,                 // K
+  ND_DefEnumeratorWithValue,        // K(T)
+  ND_DefEnumeratorWithStructFields, // K(a: T, ...)
 
   ND_Struct,
   ND_StructMember,

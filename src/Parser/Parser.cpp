@@ -280,13 +280,15 @@ Node* Parser::p_def_enumerator() {
     // struct members
     if (this->cur->next->is_punct(Punct::Colon)) {
       node->nd_enumerator_is_struct = true;
+      node->kind = ND_DefEnumeratorWithStructFields;
 
       do {
         node->append(this->p_struct_member());
       } while (this->eat_comma());
     }
     else {
-      // only type
+      // only one type
+      node->kind = ND_DefEnumeratorWithValue;
       node->nd_enumerator_is_value = true;
       node->nd_enumerator_val_type = this->p_expect_type();
     }
