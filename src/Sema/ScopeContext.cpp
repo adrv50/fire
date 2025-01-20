@@ -118,7 +118,8 @@ ScopeContext*& ScopeContext::append_as_symboled_scope(ScopeContext* scope,
   sym->name = name;
   sym->scope = scope;
 
-  sym_decl->sym = sym;
+  c->node->sym = sym;
+  // sym_decl->sym = sym;
 
   return c;
 }
@@ -334,11 +335,13 @@ ScopeContext* ScopeContext::from_class(Sema& S, Node* node) {
   }
 
   for (auto&& method : node->nd_class_methods->list) {
-    auto fn = scope->append(ScopeContext::from_function(S, method, scope));
+    auto fn =
+        scope->append_as_symboled_scope(ScopeContext::from_function(S, method, scope),
+                                        SY_Method, method, method->nd_func_name->str);
 
-    auto sym = scope->add_symbol(new Symbol(SY_Method));
-    sym->decl = method;
-    sym->name = method->nd_func_name->str;
+    // auto sym = scope->add_symbol(new Symbol(SY_Method));
+    // sym->decl = method;
+    // sym->name = method->nd_func_name->str;
   }
 
   return scope;

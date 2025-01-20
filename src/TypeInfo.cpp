@@ -7,6 +7,9 @@
 
 #include "Token/Token.h"
 #include "Node/Node.h"
+#include "Builtins.h"
+
+#include "Sema/Sema.h"
 
 namespace fire {
 
@@ -35,6 +38,21 @@ TypeInfo TypeInfo::static_none_type{TypeKind::None};
 
 TypeInfo& TypeInfo::append_template_arg(TypeInfo const& ti) {
   return this->tp_args.emplace_back(ti);
+}
+
+bool TypeInfo::is_functor() const {
+  return this->is(TypeKind::Functor);
+}
+
+bool TypeInfo::is_functor_of_method() const {
+  return this->is_functor() && (this->ftor_node ? this->ftor_node->nd_func_is_method
+                                                : this->ftor_blt->is_method);
+}
+
+bool TypeInfo::is_variable_arg_functor() const {
+  return this->is_functor() &&
+         (this->ftor_node ? this->ftor_node->nd_func_is_variable_args
+                          : this->ftor_blt->is_variable_args);
 }
 
 bool TypeInfo::is(TypeKind k) const {
@@ -130,7 +148,12 @@ string TypeInfo::to_string() const {
   string str;
 
   if (this->is(TK::Functor)) {
-    str = "functor<(" +
+    if (this->ftor_node)
+      str = this->ftor_node->sym->get_full_scoped_name();
+
+    else
+      str =
+          "functor<(" +
           utils::join(", ", std::span(this->tp_args).subspan(1, this->tp_args.size() - 1),
                       [](TypeInfo const& t) -> string {
                         return t.to_string();

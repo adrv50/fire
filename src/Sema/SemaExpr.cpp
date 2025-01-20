@@ -416,20 +416,41 @@ TypeInfo ExprEval::eval(Node* node) {
       for (auto&& arg : node->nd_callfunc_args)
         arg_types.push_back(this->eval(arg));
 
+      this->save();
       this->ctx.in_call_func = true;
       this->ctx.callfunc_nd = node;
       this->ctx.callfunc_args_p = &arg_types;
 
       TypeInfo functor = this->eval(node->nd_callfunc_callee);
 
+      this->restore();
+
+      if (!functor.is_functor()) {
+        Error(node->nd_callfunc_callee->first_tok, "expected callable expression")
+            .crash();
+      }
+
+      size_t args_count = arg_types.size();
+      size_t args_def_count = functor.tp_args.size() - 1;
+
+      if (args_count < args_def_count) {
+        Error(node->nd_callfunc_callee,
+              "too few arguments to call '" + functor.to_string() + "'")
+            .crash();
+      }
+      else if (args_count > args_def_count && !functor.is_variable_arg_functor()) {
+        Error(node->nd_callfunc_callee,
+              "too many arguments to call '" + functor.to_string() + "'")
+            .crash();
+      }
+
       if (functor.ftor_node)
         node->nd_callfunc_callee_userdef = functor.ftor_node;
       else
         node->nd_callfunc_callee_builtin = functor.ftor_blt;
 
-      // this->reset(); // ?
-
       result = functor.tp_args[0];
+
       break;
     }
 

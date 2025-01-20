@@ -65,6 +65,10 @@ struct TypeInfo {
   bool is(TypeKind k) const;
   bool is(TypeKind k, bool is_mutable, Vec<TypeInfo> tp_args) const;
 
+  bool is_functor() const;
+  bool is_functor_of_method() const;
+  bool is_variable_arg_functor() const;
+
   bool is_str() const {
     return this->is(TypeKind::String);
   }
