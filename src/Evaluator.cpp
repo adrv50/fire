@@ -323,11 +323,23 @@ Obj Evaluator::eval_expr(Node* node) {
     // Contruct enumerator with intializers
     //
     case ND_ConstructEnumeratorValue: {
-      auto obj = ObjEnumerator::make(node->nd_callfunc_enum_ctor_enum,
-                                     node->nd_callfunc_enum_ctor_index);
+      auto obj = ObjEnumerator::make(node->nd_construct_enumerator_enum_def,
+                                     node->nd_construct_enumerator_index);
 
-      for (auto&& arg : node->nd_callfunc_args)
-        obj->data.emplace_back(this->eval_expr(arg));
+      obj->ti = node->evaluated_type;
+      obj->data.emplace_back(this->eval_expr(node->nd_construct_enumerator_arg));
+
+      return obj;
+    }
+
+    case ND_ConstructEnumeratorStruct: {
+      auto obj = ObjEnumerator::make(node->nd_construct_enumerator_enum_def,
+                                     node->nd_construct_enumerator_index);
+
+      obj->ti = node->evaluated_type;
+
+      for (auto&& arg : node->nd_construct_enumerator_struct_args)
+        obj->data.emplace_back(this->eval_expr(arg->nd_callctor_init_value));
 
       return obj;
     }

@@ -22,6 +22,10 @@ struct ExprEvalContext {
   Node* callfunc_nd = nullptr;
   Vec<TypeInfo>* callfunc_args_p = nullptr;
 
+  bool left_of_call_ctor_expr = false;
+  Node* callctor = nullptr;
+  Node* callctor_left = nullptr;
+
   bool allowed_empty_array = false;
   Node* array_type_decl = nullptr;
   TypeInfo* evaluated_array_type = nullptr;
@@ -42,6 +46,7 @@ class ExprEval {
   Sema& S;
 
   ExprEvalContext ctx;
+  size_t ctx_patch_counter = 0;
 
   Vec<ExprEvalContext> _saves;
 
@@ -52,9 +57,9 @@ class ExprEval {
 
   TypeInfo handle_call_constructor(Node* node);
 
-  TypeInfo handle_construct_enumerator(Node* node);
-  TypeInfo handle_construct_class(Node* node);
-  TypeInfo handle_construct_struct(Node* node);
+  TypeInfo handle_construct_enumerator(TypeInfo const& enumerator_ti, Node* node);
+  TypeInfo handle_construct_struct(TypeInfo const& struct_ti, Node* node);
+  TypeInfo handle_construct_class(TypeInfo const& class_ti, Node* node);
 
 public:
   ExprEval(Sema& S);

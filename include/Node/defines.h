@@ -50,6 +50,12 @@
 #define nd_callctor_init_key tok  // member-name
 #define nd_callctor_init_value na // value
 
+#define nd_construct_enumerator_enum_def na // => ND_Enum
+#define nd_construct_enumerator_target nb   // => ND_DefEnumerator*
+#define nd_construct_enumerator_index size
+#define nd_construct_enumerator_arg nb
+#define nd_construct_enumerator_struct_args list
+
 //
 // ND_CallFunc
 #define nd_callfunc_callee na

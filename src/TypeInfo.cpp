@@ -222,6 +222,10 @@ Vec<pair<TypeKind, char const*>> const TypeInfo::get_type_name_map() {
   return kind_and_name_table;
 }
 
+Node* TypeInfo::get_enumerator_def() const {
+  return this->nd_enum->nd_enum_enumerators[this->enumerator_index];
+}
+
 TypeInfo::TypeInfo(TypeKind kind)
     : kind(kind),
       is_reference(false),

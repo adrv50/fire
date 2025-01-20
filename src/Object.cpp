@@ -297,13 +297,19 @@ string ObjEnumerator::to_string() const {
   auto s = e->nd_enum_name->str +
            "::" + e->nd_enum_enumerators[this->index]->nd_enumerator_name->str;
 
-  if (!this->data.empty())
-    s += "(" +
-         utils::join(", ", this->data,
-                     [](Obj const& obj) -> string {
-                       return obj->to_string_as_element();
-                     }) +
-         ")";
+  if (this->data.size() == 1)
+    s += "(" + this->data[0]->to_string_as_element() + ")";
+  else if (this->data.size() >= 2) {
+    s += "{" +
+         utils::join_enumerate(", ", this->data,
+                               [this](size_t index, Obj const& obj) -> string {
+                                 return this->ti.get_enumerator_def()
+                                            ->nd_enumerator_struct_members[index]
+                                            ->nd_struct_member_name->str +
+                                        ": " + obj->to_string_as_element();
+                               }) +
+         "}";
+  }
 
   return s;
 }

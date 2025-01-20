@@ -65,6 +65,10 @@ struct TypeInfo {
   bool is(TypeKind k) const;
   bool is(TypeKind k, bool is_mutable, Vec<TypeInfo> tp_args) const;
 
+  bool is_enumerator() const {
+    return this->is(TypeKind::Enumerator);
+  }
+
   bool is_functor() const;
   bool is_functor_of_method() const;
   bool is_variable_arg_functor() const;
@@ -115,6 +119,8 @@ struct TypeInfo {
 
   TypeInfo& set_ftor_bfun(Builtins::BuiltinFunc const* bf);
   TypeInfo& set_ftor_node(Node* node);
+
+  Node* get_enumerator_def() const;
 
   static size_t get_least_template_args_count_of(TypeKind kind) {
     switch (kind) {
