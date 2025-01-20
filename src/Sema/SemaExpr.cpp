@@ -249,9 +249,19 @@ TypeInfo ExprEval::eval(Node* node) {
       bool flag_mb_ac = this->ctx.in_right_of_member_access;
 
       if (flag_mb_ac) {
-        auto inst = this->ctx.mb_ac_evaluated_left_type;
+        TypeInfo* inst = this->ctx.mb_ac_evaluated_left_type;
 
-        start = (inst->nd_class ? inst->nd_class : inst->nd_struct)->sema_ctx->scope;
+        if (inst->is_enumerator()) {
+          if (!inst->get_enumerator_def()->is(ND_DefEnumeratorWithStructFields)) {
+            Error(this->ctx.mb_ac_node->tok,
+                  "enumerator '" + inst->to_string() + "' not have struct fields")
+                .crash();
+          }
+
+          start = inst->get_enumerator_def()->sym->enumerator_struct_fields_scope;
+        }
+        else
+          start = (inst->nd_class ? inst->nd_class : inst->nd_struct)->sema_ctx->scope;
 
         assert(start);
       }
@@ -259,13 +269,14 @@ TypeInfo ExprEval::eval(Node* node) {
       size_t count = S.find_name(candidates, name, start, flag_mb_ac);
 
       if (count == 0) {
-        Error(node,
-              flag_mb_ac
-                  ? ("couldn't find member or method '" + name + "' in " +
-                     string(this->ctx.mb_ac_evaluated_left_type->nd_struct ? "struct"
-                                                                           : "class") +
-                     " '" + this->ctx.mb_ac_evaluated_left_type->to_string() + "'")
-                  : "use of undefined name '" + name + "'")
+        auto leftp = this->ctx.mb_ac_evaluated_left_type;
+
+        Error(node, flag_mb_ac ? ("couldn't find member or method '" + name + "' in " +
+                                  string(leftp->nd_struct ? "struct"
+                                                          : (leftp->nd_enum ? "enumerator"
+                                                                            : "class")) +
+                                  " '" + leftp->to_string() + "'")
+                               : "use of undefined name '" + name + "'")
             .crash();
       }
 
@@ -552,12 +563,12 @@ TypeInfo ExprEval::eval(Node* node) {
     case ND_MemberAccess: {
       auto left = this->eval(node->nd_lhs);
 
-      if (!left.is(TypeKind::Instance)) {
+      if (!left.is(TypeKind::Instance) && !left.is_enumerator()) {
         // find method of builtin type
         todo_impl;
       }
 
-      assert(left.is_class_or_struct_instance());
+      assert(left.is_class_or_struct_instance() || left.is_enumerator());
 
       this->save();
       this->ctx.in_right_of_member_access = true;

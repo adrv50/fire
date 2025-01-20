@@ -310,9 +310,15 @@ Obj Evaluator::eval_expr(Node* node) {
     }
 
     case ND_MemberAccess: {
-      return this->eval_expr(node->nd_lhs)
-          ->as_instance()
-          ->members[node->nd_member_access_index];
+      auto left = this->eval_expr(node->nd_lhs);
+
+      if (left->ti.is(TypeKind::Instance))
+        return left->as_instance()->members[node->nd_member_access_index];
+
+      else if (left->ti.is(TypeKind::Enumerator))
+        return left->as_enumerator()->data[node->nd_member_access_index];
+
+      todo_impl;
     }
 
     case ND_Subscript: {
@@ -440,6 +446,14 @@ Obj Evaluator::eval_stmt(Node* node) {
         this->eval_block(node->nd_if_else);
 
       break;
+    }
+
+    case ND_Switch:
+      todo_impl;
+
+    case ND_Match: {
+
+      todo_impl;
     }
 
     //

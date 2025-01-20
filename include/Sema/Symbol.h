@@ -58,6 +58,8 @@ struct Symbol {
 
   ScopeContext* scope; // => namespace, enum, struct, class, func
 
+  ScopeContext* enumerator_struct_fields_scope = nullptr;
+
   ScopeContext* get_parent_scope() const;
 
   string get_full_scoped_name() const;

@@ -68,6 +68,8 @@ public:
 
   TypeInfo expect(Node* node, TypeInfo const& type);
 
+  TypeInfo expect_enumerator_type(Node* node);
+
   TypeInfo make_type_from_symbol(Symbol* sym);
 
   TypeInfo operator()(Node* node) {

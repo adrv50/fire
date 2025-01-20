@@ -124,7 +124,7 @@ Node* Parser::p_stmt() {
   else if (this->eat(Kwd::Match)) {
     auto node = Node::new_node(ND_Match, this->cur);
 
-    node->nd_match_cond = this->p_getexpr_rm_block();
+    node->nd_match_cond = this->p_expr();
 
     this->expect_block_open();
 
@@ -132,7 +132,7 @@ Node* Parser::p_stmt() {
       Error(node->tok->prev, "empty match statement is not valid").crash();
     }
 
-    while (!this->match(Punct::BlockBraceClose)) {
+    do {
       auto match_case = Node::new_node(ND_MatchCase, this->cur);
 
       match_case->nd_match_case_cond = this->p_expr();
@@ -143,14 +143,7 @@ Node* Parser::p_stmt() {
 
       node->append(match_case);
 
-      if (this->eat(Punct::Comma))
-        continue;
-
-      if (this->match(Punct::BlockBraceClose))
-        break;
-
-      Error(this->cur, "expected ',' or '}'").crash();
-    }
+    } while (this->eat(Punct::Comma));
 
     this->expect_block_close();
 

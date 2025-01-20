@@ -278,7 +278,7 @@ Node* Parser::p_def_enumerator() {
   if (this->eat_brace_open()) {
 
     // struct members
-    if (this->cur->next->is_punct(Punct::Colon)) {
+    if (this->cur->next&&this->cur->next->is_punct(Punct::Colon)) {
       node->nd_enumerator_is_struct = true;
       node->kind = ND_DefEnumeratorWithStructFields;
 

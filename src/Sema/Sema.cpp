@@ -174,7 +174,9 @@ void Sema::check_stmt(Node* node) {
     }
 
     case ND_Match: {
-      todo_impl;
+      auto cond_type = this->expr_eval.expect_enumerator_type(node->nd_match_cond);
+
+      break;
     }
 
     case ND_Return: {

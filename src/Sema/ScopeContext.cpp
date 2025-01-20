@@ -291,6 +291,20 @@ ScopeContext* ScopeContext::from_enum(Sema& S, Node* node) {
     sym->decl = en;
     sym->name = en->nd_enumerator_name->str;
     sym->scope = scope;
+
+    if (en->is(ND_DefEnumeratorWithStructFields))
+      if (auto st =
+              (sym->enumerator_struct_fields_scope = new ScopeContext(SC_Struct, en)))
+        for ((en->sema_ctx = new NodeContext())->scope = st;
+             auto&& mb : en->nd_enumerator_struct_members) {
+          auto mb_sym = (mb->sym = st->add_symbol(new Symbol(SY_StructMember)));
+
+          mb_sym->decl = mb;
+          mb_sym->name = mb->nd_struct_member_name->str;
+          mb_sym->scope = st;
+        }
+
+    en->sym = sym;
   }
 
   return scope;
