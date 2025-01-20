@@ -27,6 +27,11 @@ struct ExprEvalContext {
 
   bool in_scope_resolution = false;
   ScopeContext* sr_target_scope = nullptr;
+
+  bool in_right_of_member_access = false; // "a.b" --> b
+  Node* mb_ac_node = nullptr;
+  Node* mb_ac_left_node = nullptr;
+  TypeInfo* mb_ac_evaluated_left_type = nullptr;
 };
 
 class Sema;
@@ -276,7 +281,8 @@ private:
   //
   // find_name:
   //   find in scope chain (current to root)
-  size_t find_name(Vec<Symbol*>& out, string const& name, ScopeContext* start = nullptr);
+  size_t find_name(Vec<Symbol*>& out, string const& name, ScopeContext* start = nullptr,
+                   bool once = false);
 };
 
 } // namespace fire::sema

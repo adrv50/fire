@@ -342,12 +342,17 @@ void Sema::handle_type_kind_error(Symbol* sym, Node* nd, const Vec<TypeInfo>& tp
       Error(nd->last_tok->next, "'" + name + "' is not a type name").crash();
   }
 }
-size_t Sema::find_name(Vec<Symbol*>& out, string const& name, ScopeContext* start) {
+size_t Sema::find_name(Vec<Symbol*>& out, string const& name, ScopeContext* start,
+                       bool once) {
   if (!start)
     start = this->cur_scope;
 
   do {
     start->sym_table.find(out, name);
+
+    if (once)
+      goto __last;
+
     start = start->parent;
   } while (start && out.empty());
 
@@ -355,6 +360,7 @@ size_t Sema::find_name(Vec<Symbol*>& out, string const& name, ScopeContext* star
     Builtins::Symbols::find(out, name);
   }
 
+__last:;
   return out.size();
 }
 

@@ -11,6 +11,8 @@ typename Vec<Symbol*>::iterator SymbolTable::end() {
 }
 
 Symbol*& SymbolTable::push(Symbol* sym) {
+  sym->index_in_table = this->symbols.size();
+
   return this->symbols.emplace_back(sym);
 }
 

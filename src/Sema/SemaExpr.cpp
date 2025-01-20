@@ -46,10 +46,29 @@ TypeInfo ExprEval::eval(Node* node) {
 
       string name = id->nd_id_name->str;
 
-      size_t count = S.find_name(candidates, name);
+      ScopeContext* start = nullptr;
+
+      bool flag_mb_ac = this->ctx.in_right_of_member_access;
+
+      if (flag_mb_ac) {
+        auto inst = this->ctx.mb_ac_evaluated_left_type;
+
+        start = (inst->nd_class ? inst->nd_class : inst->nd_struct)->sema_ctx->scope;
+
+        assert(start);
+      }
+
+      size_t count = S.find_name(candidates, name, start, flag_mb_ac);
 
       if (count == 0) {
-        Error(node, "use of undefined name '" + name + "'").crash();
+        Error(node,
+              flag_mb_ac
+                  ? ("couldn't find member or method '" + name + "' in " +
+                     string(this->ctx.mb_ac_evaluated_left_type->nd_struct ? "struct"
+                                                                           : "class") +
+                     " '" + this->ctx.mb_ac_evaluated_left_type->to_string() + "'")
+                  : "use of undefined name '" + name + "'")
+            .crash();
       }
 
       if (count >= 2) {
@@ -125,6 +144,7 @@ TypeInfo ExprEval::eval(Node* node) {
           break;
         }
 
+        case SY_Method:
         case SY_Func: {
           TypeInfo type{TypeKind::Functor};
 
@@ -194,9 +214,29 @@ TypeInfo ExprEval::eval(Node* node) {
           break;
         }
 
+        //
+        // when: this->ctx.in_right_of_member_access
+        case SY_StructMember: {
+          result = this->S.eval_type_ti(sym->decl->nd_struct_member_type);
+
+          this->ctx.mb_ac_node->nd_member_access_index = sym->index_in_table;
+
+          break;
+        }
+
+        case SY_Member: {
+          result = this->S.eval_type_ti(sym->decl->nd_let_type);
+
+          this->ctx.mb_ac_node->nd_member_access_index = sym->index_in_table;
+
+          break;
+        }
+
         default:
           Error(id, "'" + name + "' is not a variable").crash();
       }
+
+      result.sym = sym;
 
       break;
     }
@@ -354,9 +394,17 @@ TypeInfo ExprEval::eval(Node* node) {
         todo_impl;
       }
 
-      assert(left.nd_class);
+      assert(left.is_class_or_struct_instance());
 
-      todo_impl;
+      this->save();
+      this->ctx.in_right_of_member_access = true;
+      this->ctx.mb_ac_node = node;
+      this->ctx.mb_ac_left_node = node->nd_lhs;
+      this->ctx.mb_ac_evaluated_left_type = &left;
+
+      result = this->eval(node->nd_rhs);
+
+      this->restore();
 
       break;
     }
@@ -379,7 +427,7 @@ TypeInfo ExprEval::eval(Node* node) {
       else
         node->nd_callfunc_callee_builtin = functor.ftor_blt;
 
-      this->reset();
+      // this->reset(); // ?
 
       result = functor.tp_args[0];
       break;

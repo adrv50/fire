@@ -54,6 +54,8 @@ struct Symbol {
 
   SymbolTable* parent_table;
 
+  size_t index_in_table = 0;
+
   ScopeContext* scope; // => namespace, enum, struct, class, func
 
   ScopeContext* get_parent_scope() const;

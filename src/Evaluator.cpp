@@ -302,6 +302,16 @@ Obj Evaluator::eval_expr(Node* node) {
       return this->eval_call_func(node, args);
     }
 
+    case ND_MemberAccess: {
+      return this->eval_expr(node->nd_lhs)
+          ->as_instance()
+          ->members[node->nd_member_access_index];
+    }
+
+    case ND_Subscript: {
+      todo_impl;
+    }
+
     //
     // Contruct enumerator with intializers
     //

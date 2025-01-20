@@ -9,6 +9,10 @@ namespace Builtins {
 struct BuiltinFunc;
 }
 
+namespace sema {
+struct Symbol;
+}
+
 enum class TypeKind : u8 {
   Unknown,
 
@@ -42,6 +46,8 @@ struct TypeInfo {
 
   bool is_reference;
   bool is_mutable;
+
+  sema::Symbol* sym = nullptr;
 
   Node* nd_enum = nullptr;
   size_t enumerator_index = 0;

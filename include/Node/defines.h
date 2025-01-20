@@ -57,6 +57,10 @@
 #define nd_callfunc_enum_ctor_index size
 
 //
+// ND_MemberAccess
+#define nd_member_access_index size
+
+//
 // ND_Cast
 #define nd_cast_to_type na
 #define nd_cast_from_expr nb

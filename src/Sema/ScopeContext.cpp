@@ -95,7 +95,7 @@ bool ScopeContext::contains(ScopeContext* child) const {
 Symbol*& ScopeContext::add_symbol(Symbol* sym) {
   sym->parent_table = &this->sym_table;
 
-  return this->sym_table.symbols.emplace_back(sym);
+  return this->sym_table.push(sym);
 }
 
 ScopeContext*& ScopeContext::append(ScopeContext* child) {
