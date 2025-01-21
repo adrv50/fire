@@ -79,9 +79,16 @@ bool TypeInfo::is_template() const {
   return !this->tp_args.empty();
 }
 
+using TK = TypeKind;
 bool TypeInfo::equals(TypeInfo const& ti) const {
-  if (this->kind != ti.kind)
+  if (this->kind != ti.kind) {
+
+    if (this->nd_enum == ti.nd_enum || this->nd_class == ti.nd_class ||
+        this->nd_struct == ti.nd_struct)
+      return true;
+
     return false;
+  }
 
   if (this->nd_enum != ti.nd_enum)
     return false;

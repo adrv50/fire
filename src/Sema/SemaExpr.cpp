@@ -13,6 +13,10 @@ ExprEval::ExprEval(Sema& S)
 
 void ExprEval::save() {
   this->_saves.push_back(this->ctx);
+
+  //  if (this->ctx_patch_counter >= 2)
+  this->reset();
+
   this->ctx_patch_counter = 0;
 }
 
@@ -227,9 +231,9 @@ TypeInfo ExprEval::eval(Node* node) {
 
   TypeInfo& result = node->evaluated_type;
 
-  if (++this->ctx_patch_counter == 2) {
-    this->reset();
-  }
+  // if (++this->ctx_patch_counter == 2) {
+  //   this->reset();
+  // }
 
   switch (node->kind) {
     case ND_Value:
@@ -269,6 +273,14 @@ TypeInfo ExprEval::eval(Node* node) {
       size_t count = S.find_name(candidates, name, start, flag_mb_ac);
 
       if (count == 0) {
+
+        if (this->ctx.allow_undefined_ident) {
+          debug assert(this->ctx.unk_id_replace);
+
+          result = *this->ctx.unk_id_replace;
+          break;
+        }
+
         auto leftp = this->ctx.mb_ac_evaluated_left_type;
 
         Error(node, flag_mb_ac ? ("couldn't find member or method '" + name + "' in " +
@@ -393,34 +405,25 @@ TypeInfo ExprEval::eval(Node* node) {
         }
 
         case SY_Struct: {
+          result = TypeKind::Type;
+          result.nd_struct = sym->decl;
 
-          TypeInfo type{TypeKind::Type};
-
-          type.nd_struct = sym->decl;
-
-          result = type;
           break;
         }
 
         case SY_Class: {
+          result = TypeKind::Type;
+          result.nd_class = sym->decl;
 
-          TypeInfo type{TypeKind::Type};
-
-          type.nd_class = sym->decl;
-
-          result = type;
           break;
         }
 
         case SY_BuiltinFunc: {
-          TypeInfo type = TypeKind::Functor;
+          result = TypeKind::Functor;
+          result.ftor_blt = sym->bfun;
+          result.tp_args = sym->bfun->arg_types;
+          result.tp_args.insert(result.tp_args.begin(), sym->bfun->ret_type);
 
-          type.ftor_blt = sym->bfun;
-
-          type.tp_args = sym->bfun->arg_types;
-          type.tp_args.insert(type.tp_args.begin(), sym->bfun->ret_type);
-
-          result = type;
           break;
         }
 
@@ -442,6 +445,13 @@ TypeInfo ExprEval::eval(Node* node) {
           break;
         }
 
+        case SY_Enum: {
+          result = TypeKind::Type;
+          result.nd_enum = sym->decl;
+
+          break;
+        }
+
         case SY_Enumerator: {
           result = TypeInfo(TypeKind::Enumerator)
                        .set_enum(sym->get_parent_scope()->node, sym->index_in_table);
@@ -453,12 +463,13 @@ TypeInfo ExprEval::eval(Node* node) {
           node->nd_enumerator_enum_node = sym->get_parent_scope()->node;
           node->nd_enumerator_index = sym->index_in_table;
 
-          if (sym->decl->nd_enumerator_is_value) {
-            if (!this->ctx.as_functor) {
-              Error(node->first_tok, "cannot use '" + name + "' without initializer")
-                  .add_note(sym->decl->tok, "declared here")
-                  .crash();
-            }
+          if (!this->ctx.allow_use_enumerator_without_args &&
+              (!this->ctx.as_functor && !this->ctx.left_of_call_ctor_expr) &&
+              (sym->decl->is(ND_DefEnumeratorWithValue) ||
+               sym->decl->is(ND_DefEnumeratorWithStructFields))) {
+            Error(node->first_tok, "cannot use '" + name + "' without initializer")
+                .add_note(sym->decl->tok, "declared here")
+                .crash();
           }
 
           break;
@@ -585,7 +596,29 @@ TypeInfo ExprEval::eval(Node* node) {
 
     case ND_CallFunc: {
 
+      TypeInfo functor;
+      bool functor_evaluated = false;
+
       Vec<TypeInfo> arg_types;
+
+      if (this->ctx.is_match_case_compare) {
+
+        this->save();
+
+        this->ctx.allow_use_enumerator_without_args = true;
+
+        this->ctx.match_stmt_root_cond_type =
+            this->get_saved(1).match_stmt_root_cond_type;
+
+        debug assert(this->ctx.match_stmt_root_cond_type);
+
+        functor =
+            this->expect(node->nd_callfunc_callee, *this->ctx.match_stmt_root_cond_type);
+
+        this->restore();
+
+        todo_impl;
+      }
 
       for (auto&& arg : node->nd_callfunc_args)
         arg_types.push_back(this->eval(arg));
@@ -596,7 +629,10 @@ TypeInfo ExprEval::eval(Node* node) {
       this->ctx.callfunc_nd = node;
       this->ctx.callfunc_args_p = &arg_types;
 
-      TypeInfo functor = this->eval(node->nd_callfunc_callee);
+      // TypeInfo functor = this->eval(node->nd_callfunc_callee);
+
+      if (!functor_evaluated)
+        functor = this->eval(node->nd_callfunc_callee);
 
       this->restore();
 

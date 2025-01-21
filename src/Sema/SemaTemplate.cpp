@@ -4,6 +4,30 @@
 
 namespace fire::sema::templates {
 
+Parameter::Parameter(Node* decl)
+    : name(decl->nd_id_name->str),
+      decl(decl),
+      sym(decl->sym),
+      type(),
+      is_deducted(false) {
+}
+
+size_t ParamList::size() const {
+  return this->params.size();
+}
+
+Parameter& ParamList::operator[](size_t i) {
+  return this->params[i];
+}
+
+Parameter const& ParamList::operator[](size_t i) const {
+  return this->params[i];
+}
+
+Parameter& ParamList::push(Parameter p) {
+  return this->params.emplace_back(std::move(p));
+}
+
 void ParamList::subtitute(Node* id, Vec<TypeInfo> const& args,
                           Vec<TypeInfo> const* callfunc_args, Node* cf_expr) {
 
@@ -79,6 +103,45 @@ Parameter* ParamList::get_param_of_arg(size_t index) {
 
 ParamList::ParamList(DefinitionIR* parent)
     : parent(parent) {
+}
+
+Parameter* DefinitionIR::find_param(string const& name) {
+  for (auto&& p : this->param_list.params)
+    if (p.name == name)
+      return &p;
+
+  return nullptr;
+}
+
+bool DefinitionIR::compare_param_types(ParamList const& params) {
+  if (this->param_list.size() != params.size())
+    return false;
+
+  for (size_t i = 0; i < this->param_list.size(); i++) {
+    auto& self = this->param_list[i];
+    auto& p = params[i];
+
+    if (!self.is_deducted || self.name != p.name)
+      return false;
+
+    if (!self.type.equals(p.type))
+      return false;
+  }
+
+  return true;
+}
+
+DefinitionIR::DefinitionIR(Symbol* definition)
+    : sym(definition),
+      node(definition->decl),
+      param_list(this) {
+}
+
+Instantiated::Instantiated(DefinitionIR* based)
+    : sym(based->sym),
+      node(based->node),
+      based(based),
+      params(based->param_list /* copy */) {
 }
 
 TemplateManager::TemplateManager() {

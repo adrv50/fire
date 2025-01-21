@@ -16,16 +16,6 @@ Sema::Sema(Node* program)
   this->cur_scope = this->root_scope;
 }
 
-ScopeContext* Sema::enter_scope(ScopeContext* scope) {
-  assert(this->cur_scope->contains(scope));
-
-  return this->cur_scope = scope;
-}
-
-void Sema::leave_scope() {
-  this->cur_scope = this->cur_scope->parent;
-}
-
 void Sema::check_all() {
   for (auto&& nd : this->program->nd_block_items) {
     this->check_top_item(nd);
@@ -174,7 +164,18 @@ void Sema::check_stmt(Node* node) {
     }
 
     case ND_Match: {
-      auto cond_type = this->expr_eval.expect_enumerator_type(node->nd_match_cond);
+      auto cond_type = this->expr_eval(node->nd_match_cond);
+
+      for (auto&& m_case : node->nd_match_cases) {
+
+        this->expr_eval.save();
+        this->expr_eval.ctx.is_match_case_compare = true;
+        this->expr_eval.ctx.match_stmt_root_cond_type = &cond_type;
+
+        auto compare = this->expr_eval(m_case->nd_match_case_cond);
+
+        this->expr_eval.restore();
+      }
 
       break;
     }
@@ -347,27 +348,6 @@ void Sema::handle_type_kind_error(Symbol* sym, Node* nd, const Vec<TypeInfo>& tp
     default:
       Error(nd->last_tok->next, "'" + name + "' is not a type name").crash();
   }
-}
-size_t Sema::find_name(Vec<Symbol*>& out, string const& name, ScopeContext* start,
-                       bool once) {
-  if (!start)
-    start = this->cur_scope;
-
-  do {
-    start->sym_table.find(out, name);
-
-    if (once)
-      goto __last;
-
-    start = start->parent;
-  } while (start && out.empty());
-
-  if (out.empty()) {
-    Builtins::Symbols::find(out, name);
-  }
-
-__last:;
-  return out.size();
 }
 
 } // namespace fire::sema
