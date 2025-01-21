@@ -1,0 +1,15 @@
+namespace io::filesystem {
+
+    enum FileOpenMode {
+        Read,
+        Write
+    }
+
+    fn open(path: string, mode: FileOpenMode) -> string {
+        
+        // todo: check 'mode'
+
+        return $open(path);
+    }
+
+}

@@ -12,7 +12,7 @@ using TKkwd = TokenKwdKind;
 //
 // all punctuators or operators
 //
-static constexpr char const* all_punct_list[] = {
+char const* all_punct_list[] = {
     "...", "<<=", ">>=", "[[", "]]", "<<", ">>", "=>", "<=", ">=", "==", "!=", "..",
     "+=",  "-=",  "*=",  "/=", "%=", "&=", "^=", "|=", "&&", "||", "->", "::", "<",
     ">",   "+",   "-",   "/",  "*",  "%",  "=",  ";",  ":",  ",",  ".",  "[",  "]",
@@ -22,7 +22,7 @@ static constexpr char const* all_punct_list[] = {
 //
 // string representation for TokenKind
 //
-static char const* s_kind[] = {
+char const* s_kind[] = {
     "(unknown)", "decimal",   "float",   "hexadecimal", "binary",
     "string",    "character", "boolean", "identifier",  "punctuator",
     "\";\"",     "operator",  "end",
@@ -32,7 +32,7 @@ static char const* s_kind[] = {
 // tok_operators:
 //   pairs of TokenOperatorKind and its string representation
 //
-static constexpr pair<TKop, char const*> tok_operators[] = {
+pair<TKop, char const*> tok_operators[] = {
     {TKop::None, ""},
 
     {TKop::MemberAccess, "."},
@@ -73,12 +73,13 @@ static constexpr pair<TKop, char const*> tok_operators[] = {
     {TKop::DivAssign, "/="},
     {TKop::ModAssign, "%="},
 };
+size_t tok_operators_size = std::size(tok_operators);
 
 //
 //  tok_punctuators:
 //    pairs of TokenPunctKind and its string representation
 //
-static constexpr pair<TKpunct, char const*> tok_punctuators[] = {
+pair<TKpunct, char const*> tok_punctuators[] = {
     {TKpunct::None, ""},
 
     {TKpunct::Comma, ","},
@@ -110,12 +111,13 @@ static constexpr pair<TKpunct, char const*> tok_punctuators[] = {
 
     {TKpunct::Ellipsis, "..."},
 };
+size_t tok_punctuators_size = std::size(tok_punctuators);
 
 //
 // tok_keywords:
 //   pairs of TokenKwdKind and its string representation
 //
-static constexpr pair<TKkwd, char const*> tok_keywords[] = {
+pair<TKkwd, char const*> tok_keywords[] = {
     {TKkwd::None, ""},
 
     {TKkwd::Import, "import"},
@@ -186,6 +188,7 @@ static constexpr pair<TKkwd, char const*> tok_keywords[] = {
     {TKkwd::Dict, "dict"},
     {TKkwd::Functor, "func"},
 };
+size_t tok_keywords_size = std::size(tok_keywords);
 
 string Token::kind_to_str(TokenKind k) {
   return s_kind[static_cast<size_t>(k)];

@@ -1,13 +1,15 @@
 
 #include <iostream>
 
-#include "Debug/alert.h"
+#include "Debug/Debug.h"
 #include "Builtins.h"
 #include "Node/Node.h"
 #include "SourceStorage.h"
 #include "Evaluator.h"
 #include "Repl.h"
 #include "Driver/Driver.h"
+
+#include "Sema/Sema.h"
 
 static constexpr auto help_string = R"(
 usage: fire [options...] ...
@@ -29,6 +31,23 @@ using std::endl;
 
 static Driver* g_instance;
 
+static void test1() {
+
+  using namespace Debug;
+
+  auto node = make_nd_root(
+      {make_nd_func("func", {{"a", make_nd_type("int")}}, make_nd_block({}))});
+
+  try {
+    sema::Sema(node).check_all();
+  }
+  catch (Error const& e) {
+    cout << "in test func(): Error: " << e.get_message() << endl;
+  }
+
+  std::exit(0);
+}
+
 Driver::Driver() {
   Builtins::initialize();
 }
@@ -37,7 +56,10 @@ Driver::~Driver() {
 }
 
 int Driver::main(int argc, char** argv) {
+
   this->opt = parse_arguments(argc, argv);
+
+  test1();
 
   if (this->opt.run_repl) {
     Repl::run();

@@ -98,6 +98,10 @@ public:
       : Error((Token*)nullptr, msg, type) {
   }
 
+  string const& get_message() const {
+    return this->msg;
+  }
+
   Token* get_token() const {
     return this->tok;
   }
