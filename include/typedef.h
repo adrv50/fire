@@ -30,6 +30,8 @@ using std::tuple;
 
 using std::string;
 using std::string_view;
+using std::u16string;
+using std::u16string_view;
 using std::vector;
 
 using std::shared_ptr;

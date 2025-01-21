@@ -68,5 +68,6 @@
         "semaphore": "cpp",
         "stop_token": "cpp",
         "thread": "cpp"
-    }
+    },
+    "discord.enabled": true
 }

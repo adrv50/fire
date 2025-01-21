@@ -44,7 +44,7 @@ static string join_enumerate(string const& str, auto const& v, auto to_str_fn) {
   string s;
 
   for (size_t i = 0; i < v.size(); i++) {
-    s += to_str_fn(i,v[i]);
+    s += to_str_fn(i, v[i]);
 
     if (i + 1 < v.size())
       s += str;
@@ -82,5 +82,12 @@ string format(string const& fmt, Args&&... args) {
 
   return buf;
 }
+
+namespace strings {
+
+string to_utf8(u16string const& s);
+u16string to_utf16(string const& s);
+
+} // namespace strings
 
 } // namespace fire::utils

@@ -8,10 +8,12 @@ TOPDIR		?= 	$(CURDIR)
 
 INCLUDE		:= 	include
 SOURCE		:= 	src \
+				src/Debug \
 				src/Driver \
 				src/Parser \
 				src/Sema \
-				src/Evaluator
+				src/Evaluator \
+				src/Utils
 
 CC			:=	clang
 CXX			:=	clang++
