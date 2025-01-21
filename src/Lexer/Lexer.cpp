@@ -422,7 +422,9 @@ Token* Lexer::lex() {
 
       // Error(cur, "invalid token: '" + string(1, c) + "'").emit().stop();
 
-      throw std::logic_error("invalid token: '" + string(1, c) + "'");
+      Error(Token::make(TokenKind::End, &this->SS, cur, "1", pos),
+            string("invalid token '") + c + "'")
+          .crash();
 
     _found:;
 
