@@ -2,6 +2,7 @@
 #include "Driver/Error.h"
 #include "Builtins.h"
 #include "Sema/Sema.h"
+#include "Debug/Debug.h"
 
 namespace fire::sema {
 

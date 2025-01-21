@@ -15,12 +15,34 @@ struct Color {
     u32 code;
   };
 
+  bool _is_op = false;
+  string _op;
+
   Color(u8 r, u8 g, u8 b, u8 a = 255);
   Color(u32 code);
+  explicit Color(string const& op);
 
   operator string() const;
+
+  static Color Default;
+  static Color Bold;
+  static Color Underline;
+  static Color Unbold;
+
+  static Color Black;
+  static Color Red;
+  static Color Green;
+  static Color Yellow;
+  static Color Blue;
+  static Color Magenta;
+  static Color Cyan;
+  static Color Gray;
+  static Color White;
 };
 
 std::ostream& operator<<(std::ostream&, Color const&);
+
+string operator+(string const&, Color const&);
+string operator+(Color const&, string const&);
 
 } // namespace fire

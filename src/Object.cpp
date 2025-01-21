@@ -1,6 +1,6 @@
-#include "alert.h"
+#include "Debug/alert.h"
 #include "Object.h"
-#include "utf.h"
+#include "Utils.h"
 #include "Utils.h"
 #include "Token/Token.h"
 #include "Node/Node.h"
@@ -236,7 +236,7 @@ string ObjBool::to_string() const {
 }
 
 string ObjChar::to_string() const {
-  return utf::to_utf8(std::u16string{1, this->val});
+  return utils::strings::to_utf8(std::u16string{1, this->val});
 }
 
 string ObjChar::to_string_as_element() const {
@@ -244,7 +244,7 @@ string ObjChar::to_string_as_element() const {
 }
 
 string ObjStr::to_string() const {
-  return utf::to_utf8(this->val);
+  return utils::strings::to_utf8(this->val);
 }
 
 string ObjStr::to_string_as_element() const {
@@ -435,7 +435,7 @@ ObjStr* ObjStr::make(std::u16string const& val) {
 }
 
 ObjStr* ObjStr::make(string const& val) {
-  return make_obj<ObjStr>(utf::to_utf16(val));
+  return make_obj<ObjStr>(utils::strings::to_utf16(val));
 }
 
 ObjVector* ObjVector::make(TypeInfo const& elem_ti, Vec<Obj> const& val) {

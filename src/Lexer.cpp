@@ -1,4 +1,4 @@
-#include "utf.h"
+#include "Utils.h"
 #include "Token/Token.h"
 #include "Lexer.h"
 #include "Driver/Error.h"
@@ -368,7 +368,7 @@ Token* Lexer::lex() {
 
       cur = Token::make(TokenKind::Character, &this->SS, cur, s, _pos);
 
-      auto s16 = utf::to_utf16(s);
+      auto s16 = utils::strings::to_utf16(s);
 
       if (s16.length() != 1)
         Error(cur, "invalid character literal").crash();
@@ -388,7 +388,7 @@ Token* Lexer::lex() {
 
       cur = Token::make(TokenKind::String, &this->SS, cur, s, _pos);
 
-      cur->v_str = utf::to_utf16(s);
+      cur->v_str = utils::strings::to_utf16(s);
     }
 
     //

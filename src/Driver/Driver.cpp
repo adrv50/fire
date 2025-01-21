@@ -1,7 +1,7 @@
 
 #include <iostream>
 
-#include "alert.h"
+#include "Debug/alert.h"
 #include "Builtins.h"
 #include "Node/Node.h"
 #include "SourceStorage.h"

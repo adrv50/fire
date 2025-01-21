@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "alert.h"
+#include "Debug/alert.h"
 
 #include "Token/Token.h"
 #include "Node/Node.h"

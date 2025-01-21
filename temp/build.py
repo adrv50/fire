@@ -7,26 +7,26 @@ import argparse
 
 import concurrent.futures
 
-COL_DEFAULT     = "\033[0m"
-COL_BOLD        = "\033[1m"
+Color::Default     = "\033[0m"
+Color::Bold        = "\033[1m"
 
-COL_BLACK       = "\033[30m"
-COL_RED         = "\033[31m"
-COL_GREEN       = "\033[32m"
-COL_YELLOW      = "\033[33m"
-COL_BLUE        = "\033[34m"
-COL_MAGENTA     = "\033[35m"
-COL_CYAN        = "\033[36;5m"
-COL_WHITE       = "\033[37m"
+Color::Black       = "\033[30m"
+Color::Red         = "\033[31m"
+Color::Green       = "\033[32m"
+Color::Yellow      = "\033[33m"
+Color::Blue        = "\033[34m"
+Color::Magenta     = "\033[35m"
+Color::Cyan        = "\033[36;5m"
+Color::White       = "\033[37m"
 
-COL_BK_BLACK    = "\033[40m"
-COL_BK_RED      = "\033[41m"
-COL_BK_GREEN    = "\033[42m"
-COL_BK_YELLOW   = "\033[43m"
-COL_BK_BLUE     = "\033[44m"
-COL_BK_MAGENTA  = "\033[45m"
-COL_BK_CYAN     = "\033[46;5m"
-COL_BK_WHITE    = "\033[47m"
+Color::Bk_BLACK    = "\033[40m"
+Color::Bk_RED      = "\033[41m"
+Color::Bk_GREEN    = "\033[42m"
+Color::Bk_YELLOW   = "\033[43m"
+Color::Bk_BLUE     = "\033[44m"
+Color::Bk_MAGENTA  = "\033[45m"
+Color::Bk_CYAN     = "\033[46;5m"
+Color::Bk_WHITE    = "\033[47m"
 
 # -------------------------
 
@@ -118,7 +118,7 @@ class Source:
 
         is_cpp = self.ext != 'c'
 
-        print(f"{COL_BOLD}{COL_WHITE}{'CXX ' if is_cpp else 'CC  '} {self.path}{COL_DEFAULT}")
+        print(f"{Color::Bold}{Color::White}{'CXX ' if is_cpp else 'CC  '} {self.path}{Color::Default}")
         
         self.result = subprocess.run(
             f"{'clang++' if is_cpp else 'clang'} -MP -MMD -MF {self.dpath} {self.flags.COMMONFLAGS} {self.flags.CXXFLAGS if is_cpp else self.flags.CFLAGS} -c -o {self.objout} {self.path}",
@@ -130,7 +130,7 @@ class Source:
         self.is_failed = (self.result.returncode != 0)
 
         if self.is_failed:
-            print(COL_BOLD + COL_RED, "failed: ", self.path, COL_DEFAULT)
+            print(Color::Bold + Color::Red, "failed: ", self.path, Color::Default)
 
         return True
 
@@ -212,7 +212,7 @@ class Builder:
         self.flags.COMMONFLAGS  += f" -I{self.flags.INCLUDE} "
 
         if self.is_completed():
-            print(f"'{COL_BOLD}{COL_YELLOW}{self.flags.TARGET}' is up to date.{COL_DEFAULT}")
+            print(f"'{Color::Bold}{Color::Yellow}{self.flags.TARGET}' is up to date.{Color::Default}")
             exit(0)
 
         # Try compile all sources
@@ -234,10 +234,10 @@ class Builder:
             return
 
         xprint(
-            COL_BOLD,
-            COL_RED,
-            f"=== detected {COL_YELLOW}{errcount}{COL_RED} errors ===\n",
-            COL_DEFAULT
+            Color::Bold,
+            Color::Red,
+            f"=== detected {Color::Yellow}{errcount}{Color::Red} errors ===\n",
+            Color::Default
         )
 
         for src in self.sources:
@@ -247,19 +247,19 @@ class Builder:
             border = "=" * 15
             longborder = "=" * (32 + len(src.path))
 
-            xprint(COL_BOLD, COL_WHITE, border, " " + 
-                COL_CYAN + src.path + COL_WHITE + " ", border, COL_DEFAULT)
+            xprint(Color::Bold, Color::White, border, " " + 
+                Color::Cyan + src.path + Color::White + " ", border, Color::Default)
 
             xprint(src.result.stderr)
-            xprint(COL_BOLD, COL_WHITE, longborder, COL_DEFAULT, "\n")
+            xprint(Color::Bold, Color::White, longborder, Color::Default, "\n")
 
         exit(1)
 
 
     # Linking
     def link(self):
-        xprint(COL_BOLD, COL_WHITE, "\nCREATE ",
-            COL_GREEN, self.flags.TARGET, COL_WHITE, " ...", COL_DEFAULT)
+        xprint(Color::Bold, Color::White, "\nCREATE ",
+            Color::Green, self.flags.TARGET, Color::White, " ...", Color::Default)
 
         ld_result = \
             subprocess.run(
@@ -275,13 +275,13 @@ class Builder:
             )
 
         if ld_result.returncode != 0:
-            xprint(COL_BOLD, COL_RED, "\nlink failed:\n", COL_WHITE, "=" * 40, COL_DEFAULT)
+            xprint(Color::Bold, Color::Red, "\nlink failed:\n", Color::White, "=" * 40, Color::Default)
             print(ld_result.stderr)
-            xprint(COL_BOLD, COL_WHITE, "=" * 40, COL_DEFAULT)
+            xprint(Color::Bold, Color::White, "=" * 40, Color::Default)
 
             exit(1)
 #        else:
-#            print(COL_BOLD + COL_WHITE + "\nDone." + COL_DEFAULT)
+#            print(Color::Bold + Color::White + "\nDone." + Color::Default)
 
     def clean_up(self):
         os.system(f"rm -rf {self.flags.WORKDIR_ROOT}")
@@ -314,7 +314,7 @@ class Builder:
 
         self.build()
 
-        print(COL_BOLD + COL_WHITE + "\nDone." + COL_DEFAULT)
+        print(Color::Bold + Color::White + "\nDone." + Color::Default)
 
         return 0
 

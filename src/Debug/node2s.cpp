@@ -2,8 +2,8 @@
 #include "Token/Token.h"
 #include "Node/Node.h"
 #include "Utils.h"
-#include "Node/node2s.h"
-#include "alert.h"
+#include "Debug/node2s.h"
+#include "Debug/Debug.h"
 
 namespace fire {
 

@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "alert.h"
+#include "Debug/alert.h"
 #include "Utils.h"
 
 #include "Token/Token.h"
@@ -35,23 +35,23 @@ Error const& Error::emit() const {
 
   switch (this->type) {
     case ErrorType::Err:
-      cout << COL_BOLD COL_RED << "error: ";
+      cout << Color::Bold << Color::Red << "error: ";
       break;
 
     case ErrorType::Warn:
-      cout << COL_BOLD COL_MAGENTA << "warning: ";
+      cout << Color::Bold << Color::Magenta << "warning: ";
       break;
 
     case ErrorType::Note:
-      cout << COL_BOLD COL_GREEN << "note: ";
+      cout << Color::Bold << Color::Green << "note: ";
       break;
 
     case ErrorType::RunTime:
-      cout << COL_BOLD COL_RED << "runtime error: ";
+      cout << Color::Bold << Color::Red << "runtime error: ";
       break;
   }
 
-  cout << COL_WHITE << this->msg << endl << COL_DEFAULT;
+  cout << Color::White << this->msg << endl << Color::Default;
 
   auto tok = this->tok;
 
@@ -72,16 +72,16 @@ Error const& Error::emit() const {
 
       if (!this->errpos_insert_text.empty())
         lineview.insert((size_t)((i64)(ref->pos_in_line - 1) + (i64)(this->insert_dist)),
-                        COL_GREEN + this->errpos_insert_text + COL_WHITE);
+                        Color::Green + this->errpos_insert_text + Color::White);
 
-      cout << COL_YELLOW "     ---> " << COL_CYAN << ss->get_path() << ":"
+      cout << Color::Yellow << "     ---> " << Color::Cyan << ss->get_path() << ":"
            << ref->line_num << ":" << ref->pos_in_line << endl
-           << COL_YELLOW << "     |" << endl
-           << utils::format("% 4zu | ", ref->line_num) << COL_WHITE << lineview
-           << COL_YELLOW "     |" << COL_RED << string(ref->pos_in_line, ' ') << "^ "
-           << COL_GREEN << this->cursor_text << endl
+           << Color::Yellow << "     |" << endl
+           << utils::format("% 4zu | ", ref->line_num) << Color::White << lineview
+           << Color::Yellow << "     |" << Color::Red << string(ref->pos_in_line, ' ')
+           << "^ " << Color::Green << this->cursor_text << endl
            << endl
-           << COL_DEFAULT;
+           << Color::Default;
     }
   }
 

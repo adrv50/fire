@@ -1,6 +1,5 @@
 #pragma once
 
-#include "alert.h"
 #include "typedef.h"
 
 namespace fire {
@@ -102,11 +101,11 @@ struct TypeInfo {
   bool is_template() const;
 
   bool is_callable() const {
-    debug {
-      if (this->is(TypeKind::Functor)) {
-        assert(this->ftor_node || this->ftor_blt);
-      }
-    };
+    // debug {
+    //   if (this->is(TypeKind::Functor)) {
+    //     assert(this->ftor_node || this->ftor_blt);
+    //   }
+    // };
 
     return this->is(TypeKind::Functor);
   }

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <unordered_map>
 
-#include "alert.h"
+#include "Debug/alert.h"
 #include "Utils.h"
 
 #include "Lexer.h"
@@ -101,8 +101,8 @@ bool SourceStorage::open(string const& path) {
   this->ifs = std::make_unique<std::ifstream>(path);
 
   if (this->ifs->fail()) {
-    std::cout << COL_RED << "fatal error: " << COL_WHITE << "cannot open file '" << path
-              << "'" << COL_DEFAULT << std::endl;
+    std::cout << Color::Red << "fatal error: " << Color::White << "cannot open file '"
+              << path << "'" << Color::Default << std::endl;
 
     std::exit(1);
   }

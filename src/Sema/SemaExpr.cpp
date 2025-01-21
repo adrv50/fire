@@ -3,7 +3,7 @@
 #include "Builtins.h"
 #include "Sema/Sema.h"
 
-#include "Node/node2s.h"
+#include "Debug/Debug.h"
 
 namespace fire::sema {
 
