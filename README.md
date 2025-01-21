@@ -1,21 +1,26 @@
 # Fire: Interpreter Programming Language
 
-Rust の簡易版みたいなものに、C# と C++ の機能を混ぜて、インタプリタにしたような言語。
+Rust, C#, C++ をごちゃ混ぜにしたようなインタプリタ言語です。
+
+# Contribution
+**JOIN [HERE](https://discord.gg/uHycbdVpQp)!**
+デバッグや細かい作業などをしてくれる人、いつでも大歓迎です。
 
 ## Build and Hello World:
-Create source file as `a.flame`
+Create source file as `source.fr`
 ```
 println("Hello, World!");
 ```
 
 build and run.
 ```
-$ ./build.sh -J --run test.fire
+$ make release -j
+$ ./fire source.fr
 ```
 
 (debug-build)
 ```
-$ ./build.sh -Jd
+$ make debug -j
 ```
 
 ## Documents:

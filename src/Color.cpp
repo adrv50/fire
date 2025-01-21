@@ -49,10 +49,10 @@ Color Color::Unbold{"2"};
 Color Color::Black{0, 0, 0};
 Color Color::Red{255, 0, 0};
 Color Color::Green{0, 255, 0};
-Color Color::Yellow{255, 200, 0};
+Color Color::Yellow{255, 255, 0};
 Color Color::Blue{0, 0, 255};
 Color Color::Magenta{200, 0, 200};
-Color Color::Cyan{60, 140, 255};
+Color Color::Cyan{100, 180, 255};
 Color Color::Gray{60, 60, 60};
 Color Color::White{255, 255, 255};
 
