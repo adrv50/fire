@@ -27,4 +27,7 @@ Node* make_nd_scope_resol(Vec<char const*>&& scope_resol);
 Node* make_nd_id(char const* name);
 Node* make_nd_val(Object* obj);
 
+//
+void Test();
+
 } // namespace fire::Debug

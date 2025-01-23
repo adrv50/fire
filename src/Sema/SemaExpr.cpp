@@ -275,10 +275,16 @@ TypeInfo ExprEval::eval(Node* node) {
       if (count == 0) {
 
         if (this->ctx.allow_undefined_ident) {
-          debug assert(this->ctx.unk_id_replace);
+          debug assert(this->ctx.unk_id_replaces.size() >= 1);
 
-          result = *this->ctx.unk_id_replace;
-          break;
+          if (auto it = std::find_if(this->ctx.unk_id_replaces.begin(),
+                                     this->ctx.unk_id_replaces.end(),
+                                     [&node](auto const& p) {
+                                       return p.first == node;
+                                     });
+              it != this->ctx.unk_id_replaces.end()) {
+            return *it->second;
+          }
         }
 
         auto leftp = this->ctx.mb_ac_evaluated_left_type;
@@ -476,7 +482,7 @@ TypeInfo ExprEval::eval(Node* node) {
         }
 
         default:
-          Error(node->first_tok, "'" + name + "' is not a variable").crash();
+          Error(node->first_tok, "expected primary-expression").crash();
       }
 
       result.sym = sym;
@@ -616,6 +622,59 @@ TypeInfo ExprEval::eval(Node* node) {
             this->expect(node->nd_callfunc_callee, *this->ctx.match_stmt_root_cond_type);
 
         this->restore();
+
+        TypeInfo const& root_cond_ti = *this->ctx.match_stmt_root_cond_type;
+
+        debug assert(root_cond_ti.nd_enum);
+        debug assert(root_cond_ti.is(TypeKind::Enumerator));
+
+        // Node* def = this->ctx.match_stmt_root_cond_type->get_enumerator_def();
+        Node* def = functor.get_enumerator_def();
+
+        size_t def_argc = 0;
+
+        if (def_argc != arg_types.size()) {
+          Error(node, "no match count of datas of variant").crash();
+        }
+
+        if (def->is(ND_DefEnumeratorWithValue)) {
+          alert;
+
+          if (node->nd_callfunc_args.size() != 1)
+            Error(node, "no match count of datas of variant").crash();
+
+          TypeInfo def_ti = this->S.eval_type_ti(def->nd_enumerator_val_type);
+
+          this->save();
+          this->ctx.allow_undefined_ident = true;
+          this->ctx.unk_id_replaces = {{node->nd_callfunc_args[0], &def_ti}};
+
+          // for (auto&& arg : node->nd_callfunc_args)
+          //   arg_types.push_back(this->eval(arg));
+
+          debug assert(node->nd_callfunc_args.size() == 1);
+          arg_types = {this->expect_lvalue(node->nd_callfunc_args[0], def_ti)};
+
+          this->restore();
+
+          if (!def_ti.equals(arg_types[0])) {
+            todo_impl;
+          }
+        }
+        else if (def->is(ND_DefEnumeratorWithStructFields)) {
+          alert;
+
+          for (size_t i = 0; i < def_argc; i++) {
+            TypeInfo def_variant_data_type =
+                this->S.eval_type_ti(def->nd_struct_member_type);
+          }
+
+          def_argc = def->nd_enumerator_struct_members.size();
+        }
+        else
+          Error(node->first_tok,
+                "variant '" + root_cond_ti.to_string() + "' does not have a data.")
+              .crash();
 
         todo_impl;
       }

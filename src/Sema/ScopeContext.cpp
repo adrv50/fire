@@ -63,6 +63,7 @@ bool ScopeContext::is_named() const {
 }
 
 bool ScopeContext::get_name(string& out) const {
+  /*
   switch (this->kind) {
     case SC_Function:
       out = this->node->nd_func_name->str;
@@ -83,6 +84,12 @@ bool ScopeContext::get_name(string& out) const {
     case SC_Namespace:
       out = this->node->nd_namespace_name->str;
       return true;
+  }
+  */
+
+  if (this->node->is_named_node()) {
+    out = this->node->get_name();
+    return true;
   }
 
   return false;
@@ -107,15 +114,14 @@ ScopeContext*& ScopeContext::append(ScopeContext* child) {
 }
 
 ScopeContext*& ScopeContext::append_as_symboled_scope(ScopeContext* scope,
-                                                      SymbolKind kind, Node* sym_decl,
-                                                      string const& name) {
+                                                      SymbolKind kind, Node* decl) {
   auto& c = this->childs.emplace_back(scope);
 
   c->parent = this;
 
   auto sym = this->add_symbol(new Symbol(kind, &this->sym_table));
-  sym->decl = sym_decl;
-  sym->name = name;
+  sym->decl = decl;
+  sym->name = scope->node->get_name();
   sym->scope = scope;
 
   c->node->sym = sym;
@@ -154,7 +160,7 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
       case ND_Let: {
         auto& sym = scope->add_symbol(new Symbol(SY_Var));
 
-        sym->name = nd->nd_let_name->str;
+        sym->name = nd->get_name();
         sym->decl = nd;
 
         nd->sema_ctx = new NodeContext();
@@ -173,7 +179,7 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
 
       case ND_Function: {
         auto func = scope->append_as_symboled_scope(ScopeContext::from_function(S, nd),
-                                                    SY_Func, nd, nd->nd_func_name->str);
+                                                    SY_Func, nd);
 
         if (nd->nd_func_is_template) {
           func->add_template_params(nd->nd_func_tplist);
@@ -185,22 +191,19 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
       }
 
       case ND_Enum: {
-        scope->append_as_symboled_scope(ScopeContext::from_enum(S, nd), SY_Enum, nd,
-                                        nd->nd_enum_name->str);
+        scope->append_as_symboled_scope(ScopeContext::from_enum(S, nd), SY_Enum, nd);
 
         break;
       }
 
       case ND_Struct: {
-        scope->append_as_symboled_scope(ScopeContext::from_struct(S, nd), SY_Struct, nd,
-                                        nd->nd_struct_name->str);
+        scope->append_as_symboled_scope(ScopeContext::from_struct(S, nd), SY_Struct, nd);
 
         break;
       }
 
       case ND_Class: {
-        scope->append_as_symboled_scope(ScopeContext::from_class(S, nd), SY_Class, nd,
-                                        nd->nd_class_name->str);
+        scope->append_as_symboled_scope(ScopeContext::from_class(S, nd), SY_Class, nd);
 
         break;
       }
@@ -349,9 +352,9 @@ ScopeContext* ScopeContext::from_class(Sema& S, Node* node) {
   }
 
   for (auto&& method : node->nd_class_methods->list) {
-    auto fn =
-        scope->append_as_symboled_scope(ScopeContext::from_function(S, method, scope),
-                                        SY_Method, method, method->nd_func_name->str);
+    auto fn = scope->append_as_symboled_scope(
+        ScopeContext::from_function(S, method, scope), SY_Method,
+        method /*, method->nd_func_name->str*/);
 
     // auto sym = scope->add_symbol(new Symbol(SY_Method));
     // sym->decl = method;

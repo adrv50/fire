@@ -205,30 +205,16 @@ struct Node {
 
   bool is(NodeKind kind) const;
 
-  bool is_id_or_sr() const {
-    return this->is(ND_Identifier) || this->is(ND_ScopeResol);
-  }
+  bool is_id_or_sr() const;
+  bool is_loop_stmt() const;
 
-  bool is_loop_stmt() const {
-    switch (this->kind) {
-      case ND_Loop:
-      case ND_While:
-      case ND_For:
-      case ND_ForEach:
-      case ND_ForRange:
-        return true;
-    }
-
-    return false;
-  }
+  bool is_named_node() const;
 
   string get_name() const;
 
   Node*& append(Node* node);
 
-  Node* get_enumerator(size_t index) const {
-    return this->nd_enum_enumerators[index];
-  }
+  Node* get_enumerator(size_t index) const;
 
   Node* clone();
 
@@ -238,13 +224,7 @@ struct Node {
 
   static Node* new_value(Token* tok, Object* obj);
 
-  static Node* new_compare(CompareExprKind ck, Token* op, Node* lhs, Node* rhs) {
-    auto nd = Node::new_node(ND_Compare, op, lhs, rhs);
-
-    nd->cmp_kind = ck;
-
-    return nd;
-  }
+  static Node* new_compare(CompareExprKind ck, Token* op, Node* lhs, Node* rhs);
 
   //
   // stop when func() returns true
@@ -254,12 +234,7 @@ struct Node {
   Node(NodeKind kind, Token* tok, Node* lhs, Node* rhs);
   ~Node();
 
-  Node* get_last_id() {
-    if (this->is(ND_Identifier))
-      return this;
-
-    return this->nd_scope_resol_idlist.back();
-  }
+  Node* get_last_id();
 };
 
 } // namespace fire

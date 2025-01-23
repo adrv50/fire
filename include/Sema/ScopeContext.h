@@ -95,7 +95,7 @@ struct ScopeContext {
   ScopeContext*& append(ScopeContext* child);
 
   ScopeContext*& append_as_symboled_scope(ScopeContext* child, SymbolKind kind,
-                                          Node* sym_decl, string const& name);
+                                          Node* decl);
 
   size_t find_scope_if(Vec<ScopeContext*>& out, std::function<bool(ScopeContext*)> pred);
 

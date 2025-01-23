@@ -9,6 +9,37 @@ bool Node::is(NodeKind kind) const {
   return this->kind == kind;
 }
 
+bool Node::is_id_or_sr() const {
+  return this->is(ND_Identifier) || this->is(ND_ScopeResol);
+}
+
+bool Node::is_loop_stmt() const {
+  switch (this->kind) {
+    case ND_Loop:
+    case ND_While:
+    case ND_For:
+    case ND_ForEach:
+    case ND_ForRange:
+      return true;
+  }
+
+  return false;
+}
+
+bool Node::is_named_node() const {
+  switch (this->kind) {
+    case ND_Identifier:
+    case ND_Function:
+    case ND_Enum:
+    case ND_Class:
+    case ND_Struct:
+    case ND_Let:
+      return true;
+  }
+
+  return false;
+}
+
 string Node::get_name() const {
   switch (this->kind) {
     case ND_Identifier:
@@ -26,15 +57,22 @@ string Node::get_name() const {
     case ND_Struct:
       return this->nd_struct_name->str;
 
+    case ND_Let:
+      return this->nd_let_name->str;
+
     default:
       todo_impl;
   }
 
-  return "";
+  throw std::logic_error("get_name() called but node is not named. (or not implemented)");
 }
 
 Node*& Node::append(Node* node) {
   return this->list.emplace_back(node);
+}
+
+Node* Node::get_enumerator(size_t index) const {
+  return this->nd_enum_enumerators[index];
 }
 
 Node* Node::clone() {
@@ -92,6 +130,14 @@ Node* Node::new_value(Token* tok, Object* obj) {
   return new Node(ND_Value, tok, obj);
 }
 
+Node* Node::new_compare(CompareExprKind ck, Token* op, Node* lhs, Node* rhs) {
+  auto nd = Node::new_node(ND_Compare, op, lhs, rhs);
+
+  nd->cmp_kind = ck;
+
+  return nd;
+}
+
 bool Node::walk_node(Node* nd, std::function<bool(Node*&)> const& func) {
   if (!nd)
     return false;
@@ -128,6 +174,13 @@ Node::Node(NodeKind kind, Token* tok, Node* lhs, Node* rhs)
 }
 
 Node::~Node() {
+}
+
+Node* Node::get_last_id() {
+  if (this->is(ND_Identifier))
+    return this;
+
+  return this->nd_scope_resol_idlist.back();
 }
 
 } // namespace fire

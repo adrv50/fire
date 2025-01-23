@@ -28,7 +28,7 @@ struct ExprEvalContext {
   TypeInfo* match_stmt_root_cond_type = nullptr;
 
   bool allow_undefined_ident = false;
-  TypeInfo* unk_id_replace = nullptr;
+  Vec<pair<Node*, TypeInfo*>> unk_id_replaces{};
 
   bool allow_use_enumerator_without_args = false;
 
@@ -40,6 +40,8 @@ struct ExprEvalContext {
   Node* mb_ac_left_node = nullptr;
   TypeInfo* mb_ac_evaluated_left_type = nullptr;
 };
+
+struct ExprEvalResult {};
 
 class Sema;
 class ExprEval {
@@ -76,11 +78,16 @@ public:
 
   TypeInfo expect_enumerator_type(Node* node);
 
+  TypeInfo expect_lvalue(Node* node);
+  TypeInfo expect_lvalue(Node* node, TypeInfo const& _expect);
+
   TypeInfo make_type_from_symbol(Symbol* sym);
 
   TypeInfo operator()(Node* node) {
     return this->eval(node);
   }
+
+  bool is_lvalue(Node* node);
 };
 
 } // namespace fire::sema

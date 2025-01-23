@@ -83,9 +83,12 @@ using TK = TypeKind;
 bool TypeInfo::equals(TypeInfo const& ti) const {
   if (this->kind != ti.kind) {
 
-    if (this->nd_enum == ti.nd_enum || this->nd_class == ti.nd_class ||
-        this->nd_struct == ti.nd_struct)
+    if ((this->nd_enum || this->nd_struct || this->nd_class) &&
+        (this->nd_enum == ti.nd_enum || this->nd_class == ti.nd_class ||
+         this->nd_struct == ti.nd_struct)) {
+      alert;
       return true;
+    }
 
     return false;
   }
@@ -230,6 +233,9 @@ Vec<pair<TypeKind, char const*>> const TypeInfo::get_type_name_map() {
 }
 
 Node* TypeInfo::get_enumerator_def() const {
+  debug assert(this->is(TypeKind::Enumerator) || this->is(TypeKind::Type));
+  debug assert(this->nd_enum);
+
   return this->nd_enum->nd_enum_enumerators[this->enumerator_index];
 }
 
