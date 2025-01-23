@@ -1,4 +1,4 @@
-#include "Debug/alert.h"
+#include "Debug/Debug.h"
 
 #include "TypeInfo.h"
 #include "Object.h"

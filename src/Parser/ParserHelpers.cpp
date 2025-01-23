@@ -1,4 +1,4 @@
-#include "Debug/alert.h"
+#include "Debug/Debug.h"
 #include "Object.h"
 #include "Token/Token.h"
 #include "Node/Node.h"

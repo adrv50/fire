@@ -48,10 +48,16 @@ Color Color::Unbold{"2"};
 
 Color Color::Black{0, 0, 0};
 Color Color::Red{255, 0, 0};
+Color Color::DarkRed{160, 0, 0};
+Color Color::Pink{255, 200, 160};
+Color Color::LightGreen{160, 255, 0};
 Color Color::Green{0, 255, 0};
 Color Color::Yellow{255, 255, 0};
+Color Color::Orange{255, 160, 0};
 Color Color::Blue{0, 0, 255};
+Color Color::DarkBlue{0, 0, 160};
 Color Color::Magenta{200, 0, 200};
+Color Color::Purple{220, 0, 200};
 Color Color::Cyan{100, 180, 255};
 Color Color::Gray{60, 60, 60};
 Color Color::White{255, 255, 255};

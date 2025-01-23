@@ -2,7 +2,7 @@
 #include <iostream>
 #include <unordered_map>
 
-#include "Debug/alert.h"
+#include "Debug/Debug.h"
 #include "Utils.h"
 
 #include "Lexer.h"

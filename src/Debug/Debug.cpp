@@ -1,3 +1,9 @@
+#include <iostream>
+#include <cstdarg>
+#include <cstring>
+#include <cstdlib>
+#include <cstdio>
+
 #include "Debug/Debug.h"
 #include "Token/Token.h"
 
@@ -14,6 +20,18 @@ extern pair<TokenKwdKind, char const*> tok_keywords[];
 } // namespace fire
 
 namespace fire::Debug {
+
+void _alert(char const* file, size_t line, char const* func, char const* fmt, ...) {
+  static char buf[0x100];
+
+  va_list ap;
+  va_start(ap, fmt);
+  vsprintf(buf, fmt, ap);
+  va_end(ap);
+
+  fprintf(stderr, (Color::Green + "\t%s:%zu in %s: %s\n" + Color::Default).c_str(),
+          strrchr(file, '/') + 1, line, func, buf);
+}
 
 static Token* make_tok(string const& str, TokenKind kind = TokenKind::Identifier) {
   Token* tok = Token::make(kind, nullptr, nullptr, str, 0);

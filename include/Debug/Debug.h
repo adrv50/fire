@@ -1,9 +1,57 @@
 #pragma once
 
-#include "alert.h"
+// #include "alert.h"
+
+#include <cassert>
 #include "node2s.h"
 
+#if _FIRE_DEBUG_
+
+  #include "Color.h"
+  #include <sstream>
+
+  #define debug if (1)
+
+  #define alert                                                                          \
+    fire::Debug::_alert(__FILE__, __LINE__, __PRETTY_FUNCTION__,                         \
+                        (Color::Magenta + "alert").c_str())
+
+  #define alertfmt(fmt, args...)                                                         \
+    fire::Debug::_alert(__FILE__, __LINE__, __PRETTY_FUNCTION__,                         \
+                        (Color::Magenta + "alertfmt %s", args).c_str())
+
+  #define alertmsg(coutmsg)                                                              \
+    fire::Debug::_alert(__FILE__, __LINE__, __PRETTY_FUNCTION__,                         \
+                        (Color::Magenta + "alertmsg " + []() -> string {                 \
+                          std::stringstream ss;                                          \
+                          ss << coutmsg << '\n';                                         \
+                          return ss.str();                                               \
+                        }())                                                             \
+                            .c_str())
+
+  #define alertexpr(expr) alertmsg("\"" #expr "\" = " << (expr))
+
+  #define panic (alertmsg("panic!"), std::exit(1))
+
+  #define todo_impl (alertmsg("not implemented"), std::exit(1))
+
+#else
+
+  #define debug if (0)
+
+  #define alert ;
+  #define alertfmt ;
+  #define alertmsg ;
+  #define alertexpr ;
+
+  #define todo_impl                                                                      \
+    (fprintf("\t%s:%zu: not implemented", __FILE__, __LINE__), std::exit(1))
+
+#endif
+
 namespace fire::Debug {
+
+void _alert(char const* file, size_t line, char const* func, char const* fmt, ...);
 
 Node* make_nd_root(Vec<Node*>&& nodes);
 

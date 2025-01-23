@@ -16,12 +16,12 @@ tester
 *.out
 *.elf
 
-test.flame
-test.fire
-test*.*
+/test.flame
+/test.fire
+/test*.*
 
-a.*
-a*.*
+/a.*
+/a*.*
 
 _memo.*
 

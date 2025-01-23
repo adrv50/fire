@@ -1,4 +1,4 @@
-#include "Debug/alert.h"
+#include "Debug/Debug.h"
 #include "Object.h"
 #include "Utils.h"
 #include "Utils.h"
@@ -8,8 +8,7 @@
 namespace fire {
 
 template <std::derived_from<Object> T, typename... Args>
-requires std::constructible_from<T, Args...>
-ObjPtr<T> make_obj(Args&&... args) {
+requires std::constructible_from<T, Args...> ObjPtr<T> make_obj(Args&&... args) {
   return new T(std::forward<Args>(args)...);
 }
 

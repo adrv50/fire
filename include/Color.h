@@ -31,10 +31,16 @@ struct Color {
 
   static Color Black;
   static Color Red;
+  static Color DarkRed;
+  static Color Pink;
+  static Color LightGreen;
   static Color Green;
   static Color Yellow;
+  static Color Orange;
   static Color Blue;
+  static Color DarkBlue;
   static Color Magenta;
+  static Color Purple;
   static Color Cyan;
   static Color Gray;
   static Color White;

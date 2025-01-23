@@ -31,7 +31,7 @@ COMMON		:=	$(OPTI) \
 				-Wno-unused-but-set-variable
 
 CFLAGS		:=	$(COMMON) -std=c17
-CXXFLAGS	:=	$(COMMON) -std=c++20
+CXXFLAGS	:=	$(COMMON) -std=gnu++20
 LDFLAGS		:=
 
 %.o: %.c
