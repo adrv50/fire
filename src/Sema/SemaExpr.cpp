@@ -700,9 +700,18 @@ TypeInfo ExprEval::eval(Node* node) {
         if (functor.is_enumerator()) {
           Node* enumerator_def = functor.get_enumerator_def();
 
-          if (!enumerator_def->is(ND_DefEnumeratorWithValue)) {
+          if (enumerator_def->is(ND_DefEnumerator)) {
             Error(node->nd_callfunc_callee,
                   "enumerator '" + functor.to_string() + "' cannot have value")
+                .crash();
+          }
+          else if (enumerator_def->is(ND_DefEnumeratorWithStructFields)) {
+            string fstr = functor.to_string();
+
+            Error(node->nd_callfunc_callee,
+                  "must use call-constructor-syntax for construct '" + fstr + "'")
+                .add_cursor_text(fstr + "{ ... }")
+                .add_note(Error(enumerator_def->tok, "defined with struct fields here"))
                 .crash();
           }
 
