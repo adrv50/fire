@@ -176,6 +176,8 @@ void Sema::check_stmt(Node* node) {
         auto compare = this->expr_eval(m_case->nd_match_case_cond);
 
         this->expr_eval.restore();
+
+        this->check_stmt(m_case->nd_match_case_body);
       }
 
       break;

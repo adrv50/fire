@@ -16,11 +16,11 @@ struct Color {
   };
 
   bool _is_op = false;
-  string _op;
+  char const* _op;
 
   Color(u8 r, u8 g, u8 b, u8 a = 255);
   Color(u32 code);
-  explicit Color(string const& op);
+  explicit Color(char const* op);
 
   operator string() const;
 
@@ -37,6 +37,7 @@ struct Color {
   static Color Green;
   static Color Yellow;
   static Color Orange;
+  static Color SkyBlue;
   static Color Blue;
   static Color DarkBlue;
   static Color Magenta;

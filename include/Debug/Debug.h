@@ -24,7 +24,7 @@
     fire::Debug::_alert(__FILE__, __LINE__, __PRETTY_FUNCTION__,                         \
                         (Color::Magenta + "alertmsg " + []() -> string {                 \
                           std::stringstream ss;                                          \
-                          ss << coutmsg << '\n';                                         \
+                          ss << Color::White << Color::Bold << coutmsg << '\n';          \
                           return ss.str();                                               \
                         }())                                                             \
                             .c_str())

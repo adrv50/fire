@@ -2,6 +2,8 @@
 #include "Driver/Error.h"
 #include "Sema/Sema.h"
 
+#include "Debug/Debug.h"
+
 namespace fire::sema {
 
 string const& VarInfo::get_name() {
@@ -228,6 +230,20 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
           scope->append(ScopeContext::from_block(S, nd->nd_if_else));
 
         break;
+
+      case ND_Match: {
+
+        todo_impl;
+
+        break;
+      }
+
+      case ND_Loop:
+      case ND_While:
+      case ND_For:
+      case ND_ForEach:
+      case ND_ForRange:
+        todo_impl;
     }
   }
 

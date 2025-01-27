@@ -8,6 +8,8 @@
 #include "ScopeContext.h"
 #include "NodeContext.h"
 
+#include "Driver/Error.h"
+
 namespace fire::sema {
 
 struct ExprEvalContext {
@@ -41,7 +43,14 @@ struct ExprEvalContext {
   TypeInfo* mb_ac_evaluated_left_type = nullptr;
 };
 
-struct ExprEvalResult {};
+struct ExprEvalResult {
+  bool fail;
+  TypeInfo type;
+  ExprEvalContext context;
+  unique_ptr<Error> err;
+
+  ExprEvalResult(TypeInfo const& type, ExprEvalContext const& context);
+};
 
 class Sema;
 class ExprEval {
@@ -68,6 +77,11 @@ class ExprEval {
   TypeInfo handle_construct_enumerator(TypeInfo const& enumerator_ti, Node* node);
   TypeInfo handle_construct_struct(TypeInfo const& struct_ti, Node* node);
   TypeInfo handle_construct_class(TypeInfo const& class_ti, Node* node);
+
+  //
+  // <expr> "=>" { .. }
+  //  ^^^^
+  TypeInfo handle_match_case_cond(Node* node);
 
 public:
   ExprEval(Sema& S);

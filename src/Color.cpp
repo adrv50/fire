@@ -13,7 +13,7 @@ Color::Color(u32 code)
     : code(code) {
 }
 
-Color::Color(string const& op)
+Color::Color(char const* op)
     : _is_op(true),
       _op(op) {
 }
@@ -22,9 +22,9 @@ Color::operator string() const {
   static char buf[100];
 
   if (this->_is_op)
-    return "\033[" + this->_op + 'm';
-
-  sprintf(buf, "\e[38;2;%d;%d;%dm", this->r, this->g, this->b);
+    sprintf(buf, "\033[%sm", this->_op);
+  else
+    sprintf(buf, "\e[38;2;%d;%d;%dm", this->r, this->g, this->b);
 
   return buf;
 }
@@ -54,6 +54,7 @@ Color Color::LightGreen{160, 255, 0};
 Color Color::Green{0, 255, 0};
 Color Color::Yellow{255, 255, 0};
 Color Color::Orange{255, 160, 0};
+Color Color::SkyBlue{100, 180, 255};
 Color Color::Blue{0, 0, 255};
 Color Color::DarkBlue{0, 0, 160};
 Color Color::Magenta{200, 0, 200};
