@@ -233,7 +233,13 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
 
       case ND_Match: {
 
-        todo_impl;
+        auto sc = scope->append(new ScopeContext(SC_Block, nd));
+
+        (sc->node->sema_ctx = new NodeContext())->scope = sc;
+
+        for (auto&& case_stmt : nd->nd_match_cases) {
+          sc->append(ScopeContext::from_block(S, case_stmt->nd_match_case_body));
+        }
 
         break;
       }
@@ -248,6 +254,10 @@ ScopeContext* ScopeContext::from_block(Sema& S, Node* node) {
   }
 
   return scope;
+}
+
+ScopeContext* ScopeContext::from_match(Sema& S, Node* node) {
+  return nullptr;
 }
 
 ScopeContext* ScopeContext::from_function(Sema& S, Node* node,

@@ -105,6 +105,8 @@ struct ScopeContext {
 
   static ScopeContext* from_block(Sema& S, Node* node);
 
+  static ScopeContext* from_match(Sema& S, Node* node);
+
   static ScopeContext* from_function(Sema& S, Node* node,
                                      ScopeContext* parent_class = nullptr);
 
