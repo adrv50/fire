@@ -5,7 +5,7 @@
 namespace fire::sema {
 
 TypeInfo ExprEval::expect_enumerator_type(Node* node) {
-  auto type = this->eval(node);
+  auto type = this->eval(node).type;
 
   if (!type.is_enumerator()) {
     Error(node,
@@ -17,7 +17,7 @@ TypeInfo ExprEval::expect_enumerator_type(Node* node) {
 }
 
 TypeInfo ExprEval::expect_lvalue(Node* node) {
-  auto ti = this->eval(node);
+  auto ti = this->eval(node).type;
 
   if (!this->is_lvalue(node))
     Error(node, "expected lvalue expression").crash();

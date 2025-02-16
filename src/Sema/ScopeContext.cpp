@@ -293,7 +293,6 @@ ScopeContext* ScopeContext::from_function(Sema& S, Node* node,
             node->nd_func_lvar_count++;
 
         scope->func_ctx->let_stmt_sym_ptr_list.emplace_back(nd->sema_ctx->let_sym_ptr);
-
         break;
     }
 

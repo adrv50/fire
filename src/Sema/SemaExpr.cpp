@@ -7,6 +7,20 @@
 
 namespace fire::sema {
 
+ExprEvalResult::ExprEvalResult(TypeInfo const& type, ExprEvalContext const& context)
+    : type(type),
+      context(context) {
+}
+
+ExprEvalResult::ExprEvalResult(TypeKind type)
+    : ExprEvalResult(TypeInfo(type)) {
+}
+
+ExprEvalResult::ExprEvalResult(TypeInfo const& type)
+    : type(type) {
+  this->context = Sema::get_instance()->expr_eval.ctx;
+}
+
 ExprEval::ExprEval(Sema& S)
     : S(S) {
 }
@@ -15,7 +29,7 @@ void ExprEval::save() {
   this->_saves.push_back(this->ctx);
 
   //  if (this->ctx_patch_counter >= 2)
-  this->reset();
+  // this->reset();
 
   this->ctx_patch_counter = 0;
 }
@@ -29,7 +43,7 @@ void ExprEval::reset() {
   this->ctx = {};
 }
 
-TypeInfo ExprEval::eval(Node* node) {
+ExprEvalResult ExprEval::eval(Node* node) {
   if (!node)
     return TypeKind::None;
 
@@ -77,17 +91,54 @@ TypeInfo ExprEval::eval(Node* node) {
 
       if (count == 0) {
 
+        alertmsg(this->ctx.allow_undefined_ident);
+
         if (node->is(ND_Identifier) && this->ctx.allow_undefined_ident) {
           debug assert(this->ctx.unk_id_replaces.size() >= 1);
 
-          if (auto it = std::find_if(this->ctx.unk_id_replaces.begin(),
-                                     this->ctx.unk_id_replaces.end(),
-                                     [&node](auto const& p) {
-                                       return p.first == node;
-                                     });
-              it != this->ctx.unk_id_replaces.end()) {
-            return *it->second;
-          }
+          for (auto&& [_nd, _tp] : this->ctx.unk_id_replaces)
+            if (node == _nd) {
+              alert;
+              result = *_tp;
+
+              auto mch_case_block_scope = this->ctx.match_case_block_scope_for_defvar;
+
+              debug assert(mch_case_block_scope);
+
+              {
+                auto sym = mch_case_block_scope->add_symbol(new Symbol(SY_Var));
+
+                sym->name = name;
+                sym->decl = node;
+
+                debug assert(node->sema_ctx == nullptr);
+                node->sema_ctx = new NodeContext;
+
+                auto var = (node->sema_ctx->let_sym_ptr = sym)->var =
+                    mch_case_block_scope->varlist.append(new VarInfo(sym));
+
+                var->type = *_tp;
+                var->is_type_deducted = true;
+
+                var->offset_in_stack =
+                    this->S.get_cur_func_scope()->node->nd_func_lvar_count++;
+
+                // alertmsg(var->offset_in_stack); // Ok. 25/02/16 16:06
+
+                node->sym = sym;
+              }
+
+              goto _end_eval;
+            }
+
+          // if (auto it = std::find_if(this->ctx.unk_id_replaces.begin(),
+          //                            this->ctx.unk_id_replaces.end(),
+          //                            [&node](auto const& p) {
+          //                              return p.first == node;
+          //                            });
+          //     it != this->ctx.unk_id_replaces.end()) {
+          //   return *it->second;
+          // }
         }
 
         auto leftp = this->ctx.mb_ac_evaluated_left_type;
@@ -185,7 +236,7 @@ TypeInfo ExprEval::eval(Node* node) {
             Vec<TypeInfo> tp_args;
 
             for (auto&& arg : id->nd_id_tp_args)
-              tp_args.emplace_back(this->eval(arg));
+              tp_args.emplace_back(this->eval(arg).type);
 
             auto ir = func_nd->sema_ctx->func->template_ir;
 
@@ -318,7 +369,7 @@ TypeInfo ExprEval::eval(Node* node) {
       }
 
       auto it = node->nd_elements.begin();
-      auto type = this->eval(*it);
+      auto type = this->eval(*it).type;
 
       for (++it; it != node->nd_elements.end(); it++)
         this->expect(*it, type);
@@ -331,7 +382,7 @@ TypeInfo ExprEval::eval(Node* node) {
       TypeInfo type = TypeKind::Tuple;
 
       for (auto&& elem : node->nd_elements)
-        type.append_template_arg(this->eval(elem));
+        type.append_template_arg(this->eval(elem).type);
 
       result = type;
       break;
@@ -340,8 +391,8 @@ TypeInfo ExprEval::eval(Node* node) {
     case ND_Dict: {
       auto it = node->nd_dict_pairs.begin();
 
-      auto key = this->eval((*it)->nd_dict_pair_key);
-      auto val = this->eval((*it)->nd_dict_pair_value);
+      auto key = this->eval((*it)->nd_dict_pair_key).type;
+      auto val = this->eval((*it)->nd_dict_pair_value).type;
 
       for (++it; it != node->nd_dict_pairs.end(); it++) {
         this->expect((*it)->nd_dict_pair_key, key);
@@ -363,8 +414,8 @@ TypeInfo ExprEval::eval(Node* node) {
       todo_impl;
 
     case ND_Subscript: {
-      auto arr = this->eval(node->nd_lhs);
-      auto index = this->eval(node->nd_rhs);
+      auto arr = this->eval(node->nd_lhs).type;
+      auto index = this->eval(node->nd_rhs).type;
 
       if (!index.is(TypeKind::Int))
         Error(node->nd_rhs, "indexer must be integer.").crash();
@@ -381,7 +432,7 @@ TypeInfo ExprEval::eval(Node* node) {
     }
 
     case ND_MemberAccess: {
-      auto left = this->eval(node->nd_lhs);
+      auto left = this->eval(node->nd_lhs).type;
 
       if (!left.is(TypeKind::Instance) && !left.is_enumerator()) {
         // find method of builtin type
@@ -396,74 +447,114 @@ TypeInfo ExprEval::eval(Node* node) {
       this->ctx.mb_ac_left_node = node->nd_lhs;
       this->ctx.mb_ac_evaluated_left_type = &left;
 
-      result = this->eval(node->nd_rhs);
+      result = this->eval(node->nd_rhs).type;
 
       this->restore();
 
       break;
     }
 
+    //
+    // 関数呼び出し式
+    //
     case ND_CallFunc: {
 
+      //
+      // 呼び出し先
+      // もしくは列挙型
       TypeInfo functor;
+
       bool functor_evaluated = false;
 
       Vec<TypeInfo> arg_types;
 
+      //
+      // この関数呼び出し式が match 文の "case <expr>" の expr 部分である場合
+      //  => 列挙子のキャプチャである可能性がある (Kinds::A(num, ...))
       if (this->ctx.is_match_case_compare) {
 
         this->save();
 
+        // 呼び出し先の式が列挙子の名前なので、列挙型を取得するために引数なしを許可する
         this->ctx.allow_use_enumerator_without_args = true;
 
         this->ctx.match_stmt_root_cond_type =
-            this->get_saved(1).match_stmt_root_cond_type;
+            this->get_saved(1).match_stmt_root_cond_type; // フラグ保持: match 文の初期値
 
         debug assert(this->ctx.match_stmt_root_cond_type);
 
+        // 列挙子だけ評価する
         functor =
             this->expect(node->nd_callfunc_callee, *this->ctx.match_stmt_root_cond_type);
 
         this->restore();
 
-        TypeInfo const& root_cond_ti = *this->ctx.match_stmt_root_cond_type;
+        TypeInfo const& root_cond_ti =
+            *this->ctx.match_stmt_root_cond_type; // match 文の初期値の型
 
         debug assert(root_cond_ti.nd_enum);
-        debug assert(root_cond_ti.is(TypeKind::Enumerator));
+        debug assert(root_cond_ti.is(
+            TypeKind::Enumerator)); // アサーション: match 文の初期値の型が 列挙子である
 
         // Node* def = this->ctx.match_stmt_root_cond_type->get_enumerator_def();
         Node* def = functor.get_enumerator_def();
+        // def --> 列挙子が定義されているノード
+        //         => ND_Enumerator{*}
 
         size_t def_argc = 0;
 
+        //
+        // ?
         if (def_argc != arg_types.size()) {
           Error(node, "no match count of datas of variant").crash();
         }
 
+        //
+        // バリアントの定義が変数 1 個だけの場合
         if (def->is(ND_DefEnumeratorWithValue)) {
-          alert;
-
+          // 引数の数が 1 でなければエラー
           if (node->nd_callfunc_args.size() != 1)
             Error(node, "no match count of datas of variant").crash();
 
-          TypeInfo def_ti = this->S.eval_type_ti(def->nd_enumerator_val_type);
+          // バリアントの型を取得
+          TypeInfo variant_type = this->S.eval_type_ti(def->nd_enumerator_val_type);
 
           this->save();
-          this->ctx.allow_undefined_ident = true;
-          this->ctx.unk_id_replaces = {{node->nd_callfunc_args[0], &def_ti}};
+
+          // 引数が識別子
+          //  =>
+          //  存在しないシンボル名である場合、キャプチャ用変数をこの場で定義できるようにする
+          if (auto id_ = node->nd_callfunc_args[0]; id_->is_identifier()) {
+            alert;
+
+            //
+            // フラグ設定
+            this->ctx.allow_undefined_ident = true;
+            this->ctx.unk_id_replaces = {{node->nd_callfunc_args[0], &variant_type}};
+
+            auto matchScope = this->ctx.cur_match_scope;
+
+            debug assert(matchScope != nullptr);
+          }
 
           // for (auto&& arg : node->nd_callfunc_args)
           //   arg_types.push_back(this->eval(arg));
 
-          debug assert(node->nd_callfunc_args.size() == 1);
-          arg_types = {this->expect_lvalue(node->nd_callfunc_args[0], def_ti)};
+          // debug assert(node->nd_callfunc_args.size() == 1);
+
+          // ?
+          // arg_types = {this->expect_lvalue(node->nd_callfunc_args[0], variant_type)};
+
+          arg_types = {this->expect(node->nd_callfunc_args[0], variant_type)};
 
           this->restore();
 
-          if (!def_ti.equals(arg_types[0])) {
+          if (!variant_type.equals(arg_types[0])) {
             todo_impl;
           }
         }
+        //
+        // 構造体フィールドの場合
         else if (def->is(ND_DefEnumeratorWithStructFields)) {
           alert;
 
@@ -479,22 +570,25 @@ TypeInfo ExprEval::eval(Node* node) {
                 "variant '" + root_cond_ti.to_string() + "' does not have a data.")
               .crash();
 
-        return functor;
+        result = functor;
+        goto _end_eval;
       }
 
-      for (auto&& arg : node->nd_callfunc_args)
-        arg_types.push_back(this->eval(arg));
-
       this->save();
-      this->ctx.in_call_func = true;
-      this->ctx.as_functor = true;
-      this->ctx.callfunc_nd = node;
-      this->ctx.callfunc_args_p = &arg_types;
+      this->ctx.in_call_func = false;
+      this->ctx.as_functor = false;
 
-      // TypeInfo functor = this->eval(node->nd_callfunc_callee);
+      for (auto&& arg : node->nd_callfunc_args)
+        arg_types.push_back(this->eval(arg).type);
 
-      if (!functor_evaluated)
-        functor = this->eval(node->nd_callfunc_callee);
+      if (!functor_evaluated) {
+        this->ctx.in_call_func = true;
+        this->ctx.as_functor = true;
+        this->ctx.callfunc_nd = node;
+        this->ctx.callfunc_args_p = &arg_types;
+
+        functor = this->eval(node->nd_callfunc_callee).type;
+      }
 
       this->restore();
 
@@ -572,7 +666,7 @@ TypeInfo ExprEval::eval(Node* node) {
       todo_impl;
 
     case ND_ExprIf: {
-      auto type = this->eval(node->nd_if_then);
+      auto type = this->eval(node->nd_if_then).type;
 
       this->expect(node->nd_if_cond, TypeKind::Bool);
       this->expect(node->nd_if_else, type);
@@ -585,8 +679,8 @@ TypeInfo ExprEval::eval(Node* node) {
 
       assert(node->kind >= ND_Mul && node->kind <= ND_Assign);
 
-      auto lhs = result = this->eval(node->nd_lhs);
-      auto rhs = this->eval(node->nd_rhs);
+      auto lhs = result = this->eval(node->nd_lhs).type;
+      auto rhs = this->eval(node->nd_rhs).type;
 
       if (!lhs.equals(rhs)) {
         Error(node->tok, "cannot use operator for not same type ('" + lhs.to_string() +
@@ -650,13 +744,18 @@ TypeInfo ExprEval::eval(Node* node) {
     }
   }
 
+_end_eval:
   node->_is_type_evaluated = true;
 
-  return result;
+  auto exresult = ExprEvalResult(result);
+
+  exresult.context = this->ctx;
+
+  return exresult;
 }
 
 TypeInfo ExprEval::expect(Node* node, TypeInfo const& type) {
-  if (auto ti = this->eval(node); !ti.equals(type)) {
+  if (auto ti = this->eval(node).type; !ti.equals(type)) {
     Error(node->tok, "expected '" + type.to_string() + "' type expression but found '" +
                          ti.to_string() + "'")
         .crash();

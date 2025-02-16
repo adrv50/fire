@@ -22,9 +22,9 @@
 
   #define alertmsg(coutmsg)                                                              \
     fire::Debug::_alert(__FILE__, __LINE__, __PRETTY_FUNCTION__,                         \
-                        (Color::Magenta + "alertmsg " + []() -> string {                 \
+                        (Color::Magenta + "alertmsg " + [&]() -> string {                \
                           std::stringstream ss;                                          \
-                          ss << Color::White << Color::Bold << coutmsg << '\n';          \
+                          ss << Color::White << Color::Bold << coutmsg;                  \
                           return ss.str();                                               \
                         }())                                                             \
                             .c_str())

@@ -12,13 +12,13 @@
 #include "Templates.h"
 
 namespace fire::sema {
-
 class Sema {
   friend struct Symbol;
   friend struct SymbolTable;
   friend struct ScopeContext;
 
   friend class ExprEval;
+  friend struct ExprEvalResult;
 
   Node* program;
 
@@ -61,6 +61,8 @@ public:
   void handle_type_kind_error(Symbol* sym, Node* nd, const Vec<TypeInfo>& tp_args,
                               const string& name);
 
+  static Sema* get_instance();
+
 private:
   //
   // find_name:
@@ -69,6 +71,8 @@ private:
                    bool once = false);
 
   size_t global_or_namespace_var_offset = 0;
+
+  static Sema* _instance;
 };
 
 } // namespace fire::sema

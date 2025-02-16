@@ -6,11 +6,20 @@
 
 namespace fire::sema {
 
+Sema* Sema::_instance = nullptr;
+
+Sema* Sema::get_instance() {
+  debug assert(_instance != nullptr);
+  return _instance;
+}
+
 Sema::Sema(Node* program)
     : program(program),
       root_scope(nullptr),
       cur_scope(nullptr),
       expr_eval(*this) {
+
+  _instance = this;
 
   this->root_scope = ScopeContext::from_block(*this, program);
 
@@ -165,6 +174,11 @@ void Sema::check_stmt(Node* node) {
     }
 
     case ND_Match: {
+      this->enter_scope(node->sema_ctx->scope);
+
+      this->expr_eval.save();
+      this->expr_eval.ctx.cur_match_scope = this->cur_scope;
+
       auto cond_type = this->expr_eval(node->nd_match_cond);
 
       for (auto&& m_case : node->nd_match_cases) {
@@ -172,6 +186,11 @@ void Sema::check_stmt(Node* node) {
         this->expr_eval.save();
         this->expr_eval.ctx.is_match_case_compare = true;
         this->expr_eval.ctx.match_stmt_root_cond_type = &cond_type;
+        this->expr_eval.ctx.match_case_block_scope_for_defvar =
+            m_case->nd_match_case_body->sema_ctx->scope;
+
+        debug assert(this->expr_eval.ctx.match_case_block_scope_for_defvar->kind ==
+                     SC_Block);
 
         auto compare = this->expr_eval(m_case->nd_match_case_cond);
 
@@ -179,6 +198,10 @@ void Sema::check_stmt(Node* node) {
 
         this->check_stmt(m_case->nd_match_case_body);
       }
+
+      this->expr_eval.restore();
+
+      this->leave_scope();
 
       break;
     }

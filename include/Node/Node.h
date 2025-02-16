@@ -195,6 +195,8 @@ struct Node {
   size_t size = 0;
   size_t size2 = 0;
 
+  bool flag_scope_construct_funclvar_count_add = false;
+
   Builtins::BuiltinFunc const* bfun = nullptr;
 
   fire::sema::NodeContext* sema_ctx = nullptr;
@@ -207,6 +209,10 @@ struct Node {
 
   bool is_id_or_sr() const;
   bool is_loop_stmt() const;
+
+  bool is_identifier() const {
+    return this->is(ND_Identifier);
+  }
 
   bool is_named_node() const;
 

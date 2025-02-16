@@ -13,7 +13,7 @@ TypeInfo ExprEval::handle_call_constructor(Node* node) {
   this->ctx.callctor = node;
   this->ctx.callctor_left = node->nd_callctor_ctor_side;
 
-  auto left = this->eval(node->nd_callctor_ctor_side);
+  auto left = this->eval(node->nd_callctor_ctor_side).type;
 
   this->restore();
 

@@ -29,8 +29,9 @@ void _alert(char const* file, size_t line, char const* func, char const* fmt, ..
   vsprintf(buf, fmt, ap);
   va_end(ap);
 
-  std::cerr << Color::Green << "\t" << (strrchr(file, '/') + 1) << ':' << line << "\n\t"
-            << Color::SkyBlue << func << ":\n\t" << buf << Color::Default << std::endl;
+  std::cerr << Color::Green << "\t" << (strrchr(file, '/') + 1) << ':' << line
+            << Color::Bold << Color::White << "\t" << buf << Color::Default << std::endl;
+  ;
 }
 
 static Token* make_tok(string const& str, TokenKind kind = TokenKind::Identifier) {

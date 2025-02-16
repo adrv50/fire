@@ -13,6 +13,10 @@
 namespace fire::sema {
 
 struct ExprEvalContext {
+  friend class Sema;
+  friend class ExprEval;
+  friend struct ExprEvalResult;
+
   //
   //  関数の中にいる場合は True
   bool in_call_func = false;
@@ -67,12 +71,21 @@ struct ExprEvalContext {
   Node* match_stmt_root_cond_node = nullptr;
 
   //
+  //  match 文のスコープ
+  ScopeContext* cur_match_scope = nullptr;
+
+  //
   //  未定義の識別子の許可フラグ
   bool allow_undefined_ident = false;
 
   //
   //  未定義の識別子の置換リスト
   Vec<pair<Node*, TypeInfo*>> unk_id_replaces{};
+
+  //
+  // match 文の case 文のブロックに当たるスコープ
+  // => キャプチャ変数の定義用
+  ScopeContext* match_case_block_scope_for_defvar = nullptr;
 
   //
   //  列挙子の引数なし呼び出しの許可フラグ
@@ -109,12 +122,16 @@ struct ExprEvalResult {
   ExprEvalContext context;
   unique_ptr<Error> err;
 
-  ExprEvalResult(TypeInfo const& type, ExprEvalContext const& context);
+  ExprEvalResult(TypeKind type);
+  ExprEvalResult(TypeInfo const& type);
+
+  explicit ExprEvalResult(TypeInfo const& type, ExprEvalContext const& context);
 };
 
 class Sema;
 class ExprEval {
   friend class Sema;
+  friend struct ExprEvalResult;
 
   Sema& S;
 
@@ -146,7 +163,7 @@ class ExprEval {
 public:
   ExprEval(Sema& S);
 
-  TypeInfo eval(Node* node);
+  ExprEvalResult eval(Node* node);
 
   TypeInfo expect(Node* node, TypeInfo const& type);
 
@@ -158,7 +175,7 @@ public:
   TypeInfo make_type_from_symbol(Symbol* sym);
 
   TypeInfo operator()(Node* node) {
-    return this->eval(node);
+    return this->eval(node).type;
   }
 
   bool is_lvalue(Node* node);
